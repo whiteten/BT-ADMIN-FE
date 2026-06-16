@@ -17,11 +17,7 @@ import { useCopyAdn, useDeleteAdns, useGetAdnTenants, useGetAdns } from '../../f
 import type { AdnResponse } from '../../features/adn/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/adn' },
-  { title: 'DN관리', path: '/ipron/adn' },
-  { title: 'ADN 설정', path: '/ipron/adn' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ADN', path: '/ipron/adn' }];
 
 export default function AdnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -65,7 +61,11 @@ export default function AdnList() {
   }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
-  const { data: adns = [], isLoading } = useGetAdns({});
+  // dnStatus 는 BE 서버 필터로 전달 (AS-IS SWAT AND A.DN_STATUS=#dnStatus# 대응).
+  // dnStatusFilter 변경 시 쿼리 캐시 키가 달라져 자동 재요청된다.
+  const { data: adns = [], isLoading } = useGetAdns({
+    params: dnStatusFilter ? { dnStatus: dnStatusFilter } : undefined,
+  });
   const { data: tenantStats = [] } = useGetAdnTenants();
 
   // ─── Mutations ──────────────────────────────────────────────────────────
@@ -102,10 +102,7 @@ export default function AdnList() {
     if (selectedTenantId !== null) {
       rows = rows.filter((r) => r.tenantId === selectedTenantId);
     }
-    // AS-IS srchAdnStatus 콤보 필터: '8'=로그인, '9'=로그아웃 (TB_CC_COMMONCODE ADN 코드)
-    if (dnStatusFilter !== null) {
-      rows = rows.filter((r) => r.dnStatus === dnStatusFilter);
-    }
+    // dnStatus 필터는 BE 서버에서 처리 (useGetAdns params로 전달). 클라이언트 재필터 불필요.
     const kw = searchText.trim().toLowerCase();
     if (kw) {
       rows = rows.filter((r) => {
@@ -114,7 +111,7 @@ export default function AdnList() {
       });
     }
     return rows;
-  }, [adns, selectedTenantId, dnStatusFilter, searchText]);
+  }, [adns, selectedTenantId, searchText]);
 
   const totalStats = useMemo(() => {
     let totalCnt = 0;
@@ -335,7 +332,7 @@ export default function AdnList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 ADN 을 선택하세요' : '선택한 ADN 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button onClick={handleCopyOpen} disabled={selectedRows.length !== 1} title={selectedRows.length !== 1 ? 'ADN 1건을 선택하세요' : '선택한 ADN 복사 생성'}>
               복사 생성
@@ -350,7 +347,6 @@ export default function AdnList() {
             rowData={filteredAdns}
             isLoading={isLoading}
             onRowDoubleClicked={handleEdit}
-            onDelete={handleDelete}
             onSelectionChanged={setSelectedRows}
             onBulkDelete={handleBulkDelete}
             selectedCount={selectedRows.length}

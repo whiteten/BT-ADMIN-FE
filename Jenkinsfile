@@ -237,8 +237,25 @@ pipeline {
         }
         always {
             // 빌드 결과 메일 발송 (성공·실패 모두)
+            // 수신자 분기: 성공 → 커밋 작성자만 / 성공 아님(실패·불안정·중단 등) → 담당자 추가
+            script {
+                env.MAIL_RECIPIENTS = (currentBuild.currentResult == 'SUCCESS')
+                    ? "${env.GIT_AUTHOR_EMAIL}"
+                    : "${env.GIT_AUTHOR_EMAIL}, bizboxa_gbridgetec_c1_d104@bridgetec.co.kr"
+
+                // 트리거 주체 판정 (수동 실행 / GitLab Push / 기타)
+                def manualCause = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+                def gitlabCause = currentBuild.getBuildCauses('com.dabsquared.gitlabjenkins.cause.GitLabWebHookCause')
+                if (manualCause) {
+                    env.BUILD_TRIGGER = "수동 실행 (${manualCause[0].userName})"
+                } else if (gitlabCause) {
+                    env.BUILD_TRIGGER = 'GitLab Push'
+                } else {
+                    env.BUILD_TRIGGER = currentBuild.getBuildCauses()[0]?.shortDescription ?: '알 수 없음'
+                }
+            }
             emailext(
-                to: "${env.GIT_AUTHOR_EMAIL}, jryoo@bridgetec.co.kr, bingbang2@bridgetec.co.kr, hojaee@bridgetec.co.kr, akdrhtn@bridgetec.co.kr, sm.yang@bridgetec.co.kr, won5972@bridgetec.co.kr, yun99@bridgetec.co.kr",
+                to: "${env.MAIL_RECIPIENTS}",
                 subject: "[${currentBuild.currentResult}]BT-ADMIN-FE ${env.TAG} (#${env.BUILD_NUMBER})",
                 mimeType: 'text/plain',
                 attachLog: true,
@@ -246,7 +263,11 @@ pipeline {
                     BT-ADMIN FE 빌드 결과 알림
 
                     - 결과      : ${currentBuild.currentResult}
+                    - 트리거    : ${env.BUILD_TRIGGER}
+                    - 소요 시간 : ${currentBuild.durationString.replace(' and counting', '')}
                     - 브랜치    : ${env.TAG}
+                    - 빌드 대상 : ${params.BUILD_TARGETS}
+                    - 캐시 무시 : ${params.SKIP_CACHE}
                     - 커밋      : ${env.GIT_SHORT}
                     - 커밋 메시지 : ${env.GIT_SUBJECT}
                     - 커밋자    : ${env.GIT_AUTHOR}

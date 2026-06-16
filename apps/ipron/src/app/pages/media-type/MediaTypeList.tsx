@@ -7,7 +7,7 @@
  * AS-IS SWAT IPR10S6060 마이그레이션 — 시스템 코드(테넌트 무관)이므로 카드 슬라이더 박스는 생략.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Empty, Modal } from 'antd';
+import { Button, Empty } from 'antd';
 import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -15,13 +15,9 @@ import MediaTypeFormDrawer, { type MediaTypeDrawerState } from '../../features/m
 import MediaTypeTable from '../../features/media-type/components/MediaTypeTable';
 import { useDeleteMediaType, useGetMediaTypeMeta, useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import type { MediaTypeResponse } from '../../features/media-type/types';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '코드 관리', path: '/ipron/media-type' },
-  { title: '미디어 코드 관리', path: '/ipron/media-type' },
-];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '코드 관리' }, { title: '미디어 코드 관리', path: '/ipron/media-type' }];
 
 export default function MediaTypeList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -33,22 +29,13 @@ export default function MediaTypeList() {
 
   const [drawer, setDrawer] = useState<MediaTypeDrawerState>({ open: false });
   const [selectedRows, setSelectedRows] = useState<MediaTypeResponse[]>([]);
+  const modal = useModal();
 
   const { data: rows = [], isLoading, refetch } = useGetMediaTypes();
 
   const { data: meta = [], refetch: refetchMeta } = useGetMediaTypeMeta();
 
-  const { mutate: deleteMt, isPending: isDeleting } = useDeleteMediaType({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('미디어 코드가 삭제되었습니다');
-        setSelectedRows([]);
-        refetch();
-        refetchMeta();
-      },
-      onError: (err: unknown) => toast.error(extractMessage(err) ?? '삭제 실패'),
-    },
-  });
+  const { mutateAsync: deleteMtAsync, isPending: isDeleting } = useDeleteMediaType();
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -64,22 +51,25 @@ export default function MediaTypeList() {
 
   const handleEdit = (row: MediaTypeResponse) => setDrawer({ open: true, mode: 'edit', row });
 
-  const handleDelete = (row: MediaTypeResponse) => {
-    Modal.confirm({
-      title: '미디어 코드 삭제',
-      content: `미디어 코드 "${row.mediaAlias}" (#${row.mediaType}) 를 삭제하시겠습니까?`,
-      okType: 'danger',
-      onOk: () => deleteMt(row.mediaType),
-    });
-  };
-
   const handleBulkDelete = () => {
     if (selectedRows.length === 0) return;
-    Modal.confirm({
-      title: '미디어 코드 일괄 삭제',
-      content: `선택한 ${selectedRows.length}건의 미디어 코드를 삭제하시겠습니까?`,
-      okType: 'danger',
-      onOk: () => selectedRows.forEach((r) => deleteMt(r.mediaType)),
+    modal.confirm.execute({
+      onOk: async () => {
+        try {
+          await Promise.all(selectedRows.map((r) => deleteMtAsync(r.mediaType)));
+          toast.success(`${selectedRows.length}건의 미디어 코드가 삭제되었습니다`);
+        } catch (err: unknown) {
+          toast.error(extractMessage(err) ?? '일부 항목 삭제에 실패했습니다');
+        } finally {
+          setSelectedRows([]);
+          refetch();
+          refetchMeta();
+        }
+      },
+      options: {
+        title: '미디어 코드 삭제',
+        content: `선택한 ${selectedRows.length}건의 미디어 코드를 삭제하시겠습니까?`,
+      },
     });
   };
 
@@ -122,11 +112,9 @@ export default function MediaTypeList() {
       <div className="bg-white bt-shadow overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="flex items-center px-4 h-[56px] border-b border-gray-100">
           <span className="text-sm font-semibold text-gray-800">미디어 코드 목록 ({rows.length.toLocaleString()}건)</span>
-          {selectedRows.length > 0 && (
-            <span className="ml-3 text-xs text-gray-500">
-              {rows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-            </span>
-          )}
+          <span className={`ml-3 text-xs text-gray-500 ${selectedRows.length > 0 ? 'visible' : 'invisible'}`}>
+            {rows.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
               danger
@@ -136,7 +124,7 @@ export default function MediaTypeList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 미디어 코드를 선택하세요' : '선택한 미디어 코드 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => setDrawer({ open: true, mode: 'create' })}>
               등록
@@ -149,15 +137,7 @@ export default function MediaTypeList() {
               <Empty description="등록된 미디어 코드가 없습니다" />
             </div>
           ) : (
-            <MediaTypeTable
-              rowData={rows}
-              isLoading={isLoading}
-              onRowDoubleClicked={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChanged={setSelectedRows}
-              onBulkDelete={handleBulkDelete}
-              selectedCount={selectedRows.length}
-            />
+            <MediaTypeTable rowData={rows} isLoading={isLoading} onRowDoubleClicked={handleEdit} onSelectionChanged={setSelectedRows} />
           )}
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import PanelEChart from './PanelEChart';
 import { PANEL_PALETTE, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle, verticalGradient } from './echartsPanelTheme';
-import { formatTimeKey } from '../../../../utils/timeKeyFormat';
+import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { BarChartOptions, PanelDetail } from '../../../report/types';
@@ -51,8 +51,38 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     if (!xField) return {};
     const dn = (name: string) => displayNameMap.get(name) ?? name;
     const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
-    const categories = data.map((row) => formatTimeKey(row[xField.fieldName]));
+    const xName = xField.fieldName;
+    const rawOf = (row: Record<string, unknown>) => String(row[xName] ?? '');
     const single = yFields.length === 1;
+
+    // ── 카테고리축(원본 키): 조회 기간 전체를 빈 구간 없이 채운다 ──
+    // BE 는 데이터 있는 구간만 row 로 내려주므로, 시간축이면 기간 기준으로 축을 열거하고
+    // 데이터 distinct 키를 병합(안전망)한다. 비시간축은 등장 순서로 중복만 제거.
+    const timeAxis = data.length > 0 && data.every((r) => isTimeKey(rawOf(r)));
+    let catKeys: string[];
+    const enumerated = timeAxis ? enumerateTimeKeys(committedFilter.period.from, committedFilter.period.to, committedFilter.timeUnit, committedFilter.conditions) : null;
+    if (enumerated) {
+      const set = new Set(enumerated);
+      for (const r of data) {
+        const k = rawOf(r);
+        if (k) set.add(k);
+      }
+      catKeys = [...set].sort();
+    } else if (timeAxis) {
+      catKeys = [...new Set(data.map(rawOf))].sort();
+    } else {
+      catKeys = [...new Set(data.map(rawOf))];
+    }
+    const categories = catKeys.map((k) => formatTimeKey(k));
+
+    // 동일 키 중복 행은 측정값 합산
+    const byKey = new Map<string, Record<string, number>>();
+    for (const row of data) {
+      const k = rawOf(row);
+      const cur = byKey.get(k) ?? {};
+      for (const f of yFields) cur[f.fieldName] = (cur[f.fieldName] ?? 0) + Number(row[f.fieldName] ?? 0);
+      byKey.set(k, cur);
+    }
 
     const series = yFields.map((f, i) => {
       const color = paletteAt(i);
@@ -71,7 +101,7 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
           ? { show: true, position: isHorizontal ? 'right' : 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => koNum(Number(p.value ?? 0)) }
           : { show: false },
         markLine: goalLine?.enabled && goalLine.value != null && !isHorizontal ? goalMarkLine(goalLine.value) : undefined,
-        data: data.map((row) => Number(row[f.fieldName] ?? 0)),
+        data: catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
       };
     });
 
@@ -95,7 +125,7 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
       yAxis: isHorizontal ? catAxis : valAxis,
       series,
     };
-  }, [xField, yFields, isDraft, queryResult, isHorizontal, isStacked, showLegend, showDataLabel, goalLine, displayNameMap]);
+  }, [xField, yFields, isDraft, queryResult, committedFilter, isHorizontal, isStacked, showLegend, showDataLabel, goalLine, displayNameMap]);
 
   if (!hasMapping) {
     return (
@@ -113,5 +143,5 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     );
   }
 
-  return <ReactECharts option={option} style={{ height: '100%', width: '100%', minHeight: 160 }} notMerge lazyUpdate />;
+  return <PanelEChart option={option} />;
 }

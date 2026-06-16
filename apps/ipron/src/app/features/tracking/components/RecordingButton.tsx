@@ -75,15 +75,15 @@ export default function RecordingButton({ ucid, userid, canListen, hasStt = fals
 
   // 다중 미디어 → Dropdown
   const items: MenuProps['items'] = [
-    { key: 'VOICE', label: '🎧 음성 녹취', onClick: () => playRecording('VOICE') },
-    ...(hasStt ? [{ key: 'STT', label: '💬 STT 결과', onClick: () => playRecording('STT') }] : []),
-    ...(hasScreen ? [{ key: 'SCREEN', label: '🖥 화면 녹화', onClick: () => playRecording('SCREEN') }] : []),
+    { key: 'VOICE', label: '음성 녹취', onClick: () => playRecording('VOICE') },
+    ...(hasStt ? [{ key: 'STT', label: 'STT 결과', onClick: () => playRecording('STT') }] : []),
+    ...(hasScreen ? [{ key: 'SCREEN', label: '화면 녹화', onClick: () => playRecording('SCREEN') }] : []),
   ];
 
   return (
     <Dropdown menu={{ items }} disabled={!userid}>
       <Button size="small" type="primary" icon={<Headphones className="size-3" />} loading={!!pendingType}>
-        녹취 재생 ▾
+        녹취 재생
       </Button>
     </Dropdown>
   );

@@ -55,7 +55,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
   const { mutate: createMember, isPending: isCreating } = useCreateMember({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('멤버가 등록되었습니다.');
+        toast.success('멤버가 등록되었습니다');
         setVisible(false);
         setEditData(null);
         form.resetFields();
@@ -67,7 +67,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
   const { mutate: updateMember, isPending: isUpdating } = useUpdateMember({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('멤버가 수정되었습니다.');
+        toast.success('멤버가 수정되었습니다');
         setVisible(false);
         setEditData(null);
         form.resetFields();
@@ -102,6 +102,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
   return (
     <Drawer
       title={isEditMode ? '멤버 수정' : '멤버 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => {
         setVisible(false);
@@ -167,7 +168,7 @@ const EndpointMemberDrawer = forwardRef<EndpointMemberDrawerRef, Props>(({ endpt
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="blockYn" label="블럭설정여부" valuePropName="checked">
+            <Form.Item name="blockYn" label="블록설정여부" valuePropName="checked">
               <Switch checkedChildren="설정" unCheckedChildren="해제" />
             </Form.Item>
           </Col>

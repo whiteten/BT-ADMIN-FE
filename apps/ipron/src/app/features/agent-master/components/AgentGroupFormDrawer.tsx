@@ -1,5 +1,5 @@
 /**
- * 상담그룹 등록/수정 우측 슬라이드 Drawer (목업 정합 — agent-master.html "④ 상담그룹 추가/수정 drawer-2").
+ * 상담그룹 등록/수정 우측 슬라이드 Drawer.
  *
  * 트리 액션에서 호출:
  *   - 트리 하단 "+ 최상위 그룹 추가" → mode='create', priorGrpId 없음
@@ -7,10 +7,18 @@
  *   - 노드 [⋮] → 그룹 수정 → mode='edit', groupId=노드ID
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Spin, Tabs } from 'antd';
+import { Button, Col, Drawer, Form, Input, Row, Select, Spin, Tabs } from 'antd';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useCreateAgentGroup, useDeleteAgentGroup, useGetAgentGroupDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgentGroup } from '../hooks/useAgentMasterQueries';
+import {
+  useCreateAgentGroup,
+  useDeleteAgentGroup,
+  useGetAgentGroupDetail,
+  useGetAgentGroupTree,
+  useGetAgentTenants,
+  useGetOscoms,
+  useUpdateAgentGroup,
+} from '../hooks/useAgentMasterQueries';
 import type { AgentGroupCreateRequest, AgentGroupNode, AgentGroupUpdateRequest, AgentMediaMatrix as Matrix } from '../types';
 import AgentMediaCards from './AgentMediaCards';
 import { ACTIVATE_OPTIONS, GRP_ANI_OPTIONS } from '../constants/codes';
@@ -58,6 +66,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
 
   const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({});
+  const { data: oscoms = [] } = useGetOscoms();
   const { data: detail, isLoading: detailLoading } = useGetAgentGroupDetail(isEdit ? groupId : null);
 
   const { mutate: createGroup, isPending: creating } = useCreateAgentGroup({
@@ -138,6 +147,19 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
     ];
   }, [groupTree, selectedTenantId, groupId]);
 
+  // 아웃소싱업체(oscom) 옵션. SWAT 정합: cbCreate("#poOscomId","oscom",...) — 업체 마스터 콤보.
+  // 업체 마스터 엔드포인트(GET /api/ipron/oscoms, useGetOscoms) 결과를 소스로 사용. 라벨은 oscomName(폴백만 `업체 {id}`).
+  // 수정 모드에서 현재 바인딩된 oscomId 가 마스터 목록에 없으면(비활성/삭제 업체) 콤보가 빈칸이 되지 않도록 보강 추가.
+  const oscomOptions = useMemo(() => {
+    const opts = oscoms.map((o) => ({ value: o.oscomId, label: o.oscomName || `업체 ${o.oscomId}` }));
+    const editId = detail?.oscomId;
+    if (isEdit && editId != null && editId > 0 && !opts.some((o) => o.value === editId)) {
+      // detail 응답엔 oscomName 이 없으므로(마스터 목록이 이름 SoT) ID 폴백 라벨만 사용.
+      opts.push({ value: editId, label: `업체 ${editId}` });
+    }
+    return opts;
+  }, [oscoms, detail, isEdit]);
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -195,6 +217,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
       open={open}
       onClose={onClose}
       width={720}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">
@@ -221,7 +244,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
             items={[
               {
                 key: 'basic',
-                label: '① 기본정보',
+                label: '기본정보',
                 children: (
                   <div>
                     <SectionTitle>소속</SectionTitle>
@@ -268,7 +291,7 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
                       </Col>
                       <Col span={12}>
                         <Form.Item label="아웃소싱업체" name="oscomId">
-                          <InputNumber style={{ width: '100%' }} min={0} placeholder="0 = 없음" />
+                          <Select options={oscomOptions} placeholder="업체 선택 (없음=비워두기)" showSearch allowClear optionFilterProp="label" />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
@@ -287,10 +310,10 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
               },
               {
                 key: 'media',
-                label: '② 그룹 기본 미디어 옵션',
+                label: '미디어 옵션',
                 children: (
                   <div>
-                    <div className="text-[12px] text-gray-500 mb-3">상담사 등록 시 "그룹 미디어 옵션 사용" (USE_GRP_MDA_OPT=1) 선택 시 이 값이 상속됩니다.</div>
+                    <div className="text-[12px] text-gray-500 mb-3">상담사 등록 시 "그룹 미디어 옵션 사용"을 선택하면 이 그룹의 미디어 설정값이 상담사에게 상속됩니다.</div>
                     <AgentMediaCards value={matrix} onChange={setMatrix} hideAutoAns />
                   </div>
                 ),

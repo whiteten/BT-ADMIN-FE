@@ -11,15 +11,15 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button, Card, Col, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
-import { Lock } from 'lucide-react';
+import { Lock, Network } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateAdn, useGetAdnDetail, useUpdateAdn } from '../../features/adn/hooks/useAdnQueries';
-import type { AdnCreateRequest, AdnDefaultStateCode, AdnUpdateRequest } from '../../features/adn/types';
-import { ADN_DFT_STATE_OPTIONS, getAdnDftStateName, getDnStatusName } from '../../features/adn/utils/adnEnums';
+import type { AdnCreateRequest, AdnDefaultStateCode, AdnUpdateRequest, ExtAuthtypeCode } from '../../features/adn/types';
+import { ADN_DFT_STATE_OPTIONS, EXT_AUTHTYPE_OPTIONS, getAdnDftStateName, getDnStatusName } from '../../features/adn/utils/adnEnums';
 import { useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 
-const breadcrumb = [{ title: '번호자원관리' }, { title: 'DN관리' }, { title: 'ADN 설정', path: '/ipron/adn' }];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ADN', path: '/ipron/adn' }];
 
 interface AdnFormValues {
   tenantId: number;
@@ -29,6 +29,11 @@ interface AdnFormValues {
   md5Authpwd?: string;
   adnDftState: AdnDefaultStateCode;
   origGrpdnId?: number | null;
+  /** 내선 IP 인증 유형. '1'=고정IP, '2'=동적IP, undefined=해당없음. */
+  extAuthtype?: ExtAuthtypeCode | null;
+  ipv4Address?: string;
+  ipv6Address?: string;
+  extIpUpdate?: number | null;
 }
 
 export default function AdnForm() {
@@ -65,12 +70,17 @@ export default function AdnForm() {
         md5Authpwd: undefined,
         adnDftState: (detail.adnDftState ?? '1') as AdnDefaultStateCode,
         origGrpdnId: detail.origGrpdnId ?? undefined,
+        extAuthtype: (detail.extAuthtype ?? null) as ExtAuthtypeCode | null,
+        ipv4Address: detail.ipv4Address ?? undefined,
+        ipv6Address: detail.ipv6Address ?? undefined,
+        extIpUpdate: detail.extIpUpdate ?? null,
       });
     } else if (!isEditMode) {
       form.setFieldsValue({
         tenantId: defaultTenantId,
         md5Auth: 0,
         adnDftState: '1' as AdnDefaultStateCode,
+        extAuthtype: null,
       });
     }
   }, [form, isEditMode, detail, defaultTenantId]);
@@ -79,6 +89,7 @@ export default function AdnForm() {
   const watchedTenantId = Form.useWatch('tenantId', form);
   const watchedDnNo = Form.useWatch('dnNo', form);
   const watchedAdnDftState = Form.useWatch('adnDftState', form);
+  const watchedExtAuthtype = Form.useWatch('extAuthtype', form) as ExtAuthtypeCode | null | undefined;
 
   const { mutate: createAdn, isPending: isCreating } = useCreateAdn({
     mutationOptions: {
@@ -116,6 +127,10 @@ export default function AdnForm() {
           md5Authpwd: values.md5Authpwd,
           adnDftState: values.adnDftState,
           origGrpdnId: values.origGrpdnId ?? null,
+          extAuthtype: values.extAuthtype ?? null,
+          ipv4Address: values.ipv4Address,
+          ipv6Address: values.ipv6Address,
+          extIpUpdate: values.extIpUpdate ?? null,
         };
         updateAdn({ id: dnId, body });
       } else {
@@ -127,6 +142,10 @@ export default function AdnForm() {
           md5Authpwd: values.md5Authpwd,
           adnDftState: values.adnDftState,
           origGrpdnId: values.origGrpdnId ?? null,
+          extAuthtype: values.extAuthtype ?? null,
+          ipv4Address: values.ipv4Address,
+          ipv6Address: values.ipv6Address,
+          extIpUpdate: values.extIpUpdate ?? null,
         };
         createAdn(body);
       }
@@ -230,6 +249,63 @@ export default function AdnForm() {
                   </Row>
                 )}
               </div>
+
+              {/*
+                내선 IP 인증 (AS-IS IPR20S2023 changeExtAuthType).
+                고정 IP('1') 선택 시 IPv4(+IPv6) 입력 활성·필수, 동적 IP('2') 선택 시 extIpUpdate 토글 활성.
+              */}
+              <div className="mt-4 rounded-md border border-gray-100 bg-gray-50 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Network className="size-4 text-gray-500" />
+                  <span className="text-sm font-semibold text-gray-700">내선 IP 인증</span>
+                </div>
+
+                <Row gutter={16}>
+                  <Col span={12}>
+                    <Form.Item label="인증 유형" name="extAuthtype">
+                      <Select allowClear placeholder="미설정" options={EXT_AUTHTYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                {watchedExtAuthtype === '1' && (
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label="IPv4 주소"
+                        name="ipv4Address"
+                        rules={[
+                          { required: true, message: 'IPv4 주소를 입력하세요' },
+                          { pattern: /^(\d{1,3}\.){3}\d{1,3}$/, message: 'IPv4 형식으로 입력하세요 (예: 192.168.0.10)' },
+                          { max: 40, message: '40자 이내' },
+                        ]}
+                      >
+                        <Input placeholder="예: 192.168.0.10" maxLength={40} />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item label="IPv6 주소 (선택)" name="ipv6Address" rules={[{ max: 200, message: '200자 이내' }]}>
+                        <Input placeholder="예: 2001:db8::1" maxLength={200} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                )}
+
+                {watchedExtAuthtype === '2' && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">IP 갱신 허용 (동적 IP)</span>
+                    <Form.Item
+                      name="extIpUpdate"
+                      valuePropName="checked"
+                      noStyle
+                      getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                      getValueProps={(value: number | null | undefined) => ({ checked: value === 1 })}
+                    >
+                      <Switch />
+                    </Form.Item>
+                  </div>
+                )}
+              </div>
             </Form>
 
             <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
@@ -254,7 +330,7 @@ export default function AdnForm() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">DN 유형</dt>
-                <dd>12 (ADN, 고정)</dd>
+                <dd>ADN (상담 내선)</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">초기 상태</dt>
@@ -269,9 +345,7 @@ export default function AdnForm() {
                 <dd className={md5Auth === 1 ? 'text-blue-600 font-semibold' : 'text-gray-500'}>{md5Auth === 1 ? '설정' : '해제'}</dd>
               </div>
             </dl>
-            <div className="mt-6 text-[12px] text-gray-400 leading-relaxed">
-              ADN 은 TB_IE_DN_MASTER 의 DN_TYPE=12 슬라이스입니다. 등록 시 nodeId/deviceType/dnProfileId 는 모두 0 으로 고정됩니다.
-            </div>
+            <div className="mt-6 text-[12px] text-gray-400 leading-relaxed">등록 시 노드/단말유형/내선프로파일은 기본값으로 설정됩니다.</div>
           </Card>
         </Col>
       </Row>

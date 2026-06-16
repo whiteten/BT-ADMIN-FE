@@ -20,13 +20,13 @@ interface Props {
   onBackToList?: () => void;
 }
 
-const RESULT_BADGE: Record<CallResult, { bg: string; text: string; ring: string; label: string; emoji: string }> = {
-  COMPLETED: { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', label: '정상 종료', emoji: '✅' },
-  ABANDONED: { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', label: '포기', emoji: '🚪' },
-  DISCONNECTED: { bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200', label: '호장애', emoji: '🔴' },
-  IVR_SELF: { bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-200', label: 'IVR 자가해결', emoji: '📞' },
-  TRANSFERRED: { bg: 'bg-purple-50', text: 'text-purple-700', ring: 'ring-purple-200', label: '호 전환', emoji: '🔀' },
-  NO_ANSWER: { bg: 'bg-gray-100', text: 'text-gray-600', ring: 'ring-gray-200', label: '미응답', emoji: '🔇' },
+const RESULT_BADGE: Record<CallResult, { bg: string; text: string; ring: string; label: string }> = {
+  COMPLETED: { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', label: '정상 종료' },
+  ABANDONED: { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', label: '포기' },
+  DISCONNECTED: { bg: 'bg-red-50', text: 'text-red-700', ring: 'ring-red-200', label: '호장애' },
+  IVR_SELF: { bg: 'bg-blue-50', text: 'text-blue-700', ring: 'ring-blue-200', label: 'IVR 자가해결' },
+  TRANSFERRED: { bg: 'bg-purple-50', text: 'text-purple-700', ring: 'ring-purple-200', label: '호 전환' },
+  NO_ANSWER: { bg: 'bg-gray-100', text: 'text-gray-600', ring: 'ring-gray-200', label: '미응답' },
 };
 
 const fmtDateTime = (iso: string | null): string => {
@@ -86,7 +86,6 @@ export default function CallSummaryHeader({ header, canRequestUnmask = false, on
 
             {badge && (
               <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full inline-flex items-center gap-1.5 ring-1 ring-inset ${badge.bg} ${badge.text} ${badge.ring}`}>
-                <span aria-hidden>{badge.emoji}</span>
                 <span>{badge.label}</span>
               </span>
             )}

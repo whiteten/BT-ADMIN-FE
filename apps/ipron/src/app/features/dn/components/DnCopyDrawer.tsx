@@ -87,13 +87,13 @@ export default function DnCopyDrawer({ open, source, onCancel, onSuccess }: DnCo
     if (!source || blocked || pending) return;
     const v = await form.validateFields();
     if (v.startNo.length !== v.endNo.length) {
-      toast.error('시작 번호와 끝 번호의 자릿수가 같아야 합니다.');
+      toast.error('시작 번호와 끝 번호의 자릿수가 같아야 합니다');
       return;
     }
     const s = Number(v.startNo);
     const e = Number(v.endNo);
     if (s > e) {
-      toast.error('끝 번호는 시작 번호보다 커야 합니다.');
+      toast.error('끝 번호는 시작 번호보다 커야 합니다');
       return;
     }
     const pad = v.startNo.length;
@@ -157,7 +157,7 @@ export default function DnCopyDrawer({ open, source, onCancel, onSuccess }: DnCo
       width={520}
       placement="right"
       maskClosable={!pending}
-      closable={!pending}
+      closable={{ placement: 'end', disabled: pending }}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={handleClose} disabled={pending && cancelRef.current}>

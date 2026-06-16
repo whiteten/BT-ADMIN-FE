@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { fmtCount, fmtDuration, toNum } from '../helpers';
+import { fmtCount, fmtDuration, serviceLevelOf, toNum } from '../helpers';
 import { SEVERITY_META } from '../statusMap';
 import type { CtiqRow, CtiqSeverity } from '../types';
 
@@ -17,8 +17,7 @@ function CtiqSmallCardImpl({ row, sev }: CtiqSmallCardProps) {
   const meta = SEVERITY_META[sev];
   const pulse = sev === 'danger' ? 'animate-pulse' : '';
   const wait = toNum(row.RTS_WAIT_CNT) ?? 0;
-  const sla = toNum(row.KPI_SVCLEVEL);
-  const slaPct = sla != null ? sla * 100 : null;
+  const slaPct = serviceLevelOf(row) * 100;
 
   return (
     <div className={`relative bg-white border ${meta.cardBorder} rounded-sm p-2 [content-visibility:auto] [contain-intrinsic-size:90px]`}>
@@ -35,7 +34,7 @@ function CtiqSmallCardImpl({ row, sev }: CtiqSmallCardProps) {
         </div>
         <div className="text-right">
           <div className="text-[9px] uppercase tracking-wide text-gray-500 leading-none">SLA</div>
-          <div className="font-mono text-[12px] leading-tight text-gray-700">{slaPct == null ? '—' : `${slaPct.toFixed(0)}%`}</div>
+          <div className="font-mono text-[12px] leading-tight text-gray-700">{`${slaPct.toFixed(0)}%`}</div>
         </div>
       </div>
       <div className="mt-1 text-[10px] text-gray-500 flex items-center justify-between">

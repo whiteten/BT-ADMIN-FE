@@ -98,4 +98,14 @@ export const mentFileApi = {
     const response = await apiClient.get<ApiResponse<{ value: MentFileHistoryRow[] }>>('/ivr-mentfile-history', { params });
     return response.data?.data?.value ?? [];
   },
+
+  /**
+   * 멘트 원본 파일 다운로드 (Blob). 시나리오 download 와 동일 패턴.
+   *  @flow ivr-mentfile-download
+   */
+  downloadMentFile: async (params: Record<string, unknown>) => {
+    // silent: 에러는 훅에서 blob 본문 파싱해 직접 토스트 (전역 핸들러가 blob message 못 읽음)
+    const response = await apiClient.get<Blob>('/ivr-mentfile-download', { params, responseType: 'blob', silent: true });
+    return response;
+  },
 };

@@ -7,6 +7,7 @@ import { toast } from '@/shared-util';
 import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
 import { useQuerySelectorsLoader } from './hooks/useQuerySelectorsLoader';
 import { useRemoteRoutesLoader } from './hooks/useRemoteRoutesLoader';
+import { useSiteCustomLoader } from './hooks/useSiteCustomLoader';
 import { useGetUserInfo, useGetWsTicket } from '../auth/hooks/useAuthQueries';
 import { useGetNavigation } from '../common/hooks/useNavigationQueries';
 import { useSessionSocket } from '../common/hooks/useSessionSocket';
@@ -26,6 +27,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   const { load: loadRemoteRoutes } = useRemoteRoutesLoader();
   const { load: loadPageVariantManifest } = usePageVariantManifestLoader();
   const { load: loadQuerySelectors } = useQuerySelectorsLoader();
+  const { load: loadSiteCustom } = useSiteCustomLoader();
   usePageVariantsLoader();
 
   const handleWsClose = () => {
@@ -76,6 +78,10 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   useEffect(() => {
     loadQuerySelectors();
   }, [loadQuerySelectors]);
+
+  useEffect(() => {
+    loadSiteCustom();
+  }, [loadSiteCustom]);
 
   useEffect(() => {
     setIsLoading(isUserInfoLoading);

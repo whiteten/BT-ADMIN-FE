@@ -15,11 +15,7 @@ import { deviceHistoryApi } from '../../features/device/api/deviceHistoryApi';
 import type { DevHistoryResponse, DevHistorySearchParams } from '../../features/device/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/dn' },
-  { title: '단말관리', path: '/ipron/device' },
-  { title: '단말기 이력 조회', path: '/ipron/device/history' },
-];
+const breadcrumb = [{ title: '단말관리' }, { title: '단말기 이력 조회', path: '/ipron/device/history' }];
 
 interface SearchForm {
   dateRange?: [import('dayjs').Dayjs | null, import('dayjs').Dayjs | null];
@@ -155,13 +151,24 @@ export default function DeviceHistoryList() {
   // ─── Column Defs ─────────────────────────────────────────────────────────────
   const columnDefs: ColDef<DevHistoryResponse>[] = useMemo(
     () => [
-      { field: 'mdfyTime', headerName: '변경일시', flex: 1.3, minWidth: 155 },
-      { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140 },
+      {
+        field: 'mdfyTime',
+        headerName: '변경일시',
+        flex: 1.3,
+        minWidth: 155,
+        valueFormatter: (p) =>
+          p.value
+            ? String(p.value)
+                .replace('T', ' ')
+                .replace(/\.\d+$/, '')
+            : '-',
+      },
+      { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140, tooltipField: 'macAddr' },
       { field: 'dnNo', headerName: '대표DN', flex: 0.8, minWidth: 100 },
-      { field: 'ieUsername', headerName: '사용자명', flex: 1, minWidth: 110 },
+      { field: 'ieUsername', headerName: '사용자명', flex: 1, minWidth: 110, tooltipField: 'ieUsername' },
       { field: 'devStatusName', headerName: '사용상태', flex: 0.8, minWidth: 90 },
       { field: 'changeCodeName', headerName: '변경사유', flex: 0.9, minWidth: 100 },
-      { field: 'changeDesc', headerName: '변경설명', flex: 2, minWidth: 180 },
+      { field: 'changeDesc', headerName: '변경설명', flex: 2, minWidth: 180, tooltipField: 'changeDesc' },
     ],
     [],
   );
@@ -187,7 +194,7 @@ export default function DeviceHistoryList() {
                 <Form.Item name="startDn" noStyle>
                   <Input placeholder="시작" style={{ width: 90 }} />
                 </Form.Item>
-                <Input placeholder="~" disabled style={{ width: 36, textAlign: 'center', background: '#fafafa' }} />
+                <Input placeholder="-" disabled style={{ width: 36, textAlign: 'center', background: '#fafafa' }} />
                 <Form.Item name="endDn" noStyle>
                   <Input placeholder="종료" style={{ width: 90 }} />
                 </Form.Item>
@@ -220,7 +227,7 @@ export default function DeviceHistoryList() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 ag-theme-quartz" style={{ width: '100%', height: '100%' }}>
+        <div className="flex-1 min-h-0" style={{ width: '100%', height: '100%' }}>
           <AgGridReact<DevHistoryResponse>
             ref={gridRef}
             columnDefs={columnDefs}

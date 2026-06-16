@@ -6,12 +6,13 @@
  *   - 그리드 행 더블클릭 / [수정] 아이콘 → mode='edit', agentId 전달
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, Row, Select, Spin, Tabs } from 'antd';
+import { Button, Col, Drawer, Form, Input, Radio, Row, Select, Spin, Tabs } from 'antd';
 import { toast } from '@/shared-util';
 import { useGetAvailableSkillsets } from '../../skill-assign/hooks/useSkillAssignQueries';
-import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
-import { useCreateAgent, useGetAgentConfig, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgent } from '../hooks/useAgentMasterQueries';
-import type { AgentCreateRequest, AgentGroupNode, AgentUpdateRequest } from '../types';
+import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_MDA_OPT_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
+import { useCreateAgent, useGetAgentConfig, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTenants, useGetOscoms, useUpdateAgent } from '../hooks/useAgentMasterQueries';
+import type { AgentCreateRequest, AgentGroupNode, AgentMediaMatrix, AgentUpdateRequest } from '../types';
+import AgentMediaCards from './AgentMediaCards';
 
 interface FormValues {
   tenantId?: number;
@@ -29,6 +30,7 @@ interface FormValues {
   masterCtiqId?: number;
   monitorSvc?: number;
   coachingSvc?: number;
+  useGrpMdaOpt?: number;
 }
 
 interface AgentMasterFormDrawerProps {
@@ -57,6 +59,8 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
 
   const [form] = Form.useForm<FormValues>();
   const [selectedTenantId, setSelectedTenantId] = useState<number | undefined>();
+  // 미디어 매트릭스 — antd Form.Item 밖에서 별도 state 로 관리 (AgentMediaCards controlled)
+  const [mediaMatrix, setMediaMatrix] = useState<AgentMediaMatrix | null>(null);
 
   const { data: agentConfig } = useGetAgentConfig();
   // passwordValidationRequired 기본값 true — 설정 로드 전에도 필수로 동작
@@ -65,6 +69,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({});
   const { data: detail, isLoading: detailLoading } = useGetAgentDetail(isEdit ? agentId : null);
+  const { data: oscoms = [] } = useGetOscoms();
 
   const { mutate: createAgent, isPending: creating } = useCreateAgent({
     mutationOptions: {
@@ -94,6 +99,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   useEffect(() => {
     if (!open) return;
     form.resetFields();
+    setMediaMatrix(null);
     if (isEdit && detail) {
       form.setFieldsValue({
         tenantId: detail.tenantId,
@@ -106,16 +112,19 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         oscomId: detail.oscomId ?? undefined,
         activateYn: detail.activateYn ?? 1,
         retireYn: detail.retireYn ?? 0,
+        useGrpMdaOpt: detail.useGrpMdaOpt ?? 0,
         useGrpSkill: detail.useGrpSkill ?? 0,
         masterCtiqId: detail.masterCtiqId ?? 0,
         monitorSvc: detail.monitorSvc ?? 0,
         coachingSvc: detail.coachingSvc ?? 0,
       });
       setSelectedTenantId(detail.tenantId);
+      setMediaMatrix(detail.mediaMatrix ?? null);
     } else if (!isEdit) {
       const init: FormValues = {
         activateYn: 1,
         retireYn: 0,
+        useGrpMdaOpt: 0,
         useGrpSkill: 0,
         masterCtiqId: 0,
         monitorSvc: 0,
@@ -153,6 +162,18 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
     }));
   }, [groupTree, selectedTenantId]);
 
+  // 아웃소싱업체 콤보 옵션 (AgentGroupFormDrawer 패턴 정합 — 수정 시 기존 ID 폴백 포함)
+  const oscomOptions = useMemo(() => {
+    const opts = oscoms.map((o) => ({ value: o.oscomId, label: o.oscomName || `업체 ${o.oscomId}` }));
+    if (isEdit && detail?.oscomId != null) {
+      const editId = detail.oscomId;
+      if (!opts.some((o) => o.value === editId)) {
+        opts.push({ value: editId, label: `업체 ${editId}` });
+      }
+    }
+    return opts;
+  }, [oscoms, isEdit, detail]);
+
   // 주 업무 스킬(MASTER_CTIQ_ID) — 선택 테넌트의 스킬셋 풀을 재사용(skill-assign 종단)
   const { data: skillsets = [] } = useGetAvailableSkillsets({
     params: { tenantId: selectedTenantId },
@@ -164,6 +185,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      const useGrpMdaOpt = values.useGrpMdaOpt ?? 0;
       if (isEdit && agentId) {
         const body: AgentUpdateRequest = {
           groupId: values.groupId!,
@@ -175,10 +197,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           oscomId: values.oscomId,
           activateYn: values.activateYn,
           retireYn: values.retireYn,
+          useGrpMdaOpt,
           useGrpSkill: values.useGrpSkill,
           masterCtiqId: values.masterCtiqId,
           monitorSvc: values.monitorSvc,
           coachingSvc: values.coachingSvc,
+          mediaMatrix: useGrpMdaOpt === 0 ? mediaMatrix : null,
         };
         updateAgent({ id: agentId, body });
       } else {
@@ -195,10 +219,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           oscomId: values.oscomId,
           activateYn: values.activateYn,
           retireYn: values.retireYn,
+          useGrpMdaOpt,
           useGrpSkill: values.useGrpSkill,
           masterCtiqId: values.masterCtiqId,
           monitorSvc: values.monitorSvc,
           coachingSvc: values.coachingSvc,
+          mediaMatrix: useGrpMdaOpt === 0 ? mediaMatrix : null,
         };
         createAgent(body);
       }
@@ -215,6 +241,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
       open={open}
       onClose={onClose}
       width={840}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">
@@ -236,7 +263,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
             items={[
               {
                 key: 'basic',
-                label: '① 기본정보',
+                label: '기본정보',
                 children: (
                   <div>
                     <SectionTitle>소속</SectionTitle>
@@ -311,6 +338,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                         </Form.Item>
                       </Col>
                       <Col span={12}>
+                        {/* agent-003: SWAT IPR20S4010 oscomId 콤보 정합 — 그룹 선택 시 자동채움, 직접 변경도 허용 */}
+                        <Form.Item label="아웃소싱업체" name="oscomId">
+                          <Select options={oscomOptions} placeholder="업체 선택 (없음=비워두기)" showSearch allowClear optionFilterProp="label" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
                         <Form.Item label="주 업무 스킬" name="masterCtiqId">
                           <Select
                             options={masterSkillOptions}
@@ -326,13 +359,14 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     <SectionTitle>상태</SectionTitle>
                     <Row gutter={16}>
                       <Col span={12}>
+                        {/* agent-004: SWAT radio 정합 — Select 에서 Radio 로 변환 */}
                         <Form.Item label="활성화" name="activateYn" rules={[{ required: true }]}>
-                          <Select options={ACTIVATE_OPTIONS} />
+                          <Radio.Group options={ACTIVATE_OPTIONS} />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
                         <Form.Item label="퇴사 여부" name="retireYn">
-                          <Select options={RETIRE_OPTIONS} />
+                          <Radio.Group options={RETIRE_OPTIONS} />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -376,8 +410,36 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                 ),
               },
               {
+                key: 'media',
+                label: '미디어 옵션',
+                children: (
+                  <div>
+                    <SectionTitle>미디어 옵션 방식</SectionTitle>
+                    {/* SWAT IPR20S4010 L2922-2930 정합: 개별/그룹 라디오 */}
+                    <Form.Item name="useGrpMdaOpt">
+                      <Radio.Group options={USE_GRP_MDA_OPT_OPTIONS} />
+                    </Form.Item>
+                    <Form.Item noStyle dependencies={['useGrpMdaOpt']}>
+                      {({ getFieldValue }) => {
+                        const useGrp = getFieldValue('useGrpMdaOpt') === 1;
+                        return (
+                          <>
+                            {useGrp && (
+                              <div className="text-sm text-gray-500 mb-4 bg-gray-50 border border-gray-200 rounded px-3 py-2">
+                                그룹 미디어 옵션을 사용합니다. 소속 상담그룹의 미디어 설정이 적용됩니다.
+                              </div>
+                            )}
+                            <AgentMediaCards value={mediaMatrix} onChange={setMediaMatrix} disabled={useGrp} />
+                          </>
+                        );
+                      }}
+                    </Form.Item>
+                  </div>
+                ),
+              },
+              {
                 key: 'cti',
-                label: '② CTI 옵션',
+                label: 'CTI 옵션',
                 // SWAT IPR20S4010 L769-775 정합: 신규 등록 모드에서는 최초 저장 전까지 CTI 탭 비활성
                 disabled: !isEdit,
                 children: (
@@ -386,12 +448,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     <Row gutter={16}>
                       <Col span={12}>
                         <Form.Item label="노드">
-                          <ReadOnly text={detail?.nodeName ?? '(자동 배정)'} hint="NODE_ID — 테넌트 소속 노드 자동" />
+                          <ReadOnly text={detail?.nodeName ?? '(자동 배정)'} hint="테넌트 소속 노드에 자동 배정됩니다" />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
                         <Form.Item label="DR 노드">
-                          <ReadOnly text={detail?.backUpNodeName ?? '(미사용)'} hint="BACK_UP_NODE_ID — 자동 배정" />
+                          <ReadOnly text={detail?.backUpNodeName ?? '(미사용)'} hint="DR(이중화) 노드에 자동 배정됩니다" />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -400,7 +462,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     <Row gutter={16}>
                       <Col span={24}>
                         <Form.Item label="PBX 로그인 ID">
-                          <ReadOnly text={detail?.pbxLoginId ?? '— 미할당'} hint='자동 채번은 "상담사 ADN 설정" 화면에서 진행 (후속 PR)' />
+                          <ReadOnly text={detail?.pbxLoginId ?? '— 미할당'} hint='"상담사 ADN 설정" 화면에서 자동 채번할 수 있습니다' />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -408,16 +470,23 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     <SectionTitle>운영</SectionTitle>
                     <Row gutter={16}>
                       <Col span={12}>
+                        {/* agent-004: SWAT radio 정합 */}
                         <Form.Item label="감청 사용" name="monitorSvc">
-                          <Select options={ON_OFF_OPTIONS} />
+                          <Radio.Group options={ON_OFF_OPTIONS} />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
                         <Form.Item label="코칭 사용" name="coachingSvc">
-                          <Select options={ON_OFF_OPTIONS} />
+                          <Radio.Group options={ON_OFF_OPTIONS} />
                         </Form.Item>
                       </Col>
                     </Row>
+
+                    <SectionTitle>스킬 배정</SectionTitle>
+                    {/* agent-005: SWAT poUseGrpSkill radio — useGrpSkill 항상 0 전송 버그 수정 */}
+                    <Form.Item name="useGrpSkill" label="스킬 배정 방식">
+                      <Radio.Group options={USE_GRP_SKILL_OPTIONS} />
+                    </Form.Item>
                   </div>
                 ),
               },

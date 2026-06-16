@@ -32,7 +32,7 @@ function useHasPermission(authKey: string): boolean {
 
 /**
  * hop 별 IE CDR 탭 — PbxCallDetailDrawer 의 IeCdrPanel 재사용.
- * 각 hop 카드의 "⚙ IE CDR" 탭에 그 hop 의 TB_DM_IE_BASICCDR row 전체 시각화.
+ * 각 hop 카드의 "IE CDR" 탭에 그 hop 의 IE CDR row 전체 시각화.
  * (이전엔 hopNodes baseMeta 의 빈약한 정보만 보여 모든 hop 에서 0 홉처럼 보이는 문제 fix)
  */
 function HopIeCdrTab({ ucid, hop }: { ucid: string; hop: number }) {
@@ -46,17 +46,6 @@ function HopIeCdrTab({ ucid, hop }: { ucid: string; hop: number }) {
     </div>
   );
 }
-
-const SEGMENT_META: Record<CallSegment['kind'], { emoji: string; label: string; dot: string; ring: string; accent: string }> = {
-  INBOUND: { emoji: '📥', label: '인입', dot: 'bg-violet-500', ring: 'ring-violet-300', accent: '#8b5cf6' },
-  OUTBOUND: { emoji: '📞', label: '발신', dot: 'bg-cyan-500', ring: 'ring-cyan-300', accent: '#06b6d4' },
-  QUEUE_IN: { emoji: '📨', label: '큐 인입', dot: 'bg-sky-500', ring: 'ring-sky-300', accent: '#0ea5e9' },
-  IVR: { emoji: '🤖', label: 'IVR', dot: 'bg-violet-600', ring: 'ring-violet-300', accent: '#7c3aed' },
-  CTI: { emoji: '🔀', label: 'CTI', dot: 'bg-amber-500', ring: 'ring-amber-300', accent: '#f59e0b' },
-  AGENT: { emoji: '🎧', label: '상담', dot: 'bg-emerald-500', ring: 'ring-emerald-300', accent: '#10b981' },
-  DISCONNECT: { emoji: '📤', label: '종료', dot: 'bg-slate-400', ring: 'ring-slate-300', accent: '#94a3b8' },
-  OTHER: { emoji: '•', label: '기타', dot: 'bg-gray-400', ring: 'ring-gray-300', accent: '#9ca3af' },
-};
 
 const fmtDeltaSec = (totalStart: string, atIso: string | null): string => {
   if (!atIso) return '+0s';
@@ -169,11 +158,7 @@ export default function CallDetail() {
   const dialogQ = useGetDialogs(ucid);
 
   const breadcrumb = useMemo(
-    () => [
-      { title: '콜 분석', path: '/ipron/tracking' },
-      { title: '통합 콜트래킹', path: '/ipron/tracking' },
-      { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' },
-    ],
+    () => [{ title: '트래킹' }, { title: '통합콜트래킹', path: '/ipron/tracking' }, { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' }],
     [ucid],
   );
 
@@ -470,7 +455,7 @@ export default function CallDetail() {
             });
           }}
         />,
-        '🤖 IR CDR 정보',
+        'IR CDR 정보',
         [
           { k: '서비스', v: serviceName },
           { k: '버전', v: version },
@@ -496,11 +481,11 @@ export default function CallDetail() {
           tabPosition="bottom"
           tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
           items={[
-            { key: 'main', label: '🤖 IR CDR', children: irContent },
-            { key: 'ie', label: '⚙ IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+            { key: 'main', label: 'IR CDR', children: irContent },
+            { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
             {
               key: 'dialog',
-              label: dialogCount > 0 ? `💬 대화 (${dialogCount})` : '💬 대화',
+              label: dialogCount > 0 ? `대화 (${dialogCount})` : '대화',
               children: (
                 <div className="px-3 pt-2 pb-3">
                   <DialogView turns={dialogQ.data ?? []} loading={dialogQ.isLoading} />
@@ -520,7 +505,7 @@ export default function CallDetail() {
       const hopCti = allCti.filter((c) => Number(c.meta?._parentHop) === hopNo);
       const ctiContent = renderSplit(
         <CtiRoutingTimeline hops={hopCti} loading={ctiQ.isLoading} />,
-        '🔀 CTI 큐 정보',
+        'CTI 큐 정보',
         [
           { k: 'Queue', v: (hop.meta?.queueName as string) ?? '-' },
           { k: 'Queue ID', v: hop.meta?.queueId != null ? String(hop.meta.queueId) : '-' },
@@ -542,8 +527,8 @@ export default function CallDetail() {
           tabPosition="bottom"
           tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
           items={[
-            { key: 'main', label: '🔀 CTI 큐', children: ctiContent },
-            { key: 'ie', label: '⚙ IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+            { key: 'main', label: 'CTI 큐', children: ctiContent },
+            { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
           ]}
         />
       );
@@ -571,7 +556,7 @@ export default function CallDetail() {
       const finalAgent = matchedByHop.length > 0 ? matchedByHop : allAgent;
       const agentContent = renderSplit(
         <AgentEventTimeline events={finalAgent} loading={agentQ.isLoading} />,
-        '🎧 상담사 정보',
+        '상담사 정보',
         [
           { k: '상담사', v: (hop.meta?.agentName as string) ?? '-' },
           { k: 'Agent ID', v: hop.meta?.agentId != null ? String(hop.meta.agentId) : '-' },
@@ -591,8 +576,8 @@ export default function CallDetail() {
           tabPosition="bottom"
           tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
           items={[
-            { key: 'main', label: '🎧 상담사', children: agentContent },
-            { key: 'ie', label: '⚙ IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+            { key: 'main', label: '상담사', children: agentContent },
+            { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
           ]}
         />
       );
@@ -674,7 +659,7 @@ export default function CallDetail() {
             </div>
           </div>
         </div>,
-        '⚙ IE CDR 정보',
+        'IE CDR 정보',
         [
           { k: 'HOP', v: String(hopNo) },
           { k: '콜유형', v: callKindLabel },
@@ -703,8 +688,8 @@ export default function CallDetail() {
         tabPosition="bottom"
         tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
         items={[
-          { key: 'main', label: '⚙ IE 자원', children: buildIeMetric() },
-          { key: 'ie', label: '📋 IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+          { key: 'main', label: 'IE 자원', children: buildIeMetric() },
+          { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
         ]}
       />
     );
@@ -730,7 +715,9 @@ export default function CallDetail() {
       <div className="flex flex-col gap-4 w-full h-full">
         <div className="bg-white rounded-md border border-gray-200 p-8 text-center shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
           <div className="text-[14px] text-red-600 mb-3">콜 상세 정보를 불러올 수 없습니다.</div>
-          <Button onClick={() => navigate('/ipron/tracking')}>← 검색으로 돌아가기</Button>
+          <Button icon={<ArrowLeft className="size-3.5" />} onClick={() => navigate('/ipron/tracking')}>
+            검색으로 돌아가기
+          </Button>
         </div>
       </div>
     );
@@ -762,16 +749,16 @@ export default function CallDetail() {
               }`}
             >
               {header.result === 'COMPLETED'
-                ? '✅ 정상'
+                ? '정상'
                 : header.result === 'ABANDONED'
-                  ? '🚪 포기'
+                  ? '포기'
                   : header.result === 'DISCONNECTED'
-                    ? '🔴 호장애'
+                    ? '호장애'
                     : header.result === 'IVR_SELF'
-                      ? '📞 IVR자가'
+                      ? 'IVR 자가해결'
                       : header.result === 'TRANSFERRED'
-                        ? '🔀 호전환'
-                        : '🔇 미응답'}
+                        ? '호전환'
+                        : '미응답'}
             </span>
           )}
           <span className="text-[11.5px] text-gray-500 whitespace-nowrap inline-flex items-center gap-1">
@@ -863,7 +850,7 @@ export default function CallDetail() {
               {/* 위 — 핵심 메트릭 (콜유형 행 추가로 max-h 늘림, 스크롤 안 생기게) */}
               <div className="flex-shrink-0 max-h-[420px] bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
                 <div className="h-[44px] px-4 flex items-center justify-between border-b border-gray-100 flex-shrink-0 bg-gradient-to-b from-white to-gray-50/60">
-                  <div className="text-[13px] font-semibold text-gray-800">📊 핵심 메트릭</div>
+                  <div className="text-[13px] font-semibold text-gray-800">핵심 메트릭</div>
                   <div className="text-[10px] text-gray-400 font-mono">콜 전체</div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -877,12 +864,12 @@ export default function CallDetail() {
                     const ivrStepsCount = (ivrQ.data ?? []).reduce((a, g) => a + ((g as { steps?: unknown[] }).steps?.length ?? 0), 0);
                     const isError = ['DISCONNECTED', 'ABANDONED'].includes(header.result ?? '');
                     const resultLabel: Record<string, { text: string; cls: string }> = {
-                      COMPLETED: { text: '✅ 정상 종료', cls: 'text-emerald-700' },
-                      ABANDONED: { text: '🚪 고객 포기', cls: 'text-amber-700' },
-                      DISCONNECTED: { text: '🔴 호장애', cls: 'text-red-700' },
-                      IVR_SELF: { text: '📞 IVR 자가해결', cls: 'text-blue-700' },
-                      TRANSFERRED: { text: '🔀 호 전환', cls: 'text-purple-700' },
-                      NORMAL: { text: '✅ 정상 종료', cls: 'text-emerald-700' },
+                      COMPLETED: { text: '정상 종료', cls: 'text-emerald-700' },
+                      ABANDONED: { text: '고객 포기', cls: 'text-amber-700' },
+                      DISCONNECTED: { text: '호장애', cls: 'text-red-700' },
+                      IVR_SELF: { text: 'IVR 자가해결', cls: 'text-blue-700' },
+                      TRANSFERRED: { text: '호 전환', cls: 'text-purple-700' },
+                      NORMAL: { text: '정상 종료', cls: 'text-emerald-700' },
                     };
                     const r = resultLabel[header.result ?? ''] ?? { text: header.result ?? '-', cls: 'text-gray-700' };
                     const Row = ({ k, v, vCls = 'text-gray-900 font-medium' }: { k: string; v: React.ReactNode; vCls?: string }) => (
@@ -896,18 +883,18 @@ export default function CallDetail() {
                     const firstMeta = hopNodes[0]?.meta ?? {};
                     const ck = Number(firstMeta._callKind);
                     // 디지털/CTI 콜 라벨 — alias > Type N > "큐 인입 (디지털)" 순 fallback
-                    const digitalLabel = header.mediaAlias ? `💬 ${header.mediaAlias}` : header.mediaType != null ? `💬 Type ${header.mediaType}` : '💬 큐 인입 (디지털)';
+                    const digitalLabel = header.mediaAlias ? header.mediaAlias : header.mediaType != null ? `Type ${header.mediaType}` : '큐 인입 (디지털)';
                     const callTypeLabel = Number.isFinite(ck)
                       ? ck === 0
-                        ? '📞 내선 통화'
+                        ? '내선 통화'
                         : ck === 2
-                          ? '📤 발신'
-                          : '📥 수신'
+                          ? '발신'
+                          : '수신'
                       : firstMeta._callDir === 'OUTBOUND'
-                        ? '📤 발신'
+                        ? '발신'
                         : firstMeta._callDir === 'QUEUE_IN'
                           ? digitalLabel
-                          : '📥 수신';
+                          : '수신';
                     return (
                       <>
                         <div className="space-y-0.5">
@@ -946,7 +933,7 @@ export default function CallDetail() {
                         </div>
                         {isError && (
                           <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded">
-                            <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">⚠ 이상 신호</div>
+                            <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">이상 신호</div>
                             <div className="text-[11px] text-amber-900 leading-relaxed">
                               {header.result === 'ABANDONED' && 'CTI 큐 대기 중 고객 포기. 라우팅 정책 / 상담사 풀 점검 권장.'}
                               {header.result === 'DISCONNECTED' && '호 장애로 비정상 종료. 네트워크 / 시스템 로그 확인 필요.'}

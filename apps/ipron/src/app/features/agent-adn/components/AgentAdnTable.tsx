@@ -1,14 +1,16 @@
 /**
  * 상담사 ADN 매핑 ag-Grid — AdnTable 패턴.
- * 컬럼: ☐ | 테넌트 | 상담사명 | 로그인 ID | 노드명 | 할당 상태 | ADN | 소속 그룹 | 활성 | 수정일시
+ * 컬럼: ☐ | 테넌트 | 상담사명 | 로그인 ID | 노드명 | 배정 상태 | ADN | 소속 그룹 | 활성 | 수정일시
  *
- * SWAT IPR20S3011 양쪽 그리드(미할당/할당) 모두 "노드명" 컬럼 표시 (#40).
+ * SWAT IPR20S3011 양쪽 그리드(미배정/배정) 모두 "노드명" 컬럼 표시 (#40).
  * 행 클릭으로 체크박스 토글. 우측 휴지통(삭제로 오해 소지) 컬럼은 제거 —
- * 할당 해제는 상단 일괄 버튼만 사용. 미할당 행은 주황 배경으로 식별.
+ * 배정 해제는 상단 일괄 버튼만 사용.
+ * 미배정 행은 팔레트 고정색(ROW_COLOR_PALETTE.unassigned = #fff7ed)으로 식별.
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { ROW_COLOR_PALETTE } from '../../../components/GridRowColorLegend';
 import type { AgentAdnRowResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -23,41 +25,36 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
 
   const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
 
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   const columnDefs: ColDef<AgentAdnRowResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
-      { headerName: '테넌트', field: 'tenantName', minWidth: 140 },
-      { headerName: '상담사명', field: 'agentName', minWidth: 120 },
+      { headerName: '테넌트', field: 'tenantName', minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '상담사명', field: 'agentName', minWidth: 120, tooltipField: 'agentName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '로그인 ID',
         field: 'agentLoginId',
         minWidth: 130,
+        tooltipField: 'agentLoginId',
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => <span className="font-mono text-gray-700">{params.value ?? '-'}</span>,
       },
       {
         headerName: '노드명',
         field: 'nodeName',
         minWidth: 140,
+        tooltipField: 'nodeName',
         valueFormatter: (p) => p.value ?? '-',
       },
       {
-        headerName: '할당 상태',
+        headerName: '배정 상태',
         field: 'mappingStatus',
         minWidth: 110,
         maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        filterValueGetter: (params) => (params.data?.mappingStatus === 'ASSIGNED' ? '할당' : '미할당'),
+        filterValueGetter: (params) => (params.data?.mappingStatus === 'ASSIGNED' ? '배정' : '미배정'),
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => {
           const isAssigned = params.data?.mappingStatus === 'ASSIGNED';
           return (
@@ -66,7 +63,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
                 isAssigned ? 'text-green-700 bg-green-50 border border-green-200' : 'text-orange-700 bg-orange-50 border border-orange-200'
               }`}
             >
-              {isAssigned ? '할당' : '미할당'}
+              {isAssigned ? '배정' : '미배정'}
             </span>
           );
         },
@@ -81,7 +78,7 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
           return <span className="font-mono font-semibold text-[#1e3a8a]">{v}</span>;
         },
       },
-      { headerName: '소속 그룹', field: 'groupName', minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '소속 그룹', field: 'groupName', minWidth: 140, tooltipField: 'groupName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '활성',
         field: 'activateYn',
@@ -103,22 +100,26 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
   );
 
   return (
-    <AgGridReact<AgentAdnRowResponse>
-      rowData={rowData}
-      columnDefs={columnDefs}
-      defaultColDef={defaultColDef}
-      gridOptions={{
-        ...gridOptions,
-        statusBar: undefined,
-        pagination: false,
-        sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: false,
-        rowMultiSelectWithClick: true,
-        getRowClass: (params) => (params.data?.mappingStatus === 'UNASSIGNED' ? 'bg-orange-50/40' : ''),
-      }}
-      loading={isLoading}
-      onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}
-    />
+    <div className="h-full">
+      <style>{`
+        .ag-row-unassigned { background-color: ${ROW_COLOR_PALETTE.unassigned} !important; }
+        .ag-row-unassigned:hover { background-color: #e2e8f0 !important; }
+      `}</style>
+      <AgGridReact<AgentAdnRowResponse>
+        rowData={rowData}
+        columnDefs={columnDefs}
+        defaultColDef={defaultColDef}
+        gridOptions={{
+          ...gridOptions,
+          statusBar: undefined,
+          pagination: false,
+          sideBar: false,
+          getRowClass: (params) => (params.data?.mappingStatus === 'UNASSIGNED' ? 'ag-row-unassigned' : ''),
+        }}
+        rowSelection={rowSelection}
+        loading={isLoading}
+        onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}
+      />
+    </div>
   );
 }

@@ -26,6 +26,8 @@ export interface AvailableSkillsetResponse {
   skillsetDesc: string | null;
   tenantId: number;
   tenantName: string | null;
+  treeId: number | null;
+  treeName: string | null;
   mediaType: number | null;
   activateYn: number | null;
   sortSeq: number | null;
@@ -158,6 +160,23 @@ export interface SkillGroupUpdateRequest {
   skillGroupName: string;
   skillGroupDesc?: string;
   members?: SkillGroupMemberRequest[]; // null = 멤버 변경 없음, [] = 모두 제거
+}
+
+/**
+ * 스킬모음 → 상담사 일괄 적용 (병합/upsert).
+ * BE 계약: POST /api/ipron/skill-groups/{skillGroupId}/apply  body { agentIds: number[] }
+ * 모음 멤버(스킬셋×P/L)를 선택 상담사 N명에 전개 — 기존 타 스킬 보존, 동일 스킬셋은 모음 P/L 로 갱신.
+ */
+export interface SkillGroupApplyRequest {
+  agentIds: number[];
+}
+
+/** apply 결과 (BE SkillGroupApplyResult record 정합 — 2026-06-10 확정) */
+export interface SkillGroupApplyResult {
+  agentCount: number;
+  memberCount: number;
+  added: number;
+  updated: number;
 }
 
 // ──────────────────────────────────────────────────────────

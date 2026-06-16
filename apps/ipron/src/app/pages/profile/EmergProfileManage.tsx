@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Edit3, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Copy, Edit3, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import EmergCodeDrawer, { type EmergCodeDrawerRef } from '../../features/emerg-profile/components/EmergCodeDrawer';
@@ -37,16 +37,10 @@ import {
   useUpdateProfile,
 } from '../../features/emerg-profile/hooks/useEmergProfileQueries';
 import type { EmergCode, EmergProfile } from '../../features/emerg-profile/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '번호자원관리', path: '/ipron/numbering' },
-  { title: '프로파일', path: '/ipron/numbering/profile' },
-  { title: '긴급코드 프로파일', path: '/ipron/emerg-profile' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '프로파일', path: '/ipron/profile' }, { title: '긴급코드 프로파일', path: '/ipron/profile/emerg-profile' }];
 
 export default function EmergProfileManage() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -65,6 +59,7 @@ export default function EmergProfileManage() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [cardCollapsed, setCardCollapsed] = useState(true);
   // 긴급코드 그리드 서버사이드 LIKE 검색 (SWAT: sEmergencyCode / sEmergencyCodeName)
   const [codeSearchCode, setCodeSearchCode] = useState('');
   const [codeSearchName, setCodeSearchName] = useState('');
@@ -189,7 +184,7 @@ export default function EmergProfileManage() {
   const { mutate: createProfile, isPending: isCreatingProfile } = useCreateProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 등록되었습니다.');
+        toast.success('프로파일이 등록되었습니다');
         profileDrawerRef.current?.close();
         invalidateProfiles();
       },
@@ -199,7 +194,7 @@ export default function EmergProfileManage() {
   const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 수정되었습니다.');
+        toast.success('프로파일이 수정되었습니다');
         profileDrawerRef.current?.close();
         invalidateProfiles();
       },
@@ -209,7 +204,7 @@ export default function EmergProfileManage() {
   const { mutate: deleteProfile } = useDeleteProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 삭제되었습니다.');
+        toast.success('프로파일이 삭제되었습니다');
         setSelectedProfileId(null);
         invalidateProfiles();
       },
@@ -219,7 +214,7 @@ export default function EmergProfileManage() {
   const { mutate: copyProfile, isPending: isCopyingProfile } = useCopyProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 복사되었습니다.');
+        toast.success('프로파일이 복사되었습니다');
         copyDialogRef.current?.close();
         invalidateProfiles();
       },
@@ -229,7 +224,7 @@ export default function EmergProfileManage() {
   const { mutate: createCode, isPending: isCreatingCode } = useCreateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('긴급코드가 등록되었습니다.');
+        toast.success('긴급코드가 등록되었습니다');
         codeDrawerRef.current?.close();
         invalidateAll();
       },
@@ -239,7 +234,7 @@ export default function EmergProfileManage() {
   const { mutate: updateCode, isPending: isUpdatingCode } = useUpdateCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('긴급코드가 수정되었습니다.');
+        toast.success('긴급코드가 수정되었습니다');
         codeDrawerRef.current?.close();
         invalidateCodes();
       },
@@ -249,7 +244,7 @@ export default function EmergProfileManage() {
   const { mutate: deleteCode } = useDeleteCode({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('긴급코드가 삭제되었습니다.');
+        toast.success('긴급코드가 삭제되었습니다');
         invalidateAll();
       },
     },
@@ -265,7 +260,7 @@ export default function EmergProfileManage() {
       onOk: () => deleteProfile({ profileId: profile.emergencyCodeProfileId }),
       options: {
         title: '프로파일 삭제',
-        content: `"${profile.emergencyCodeProfileName}" 프로파일을 삭제하시겠습니까?\n하위 긴급코드도 함께 삭제됩니다.`,
+        content: `"${profile.emergencyCodeProfileName}" 프로파일을 삭제하시겠습니까?`,
       },
     });
   };
@@ -309,40 +304,22 @@ export default function EmergProfileManage() {
 
   const columnDefs: ColDef<EmergCode>[] = [
     { headerName: '긴급코드', field: 'emergencyCode', minWidth: 120, maxWidth: 150 },
-    { headerName: '코드명', field: 'emergencyCodeName', flex: 1 },
+    { headerName: '코드명', field: 'emergencyCodeName', flex: 1, tooltipField: 'emergencyCodeName' },
     {
       headerName: '라우트',
       field: 'routeName',
       maxWidth: 140,
       cellRenderer: (params: ICellRendererParams) => {
         if (params.value) return params.value;
-        return <span className="text-red-500 font-semibold">⚠ 미지정</span>;
-      },
-    },
-    { headerName: '설명', field: 'emergencyCodeDesc', flex: 1, valueFormatter: (params) => params.value ?? '-' },
-    {
-      headerName: '',
-      maxWidth: 60,
-      sortable: false,
-      filter: false,
-      suppressHeaderMenuButton: true,
-      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-      cellRenderer: (params: ICellRendererParams<EmergCode>) => {
-        const { data } = params;
-        if (!data) return null;
         return (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleCodeDelete(data);
-            }}
-          >
-            <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-          </button>
+          <span className="inline-flex items-center gap-1 text-red-500 font-semibold">
+            <AlertTriangle className="size-3.5" />
+            미지정
+          </span>
         );
       },
     },
+    { headerName: '설명', field: 'emergencyCodeDesc', flex: 1, tooltipField: 'emergencyCodeDesc', valueFormatter: (params) => params.value ?? '-' },
   ];
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -429,7 +406,7 @@ export default function EmergProfileManage() {
                 style={{ width: 200 }}
               />
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleProfileCreate}>
-                추가
+                등록
               </Button>
             </div>
           </div>
@@ -437,98 +414,106 @@ export default function EmergProfileManage() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          {/* 접기/펼치기 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setCardCollapsed((c) => !c)}
+          >
+            <span>프로파일 카드</span>
+            <span>{cardCollapsed ? '펼치기' : '접기'}</span>
+          </button>
           {/* Card slider body */}
-          <div className="flex items-center px-4 py-3 h-[170px]">
-            {filteredProfiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {filteredProfiles.map((profile) => {
-                    const isCardSelected = selectedProfileId === profile.emergencyCodeProfileId;
-                    const cardHasUnassigned = profile.hasUnassignedRoute;
-                    return (
-                      <div
-                        key={profile.emergencyCodeProfileId}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
-                          isCardSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          handleCardSelect(profile);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
-                        onDoubleClick={() => handleProfileEdit(profile)}
-                      >
-                        {/* Card header: 상태배지 + 프로파일명 + 더보기 */}
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
+          {!cardCollapsed && (
+            <div className="flex items-center px-4 py-3 h-[170px]">
+              {filteredProfiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
+                </div>
+              ) : (
+                <div className="relative flex items-center gap-2 w-full">
+                  <Button
+                    type="text"
+                    icon={<ChevronLeft className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                  <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {filteredProfiles.map((profile) => {
+                      const isCardSelected = selectedProfileId === profile.emergencyCodeProfileId;
+                      const cardHasUnassigned = profile.hasUnassignedRoute;
+                      return (
+                        <div
+                          key={profile.emergencyCodeProfileId}
+                          className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                            isCardSelected
+                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                          }`}
+                          onClick={(e) => {
+                            handleCardSelect(profile);
+                            (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                          }}
+                          onDoubleClick={() => handleProfileEdit(profile)}
+                        >
+                          {/* Card header: 상태배지 + 프로파일명 + 더보기 */}
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {cardHasUnassigned && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0 text-red-500 bg-red-50 border-red-200">
+                                  미지정
+                                </span>
+                              )}
+                              <span className="text-sm font-semibold text-gray-800 truncate">{profile.emergencyCodeProfileName}</span>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
+                                <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                  <MoreVertical className="size-4 text-gray-400" />
+                                </button>
+                              </Dropdown>
+                            </div>
+                          </div>
+
+                          {/* Card info */}
+                          <div className="text-xs text-gray-500 space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Network className="size-3 text-gray-400" />
+                              <span className="truncate">{nodes.find((n) => n.nodeId === profile.nodeId)?.nodeName ?? `Node ${profile.nodeId}`}</span>
+                            </div>
+                            <div>긴급코드: {profile.codeCount ?? 0}건</div>
+                          </div>
+
+                          {/* 하단 태그 */}
+                          <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                (profile.codeCount ?? 0) > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                              }`}
+                            >
+                              {(profile.codeCount ?? 0) > 0 ? `${profile.codeCount}건 등록` : '미등록'}
+                            </span>
                             {cardHasUnassigned && (
-                              <span
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
-                              >
-                                미지정
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border text-amber-700 bg-amber-50 border-amber-200">
+                                라우트 미지정
                               </span>
                             )}
-                            <span className="text-sm font-semibold text-gray-800 truncate">{profile.emergencyCodeProfileName}</span>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Dropdown menu={{ items: getProfileMenuItems(profile) }} trigger={['click']} placement="bottomRight">
-                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                <MoreVertical className="size-4 text-gray-400" />
-                              </button>
-                            </Dropdown>
                           </div>
                         </div>
-
-                        {/* Card info */}
-                        <div className="text-xs text-gray-500 space-y-0.5">
-                          <div className="flex items-center gap-1">
-                            <Network className="size-3 text-gray-400" />
-                            <span className="truncate">{nodes.find((n) => n.nodeId === profile.nodeId)?.nodeName ?? `Node ${profile.nodeId}`}</span>
-                          </div>
-                          <div>긴급코드: {profile.codeCount ?? 0}건</div>
-                        </div>
-
-                        {/* 하단 태그 */}
-                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                              (profile.codeCount ?? 0) > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            {(profile.codeCount ?? 0) > 0 ? `${profile.codeCount}건 등록` : '미등록'}
-                          </span>
-                          {cardHasUnassigned && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border text-amber-700 bg-amber-50 border-amber-200">
-                              라우트 미지정
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<ChevronRight className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
                 </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ===== 하단: 긴급코드 ag-Grid ===== */}
@@ -567,7 +552,7 @@ export default function EmergProfileManage() {
                   </Button>
                 </div>
                 <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
-                  긴급코드 추가
+                  등록
                 </Button>
               </div>
 

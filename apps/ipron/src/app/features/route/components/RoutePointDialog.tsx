@@ -63,7 +63,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
 
       setEndpoints(rows);
     } catch {
-      toast.error('국선 목록 조회에 실패했습니다.');
+      toast.error('국선 목록 조회에 실패했습니다');
     }
   }, [nodeId, existingPointMap]);
 
@@ -79,8 +79,8 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
       const assignedCount = prev.filter((e) => e.assigned).length;
       return prev.map((e) => {
         if (e.endptId !== endptId) return e;
-        if (!e.assigned && assignedCount > 32) {
-          toast.warning('국선배정은 최대 32개까지 가능합니다.');
+        if (!e.assigned && assignedCount >= 32) {
+          toast.warning('국선배정은 최대 32개까지 가능합니다');
           return e;
         }
         return { ...e, assigned: !e.assigned };
@@ -95,11 +95,11 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
   const handleOk = async () => {
     const assigned = endpoints.filter((e) => e.assigned);
     if (assigned.length === 0) {
-      toast.warning('배정할 국선을 선택해주세요.');
+      toast.warning('배정할 국선을 선택해주세요');
       return;
     }
     if (assigned.length > 32) {
-      toast.error('국선배정은 최대 32개까지 가능합니다.');
+      toast.error('국선배정은 최대 32개까지 가능합니다');
       return;
     }
 
@@ -111,14 +111,14 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
     setLoading(true);
     try {
       await routeApi.updateRoutePoints({ id: routeId, data: { points } });
-      toast.success('국선 배정이 완료되었습니다.');
+      toast.success('국선 배정이 완료되었습니다');
       queryClient.invalidateQueries({
         queryKey: routeQueryKeys.getRoutePoints({ id: routeId }).queryKey,
       });
       onSuccess();
       setOpen(false);
     } catch {
-      toast.error('국선 배정에 실패했습니다.');
+      toast.error('국선 배정에 실패했습니다');
     } finally {
       setLoading(false);
     }
@@ -144,6 +144,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
         field: 'nodeName',
         flex: 1,
         minWidth: 70,
+        tooltipField: 'nodeName',
         cellRenderer: (params: ICellRendererParams<EndpointForAssign>) => {
           if (!params.data) return null;
           return params.data.nodeName ?? '-';
@@ -164,6 +165,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
         field: 'endptName',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'endptName',
       },
       {
         headerName: '백업 구분',
@@ -211,6 +213,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
   return (
     <Drawer
       title={`국선 배정 (${assignedCount}/32)`}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={() => setOpen(false)}
       width={780}

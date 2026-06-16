@@ -15,7 +15,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MdGrpDrawer, { type MdGrpDrawerRef } from '../../features/media-delivery/components/MdGrpDrawer';
@@ -59,6 +59,7 @@ export default function MediaDeliveryList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedGrpId, setSelectedGrpId] = useState<number | null>(initGrpId);
   const [searchText, setSearchText] = useState('');
+  const [cardExpanded, setCardExpanded] = useState(false);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
@@ -85,7 +86,7 @@ export default function MediaDeliveryList() {
   const { mutate: deleteMdGrp } = useDeleteMdGrp({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달그룹이 삭제되었습니다.');
+        toast.success('미디어전달그룹이 삭제되었습니다');
         if (selectedGrpId) setSelectedGrpId(null);
         invalidateMdGrps();
       },
@@ -95,7 +96,7 @@ export default function MediaDeliveryList() {
   const { mutate: deleteMdItem } = useDeleteMdItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달이 삭제되었습니다.');
+        toast.success('미디어전달이 삭제되었습니다');
         invalidateMdItems();
         invalidateMdGrps();
       },
@@ -210,11 +211,15 @@ export default function MediaDeliveryList() {
 
   const handleDeleteMdGrp = useCallback(
     (grp: MdGrp) => {
+      if ((grp.itemCount ?? 0) > 0) {
+        toast.error(`배정된 미디어전달 ${grp.itemCount}건이 있어 삭제할 수 없습니다`);
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteMdGrp({ id: grp.grpId }),
         options: {
           title: '미디어전달그룹 삭제',
-          content: `"${grp.grpName}" 그룹을 삭제하시겠습니까?\n배정된 미디어전달이 있으면 삭제할 수 없습니다.`,
+          content: `"${grp.grpName}" 그룹을 삭제하시겠습니까?`,
         },
       });
     },
@@ -374,101 +379,112 @@ export default function MediaDeliveryList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body — 높이 고정 */}
-          <div className="flex items-center px-4 py-3 h-[170px]">
-            {filteredMdGrps.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">
-                  {isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 미디어전달그룹이 없습니다' : '등록된 미디어전달그룹이 없습니다'}
-                </span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {filteredMdGrps.map((grp) => {
-                    const isCardSelected = selectedGrpId === grp.grpId;
-                    const cardStatus = grpStatusMap.get(grp.grpId);
-                    const cardHasFault = cardStatus?.hasFault ?? false;
-                    return (
-                      <div
-                        key={grp.grpId}
-                        id={`md-grp-card-${grp.grpId}`}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
-                          isCardSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          handleCardSelect(grp);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
-                        onDoubleClick={() => handleEditMdGrp(grp)}
-                      >
-                        {/* Card header: 상태 배지 + 그룹명 + 더보기 */}
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            {grp.itemCount > 0 && (
-                              <span
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                style={{
-                                  color: cardHasFault ? '#ff4d4f' : '#16a34a',
-                                  backgroundColor: cardHasFault ? '#fff2f0' : '#f0fdf4',
-                                  borderColor: cardHasFault ? '#ff4d4f40' : '#16a34a40',
-                                }}
-                              >
-                                {cardHasFault ? '장애' : '정상'}
-                              </span>
-                            )}
-                            <span className="text-sm font-semibold text-gray-800 truncate">{grp.grpName}</span>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Dropdown menu={{ items: getCardMenuItems(grp) }} trigger={['click']} placement="bottomRight">
-                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                <MoreVertical className="size-4 text-gray-400" />
-                              </button>
-                            </Dropdown>
-                          </div>
-                        </div>
-
-                        {/* Card info */}
-                        <div className="text-xs text-gray-500 space-y-0.5">
-                          <div className="flex items-center gap-1">
-                            <Network className="size-3 text-gray-400" />
-                            <span className="truncate">{grp.nodeName ?? `Node ${grp.nodeId}`}</span>
-                          </div>
-                          <div>배정 미디어전달: {grp.itemCount}/2</div>
-                        </div>
-
-                        {/* Item count tag — pushed to bottom */}
-                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                              grp.itemCount >= 2 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-blue-700 bg-blue-50 border-blue-200'
-                            }`}
-                          >
-                            {grp.itemCount >= 2 ? '배정완료' : `${2 - grp.itemCount}건 추가가능`}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+          {/* 접기/펼치기 토글 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setCardExpanded((v) => !v)}
+          >
+            <span>그룹 선택</span>
+            {cardExpanded ? <ChevronsUp className="size-4" /> : <ChevronsDown className="size-4" />}
+          </button>
+          {/* Card slider body — 기본 접힘 */}
+          {cardExpanded && (
+            <div className="flex items-center px-4 py-3 h-[170px]">
+              {filteredMdGrps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
+                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <span className="text-sm">
+                    {isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 미디어전달그룹이 없습니다' : '등록된 미디어전달그룹이 없습니다'}
+                  </span>
                 </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="relative flex items-center gap-2 w-full">
+                  <Button
+                    type="text"
+                    icon={<ChevronLeft className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                  <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {filteredMdGrps.map((grp) => {
+                      const isCardSelected = selectedGrpId === grp.grpId;
+                      const cardStatus = grpStatusMap.get(grp.grpId);
+                      const cardHasFault = cardStatus?.hasFault ?? false;
+                      return (
+                        <div
+                          key={grp.grpId}
+                          id={`md-grp-card-${grp.grpId}`}
+                          className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                            isCardSelected
+                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                          }`}
+                          onClick={(e) => {
+                            handleCardSelect(grp);
+                            (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                          }}
+                          onDoubleClick={() => handleEditMdGrp(grp)}
+                        >
+                          {/* Card header: 상태 배지 + 그룹명 + 더보기 */}
+                          <div className="flex items-center justify-between mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {grp.itemCount > 0 && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                  style={{
+                                    color: cardHasFault ? '#ff4d4f' : '#52c41a',
+                                    backgroundColor: cardHasFault ? '#fff2f0' : '#f6ffed',
+                                    borderColor: cardHasFault ? '#ff4d4f40' : '#52c41a40',
+                                  }}
+                                >
+                                  {cardHasFault ? '장애' : '정상'}
+                                </span>
+                              )}
+                              <span className="text-sm font-semibold text-gray-800 truncate">{grp.grpName}</span>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <Dropdown menu={{ items: getCardMenuItems(grp) }} trigger={['click']} placement="bottomRight">
+                                <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                  <MoreVertical className="size-4 text-gray-400" />
+                                </button>
+                              </Dropdown>
+                            </div>
+                          </div>
+
+                          {/* Card info */}
+                          <div className="text-xs text-gray-500 space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Network className="size-3 text-gray-400" />
+                              <span className="truncate">{grp.nodeName ?? `Node ${grp.nodeId}`}</span>
+                            </div>
+                            <div>배정 미디어전달: {grp.itemCount}/2</div>
+                          </div>
+
+                          {/* Item count tag — pushed to bottom */}
+                          <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                grp.itemCount >= 2 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-blue-700 bg-blue-50 border-blue-200'
+                              }`}
+                            >
+                              {grp.itemCount >= 2 ? '배정완료' : `${2 - grp.itemCount}건 추가가능`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<ChevronRight className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ===== 하단: 미디어전달 아이템 카드 리스트 ===== */}
@@ -554,8 +570,8 @@ export default function MediaDeliveryList() {
                             <span className="text-gray-400 w-[50px] shrink-0">실패</span>
                             <span className="text-gray-700">{item.failCnt1 ?? 3}회</span>
                             <span className="text-gray-300 mx-1">|</span>
-                            <span className="text-gray-400">Block</span>
-                            <span className={`font-medium ${item.blockYn1 === 1 ? 'text-red-500' : 'text-gray-500'}`}>{item.blockYn1 === 1 ? 'ON' : 'OFF'}</span>
+                            <span className="text-gray-400">차단</span>
+                            <span className={`font-medium ${item.blockYn1 === 1 ? 'text-red-500' : 'text-gray-500'}`}>{item.blockYn1 === 1 ? '사용' : '미사용'}</span>
                           </div>
                         </div>
                         {/* B장비 */}
@@ -583,8 +599,8 @@ export default function MediaDeliveryList() {
                                 <span className="text-gray-400 w-[50px] shrink-0">실패</span>
                                 <span className="text-gray-700">{item.failCnt2 ?? 3}회</span>
                                 <span className="text-gray-300 mx-1">|</span>
-                                <span className="text-gray-400">Block</span>
-                                <span className={`font-medium ${item.blockYn2 === 1 ? 'text-red-500' : 'text-gray-500'}`}>{item.blockYn2 === 1 ? 'ON' : 'OFF'}</span>
+                                <span className="text-gray-400">차단</span>
+                                <span className={`font-medium ${item.blockYn2 === 1 ? 'text-red-500' : 'text-gray-500'}`}>{item.blockYn2 === 1 ? '사용' : '미사용'}</span>
                               </div>
                             </>
                           ) : (

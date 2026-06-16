@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Drawer, Input, InputNumber, Radio, Tooltip } from 'antd';
-import { AlertTriangle, Grid2X2, LayoutList, List as ListIcon, PanelTopClose, PanelTopOpen, Search, Settings } from 'lucide-react';
+import { Button, Drawer, Input, Radio, Tooltip } from 'antd';
+import { AlertTriangle, Clock, Gauge, Grid2X2, Headset, LayoutList, List as ListIcon, PanelTopClose, PanelTopOpen, Percent, PhoneIncoming, Search, Settings } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { DEMO_CTIQS, isDemoMode } from './demoData';
-import { fmtCount, fmtPct, matchSearch, severityOf, severityWeight, toCtiqRows, toNum } from './helpers';
+import { answerRateOf, fmtCount, fmtPct, matchSearch, serviceLevelOf, severityOf, severityWeight, toCtiqRows, toNum } from './helpers';
 import CtiqLargeCard from './parts/CtiqLargeCard';
 import CtiqSmallCard from './parts/CtiqSmallCard';
 import CtiqStatusGrid from './parts/CtiqStatusGrid';
@@ -109,10 +109,14 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
           return severityWeight(b.sev) - severityWeight(a.sev) || (toNum(b.row.RTS_WAIT_CNT) ?? 0) - (toNum(a.row.RTS_WAIT_CNT) ?? 0);
         case 'wait':
           return (toNum(b.row.RTS_WAIT_CNT) ?? 0) - (toNum(a.row.RTS_WAIT_CNT) ?? 0);
-        case 'sla':
-          return (toNum(a.row.KPI_SVCLEVEL) ?? 1) - (toNum(b.row.KPI_SVCLEVEL) ?? 1);
+        case 'sla': {
+          // 무트래픽(conn=0)은 SLA 평가 의미가 없으므로 1로 취급해 worst-first 정렬 맨뒤로 보냄.
+          const sa = (toNum(a.row.SUM_CONN_CNT) ?? 0) > 0 ? serviceLevelOf(a.row) : 1;
+          const sb = (toNum(b.row.SUM_CONN_CNT) ?? 0) > 0 ? serviceLevelOf(b.row) : 1;
+          return sa - sb;
+        }
         case 'answerRate':
-          return (toNum(b.row.KPI_ANSWER_RATE) ?? 0) - (toNum(a.row.KPI_ANSWER_RATE) ?? 0);
+          return answerRateOf(b.row) - answerRateOf(a.row);
         case 'id':
           return (toNum(a.row.CTIQ_ID) ?? 0) - (toNum(b.row.CTIQ_ID) ?? 0);
       }
@@ -125,25 +129,24 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
       ans = 0,
       wait = 0,
       maxWait = 0,
-      slaNum = 0,
-      slaDen = 0;
+      ansRate = 0,
+      slaNum = 0;
     let alertCnt = 0;
     for (const { row, sev } of classified) {
       conn += toNum(row.SUM_CONN_CNT) ?? 0;
+      // 총응대 타일은 SUM_ANSWER_CNT_TOT 유지 (BE 계산 누적값).
       ans += toNum(row.SUM_ANSWER_CNT_TOT) ?? toNum(row.SUM_ANSWER_CNT) ?? 0;
       wait += toNum(row.RTS_WAIT_CNT) ?? 0;
       const mw = toNum(row.RTS_MAXWAIT_TIME) ?? 0;
       if (mw > maxWait) maxWait = mw;
-      const sla = toNum(row.KPI_SVCLEVEL);
-      const c = toNum(row.SUM_CONN_CNT) ?? 0;
-      if (sla != null && c > 0) {
-        slaNum += sla * c;
-        slaDen += c;
-      }
+      // 응대율 분자 = 인입큐응답 + 타큐전환응답 + 타센터전환응답 (raw 누적, 분모 = Σ SUM_CONN_CNT)
+      ansRate += (toNum(row.SUM_ANSWER_CNT) ?? 0) + (toNum(row.SUM_EXTQ_ANSWER_CNT) ?? 0) + (toNum(row.SUM_NODE_ANSWER_CNT) ?? 0);
+      // SLA 분자 = 서비스레벨내응답 + 서비스레벨내포기 (raw 누적, 분모 = Σ SUM_CONN_CNT)
+      slaNum += (toNum(row.SUM_SLANSW_CNT) ?? 0) + (toNum(row.SUM_SLABDN_CNT) ?? 0);
       if (sev === 'danger' || sev === 'alert') alertCnt++;
     }
-    const answerRate = conn > 0 ? ans / conn : null;
-    const slaAvg = slaDen > 0 ? slaNum / slaDen : null;
+    const answerRate = conn > 0 ? ansRate / conn : null;
+    const slaAvg = conn > 0 ? slaNum / conn : null;
     return { conn, ans, wait, maxWait, answerRate, slaAvg, alertCnt };
   }, [classified]);
 
@@ -184,19 +187,11 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
 
   /** 폼 로컬 상태 — drawer 가 열릴 때 저장값에서 초기화. */
   const [formMediaType, setFormMediaType] = useState<number | null>(null);
-  const [formThresholds, setFormThresholds] = useState<CtiqThresholds>(DEFAULT_CTIQ_THRESHOLDS);
   useEffect(() => {
     if (!settingsOpen) return;
     const saved = userSetting?.settings ?? {};
     const mt = saved.mediaType;
     setFormMediaType(typeof mt === 'number' ? mt : null);
-    const th = (saved.thresholds as Partial<CtiqThresholds> | undefined) ?? {};
-    setFormThresholds({
-      waitCnt: toNum(th.waitCnt) ?? DEFAULT_CTIQ_THRESHOLDS.waitCnt,
-      maxWaitSec: toNum(th.maxWaitSec) ?? DEFAULT_CTIQ_THRESHOLDS.maxWaitSec,
-      slaPct: toNum(th.slaPct) ?? DEFAULT_CTIQ_THRESHOLDS.slaPct,
-      abandonRatioPct: toNum(th.abandonRatioPct) ?? DEFAULT_CTIQ_THRESHOLDS.abandonRatioPct,
-    });
   }, [settingsOpen, userSetting]);
 
   const handleSaveSettings = useCallback(() => {
@@ -208,10 +203,9 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
       widgetId: numericWidgetId,
       settings: {
         mediaType: formMediaType ?? 0,
-        thresholds: formThresholds,
       },
     });
-  }, [hasWidgetId, numericWidgetId, formMediaType, formThresholds, saveUserSetting]);
+  }, [hasWidgetId, numericWidgetId, formMediaType, saveUserSetting]);
 
   // ─── 툴바 (헤더 슬롯 portal) ─────────────────────────────────
   const toolbar = (
@@ -295,19 +289,21 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
       <div className={`grid transition-all duration-300 ease-in-out ${summaryCollapsed ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'}`}>
         <div className="min-h-0 overflow-hidden">
           <div className="grid grid-cols-2 gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3 sm:grid-cols-3 lg:grid-cols-6">
-            <KpiTile label="총 인입" value={fmtCount(stripKpi.conn)} mono />
-            <KpiTile label="총 응대" value={fmtCount(stripKpi.ans)} mono />
-            <KpiTile label="응대율" value={stripKpi.answerRate != null ? fmtPct(stripKpi.answerRate) : '—'} mono />
+            <KpiTile label="총 인입" value={fmtCount(stripKpi.conn)} mono icon={<PhoneIncoming className="w-3.5 h-3.5" />} />
+            <KpiTile label="총 응대" value={fmtCount(stripKpi.ans)} mono icon={<Headset className="w-3.5 h-3.5" />} />
+            <KpiTile label="응대율" value={stripKpi.answerRate != null ? fmtPct(stripKpi.answerRate) : '—'} mono icon={<Percent className="w-3.5 h-3.5" />} />
             <KpiTile
               label="SLA"
               value={stripKpi.slaAvg != null ? fmtPct(stripKpi.slaAvg) : '—'}
               mono
+              icon={<Gauge className="w-3.5 h-3.5" />}
               valueColor={stripKpi.slaAvg != null && stripKpi.slaAvg * 100 < thresholds.slaPct ? 'text-amber-600' : 'text-gray-900'}
             />
             <KpiTile
               label="현재 대기"
               value={fmtCount(stripKpi.wait)}
               mono
+              icon={<Clock className="w-3.5 h-3.5" />}
               valueColor={stripKpi.wait > thresholds.waitCnt ? 'text-red-600' : 'text-gray-900'}
               accent={stripKpi.wait > thresholds.waitCnt ? 'red' : undefined}
             />
@@ -384,6 +380,7 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
       {/* 설정 드로어 */}
       <Drawer
         title="큐 상태 모니터 설정"
+        closable={{ placement: 'end' }}
         placement="right"
         width={420}
         open={settingsOpen}
@@ -419,34 +416,6 @@ export default function CtiqStatusWidget({ data, options, widgetId, onRequestPau
                 </div>
               </Radio.Group>
             )}
-          </section>
-
-          {/* 임계값 */}
-          <section className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-700">임계값</span>
-            <div className="grid grid-cols-[1fr_120px_auto] items-center gap-x-2 gap-y-2 text-[12.5px]">
-              <label className="text-gray-600">대기 콜수</label>
-              <InputNumber min={0} value={formThresholds.waitCnt} onChange={(v) => setFormThresholds((p) => ({ ...p, waitCnt: Number(v) || 0 }))} className="w-full" />
-              <span className="text-[11px] text-gray-400">초과 → 주의</span>
-
-              <label className="text-gray-600">최장 대기(초)</label>
-              <InputNumber min={0} value={formThresholds.maxWaitSec} onChange={(v) => setFormThresholds((p) => ({ ...p, maxWaitSec: Number(v) || 0 }))} className="w-full" />
-              <span className="text-[11px] text-gray-400">초과 → 경고</span>
-
-              <label className="text-gray-600">SLA 목표(%)</label>
-              <InputNumber min={0} max={100} value={formThresholds.slaPct} onChange={(v) => setFormThresholds((p) => ({ ...p, slaPct: Number(v) || 0 }))} className="w-full" />
-              <span className="text-[11px] text-gray-400">미달 → 경고</span>
-
-              <label className="text-gray-600">포기율(%)</label>
-              <InputNumber
-                min={0}
-                max={100}
-                value={formThresholds.abandonRatioPct}
-                onChange={(v) => setFormThresholds((p) => ({ ...p, abandonRatioPct: Number(v) || 0 }))}
-                className="w-full"
-              />
-              <span className="text-[11px] text-gray-400">초과 → 위험</span>
-            </div>
           </section>
         </div>
       </Drawer>

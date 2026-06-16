@@ -2,7 +2,7 @@
  * 스킬 배정 P/L 수정 드로어 — 칩 클릭 시 열림.
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, InputNumber, Space } from 'antd';
+import { Button, Drawer, Form, InputNumber } from 'antd';
 import { toast } from '@/shared-util';
 import { useUpdateSkillAgent } from '../hooks/useSkillAssignQueries';
 import type { SkillAgentResponse } from '../types';
@@ -55,32 +55,28 @@ export default function SkillAgentEditDrawer({ open, row, onClose }: Props) {
   return (
     <Drawer
       title={`스킬 우선순위/스킬레벨 수정 — ${row.skillsetName}`}
+      closable={{ placement: 'end' }}
       width={420}
       open={open}
       onClose={onClose}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={isPending} onClick={onSubmit}>
             저장
           </Button>
-        </Space>
+        </div>
       }
     >
       <div className="mb-3 text-xs text-gray-500">
         상담사: <span className="font-semibold text-gray-800">{row.agentName ?? row.agentLoginId}</span>
       </div>
       <Form form={form} layout="vertical">
-        <Form.Item
-          label="우선순위 (PRIORITY, 0~9)"
-          name="priority"
-          rules={[{ required: true, message: '필수' }]}
-          tooltip="같은 스킬 보유자 중 작은 값이 먼저 호출 받음 (0 = 1순위)"
-        >
+        <Form.Item label="우선순위" name="priority" rules={[{ required: true, message: '필수' }]} tooltip="같은 스킬 보유자 중 작은 값이 먼저 호출 받음 (0 = 1순위)">
           <InputNumber min={0} max={9} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item label="스킬 레벨 (SKILL_LEVEL, 0~99)" name="skillLevel" rules={[{ required: true, message: '필수' }]} tooltip="같은 PRIORITY 라면 큰 값이 가중치 우위">
+        <Form.Item label="스킬레벨" name="skillLevel" rules={[{ required: true, message: '필수' }]}>
           <InputNumber min={0} max={99} style={{ width: '100%' }} />
         </Form.Item>
       </Form>

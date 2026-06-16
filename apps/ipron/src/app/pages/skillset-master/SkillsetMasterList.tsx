@@ -10,9 +10,10 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Layers, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import SkillGroupManageModal from '../../features/skill-assign/components/SkillGroupManageModal';
 import SkillsetFormDrawer from '../../features/skillset-master/components/SkillsetFormDrawer';
 import SkillsetGroupDrawer from '../../features/skillset-master/components/SkillsetGroupDrawer';
 import SkillsetGroupTree from '../../features/skillset-master/components/SkillsetGroupTree';
@@ -27,8 +28,8 @@ import {
   useGetSkillsetGroups,
   useGetSkillsetTenants,
   useGetSkillsets,
-  useMoveSkillsetGroup,
   useReassignSkillsetMembers,
+  useReorderSkillsetGroup,
   useUnassignSkillsetMembers,
   useUpdateSkillset,
   useUpdateSkillsetGroup,
@@ -36,6 +37,7 @@ import {
 import type {
   SkillsetCreateRequest,
   SkillsetGroupCreateRequest,
+  SkillsetGroupReorderPosition,
   SkillsetGroupResponse,
   SkillsetGroupUpdateRequest,
   SkillsetResponse,
@@ -43,12 +45,7 @@ import type {
 } from '../../features/skillset-master/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/skillset-master' },
-  { title: '스킬 관리', path: '/ipron/skillset-master' },
-  { title: '스킬셋 관리', path: '/ipron/skillset-master' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '라우팅 설정' }, { title: '스킬셋 관리', path: '/ipron/skillset-master' }];
 
 interface CompactPillProps {
   name: string;
@@ -93,6 +90,12 @@ export default function SkillsetMasterList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
+  // modal 인스턴스를 ref 에 보관 — 매 렌더마다 새 객체를 반환하는 useModal() 이
+  // useCallback deps 에 들어가면 handleBulkDelete 등이 매 렌더마다 새 참조가 되어
+  // columnDefs useMemo → ag-Grid 컬럼 재생성 → onSelectionChanged → setState → 무한 루프가 발생한다.
+  // ref 를 통해 항상 최신 인스턴스에 접근하되 deps 는 안정적으로 유지한다.
+  const modalRef = useRef(modal);
+  modalRef.current = modal;
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
@@ -130,9 +133,19 @@ export default function SkillsetMasterList() {
   const [scheduleDrawerOpen, setScheduleDrawerOpen] = useState(false);
   const [scheduleSkillset, setScheduleSkillset] = useState<SkillsetResponse | null>(null);
 
+  const [groupManageOpen, setGroupManageOpen] = useState(false);
+
   // ─── Queries ────────────────────────────────────────────────────────────
+  const skillsetListParams = useMemo(() => {
+    const base: { tenantId?: number; treeId?: number } = {};
+    if (selectedTenantId !== null) base.tenantId = selectedTenantId;
+    if (selectedTreeId === 0) base.treeId = 0;
+    else if (selectedTreeId !== null) base.treeId = selectedTreeId;
+    return base;
+  }, [selectedTenantId, selectedTreeId]);
+
   const { data: skillsets = [], isLoading } = useGetSkillsets({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+    params: skillsetListParams,
   });
   const { data: tenantStats = [] } = useGetSkillsetTenants();
   const { data: groupTree = [] } = useGetSkillsetGroups({
@@ -203,7 +216,7 @@ export default function SkillsetMasterList() {
       onError: (err: unknown) => toast.error(extractMsg(err, '해제 실패')),
     },
   });
-  const { mutate: moveGroup } = useMoveSkillsetGroup({
+  const { mutate: reorderGroup } = useReorderSkillsetGroup({
     mutationOptions: {
       onError: (err: unknown) => toast.error(extractMsg(err, '순서 변경 실패')),
     },
@@ -212,8 +225,8 @@ export default function SkillsetMasterList() {
   // ─── Derived ────────────────────────────────────────────────────────────
   const filteredSkillsets = useMemo(() => {
     let rows = skillsets;
-    if (selectedTreeId === 0) rows = rows.filter((r) => r.treeId == null);
-    else if (selectedTreeId != null) rows = rows.filter((r) => r.treeId === selectedTreeId);
+    // treeId=0(미배정) / treeId=n(실제 트리): BE가 하위 포함 재귀 결과를 반환 — 클라이언트 재필터 불필요
+    // selectedTreeId 는 deps 불필요 (BE params 에만 사용, 클라이언트 필터 없음)
     const kw = searchText.trim().toLowerCase();
     if (kw) {
       rows = rows.filter((r) => {
@@ -222,7 +235,7 @@ export default function SkillsetMasterList() {
       });
     }
     return rows;
-  }, [skillsets, selectedTreeId, searchText]);
+  }, [skillsets, searchText]);
 
   const totalStats = useMemo(() => {
     let skillsetCount = 0;
@@ -261,21 +274,21 @@ export default function SkillsetMasterList() {
 
   const handleDelete = useCallback(
     (row: SkillsetResponse) => {
-      modal.confirm.execute({
+      modalRef.current.confirm.execute({
         onOk: () => deleteSkillsets([row.skillsetId]),
         options: { title: '스킬셋 삭제', content: `"${row.skillsetName}" 스킬셋을 삭제하시겠습니까?` },
       });
     },
-    [modal, deleteSkillsets],
+    [deleteSkillsets],
   );
 
   const handleBulkDelete = useCallback(() => {
     if (selectedRows.length === 0) return;
-    modal.confirm.execute({
+    modalRef.current.confirm.execute({
       onOk: () => deleteSkillsets(selectedRows.map((r) => r.skillsetId)),
       options: { title: '스킬셋 일괄 삭제', content: `선택한 ${selectedRows.length}건의 스킬셋을 삭제하시겠습니까?` },
     });
-  }, [selectedRows, modal, deleteSkillsets]);
+  }, [selectedRows, deleteSkillsets]);
 
   const handleDrawerSubmit = useCallback(
     (req: SkillsetCreateRequest | SkillsetUpdateRequest) => {
@@ -315,19 +328,19 @@ export default function SkillsetMasterList() {
 
   const handleDeleteGroup = useCallback(
     (group: SkillsetGroupResponse) => {
-      modal.confirm.execute({
+      modalRef.current.confirm.execute({
         onOk: () => deleteGroup(group.treeId),
-        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹과 하위 그룹/매핑이 모두 삭제됩니다. 진행하시겠습니까?` },
+        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹을 삭제하시겠습니까?` },
       });
     },
-    [modal, deleteGroup],
+    [deleteGroup],
   );
 
-  const handleMoveGroup = useCallback(
-    (group: SkillsetGroupResponse, up: boolean) => {
-      moveGroup({ treeId: group.treeId, up });
+  const handleGroupReorder = useCallback(
+    (movedTreeId: number, position: SkillsetGroupReorderPosition, referenceTreeId: number) => {
+      reorderGroup({ treeId: movedTreeId, body: { position, referenceTreeId } });
     },
-    [moveGroup],
+    [reorderGroup],
   );
 
   const handleManageSchedule = useCallback((row: SkillsetResponse) => {
@@ -526,8 +539,8 @@ export default function SkillsetMasterList() {
               onCreateChild={(parent) => handleCreateGroup(parent, selectedTenantId)}
               onEdit={handleEditGroup}
               onDelete={handleDeleteGroup}
-              onMove={handleMoveGroup}
               onSkillsetDrop={handleSkillsetDrop}
+              onGroupReorder={handleGroupReorder}
             />
           </div>
         </div>
@@ -536,12 +549,13 @@ export default function SkillsetMasterList() {
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">스킬셋 목록 ({filteredSkillsets.length.toLocaleString()}건)</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {filteredSkillsets.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-              </span>
-            )}
+            <span className={`text-xs text-gray-500 ${selectedRows.length > 0 ? '' : 'invisible'}`}>
+              {filteredSkillsets.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+            </span>
             <div className="ml-auto flex items-center gap-2">
+              <Button icon={<Layers className="size-3.5" />} onClick={() => setGroupManageOpen(true)}>
+                스킬모음 관리
+              </Button>
               <Button
                 danger
                 icon={<Trash2 className="size-3.5" />}
@@ -550,7 +564,7 @@ export default function SkillsetMasterList() {
                 disabled={selectedRows.length === 0}
                 title={selectedRows.length === 0 ? '삭제할 스킬셋을 선택하세요' : '선택한 스킬셋 삭제'}
               >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                삭제
               </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateOpen}>
                 등록
@@ -600,8 +614,11 @@ export default function SkillsetMasterList() {
         loading={isCreatingGroup || isUpdatingGroup}
       />
 
-      {/* 스킬셋별 스케쥴 관리 Drawer */}
+      {/* 스킬셋별 스케줄 관리 Drawer */}
       <SkillsetScheduleDrawer open={scheduleDrawerOpen} skillset={scheduleSkillset} onClose={() => setScheduleDrawerOpen(false)} />
+
+      {/* 스킬모음 관리 와이드 모달 */}
+      <SkillGroupManageModal open={groupManageOpen} tenantId={selectedTenantId} onClose={() => setGroupManageOpen(false)} />
     </div>
   );
 }

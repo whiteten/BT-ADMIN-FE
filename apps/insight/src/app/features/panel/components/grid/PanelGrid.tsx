@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import type { ColDef, RowClassParams, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { evaluateRowExpression, extractFieldRefs } from '../../../../utils/rowExpression';
+import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { ColumnFormat, PanelDetail } from '../../../report/types';
@@ -45,8 +47,24 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     queryOptions: { enabled: !!panel.datasetId },
   });
   const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
+  // 계산컬럼(CALC) 수식 맵 — 합계 행 재계산용 (formatterOptions JSON 의 rowExpression)
+  const calcExprMap = useMemo(() => {
+    const map = new Map<string, string>();
+    fields
+      .filter((f) => f.fieldRole === 'CALC' && f.formatterOptions)
+      .forEach((f) => {
+        try {
+          const expr = (JSON.parse(f.formatterOptions as string) as { rowExpression?: string }).rowExpression;
+          if (expr) map.set(f.fieldName, expr);
+        } catch {
+          /* 수식 JSON 파싱 실패 → 합계 빈칸 */
+        }
+      });
+    return map;
+  }, [fields]);
 
-  const rowFields = panel.fieldMap.filter((f) => f.slotType === 'ROW');
+  // 숨김 차원(isHidden)은 GROUP BY 전용 — 그리드 컬럼에서 제외
+  const rowFields = panel.fieldMap.filter((f) => f.slotType === 'ROW' && !f.isHidden);
   const valueFields = panel.fieldMap.filter((f) => f.slotType === 'VALUE');
   const isDraft = reportId === 0 || panel.panelId < 0;
   const hasMapping = rowFields.length > 0 || valueFields.length > 0;
@@ -70,6 +88,8 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
       headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
       sortable: true,
       minWidth: 100,
+      // 시간축 키(yyyyMMdd...)는 단위별 구분자 포맷으로 표시 (합계 행 등 비숫자는 원본 유지)
+      ...(f.fieldName === 'PSR_TIME_KEY' ? { valueFormatter: (params: ValueFormatterParams) => formatTimeKey(params.value) } : {}),
     }));
     const msrCols: ColDef[] = valueFields.map((f) => ({
       field: f.fieldName,
@@ -91,6 +111,24 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
       row[f.fieldName] = i === 0 ? '합계' : '';
     });
     valueFields.forEach((f) => {
+      // 계산컬럼: 수식 값을 단순 합산하면 율/평균 의미가 깨진다.
+      // AS-IS 동일하게 베이스 컬럼(숨은 측정값 — 결과 행에 포함됨)을 집계한 뒤 수식을 재계산.
+      // 집계 방식은 계산컬럼의 aggFunc(MAX → 베이스도 MAX, 그 외 SUM)를 따른다.
+      if (f.isCalcField) {
+        const expr = calcExprMap.get(f.fieldName);
+        if (!expr) {
+          row[f.fieldName] = null;
+          return;
+        }
+        const useMax = f.aggFunc === 'MAX';
+        const baseValues: Record<string, number> = {};
+        extractFieldRefs(expr).forEach((ref) => {
+          const nums = rowData.map((r: Record<string, unknown>) => Number(r[ref])).filter((v: number) => !isNaN(v));
+          baseValues[ref] = nums.length === 0 ? 0 : useMax ? Math.max(...nums) : nums.reduce((a: number, b: number) => a + b, 0);
+        });
+        row[f.fieldName] = evaluateRowExpression(expr, baseValues);
+        return;
+      }
       // aggFunc 미지정(없음)인 컬럼은 합계 행에서 빈칸 처리
       if (!f.aggFunc) {
         row[f.fieldName] = null;
@@ -123,7 +161,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
       }
     });
     return row;
-  }, [showSumRow, rowData, rowFields, valueFields]);
+  }, [showSumRow, rowData, rowFields, valueFields, calcExprMap]);
 
   // 안정적인 ref 유지 — 매 렌더 새 배열/함수면 ag-grid가 갱신 루프에 빠짐
   const pinnedBottomRowData = useMemo(() => (!isDraft && summaryRow ? [summaryRow] : undefined), [isDraft, summaryRow]);
@@ -142,8 +180,9 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     return <AgGridReact {...gridOptions} rowData={[]} columnDefs={columnDefs} domLayout="autoHeight" pagination={false} statusBar={undefined} pinnedBottomRowData={undefined} />;
   }
 
-  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이(영역 내부 스크롤) + 페이징(50/page) + 합계 핀
-  // domLayout="normal" 이라 패널 높이를 키우면 보이는 행 수도 늘어남
+  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이 + 영역 내부 세로 스크롤. 페이징 없음.
+  // 통계는 그리드 값과 하단 푸터(합계)를 함께 검증하므로, 합계는 하단 고정(pinnedBottom)으로
+  // 항상 보이게 하고 데이터 행만 스크롤한다. domLayout="normal" 이라 패널 높이만큼 보인다.
   return (
     <div className="h-full w-full" style={{ minHeight: 220 }}>
       <AgGridReact
@@ -151,9 +190,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
         rowData={rowData}
         columnDefs={columnDefs}
         loading={isFetching}
-        pagination
-        paginationPageSize={50}
-        paginationPageSizeSelector={[20, 50, 100, 200]}
+        pagination={false}
         domLayout="normal"
         pinnedBottomRowData={pinnedBottomRowData}
         getRowStyle={getRowStyle}

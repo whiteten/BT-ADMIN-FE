@@ -24,7 +24,6 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '설정', path: '/manager/resource/mask-policy' },
   { title: '보안', path: '/manager/resource/mask-policy' },
   { title: '마스킹 정책', path: '/manager/resource/mask-policy' },
 ];

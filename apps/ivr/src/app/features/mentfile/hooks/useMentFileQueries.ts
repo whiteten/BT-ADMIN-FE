@@ -3,7 +3,7 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractApiErrorMessage, extractFileName, toast } from '@/shared-util';
 import { mentFileApi } from '../api/mentFileApi';
 import type { MentApplyRequest, MentApplyResponse, MentApplyTarget, MentFile, MentFileHistoryRow } from '../types';
 
@@ -100,5 +100,26 @@ export const useGetMentFileHistory = ({
     queryKey: mentFileQueryKeys.history(params as Record<string, unknown> | undefined).queryKey,
     queryFn: () => mentFileApi.getHistory((params as GetHistoryParams) ?? {}),
     ...queryOptions,
+  });
+};
+
+// ─── 다운로드 ─────────────────────────────────────────────────────────────
+
+/** 멘트 원본 파일 다운로드 (Blob). 시나리오 패턴 동등. */
+export const useDownloadMentFile = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      try {
+        const response = await mentFileApi.downloadMentFile(params);
+        const fallback = `mentfile_${params['mentfileId']}`;
+        const fileName = extractFileName(response.headers['content-disposition'], fallback);
+        downloadBlob(response.data, fileName);
+      } catch (err) {
+        // blob 응답이라 에러 본문도 Blob → 헬퍼로 백엔드 message 추출 후 토스트
+        toast.error(await extractApiErrorMessage(err, '다운로드에 실패했습니다.'));
+        throw err;
+      }
+    },
+    ...mutationOptions,
   });
 };

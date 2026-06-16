@@ -4,7 +4,7 @@
  * AS-IS: SWAT IPR20S3010(마스터) + IPR20S3030(멤버)
  * BE: BT-ADMIN-SERVICE-IPRON `/api/ipron/acd-gdns`
  *
- * Phase 1 — 멘트 wizard 제거, 멘트 ID 컬럼은 등록 폼 콤보로만 유지.
+ * 멘트 wizard 제거, 멘트 ID 컬럼은 등록 폼 콤보로만 유지.
  */
 
 // ──────────────────────────────────────────────────────────
@@ -17,7 +17,9 @@ export interface GdnResponse {
   gdnName: string;
   gdnType: number; // 16=ACD
   nodeId: number | null;
+  nodeName?: string | null;
   backUpNodeId: number | null;
+  backUpNodeName?: string | null;
   globalDnYn: number | null;
 
   companyId: number | null;
@@ -48,7 +50,7 @@ export interface GdnResponse {
   coHoldMent: number | null;
   blockMent: number | null;
 
-  // 블럭/종료/라우팅
+  // 블록/종료/라우팅
   blockYn: number | null;
   closeType: number | null;
   blockRoutingDnis: string | null;
@@ -145,7 +147,8 @@ export interface GdnMemberResponse {
   dnType?: string | null; // 11=EDN, 12=ADN
   loginAdn?: string | null; // ADN 로그인 ID
   extBlockYn?: number | null; // 블록여부 (1=ON)
-  backUpNodeId?: number | null; // DR 노드
+  backUpNodeId?: number | null; // DR 노드 ID
+  backUpNodeName?: string | null; // DR 노드 이름
   tenantId?: number | null;
   tenantName?: string | null;
   assigned?: boolean | null; // 해당 그룹DN 기배정 여부 (members-pool)
@@ -188,12 +191,22 @@ export interface GdnMemberSaveRequest {
 //  Enum / Lookup
 // ──────────────────────────────────────────────────────────
 
+/**
+ * BE enum 동기화: BT-ADMIN-SERVICE-IPRON
+ *   com.bridgetec.btadmin.ipron.acdgdn.domain.enums.AcdType
+ *   코드값 변경 시 BE enum 과 함께 수정할 것.
+ */
 export const ACD_TYPE_OPTIONS: { value: number; label: string }[] = [
-  { value: 1, label: 'Login Agent' },
-  { value: 2, label: 'Phone Regi' },
-  { value: 3, label: 'Login Agent DN (Skill)' },
+  { value: 1, label: '로그인 상담사' },
+  { value: 2, label: '전화 등록' },
+  { value: 3, label: '로그인 상담사 DN (스킬)' },
 ];
 
+/**
+ * BE enum 동기화: BT-ADMIN-SERVICE-IPRON
+ *   com.bridgetec.btadmin.ipron.acdgdn.domain.enums.RoutingKind
+ *   코드값 변경 시 BE enum 과 함께 수정할 것.
+ */
 export const ROUTING_KIND_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: '1. 우선순위' },
   { value: 2, label: '2. 순차' },
@@ -201,6 +214,11 @@ export const ROUTING_KIND_OPTIONS: { value: number; label: string }[] = [
   { value: 4, label: '4. 직접 (대기/종료멘트·헌팅 비활성)' },
 ];
 
+/**
+ * BE enum 동기화: BT-ADMIN-SERVICE-IPRON
+ *   com.bridgetec.btadmin.ipron.acdgdn.domain.enums.HuntingType
+ *   코드값 변경 시 BE enum 과 함께 수정할 것.
+ */
 export const HUNTING_TYPE_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: '1. 순차 헌팅' },
   { value: 2, label: '2. 동시 헌팅' },
@@ -212,7 +230,13 @@ export const YN_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: '사용' },
 ];
 
-/** TB_CC_COMMONCODE CLASS_CD='CALL_CLOSE_TYPE' 실측 코드 (2026-06-07) */
+/**
+ * TB_CC_COMMONCODE CLASS_CD='CALL_CLOSE_TYPE' 실측 코드 (2026-06-07).
+ *
+ * BE enum 동기화: BT-ADMIN-SERVICE-IPRON
+ *   com.bridgetec.btadmin.ipron.acdgdn.domain.enums.CallCloseType
+ *   코드값 변경 시 BE enum 과 함께 수정할 것.
+ */
 export const CALL_CLOSE_TYPE_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: '정상 종료' },
   { value: 1, label: '멘트 후 종료' },

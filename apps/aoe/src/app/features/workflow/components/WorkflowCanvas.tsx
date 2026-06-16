@@ -76,6 +76,8 @@ interface WorkflowCanvasInnerProps {
   agentId: string;
   graph: WorkflowGraph;
   onSelectNode: (nodeId: string | null) => void;
+  /** Playground 드로어가 열려 있으면 캔버스 복사/붙여넣기 단축키 비활성 (드로어 내 텍스트 복사 우선) */
+  shortcutsDisabled?: boolean;
 }
 
 interface NodeActionHandlers {
@@ -171,7 +173,7 @@ const getNodeCardFingerprint = (n: FlowNode): string => {
   }
 };
 
-function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInnerProps) {
+function WorkflowCanvasInner({ agentId, graph, onSelectNode, shortcutsDisabled }: WorkflowCanvasInnerProps) {
   const queryClient = useQueryClient();
   const { screenToFlowPosition, getNode } = useReactFlow();
 
@@ -401,7 +403,8 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         .filter((id) => !isToolNodeId(id));
       if (removed.length > 0) {
         const snapshot = captureNodesForHistory(removed);
-        deleteNodesWithEdges(removed).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
+        pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges });
+        deleteNodesWithEdges(removed);
       }
     },
     [deleteNodesWithEdges, nodes, captureNodesForHistory, pushHistory],
@@ -549,7 +552,10 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         data: clonedData,
       };
       labelPool = [...labelPool, newNode];
-      createNode({ params: { agentId }, data: newNode }, { onSuccess: (created) => pushHistory({ type: 'createNode', node: created }) });
+      // 히스토리는 액션 시점에 동기 push (onSuccess 비동기 push 는 undo 와 레이스 발생).
+      // BE 는 클라이언트 전송 nodeId 를 그대로 사용하므로 newNode 로 역작업(삭제) 가능.
+      pushHistory({ type: 'createNode', node: newNode });
+      createNode({ params: { agentId }, data: newNode });
     });
   }, [clipboard, agentId, createNode, pushHistory]);
 
@@ -564,7 +570,8 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       setClipboard(cuttable);
       const ids = cuttable.map((n) => n.nodeId);
       const snapshot = captureNodesForHistory(ids);
-      deleteNodesWithEdges(ids).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
+      pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges });
+      deleteNodesWithEdges(ids);
       toast.success(`${cuttable.length}개 노드를 잘라냈습니다.`);
     },
     [deleteNodesWithEdges, captureNodesForHistory, pushHistory],
@@ -579,7 +586,8 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         return;
       }
       const snapshot = captureNodesForHistory([nodeId]);
-      deleteNodesWithEdges([nodeId]).then(() => pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges }));
+      pushHistory({ type: 'deleteNodes', nodes: snapshot.nodes, edges: snapshot.edges });
+      deleteNodesWithEdges([nodeId]);
     },
     [deleteNodesWithEdges, captureNodesForHistory, pushHistory],
   );
@@ -646,11 +654,15 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
       const cached = cache.get(src.nodeId);
       if (cached && cached.src === src) return cached.rf;
       const fp = getNodeCardFingerprint(src);
-      // src 가 바뀌었지만 카드 표시 데이터(fingerprint) + 위치/스타일까지 동일하면 prev RF Node 통째 재사용.
-      // → ReactFlow 내부 store nodeLookup 엔트리도 그대로 → 연결 엣지 selector 결과 reference-equal → 엣지 re-render 차단.
-      if (cached && cached.fp === fp && cached.rf.position.x === src.positionX && cached.rf.position.y === src.positionY) {
-        cache.set(src.nodeId, { src, fp, rf: cached.rf });
-        return cached.rf;
+      // 카드 표시 데이터(fingerprint) 가 동일하면 prev RF Node 의 data/style/handlers reference 를 보존.
+      // - 위치까지 동일: prev RF Node 통째 재사용 → 연결 엣지 selector 결과 reference-equal → 엣지 re-render 차단.
+      // - 위치만 다름(드래그 종료 커밋): position 만 교체한 얕은 복제 → data reference 유지 →
+      //   memo(GenericKindNode) 가 리렌더되지 않아 drop 시 이동 노드만 깜빡이던 문제 해결.
+      if (cached && cached.fp === fp) {
+        const samePos = cached.rf.position.x === src.positionX && cached.rf.position.y === src.positionY;
+        const rf = samePos ? cached.rf : { ...cached.rf, position: { x: src.positionX, y: src.positionY } };
+        cache.set(src.nodeId, { src, fp, rf });
+        return rf;
       }
       const rf = toReactFlowNode(src, nodeHandlers);
       // fp 가 달라 RF Node 를 새로 만들더라도, 위치/스타일 값이 그대로면 sub-object reference 보존.
@@ -691,8 +703,11 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         const old = prevById.get(n.id);
         const selected = old?.selected ?? false;
         if (old && old === n && old.selected === selected) return old;
-        if (old && old.data === n.data && old.position === n.position && old.style === n.style && old.type === n.type && old.selected === selected) {
-          return old;
+        // data/style/type/selection 이 같으면 old 의 react-flow 런타임 필드(measured/width/height/dragging 등)를 보존.
+        // 위치만 다른 경우(드래그 종료 커밋)에도 position 만 교체 → 캐시 기반 clean 노드로 통째 교체 시
+        // measured 가 사라져 react-flow 가 노드를 재측정(re-measure)하며 drop 순간 깜빡이던 문제 방지.
+        if (old && old.data === n.data && old.style === n.style && old.type === n.type && old.selected === selected) {
+          return old.position === n.position ? old : { ...old, position: n.position };
         }
         return n.selected === selected ? n : { ...n, selected };
       });
@@ -733,6 +748,8 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
   // 키보드 — Ctrl+C / Ctrl+X / Ctrl+V / Ctrl+Z (Mac: Cmd)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      // Playground 드로어가 열려 있으면 캔버스 단축키 전체 비활성 — 드로어 내 텍스트 복사/붙여넣기 우선
+      if (shortcutsDisabled) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
         return;
@@ -763,7 +780,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [nodes, clipboard, copyNodes, cutNodes, pasteNodes, undo]);
+  }, [nodes, clipboard, copyNodes, cutNodes, pasteNodes, undo, shortcutsDisabled]);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -787,7 +804,9 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         positionY: Math.round(position.y - NODE_DROP_OFFSET_Y),
         data: NODES_WITHOUT_OUTPUT.has(kind) ? undefined : { output_variable: buildOutputVariableFromName(newNodeName) },
       };
-      createNode({ params: { agentId }, data: newNode }, { onSuccess: (created) => pushHistory({ type: 'createNode', node: created }) });
+      // 히스토리는 액션 시점에 동기 push (onSuccess 비동기 push 는 undo 와 레이스 발생)
+      pushHistory({ type: 'createNode', node: newNode });
+      createNode({ params: { agentId }, data: newNode });
     },
     [agentId, createNode, screenToFlowPosition, pushHistory],
   );
@@ -840,15 +859,16 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
 }
 
 interface WorkflowCanvasProps {
+  shortcutsDisabled?: boolean;
   agentId: string;
   graph: WorkflowGraph;
   onSelectNode: (nodeId: string | null) => void;
 }
 
-export default function WorkflowCanvas({ agentId, graph, onSelectNode }: WorkflowCanvasProps) {
+export default function WorkflowCanvas({ agentId, graph, onSelectNode, shortcutsDisabled }: WorkflowCanvasProps) {
   return (
     <ReactFlowProvider>
-      <WorkflowCanvasInner agentId={agentId} graph={graph} onSelectNode={onSelectNode} />
+      <WorkflowCanvasInner agentId={agentId} graph={graph} onSelectNode={onSelectNode} shortcutsDisabled={shortcutsDisabled} />
     </ReactFlowProvider>
   );
 }

@@ -25,6 +25,7 @@ export default function useAggridOptions() {
       }),
     [],
   );
+  // 2026-06-12 사용자 확정: 컬럼 필터 전면 활성
   const defaultColDef = useMemo(
     () => ({
       flex: 1,
@@ -34,7 +35,7 @@ export default function useAggridOptions() {
       enableRowGroup: false,
       enablePivot: false,
       sortable: true,
-      filter: false,
+      filter: true,
       editable: false,
       suppressHeaderMenuButton: true,
     }),

@@ -50,8 +50,10 @@ function parseModules(raw: unknown): NodeModule[] {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return [];
   return Object.entries(raw as Record<string, unknown>).map(([code, v]) => {
     const m = (v ?? {}) as Record<string, unknown>;
+    const nm = m.NAME ?? m.name;
     return {
       code,
+      name: nm != null && String(nm).trim() ? String(nm).trim() : undefined,
       status: toStatus(m.STATUS ?? m.status),
       isActive: num0(m.IS_ACTIVE ?? m.isActive) === 1,
     };
@@ -63,13 +65,13 @@ function normalizeNode(o: Record<string, unknown>): SystemNode {
     systemId: String(o.SYSTEM_ID ?? o.systemId ?? ''),
     systemName: String(o.SYSTEM_NAME ?? o.systemName ?? o.SYSTEM_ID ?? '시스템'),
     status: toStatus(o.STATUS ?? o.status),
-    isAlive: num0(o.IS_ACTIVE ?? o.isActive) === 1,
     cpu: { rate: num0(o.CPU_RATE ?? o.cpuRate), status: toStatus(o.CPU_STATUS ?? o.cpuStatus) },
     mem: { rate: num0(o.MEM_RATE ?? o.memRate), status: toStatus(o.MEM_STATUS ?? o.memStatus) },
     disk: { rate: num0(o.DISK_RATE ?? o.diskRate), status: toStatus(o.DISK_STATUS ?? o.diskStatus) },
     process: {
       total: num0(o.PCS_TOT_COUNT ?? o.pcsTotCount),
-      running: num0(o.PCS_RUN_COUNT ?? o.pcsRunCount),
+      // 실행 중 프로세스 수 — 실데이터 필드는 PCS_COUNT(레거시 PCS_RUN_COUNT 폴백).
+      running: num0(o.PCS_COUNT ?? o.PCS_RUN_COUNT ?? o.pcsCount ?? o.pcsRunCount),
       status: toStatus(o.PCS_STATUS ?? o.pcsStatus),
     },
     modules: parseModules(o.CLASS_ITEMS ?? o.classItems),
@@ -122,29 +124,20 @@ export const SEV_BORDER_SOFT: Record<Severity, string> = {
 
 export interface SystemCounts {
   total: number;
-  /** 가동(살아있음) 시스템 수 */
-  alive: number;
-  /** 다운(죽음) 시스템 수 — IS_ACTIVE=0. 최상위 위험. */
-  down: number;
-  /** 가동 시스템 중 STATUS=0 (정상) */
+  /** STATUS=0 (정상) */
   normal: number;
-  /** 가동 시스템 중 STATUS=1 (Minor / 주의) */
+  /** STATUS=1 (Minor / 주의) */
   minor: number;
-  /** 가동 시스템 중 STATUS=2 (Major / 경고) */
+  /** STATUS=2 (Major / 경고) */
   major: number;
-  /** 가동 시스템 중 STATUS=3 (Critical / 위험) */
+  /** STATUS=3 (Critical / 위험) */
   critical: number;
 }
 
-/** 시스템(행) 기준 집계 — 다운은 별도 버킷, 나머지는 가동 시스템의 STATUS(정상/주의/경고/위험) 분류. */
+/** 시스템(행) 기준 집계 — STATUS(정상/주의/경고/위험) 분류. */
 export function countSystems(nodes: SystemNode[]): SystemCounts {
-  const c: SystemCounts = { total: nodes.length, alive: 0, down: 0, normal: 0, minor: 0, major: 0, critical: 0 };
+  const c: SystemCounts = { total: nodes.length, normal: 0, minor: 0, major: 0, critical: 0 };
   for (const n of nodes) {
-    if (!n.isAlive) {
-      c.down++;
-      continue;
-    }
-    c.alive++;
     if (n.status === 0) c.normal++;
     else if (n.status === 1) c.minor++;
     else if (n.status === 2) c.major++;
@@ -154,7 +147,7 @@ export function countSystems(nodes: SystemNode[]): SystemCounts {
 }
 
 export interface ModuleCounts {
-  /** 전체 모듈 수 (가동 시스템만 — 다운 시스템 모듈은 stale 이라 제외) */
+  /** 전체 모듈 수 */
   total: number;
   normal: number;
   minor: number;
@@ -162,11 +155,10 @@ export interface ModuleCounts {
   critical: number;
 }
 
-/** 모듈(CLASS_ITEMS 키) 상태 집계. 다운 시스템의 모듈은 무의미하므로 제외. */
+/** 모듈(CLASS_ITEMS 키) 상태 집계. */
 export function countModules(nodes: SystemNode[]): ModuleCounts {
   const c: ModuleCounts = { total: 0, normal: 0, minor: 0, critical: 0 };
   for (const n of nodes) {
-    if (!n.isAlive) continue;
     for (const m of n.modules) {
       c.total++;
       if (m.status === 0) c.normal++;
@@ -177,35 +169,23 @@ export function countModules(nodes: SystemNode[]): ModuleCounts {
   return c;
 }
 
-/** 특정 상태(0~3)의 모듈 총 개수 — 필터칩 카운트용. 다운 시스템 제외. */
+/** 특정 상태(0~3)의 모듈 총 개수 — 필터칩 카운트용. */
 export function moduleStatusCount(nodes: SystemNode[], status: NodeStatus): number {
   let n = 0;
   for (const sys of nodes) {
-    if (!sys.isAlive) continue;
     for (const m of sys.modules) if (m.status === status) n++;
   }
   return n;
 }
 
-/** 시스템의 모듈 이중화 롤업 (Active / Standby 개수). */
-export function moduleRedundancy(system: SystemNode): { active: number; standby: number } {
-  let active = 0;
-  let standby = 0;
-  for (const m of system.modules) {
-    if (m.isActive) active++;
-    else standby++;
-  }
-  return { active, standby };
-}
-
 // ─── 시각 포맷 ─────────────────────────────────────────────────
 
-/** yyyyMMddHHmmss → "HH:mm:ss". 형식이 아니면 원본 일부 반환. */
+/** yyyyMMddHHmmss → "yyyy-MM-dd HH:mm:ss". 형식이 아니면 원본 반환. */
 export function fmtUpdateTime(v?: string): string {
   if (!v) return '—';
   const s = v.trim();
   if (/^\d{14}$/.test(s)) {
-    return `${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}`;
+    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)} ${s.slice(8, 10)}:${s.slice(10, 12)}:${s.slice(12, 14)}`;
   }
   return s;
 }

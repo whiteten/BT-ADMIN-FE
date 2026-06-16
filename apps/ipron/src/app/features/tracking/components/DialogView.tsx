@@ -27,10 +27,10 @@ type FilterKey = 'all' | 'bot' | 'dtmf' | 'stt' | 'failed';
 
 const FILTER_OPTIONS: { value: FilterKey; label: string }[] = [
   { value: 'all', label: '전체' },
-  { value: 'bot', label: '🤖 IVR 멘트만' },
-  { value: 'dtmf', label: '🔢 DTMF 입력만' },
-  { value: 'stt', label: '🎤 음성 인식(STT)만' },
-  { value: 'failed', label: '⚠ 실패만' },
+  { value: 'bot', label: 'IVR 멘트만' },
+  { value: 'dtmf', label: 'DTMF 입력만' },
+  { value: 'stt', label: '음성 인식(STT)만' },
+  { value: 'failed', label: '실패만' },
 ];
 
 const fmtTime = (ms: number | null): string => {
@@ -94,13 +94,13 @@ function BotBubble({ turn }: { turn: DialogTurn }) {
       {/* 시간 (말풍선 좌측, 박스 외부) */}
       <div className="flex flex-col items-end pt-1.5 flex-shrink-0">
         <span className="text-[10px] text-gray-400 font-mono">{fmtTime(turn.startMs)}</span>
-        {turn.mentId && <span className="text-[9.5px] text-gray-400 font-mono">🔊 {turn.mentId}</span>}
+        {turn.mentId && <span className="text-[9.5px] text-gray-400 font-mono">{turn.mentId}</span>}
       </div>
       {/* 말풍선 (우측) */}
       <div className="flex flex-col items-end max-w-[68%]">
         <div className="flex items-center gap-1.5 mb-0.5">
           <span className="text-[10px] text-gray-400">{typeLabel(turn.type)}</span>
-          <span className="text-[10px] font-semibold text-blue-700">🤖 IVR</span>
+          <span className="text-[10px] font-semibold text-blue-700">IVR</span>
         </div>
         <div
           className={`px-3 py-2 rounded-lg text-[12px] leading-relaxed whitespace-pre-wrap break-words bg-blue-50 text-gray-800 border border-blue-200 rounded-tr-sm ${
@@ -128,7 +128,7 @@ function CustomerBubble({ turn }: { turn: DialogTurn }) {
       {/* 말풍선 (좌측) */}
       <div className="flex flex-col items-start max-w-[68%]">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-[10px] font-semibold text-emerald-700">🙋 고객</span>
+          <span className="text-[10px] font-semibold text-emerald-700">고객</span>
           <span className="text-[10px] text-gray-400">{typeLabel(turn.type)}</span>
         </div>
         {isDtmf ? (

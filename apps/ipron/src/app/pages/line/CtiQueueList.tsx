@@ -14,10 +14,11 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Empty, Input, Modal, Table } from 'antd';
-import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Network, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ctiQueueApi } from '../../features/cti-queue/api/ctiQueueApi';
+import CtiQueueBulkUpdateModal from '../../features/cti-queue/components/CtiQueueBulkUpdateModal';
 import CtiQueueFormDrawer, { type CtiQueueDrawerState } from '../../features/cti-queue/components/CtiQueueFormDrawer';
 import CtiQueueGroupDrawer from '../../features/cti-queue/components/CtiQueueGroupDrawer';
 import CtiQueueGroupTree from '../../features/cti-queue/components/CtiQueueGroupTree';
@@ -29,20 +30,19 @@ import {
   useDeleteCtiQueueGroup,
   useGetCtiQueueGroupOptions,
   useGetCtiQueueGroups,
+  useGetCtiQueueMediaOptions,
+  useGetCtiQueueSkillsetOptions,
   useGetCtiQueues,
   useReassignCtiQueueMembers,
+  useReorderCtiQueueGroup,
   useUnassignCtiQueueMembers,
   useUpdateCtiQueueGroup,
 } from '../../features/cti-queue/hooks/useCtiQueueQueries';
-import type { CtiQueueGroupCreateRequest, CtiQueueGroupResponse, CtiQueueGroupUpdateRequest, CtiQueueResponse } from '../../features/cti-queue/types';
+import type { CtiQueueGroupCreateRequest, CtiQueueGroupReorderPosition, CtiQueueGroupResponse, CtiQueueGroupUpdateRequest, CtiQueueResponse } from '../../features/cti-queue/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/cti-queue' },
-  { title: '그룹DN', path: '/ipron/cti-queue' },
-  { title: 'CTI 큐', path: '/ipron/cti-queue' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'CTI 큐', path: '/ipron/cti-queue' }];
 
 export default function CtiQueueList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -70,8 +70,9 @@ export default function CtiQueueList() {
   const groupView = true;
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [drawer, setDrawer] = useState<CtiQueueDrawerState>({ open: false });
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
 
   // 업무그룹 트리 Drawer (추가/수정)
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
@@ -108,6 +109,8 @@ export default function CtiQueueList() {
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: rows = [], isLoading } = useGetCtiQueues();
   const { data: groupOptions = [] } = useGetCtiQueueGroupOptions(selectedTenantId);
+  const { data: skillsetOptions = [] } = useGetCtiQueueSkillsetOptions(selectedTenantId);
+  const { data: mediaOptions = [] } = useGetCtiQueueMediaOptions();
 
   // ─── Derived: 탭 항목 (행에서 노드/테넌트 추출) ──────────────────────────────
   const assignedNodes = useMemo(() => {
@@ -391,23 +394,13 @@ export default function CtiQueueList() {
     });
   };
 
-  const handleDelete = (row: CtiQueueResponse) => {
-    modal.confirm.execute({
-      onOk: () => deleteQueue(row.ctiqId),
-      options: {
-        title: 'CTI 큐 삭제',
-        content: `"${row.gdnName ?? row.ctiqName ?? row.ctiqId}" CTI 큐를 삭제하시겠습니까?\n그룹DN(번호 ${row.gdnNo ?? '-'})도 함께 삭제됩니다.`,
-      },
-    });
-  };
-
   const handleDeleteSelected = () => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
       onOk: () => selectedRows.forEach((r) => deleteQueue(r.ctiqId)),
       options: {
         title: 'CTI 큐 일괄 삭제',
-        content: `선택한 ${selectedRows.length}건의 CTI 큐를 삭제하시겠습니까?\n각 그룹DN도 함께 삭제됩니다.`,
+        content: `선택한 ${selectedRows.length}건의 CTI 큐를 삭제하시겠습니까?`,
       },
     });
   };
@@ -492,6 +485,11 @@ export default function CtiQueueList() {
       onError: (err: unknown) => toast.error(extractMsg(err, '해제 실패')),
     },
   });
+  const { mutate: reorderGroup } = useReorderCtiQueueGroup({
+    mutationOptions: {
+      onError: (err: unknown) => toast.error(extractMsg(err, '순서 변경 실패')),
+    },
+  });
 
   // ─── 업무그룹 트리 핸들러 ───────────────────────────────────────────────────
   const handleCreateGroup = useCallback(
@@ -522,7 +520,7 @@ export default function CtiQueueList() {
     (group: CtiQueueGroupResponse) => {
       modal.confirm.execute({
         onOk: () => deleteGroup(group.treeId),
-        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹과 하위 그룹/매핑이 모두 삭제됩니다. 진행하시겠습니까?` },
+        options: { title: '업무그룹 삭제', content: `"${group.treeName}" 그룹을 삭제하시겠습니까?` },
       });
     },
     [modal, deleteGroup],
@@ -534,6 +532,14 @@ export default function CtiQueueList() {
       else if (groupDrawerTarget) updateGroup({ id: groupDrawerTarget.treeId, body: req as CtiQueueGroupUpdateRequest });
     },
     [groupDrawerMode, groupDrawerTarget, createGroup, updateGroup],
+  );
+
+  // ─── 업무그룹 트리 D&D 재배치 ──────────────────────────────────────────────
+  const handleGroupReorder = useCallback(
+    (movedTreeId: number, position: CtiQueueGroupReorderPosition, referenceTreeId: number) => {
+      reorderGroup({ treeId: movedTreeId, body: { position, referenceTreeId } });
+    },
+    [reorderGroup],
   );
 
   // ─── D&D: 큐 → 업무그룹 노드 ────────────────────────────────────────────────
@@ -614,7 +620,7 @@ export default function CtiQueueList() {
                     key={item.id}
                     type="button"
                     className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] w-[140px] flex-shrink-0 transition-colors ${
-                      isActive ? 'bg-blue-50 text-blue-700 border-b-current' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                      isActive ? 'bg-blue-50 text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
                     }`}
                     onClick={(e) => {
                       handleTabSelect(item.id);
@@ -638,6 +644,14 @@ export default function CtiQueueList() {
             </button>
 
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              {/* BP-1: 화면 전역 액션(엑셀류) → 헤더 박스 */}
+              <Button icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport} title="CTI 큐 목록 Excel 내보내기">
+                엑셀
+              </Button>
+              <Button icon={<Upload className="size-3.5" />} loading={isImporting} onClick={handleImportClick} title="Excel 파일로 CTI 큐 일괄 등록">
+                가져오기
+              </Button>
+              <input ref={importFileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFileChange} />
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -769,6 +783,7 @@ export default function CtiQueueList() {
                 onEdit={handleEditGroup}
                 onDelete={handleDeleteGroup}
                 onCtiQueueDrop={handleCtiQueueDrop}
+                onGroupReorder={handleGroupReorder}
               />
             </div>
           </div>
@@ -776,21 +791,11 @@ export default function CtiQueueList() {
           <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
               <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-              {selectedRows.length > 0 && (
-                <span className="text-xs text-gray-500">
-                  {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-                </span>
-              )}
+              <span className={`text-xs text-gray-500 ${selectedRows.length === 0 ? 'invisible' : ''}`}>
+                {rowsForGrid.length.toLocaleString()}건 중 {selectedRows.length}건 선택
+              </span>
               <div className="ml-auto flex items-center gap-2">
-                {/* GAP2: 내보내기 */}
-                <Button icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport} title="CTI 큐 목록 Excel 내보내기">
-                  내보내기
-                </Button>
-                {/* GAP3: 가져오기 */}
-                <Button icon={<Upload className="size-3.5" />} loading={isImporting} onClick={handleImportClick} title="Excel 파일로 CTI 큐 일괄 등록">
-                  가져오기
-                </Button>
-                <input ref={importFileInputRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleImportFileChange} />
+                {/* BP-2 CRUD 문법: [삭제 danger] → [보조: 일괄 설정 default] → [등록 primary] */}
                 <Button
                   danger
                   icon={<Trash2 className="size-3.5" />}
@@ -799,7 +804,16 @@ export default function CtiQueueList() {
                   disabled={selectedRows.length === 0}
                   title={selectedRows.length === 0 ? '삭제할 큐를 선택하세요' : '선택한 큐 삭제'}
                 >
-                  {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                  삭제
+                </Button>
+                {/* P1: 일괄 설정 (BP-3: default variant, 인라인 색 제거) */}
+                <Button
+                  icon={<Pencil className="size-3.5" />}
+                  onClick={() => setBulkModalOpen(true)}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '설정할 큐를 선택하세요' : `선택한 ${selectedRows.length}건 일괄 설정`}
+                >
+                  일괄 설정{selectedRows.length > 0 ? ` (${selectedRows.length})` : ''}
                 </Button>
                 <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                   큐 등록
@@ -814,10 +828,7 @@ export default function CtiQueueList() {
                 groupOptions={groupOptions}
                 groupView={true}
                 onRowDoubleClicked={handleEdit}
-                onDelete={handleDelete}
                 onSelectionChanged={setSelectedRows}
-                onBulkDelete={handleDeleteSelected}
-                selectedCount={selectedRows.length}
                 getDragCtiqIds={getDragCtiqIds}
               />
             </div>
@@ -826,6 +837,16 @@ export default function CtiQueueList() {
       </div>
 
       <CtiQueueFormDrawer state={drawer} onClose={() => setDrawer({ open: false })} tenantOptions={tenantSelectOptions} nodeOptions={nodeSelectOptions} />
+
+      {/* P1: 일괄 설정 모달 */}
+      <CtiQueueBulkUpdateModal
+        open={bulkModalOpen}
+        selectedRows={selectedRows}
+        skillsetOptions={skillsetOptions}
+        groupOptions={groupOptions}
+        mediaOptions={mediaOptions}
+        onClose={() => setBulkModalOpen(false)}
+      />
 
       {/* GAP3: 가져오기 결과 모달 */}
       <Modal

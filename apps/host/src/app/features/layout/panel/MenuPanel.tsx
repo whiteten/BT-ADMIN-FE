@@ -7,6 +7,7 @@ import PanelMega from './PanelMega';
 import { hasActiveDescendant } from './PanelMenuPrimitives';
 import PanelSidebar from './PanelSidebar';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
+import { PANEL_WIDTH } from '../constants/layoutConstants';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -107,8 +108,8 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const hasFolderDetail = !!activeMenu?.children?.length;
   const showDetailArea = isMega || isFavoriteView || hasFolderDetail;
 
-  // panel 폭: mega→viewport / favorite→560(strip+500) / 폴더 detail→1060(strip60+sidebar300+split700=list300+pane400) / 그 외→360(strip60+sidebar300)
-  const panelWidth = isMega ? 'w-screen' : isFavoriteView ? 'w-[560px]' : hasFolderDetail ? 'w-[1060px]' : 'w-[360px]';
+  // panel 폭 — strip 포함. 폭 상수는 layoutConstants의 PANEL_WIDTH(SoT)에서 파생. mega는 viewport 전체.
+  const panelWidthPx = isFavoriteView ? PANEL_WIDTH.favorite : hasFolderDetail ? PANEL_WIDTH.folderDetail : PANEL_WIDTH.default;
 
   return (
     <>
@@ -122,8 +123,12 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={cn('fixed left-0 z-[900] bg-white shadow-2xl flex transition-[transform,width] duration-200', panelWidth, open ? 'translate-x-0' : '-translate-x-full')}
-        style={{ top: topOffset, height: `calc(100vh - ${topOffset}px)` }}
+        className={cn(
+          'fixed left-0 z-[900] bg-white shadow-2xl flex transition-[transform,width] duration-200',
+          isMega && 'w-screen',
+          open ? 'translate-x-0' : '-translate-x-full',
+        )}
+        style={{ top: topOffset, height: `calc(100vh - ${topOffset}px)`, ...(isMega ? {} : { width: panelWidthPx }) }}
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}

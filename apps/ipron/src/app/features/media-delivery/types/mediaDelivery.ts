@@ -45,13 +45,13 @@ export const RTP_TRANS_TYPE_LABELS: Record<number, string> = {
 
 /** HA 형상 */
 export const HA_TYPE_OPTIONS = [
-  { label: 'None', value: 0 },
+  { label: '없음', value: 0 },
   { label: 'Active-Standby', value: 1 },
   { label: 'Active-Active', value: 2 },
 ] as const;
 
 export const HA_TYPE_LABELS: Record<number, string> = {
-  0: 'None',
+  0: '없음',
   1: 'Active-Standby',
   2: 'Active-Active',
 };
@@ -80,13 +80,13 @@ export const IP_VERSION_LABELS: Record<number, string> = {
 
 /** 상태체크 타입 */
 export const CHECK_TYPE_OPTIONS = [
-  { label: 'None', value: 0 },
+  { label: '사용안함', value: 0 },
   { label: 'OPTIONS', value: 1 },
   { label: 'REGISTER', value: 2 },
 ] as const;
 
 export const CHECK_TYPE_LABELS: Record<number, string> = {
-  0: 'None',
+  0: '사용안함',
   1: 'OPTIONS',
   2: 'REGISTER',
 };

@@ -7,10 +7,10 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { Layers, Plus, Search } from 'lucide-react';
+import { ChevronDown, Layers, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnisDrawer, { type DnisDrawerRef } from '../../features/mcs-dnis/components/DnisDrawer';
@@ -18,7 +18,6 @@ import GdnCardSlider from '../../features/mcs-dnis/components/GdnCardSlider';
 import GdnDrawer, { type GdnDrawerRef } from '../../features/mcs-dnis/components/GdnDrawer';
 import { mcsDnisQueryKeys, useDeleteMcsDnis, useDeleteMcsGdn, useGetMcsDnisList, useGetMcsGdns, useGetNodes } from '../../features/mcs-dnis/hooks/useMcsDnisQueries';
 import { type McsdDnis, type McsdGdn, NETWORK_OPERATOR_LABELS, NETWORK_OPERATOR_OPTIONS, type NetworkOperator } from '../../features/mcs-dnis/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -53,6 +52,8 @@ export default function McsDnis() {
   const [selectedOp, setSelectedOp] = useState<NetworkOperator | null>(null);
   const [selectedGdnNo, setSelectedGdnNo] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const [selectedDnis, setSelectedDnis] = useState<McsdDnis[]>([]);
 
   // ─── Refs ───────────────────────────────────────────────────────────────
   const gdnDrawerRef = useRef<GdnDrawerRef>(null);
@@ -168,7 +169,7 @@ export default function McsDnis() {
   const { mutate: deleteGdn } = useDeleteMcsGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('대표번호가 삭제되었습니다.');
+        toast.success('대표번호가 삭제되었습니다');
         setSelectedGdnNo(null);
         invalidateGdnList();
       },
@@ -189,7 +190,7 @@ export default function McsDnis() {
         onOk: () => deleteGdn({ gdnNo: gdn.mcsdGdnNo }),
         options: {
           title: '대표번호 삭제',
-          content: `"${gdn.mcsdGdnNo}" 대표번호와 하위 DNIS를 모두 삭제하시겠습니까?`,
+          content: `"${gdn.mcsdGdnNo}" 대표번호를 삭제하시겠습니까?`,
         },
       });
     },
@@ -200,7 +201,7 @@ export default function McsDnis() {
   const { mutate: deleteDnis } = useDeleteMcsDnis({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS가 삭제되었습니다.');
+        toast.success('DNIS가 삭제되었습니다');
         invalidateDnisList();
       },
     },
@@ -208,29 +209,31 @@ export default function McsDnis() {
 
   const handleCreateDnis = useCallback(() => {
     if (!selectedGdn) {
-      toast.error('대표번호를 먼저 선택하세요.');
+      toast.error('대표번호를 먼저 선택하세요');
       return;
     }
     dnisDrawerRef.current?.open(undefined, selectedGdn.mcsdGdnNo, nodes);
   }, [selectedGdn, nodes]);
 
-  const handleDeleteDnis = useCallback(
-    (dnis: McsdDnis) => {
-      modal.confirm.execute({
-        onOk: () =>
+  const handleDeleteSelectedDnis = useCallback(() => {
+    if (selectedDnis.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => {
+        selectedDnis.forEach((dnis) =>
           deleteDnis({
             gdnNo: dnis.mcsdGdnNo,
             seq: dnis.seq,
             nodeId: dnis.nodeId,
           }),
-        options: {
-          title: 'DNIS 삭제',
-          content: `시작DNIS "${dnis.startDnis}" 항목을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteDnis],
-  );
+        );
+        setSelectedDnis([]);
+      },
+      options: {
+        title: 'DNIS 삭제',
+        content: `선택한 ${selectedDnis.length}건을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deleteDnis, selectedDnis]);
 
   // GDN 번호 → 통신사 매핑 (그리드에서 통신사 컬럼 표시용)
   const gdnNoToOpMap = useMemo(() => {
@@ -238,6 +241,12 @@ export default function McsDnis() {
     for (const g of gdnList) map.set(g.mcsdGdnNo, g.networkOp);
     return map;
   }, [gdnList]);
+
+  // ─── Row selection ──────────────────────────────────────────────────────
+  const dnisRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   // ─── ag-Grid Column Defs ───────────────────────────────────────────────
   const columnDefs: ColDef<McsdDnis>[] = useMemo(
@@ -252,41 +261,19 @@ export default function McsDnis() {
           return op ? NETWORK_OPERATOR_LABELS[op] : '-';
         },
       },
-      { headerName: '대표번호', field: 'mcsdGdnNo', flex: 1.2, minWidth: 140 },
+      { headerName: '대표번호', field: 'mcsdGdnNo', flex: 1.2, minWidth: 140, tooltipField: 'mcsdGdnNo' },
       {
         headerName: '노드명',
         field: 'nodeName',
         flex: 1,
         minWidth: 120,
-        valueFormatter: (params) => params.data?.nodeName ?? `Node ${params.data?.nodeId ?? ''}`,
+        tooltipField: 'nodeName',
+        valueFormatter: (params) => params.data?.nodeName ?? (params.data?.nodeId ? `노드 ${params.data.nodeId}` : '-'),
       },
-      { headerName: '시작DNIS', field: 'startDnis', flex: 1.2, minWidth: 140 },
-      { headerName: '개수', field: 'count', flex: 0.6, minWidth: 80 },
-      {
-        headerName: '',
-        field: 'seq',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<McsdDnis>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteDnis(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
+      { headerName: '시작DNIS', field: 'startDnis', flex: 1.2, minWidth: 140, tooltipField: 'startDnis' },
+      { headerName: '개수', field: 'count', flex: 0.6, minWidth: 80, filter: 'agNumberColumnFilter' },
     ],
-    [handleDeleteDnis, gdnNoToOpMap],
+    [gdnNoToOpMap],
   );
 
   const gridHeaderText = useMemo(() => {
@@ -355,23 +342,39 @@ export default function McsDnis() {
 
         {/* ===== 카드 슬라이더 박스 (GDN) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <GdnCardSlider
-            gdnList={filteredGdnList}
-            isLoading={isGdnLoading}
-            selectedGdnNo={selectedGdnNo}
-            onSelect={setSelectedGdnNo}
-            onEdit={handleEditGdn}
-            onDelete={handleDeleteGdn}
-          />
+          {/* 접기/펼치기 토글 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setSliderOpen((v) => !v)}
+          >
+            <span>대표번호 선택</span>
+            <ChevronDown className={`size-4 transition-transform ${sliderOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {sliderOpen && (
+            <GdnCardSlider
+              gdnList={filteredGdnList}
+              isLoading={isGdnLoading}
+              selectedGdnNo={selectedGdnNo}
+              onSelect={setSelectedGdnNo}
+              onEdit={handleEditGdn}
+              onDelete={handleDeleteGdn}
+            />
+          )}
         </div>
 
         {/* ===== 하단: DNIS 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateDnis} disabled={!selectedGdn}>
-              DNIS 추가
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button danger icon={<Trash2 className="size-3.5" />} disabled={selectedDnis.length === 0} onClick={handleDeleteSelectedDnis}>
+                삭제
+              </Button>
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateDnis} disabled={!selectedGdn}>
+                DNIS 추가
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1">
@@ -385,11 +388,15 @@ export default function McsDnis() {
                   pagination: false,
                   sideBar: false,
                 }}
+                rowSelection={dnisRowSelection}
                 loading={isDnisLoading}
                 getRowId={(params) => `${params.data.mcsdGdnNo}-${params.data.seq}-${params.data.nodeId}`}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                onRowDoubleClicked={(e) => {
-                  if (e.data) toast.warning('수정은 불가능합니다. 삭제 후 다시 추가하세요.');
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                onRowDoubleClicked={() => {
+                  // 더블클릭 무반응 (수정 불가 항목)
+                }}
+                onSelectionChanged={(e: SelectionChangedEvent<McsdDnis>) => {
+                  setSelectedDnis(e.api.getSelectedRows());
                 }}
               />
             ) : (

@@ -123,7 +123,7 @@ export const ALLOC_METHOD_LABELS: Record<number, string> = { 0: '우선순위', 
 /** REG 방식 */
 export const REG_METHOD_LABELS: Record<number, string> = { 0: '우선순위', 1: '동시 REG' };
 
-/** 블럭 상태 */
+/** 블록 상태 */
 export const BLOCK_STATUS_LABELS: Record<number, string> = { 0: '해제', 1: '설정' };
 
 /** EP 상태 (Redis 기반, 1차 구현에서는 monitorYn 기반 표시) */
@@ -400,18 +400,14 @@ export interface EndpointTag {
 
 export function getEndpointTagList(ep: Endpoint): EndpointTag[] {
   const tags: EndpointTag[] = [];
-  // 모니터링 ON=초록, OFF=빨강
-  tags.push(
-    ep.monitorYn === 1
-      ? { label: '모니터링ON', color: '#52c41a', bgColor: '#f6ffed', borderColor: '#b7eb8f' }
-      : { label: '모니터링OFF', color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7' },
-  );
-  // 블럭 설정=빨강, 해제=초록
-  tags.push(
-    ep.blockYn === 1
-      ? { label: '블럭설정', color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7' }
-      : { label: '블럭해제', color: '#52c41a', bgColor: '#f6ffed', borderColor: '#b7eb8f' },
-  );
+  // 모니터링 OFF만 표시 (ON은 정상 상태이므로 상시노출 제거)
+  if (ep.monitorYn !== 1) {
+    tags.push({ label: '모니터링OFF', color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7' });
+  }
+  // 블록 설정=빨강 (해제는 정상 상태이므로 상시노출 제거)
+  if (ep.blockYn === 1) {
+    tags.push({ label: '블록설정', color: '#ff4d4f', bgColor: '#fff2f0', borderColor: '#ffccc7' });
+  }
   if (ep.regUseYn === 1) tags.push({ label: 'REG', color: '#1677ff', bgColor: '#e6f4ff', borderColor: '#91caff' });
   if (ep.srtpYn === 1) tags.push({ label: 'SRTP', color: '#722ed1', bgColor: '#f9f0ff', borderColor: '#d3adf7' });
   return tags;

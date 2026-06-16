@@ -15,7 +15,7 @@ import { Button, Drawer, Upload, type UploadFile } from 'antd';
 import { CheckCircle, FileText, Upload as UploadIcon, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { sleeConfigQueryKeys, useImportUserconfig } from '../hooks/useSleeConfigQueries';
-import type { SleeUserconfigImportFileResult, SleeUserconfigImportResponse } from '../types/sleeConfig.types';
+import type { SleeUserconfigImportFileResult, SleeUserconfigImportResponse } from '../types';
 
 export interface SleeUserconfigImportModalRef {
   /** tenantId 를 받아 Drawer 열기 */
@@ -98,6 +98,7 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
   return (
     <Drawer
       title="환경변수 cfg 파일 Import"
+      closable={{ placement: 'end' }}
       placement="right"
       width={480}
       open={visible}

@@ -16,7 +16,7 @@ interface FormValues {
 }
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: '도구', path: '/aoe/agent-config/tool/list' },
   { title: '추가', path: '/aoe/agent-config/tool/create' },
 ];

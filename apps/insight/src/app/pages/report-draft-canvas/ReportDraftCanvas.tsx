@@ -31,9 +31,9 @@ export default function ReportDraftCanvas() {
   useEffect(() => {
     reset();
     setBreadcrumb([
-      { title: '인사이트' },
-      { title: '보고서', path: '/insight/statistics/reports' },
-      { title: '새 보고서', path: '/insight/statistics/reports/new' },
+      { title: '통계', path: '/insight/statistics' },
+      { title: '보고서 관리', path: '/insight/statistics/reports' },
+      { title: '새 보고서 생성', path: '/insight/statistics/reports/new' },
       { title: '캔버스', path: '/insight/statistics/reports/new/canvas' },
     ]);
     return () => {

@@ -135,6 +135,7 @@ export default function CommonTrunkAssignDrawer({ open, gdn, trunks, onClose, on
       width={460}
       open={open}
       onClose={onClose}
+      closable={{ placement: 'end' }}
       destroyOnClose
       footer={
         <div className="flex justify-end gap-2">

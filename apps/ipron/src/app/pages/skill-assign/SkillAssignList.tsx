@@ -29,6 +29,8 @@ import {
   ClipboardList,
   Eye,
   FilterX,
+  FolderOpen,
+  Layers,
   Package,
   PanelLeftClose,
   PanelLeftOpen,
@@ -37,6 +39,7 @@ import {
   Search,
   Trash2,
   Users,
+  Wrench,
   X,
 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -49,8 +52,7 @@ import SkillAgentEditDrawer from '../../features/skill-assign/components/SkillAg
 import SkillAssignGrantDrawer, { type GrantMapping } from '../../features/skill-assign/components/SkillAssignGrantDrawer';
 import SkillAssignStatusModal from '../../features/skill-assign/components/SkillAssignStatusModal';
 import SkillAssignTenantCard from '../../features/skill-assign/components/SkillAssignTenantCard';
-import SkillGroupFormDrawer, { type SkillGroupDrawerState } from '../../features/skill-assign/components/SkillGroupFormDrawer';
-import SkillsetPickerDrawer from '../../features/skill-assign/components/SkillsetPickerDrawer';
+import SkillGroupApplyDrawer from '../../features/skill-assign/components/SkillGroupApplyDrawer';
 import {
   useBulkGrant,
   useBulkRevoke,
@@ -61,22 +63,19 @@ import {
   useGetSkillsetsByAgent,
   useUpdateSkillAgent,
 } from '../../features/skill-assign/hooks/useSkillAssignQueries';
-import type { SkillAgentResponse, SkillGroupResponse } from '../../features/skill-assign/types';
+import type { SkillAgentResponse } from '../../features/skill-assign/types';
 import SkillsetGroupTree from '../../features/skillset-master/components/SkillsetGroupTree';
 import { useGetSkillsetGroups, useGetSkillsets } from '../../features/skillset-master/hooks/useSkillsetQueries';
 import { type SkillsetResponse, getMediaTypeName } from '../../features/skillset-master/types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const breadcrumb = [
-  { title: 'IPRON', path: '/ipron' },
-  { title: '상담사 관리', path: '/ipron/skill-assign' },
-  { title: '스킬 관리', path: '/ipron/skill-assign' },
-  { title: '스킬 배정', path: '/ipron/skill-assign' },
-];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '스킬 관리' }, { title: '상담사 스킬 배정', path: '/ipron/skill-assign' }];
 
 type Mode = 'agent' | 'skillset' | 'view';
 type ViewSubMode = 'agent' | 'skillset'; // 조회 탭 내 기준 토글
 
 export default function SkillAssignList() {
+  const { gridOptions: baseGridOptions } = useAggridOptions();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   useEffect(() => {
@@ -115,7 +114,7 @@ export default function SkillAssignList() {
   // ─── State ──────────────────────────────────────────────────────────────
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [mode, setMode] = useState<Mode>('agent');
-  const [cardExpanded, setCardExpanded] = useState(true);
+  const [cardExpanded, setCardExpanded] = useState(false);
 
   // 모드 ① 상담사별 (multi-select 양방향 + 트리 필터)
   const [agentSearch, setAgentSearch] = useState('');
@@ -133,7 +132,6 @@ export default function SkillAssignList() {
   const [grantDrawerOpen, setGrantDrawerOpen] = useState(false);
   // (legacy single-select 잔재 — mode 'group' 의존성 위해 임시 유지)
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [editRow, setEditRow] = useState<SkillAgentResponse | null>(null);
 
   // 툴바 P/L 기본값 입력 (항상 노출 — 배정 버튼 옆, SWAT sPriority/sSkillLevel 정합)
@@ -145,14 +143,16 @@ export default function SkillAssignList() {
   const [hoverSkillsetId, setHoverSkillsetId] = useState<number | null>(null);
   // 패널 내부 hover 여부 (마우스가 그리드→패널로 이동해도 닫히지 않게)
   const [panelHovered, setPanelHovered] = useState(false);
+  // panelHovered ref — gridOptions useMemo(빈 deps) 내 onCellMouseOut 에서 최신 값 참조용
+  const panelHoveredRef = useRef(false);
+  panelHoveredRef.current = panelHovered;
   const hoverLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 배정 현황 모달 (읽기 전용)
   const [statusModalOpen, setStatusModalOpen] = useState(false);
 
-  // 모드 ③ 스킬모음
-  const [groupSearch, setGroupSearch] = useState('');
-  const [groupDrawer, setGroupDrawer] = useState<SkillGroupDrawerState>({ open: false });
+  // 스킬모음 적용 드로어 (플로팅 액션바 [스킬모음 적용] — 상담사 ≥1 체크 시 활성)
+  const [applyDrawerOpen, setApplyDrawerOpen] = useState(false);
 
   // 모드 ④ 배정 현황 조회 (view)
   const [viewSubMode, setViewSubMode] = useState<ViewSubMode>('agent');
@@ -216,7 +216,7 @@ export default function SkillAssignList() {
   const { mutateAsync: bulkGrant, isPending: bulkGrantPending } = useBulkGrant({
     mutationOptions: {
       onSuccess: (result) => {
-        toast.success(`${result.added}개 부여, ${result.skipped}개 skip (이미 존재)`);
+        toast.success(`${result.added}개 부여, ${result.skipped}개 건너뜀 (이미 존재)`);
         setGrantDrawerOpen(false);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
@@ -404,7 +404,7 @@ export default function SkillAssignList() {
       },
       {
         headerName: '보유 건수',
-        width: 168,
+        width: 100,
         sortable: true,
         filter: 'agNumberColumnFilter',
         suppressHeaderMenuButton: true,
@@ -439,7 +439,7 @@ export default function SkillAssignList() {
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — ag-Grid 34 에서 gridOptions.rowSelection 은
   // 초기 마운트 1회만 읽히므로, AgGridReact prop 으로 전달해야 HMR/재마운트 없이도 명시적 적용 보장
   const agentRowSelection = useMemo(
-    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: false, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
     [],
   );
 
@@ -447,25 +447,51 @@ export default function SkillAssignList() {
   const setHoverAgentIdRef = useRef(setHoverAgentId);
   setHoverAgentIdRef.current = setHoverAgentId;
   const hoverLeaveTimerRefAgent = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // hover-intent(진입) 타이머 — 셀 진입 즉시 set 하지 않고 250ms 후 set (요청폭주/레이스 방어)
+  const hoverIntentTimerRefAgent = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 현재 hover 값 추적 ref — 같은 행 셀 좌우이동 시 setState 스킵용
+  const hoverAgentIdValueRef = useRef<number | null>(null);
+  hoverAgentIdValueRef.current = hoverAgentId;
 
   const agentGridOptionsAg = useMemo<GridOptions<AgentResponse>>(
     () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
       },
       onCellMouseOver: (e) => {
+        const nextId = e.data?.agentId ?? null;
+        // ① 같은 행 가드: 현재 hover 값과 같으면 무시 (같은 행 셀 좌우이동)
+        if (nextId === hoverAgentIdValueRef.current) {
+          if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
+          return;
+        }
+        // 다른 행 진입 → leave 타이머와 직전 intent 타이머 정리
         if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
-        setHoverAgentIdRef.current(e.data?.agentId ?? null);
+        if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
+        // ② 디바운스(hover-intent ~250ms): 진입 즉시 set 하지 않고 타이머 후 set
+        hoverIntentTimerRefAgent.current = setTimeout(() => {
+          setHoverAgentIdRef.current(nextId);
+        }, 250);
       },
       onCellMouseOut: () => {
+        // 이탈 시 미발화 intent 타이머 취소 (스쳐 지나간 행은 요청 안 함)
+        if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
+        // panelHovered 중이면 leave 타이머 설정 안 함 — 커서가 패널 위에 있으면 닫히지 않음
+        if (panelHoveredRef.current) return;
+        // grace delay 200ms — 행→패널로 이동 동선 허용
         hoverLeaveTimerRefAgent.current = setTimeout(() => {
-          setHoverAgentIdRef.current((prev) => prev);
+          if (!panelHoveredRef.current) setHoverAgentIdRef.current(null);
         }, 200);
       },
     }),
-    [],
+
+    [baseGridOptions],
   );
 
   // 스킬셋 multi-select ag-Grid (모드 ① 우측)
@@ -509,7 +535,7 @@ export default function SkillAssignList() {
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — 동일 이유
   const skillsetRowSelection = useMemo(
-    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: false, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
     [],
   );
 
@@ -517,25 +543,51 @@ export default function SkillAssignList() {
   const setHoverSkillsetIdRef = useRef(setHoverSkillsetId);
   setHoverSkillsetIdRef.current = setHoverSkillsetId;
   const hoverLeaveTimerRefSkillset = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // hover-intent(진입) 타이머 — 셀 진입 즉시 set 하지 않고 250ms 후 set
+  const hoverIntentTimerRefSkillset = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 현재 hover 값 추적 ref — 같은 행 셀 좌우이동 시 setState 스킵용
+  const hoverSkillsetIdValueRef = useRef<number | null>(null);
+  hoverSkillsetIdValueRef.current = hoverSkillsetId;
 
   const skillsetGridOptionsAg = useMemo<GridOptions<SkillsetResponse>>(
     () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
       },
       onCellMouseOver: (e) => {
+        const nextId = e.data?.skillsetId ?? null;
+        // ① 같은 행 가드: 현재 hover 값과 같으면 무시 (같은 행 셀 좌우이동)
+        if (nextId === hoverSkillsetIdValueRef.current) {
+          if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
+          return;
+        }
+        // 다른 행 진입 → leave 타이머와 직전 intent 타이머 정리
         if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
-        setHoverSkillsetIdRef.current(e.data?.skillsetId ?? null);
+        if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+        // ② 디바운스(hover-intent ~250ms): 진입 즉시 set 하지 않고 타이머 후 set
+        hoverIntentTimerRefSkillset.current = setTimeout(() => {
+          setHoverSkillsetIdRef.current(nextId);
+        }, 250);
       },
       onCellMouseOut: () => {
+        // 이탈 시 미발화 intent 타이머 취소
+        if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+        // panelHovered 중이면 leave 타이머 설정 안 함
+        if (panelHoveredRef.current) return;
+        // grace delay 200ms — 행→패널로 이동 동선 허용
         hoverLeaveTimerRefSkillset.current = setTimeout(() => {
-          setHoverSkillsetIdRef.current((prev) => prev);
+          if (!panelHoveredRef.current) setHoverSkillsetIdRef.current(null);
         }, 200);
       },
     }),
-    [],
+
+    [baseGridOptions],
   );
 
   // ─── View 모드 — 좌측 단일선택 그리드 (상담사 기준) ────────────────────
@@ -548,9 +600,14 @@ export default function SkillAssignList() {
     [],
   );
 
+  const viewAgentRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
+
   const viewAgentGridOptions = useMemo<GridOptions<AgentResponse>>(
     () => ({
-      rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
@@ -558,7 +615,7 @@ export default function SkillAssignList() {
         setViewSelectedAgentId(rows.length > 0 ? rows[0].agentId : null);
       },
     }),
-    [],
+    [baseGridOptions],
   );
 
   // ─── View 모드 — 좌측 단일선택 그리드 (스킬셋 기준) ────────────────────
@@ -568,7 +625,8 @@ export default function SkillAssignList() {
       {
         field: 'treeName',
         headerName: '업무그룹',
-        width: 120,
+        flex: 1,
+        minWidth: 150,
         // null = 업무그룹 미매핑 → '미지정' 표기 (공백 방지)
         valueGetter: (p) => p.data?.treeName ?? '미지정',
       },
@@ -576,8 +634,8 @@ export default function SkillAssignList() {
         field: 'activateYn',
         headerName: '활성',
         width: 70,
-        filter: false,
         suppressHeaderMenuButton: true,
+        filterValueGetter: ({ data }: { data?: SkillsetResponse }) => (data?.activateYn === 1 ? '활성' : '비활성'),
         cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>),
       },
     ],
@@ -589,6 +647,10 @@ export default function SkillAssignList() {
 
   const viewSkillsetGridOptions = useMemo<GridOptions<SkillsetResponse>>(
     () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: false,
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
@@ -596,7 +658,7 @@ export default function SkillAssignList() {
         setViewSelectedSkillsetId(rows.length > 0 ? rows[0].skillsetId : null);
       },
     }),
-    [],
+    [baseGridOptions],
   );
 
   // ─── View 모드 — 카드 클릭 시 좌측 그리드 row 점프 ─────────────────────
@@ -751,6 +813,9 @@ export default function SkillAssignList() {
               <div
                 className="bg-white bt-shadow flex flex-col overflow-hidden h-full"
                 onMouseLeave={() => {
+                  // 그리드 컨테이너 이탈 — intent 타이머 취소 후, 패널에 없을 때만 null 세팅
+                  if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
+                  if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
                   if (!panelHovered) {
                     hoverLeaveTimerRef.current = setTimeout(() => setHoverAgentId(null), 300);
                   }
@@ -767,7 +832,9 @@ export default function SkillAssignList() {
                       className="!text-gray-400 hover:!text-[#405189]"
                     />
                   )}
-                  <span className="text-sm font-semibold text-gray-700">👤 상담사</span>
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Users className="size-3.5" /> 상담사
+                  </span>
                   <span className="text-xs text-gray-500">
                     총 {filteredAgentsByGroup.length.toLocaleString()}명 · <strong className="text-[#405189]">선택 {selectedAgentIds.length}명</strong>
                   </span>
@@ -805,7 +872,7 @@ export default function SkillAssignList() {
                     className="flex flex-col min-h-0 overflow-hidden"
                   >
                     <div className="px-3 h-9 flex items-center bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
-                      📁 상담그룹
+                      <FolderOpen className="size-3.5 mr-1" /> 상담그룹
                       <Button
                         size="small"
                         type="text"
@@ -851,7 +918,9 @@ export default function SkillAssignList() {
                       className="!text-gray-400 hover:!text-[#405189]"
                     />
                   )}
-                  <span className="text-sm font-semibold text-gray-700">⚒️ 스킬셋</span>
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Wrench className="size-3.5" /> 스킬셋
+                  </span>
                   <span className="text-xs text-gray-500">
                     총 {filteredSkillsetsByGroup.length.toLocaleString()}건 · <strong className="text-[#405189]">선택 {selectedSkillsetIds.length}건</strong>
                     {selectedAgentIds.length > 0 && ` · ${selectedAgentIds.length}명 기준 보유율`}
@@ -890,7 +959,7 @@ export default function SkillAssignList() {
                     className="flex flex-col min-h-0 overflow-hidden"
                   >
                     <div className="px-3 h-9 flex items-center bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
-                      📁 업무그룹
+                      <FolderOpen className="size-3.5 mr-1" /> 업무그룹
                       <Button
                         size="small"
                         type="text"
@@ -912,7 +981,7 @@ export default function SkillAssignList() {
                         onEdit={() => toast.info('업무그룹 편집은 스킬셋 관리에서')}
                         onDelete={() => toast.info('업무그룹 편집은 스킬셋 관리에서')}
                         onSkillsetDrop={() => {
-                          /* Phase 2 구현 예정 */
+                          /* no-op: 스킬셋 이동은 스킬셋 관리에서 */
                         }}
                       />
                     </div>
@@ -952,8 +1021,15 @@ export default function SkillAssignList() {
               row: item,
             }))}
             onEdit={setEditRow}
+            onClose={() => {
+              setPanelHovered(false);
+              setHoverAgentId(null);
+              if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
+              if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
+            }}
             onPanelMouseEnter={() => {
               if (hoverLeaveTimerRef.current) clearTimeout(hoverLeaveTimerRef.current);
+              if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
               setPanelHovered(true);
             }}
             onPanelMouseLeave={() => {
@@ -973,6 +1049,9 @@ export default function SkillAssignList() {
               <div
                 className="bg-white bt-shadow flex flex-col overflow-hidden h-full"
                 onMouseLeave={() => {
+                  // 그리드 컨테이너 이탈 — intent 타이머 취소 후, 패널에 없을 때만 null 세팅
+                  if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+                  if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
                   if (!panelHovered) {
                     hoverLeaveTimerRef.current = setTimeout(() => setHoverSkillsetId(null), 300);
                   }
@@ -989,7 +1068,9 @@ export default function SkillAssignList() {
                       className="!text-gray-400 hover:!text-[#405189]"
                     />
                   )}
-                  <span className="text-sm font-semibold text-gray-700">⚒️ 스킬셋</span>
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Wrench className="size-3.5" /> 스킬셋
+                  </span>
                   <span className="text-xs text-gray-500">
                     총 {filteredSkillsetsByGroup.length.toLocaleString()}건 · <strong className="text-[#405189]">선택 {selectedSkillsetIds.length}건</strong>
                   </span>
@@ -1027,7 +1108,7 @@ export default function SkillAssignList() {
                     className="flex flex-col min-h-0 overflow-hidden"
                   >
                     <div className="px-3 h-9 flex items-center bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
-                      📁 업무그룹
+                      <FolderOpen className="size-3.5 mr-1" /> 업무그룹
                       <Button
                         size="small"
                         type="text"
@@ -1049,7 +1130,7 @@ export default function SkillAssignList() {
                         onEdit={() => toast.info('업무그룹 편집은 스킬셋 관리에서')}
                         onDelete={() => toast.info('업무그룹 편집은 스킬셋 관리에서')}
                         onSkillsetDrop={() => {
-                          /* Phase 2 구현 예정 */
+                          /* no-op: 스킬셋 이동은 스킬셋 관리에서 */
                         }}
                       />
                     </div>
@@ -1086,7 +1167,9 @@ export default function SkillAssignList() {
                       className="!text-gray-400 hover:!text-[#405189]"
                     />
                   )}
-                  <span className="text-sm font-semibold text-gray-700">👤 상담사</span>
+                  <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Users className="size-3.5" /> 상담사
+                  </span>
                   <span className="text-xs text-gray-500">
                     총 {filteredAgentsByGroup.length.toLocaleString()}명 · <strong className="text-[#405189]">선택 {selectedAgentIds.length}명</strong>
                     {selectedSkillsetIds.length > 0 && ` · ${selectedSkillsetIds.length}건 기준 보유율`}
@@ -1125,7 +1208,7 @@ export default function SkillAssignList() {
                     className="flex flex-col min-h-0 overflow-hidden"
                   >
                     <div className="px-3 h-9 flex items-center bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
-                      📁 상담그룹
+                      <FolderOpen className="size-3.5 mr-1" /> 상담그룹
                       <Button
                         size="small"
                         type="text"
@@ -1174,8 +1257,15 @@ export default function SkillAssignList() {
               row: item,
             }))}
             onEdit={setEditRow}
+            onClose={() => {
+              setPanelHovered(false);
+              setHoverSkillsetId(null);
+              if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
+              if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+            }}
             onPanelMouseEnter={() => {
               if (hoverLeaveTimerRef.current) clearTimeout(hoverLeaveTimerRef.current);
+              if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
               setPanelHovered(true);
             }}
             onPanelMouseLeave={() => {
@@ -1252,7 +1342,7 @@ export default function SkillAssignList() {
                     className="flex flex-col min-h-0 overflow-hidden"
                   >
                     <div className="px-3 h-9 flex items-center bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
-                      📁 상담그룹
+                      <FolderOpen className="size-3.5 mr-1" /> 상담그룹
                       <Button
                         size="small"
                         type="text"
@@ -1287,7 +1377,7 @@ export default function SkillAssignList() {
                     className="flex flex-col min-h-0 overflow-hidden"
                   >
                     <div className="px-3 h-9 flex items-center bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-700 flex-shrink-0">
-                      📁 업무그룹
+                      <FolderOpen className="size-3.5 mr-1" /> 업무그룹
                       <Button
                         size="small"
                         type="text"
@@ -1337,6 +1427,7 @@ export default function SkillAssignList() {
                       rowData={viewFilteredAgents}
                       columnDefs={viewAgentColumnsAg}
                       gridOptions={viewAgentGridOptions}
+                      rowSelection={viewAgentRowSelection}
                       loading={agentsLoading}
                     />
                   ) : (
@@ -1456,75 +1547,97 @@ export default function SkillAssignList() {
       )}
 
       {/* ===== Bulk Action Bar (floating bottom) — 양쪽 모드 공통, 항상 렌더 ===== */}
-      {/* 상담사 AND 스킬셋 둘 다 체크됐을 때만 불투명+클릭 가능. 미충족 시 반투명+포인터 투과. */}
+      {/* 버튼 4개 상시 렌더 + 상태별 disabled 토글만. 안내 문구 없음. */}
       {(mode === 'agent' || mode === 'skillset') &&
         (() => {
-          const bothSelected = selectedAgentIds.length > 0 && selectedSkillsetIds.length > 0;
+          const agentCount = selectedAgentIds.length;
+          const skillsetCount = selectedSkillsetIds.length;
+          const bothSelected = agentCount > 0 && skillsetCount > 0;
+          // [스킬모음 적용]: 상담사≥1 이고 스킬셋=0 일 때만 활성
+          const applyEnabled = agentCount > 0 && skillsetCount === 0;
+          const applyTitle = agentCount > 0 && skillsetCount > 0 ? '스킬셋 선택을 해제하면 적용할 수 있습니다' : undefined;
           return (
             <div
-              className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm"
-              style={{
-                opacity: bothSelected ? 1 : 0.88,
-                pointerEvents: bothSelected ? 'auto' : 'none',
-                transition: 'opacity 0.22s ease',
-              }}
+              className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm"
+              style={{ backgroundColor: 'rgba(51,65,85,0.9)' }}
             >
-              <span className="flex items-center gap-1.5">
-                <span>👤</span>
-                <span className="text-white/60 text-xs">상담사</span>
-                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${selectedAgentIds.length > 0 ? 'bg-[#405189]' : 'bg-gray-600'}`}>
-                  {selectedAgentIds.length}
+              <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                <Users className="size-3.5" style={{ color: '#94a3b8' }} />
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  상담사
                 </span>
-                <span className="text-white/60 text-xs">명</span>
-              </span>
-              <span className="text-white/30">×</span>
-              <span className="flex items-center gap-1.5">
-                <span>⚒️</span>
-                <span className="text-white/60 text-xs">스킬셋</span>
-                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${selectedSkillsetIds.length > 0 ? 'bg-[#405189]' : 'bg-gray-600'}`}>
-                  {selectedSkillsetIds.length}
+                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center text-white ${agentCount > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}>{agentCount}</span>
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  명
                 </span>
-                <span className="text-white/60 text-xs">건</span>
               </span>
-              {!bothSelected && <span className="text-white/50 text-[11px] italic ml-1">상담사와 스킬셋을 모두 선택하세요</span>}
-              {bothSelected && (
-                <>
-                  <span className="text-white/40 mx-1">▶</span>
-                  <Button
-                    icon={<Eye className="size-3.5" />}
-                    onClick={() => setStatusModalOpen(true)}
-                    style={{ backgroundColor: '#334155', borderColor: '#475569', color: '#e2e8f0' }}
-                  >
-                    배정 현황
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<Plus className="size-3.5" />}
-                    onClick={() => setGrantDrawerOpen(true)}
-                    style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
-                  >
-                    부여 ({selectedAgentIds.length * selectedSkillsetIds.length}개)
-                  </Button>
-                  <Button danger icon={<Trash2 className="size-3.5" />} onClick={handleBulkRevoke} loading={bulkRevokePending}>
-                    해제
-                  </Button>
-                  <Button
-                    type="text"
-                    onClick={() => {
-                      setSelectedAgentIds([]);
-                      setSelectedSkillsetIds([]);
-                      // ag-Grid 체크박스 UI 동기화: 상태만 리셋하면 그리드 체크박스는 안 풀림
-                      agentGridRef1.current?.api?.deselectAll();
-                      agentGridRef2.current?.api?.deselectAll();
-                      skillsetGridRef1.current?.api?.deselectAll();
-                      skillsetGridRef2.current?.api?.deselectAll();
-                    }}
-                    className="!text-white/60 hover:!text-white"
-                  >
-                    선택 해제
-                  </Button>
-                </>
-              )}
+              <span className="flex-shrink-0" style={{ color: '#94a3b8' }}>
+                ×
+              </span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
+                <Wrench className="size-3.5" style={{ color: '#94a3b8' }} />
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  스킬셋
+                </span>
+                <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center text-white ${skillsetCount > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}>
+                  {skillsetCount}
+                </span>
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  건
+                </span>
+              </span>
+              <Button
+                icon={<Eye className="size-3.5" />}
+                disabled={!bothSelected}
+                onClick={() => setStatusModalOpen(true)}
+                style={{ backgroundColor: '#334155', borderColor: '#475569', color: '#e2e8f0', opacity: bothSelected ? 1 : 0.38 }}
+              >
+                매핑 확인
+              </Button>
+              <Button
+                type="primary"
+                icon={<Plus className="size-3.5" />}
+                disabled={!bothSelected}
+                onClick={() => setGrantDrawerOpen(true)}
+                style={{ opacity: bothSelected ? 1 : 0.38 }}
+              >
+                부여
+              </Button>
+              <Button
+                danger
+                icon={<Trash2 className="size-3.5" />}
+                disabled={!bothSelected}
+                onClick={handleBulkRevoke}
+                loading={bulkRevokePending}
+                style={{ opacity: bothSelected ? 1 : 0.38 }}
+              >
+                해제
+              </Button>
+              <Button
+                type="primary"
+                icon={<Layers className="size-3.5" />}
+                disabled={!applyEnabled}
+                title={applyTitle}
+                onClick={() => setApplyDrawerOpen(true)}
+                style={{ opacity: applyEnabled ? 1 : 0.38 }}
+              >
+                스킬모음 적용
+              </Button>
+              <Button
+                type="text"
+                onClick={() => {
+                  setSelectedAgentIds([]);
+                  setSelectedSkillsetIds([]);
+                  agentGridRef1.current?.api?.deselectAll();
+                  agentGridRef2.current?.api?.deselectAll();
+                  skillsetGridRef1.current?.api?.deselectAll();
+                  skillsetGridRef2.current?.api?.deselectAll();
+                }}
+                style={{ color: '#e2e8f0' }}
+                className="hover:!text-white"
+              >
+                선택 해제
+              </Button>
             </div>
           );
         })()}
@@ -1548,6 +1661,9 @@ export default function SkillAssignList() {
         selectedAgents={selectedAgentEntities}
         selectedSkillsets={selectedSkillsetEntities}
       />
+
+      {/* 스킬모음 적용 Drawer — 모음 단일선택 + 멤버 P/L 미리보기 + 모음 CRUD 내장 (양쪽 모드 공통) */}
+      <SkillGroupApplyDrawer open={applyDrawerOpen} agents={selectedAgentEntities} tenantId={selectedTenantId ?? undefined} onClose={() => setApplyDrawerOpen(false)} />
 
       {/* 배정된 항목 P/L 수정 Drawer (InlineAssignPanel ✎ 진입점) */}
       <SkillAgentEditDrawer open={editRow != null} row={editRow} onClose={() => setEditRow(null)} />
@@ -1597,7 +1713,7 @@ function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPill
       }`}
     >
       <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
+      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}건</span>
     </button>
   );
 }
@@ -1641,13 +1757,10 @@ function ViewDetailCard({ title, subtitle, priority, skillLevel, onClick, onEdit
         <div className="text-[10px] text-gray-400">우선순위</div>
         <div className="font-bold text-sm text-[#405189]">{priority ?? '-'}</div>
       </div>
-      {/* SKILL_LEVEL + 진행바 */}
+      {/* SKILL_LEVEL */}
       <div className="flex-shrink-0 text-center min-w-[52px]">
         <div className="text-[10px] text-gray-400">스킬레벨</div>
         <div className="font-bold text-sm text-[#405189]">{level}</div>
-        <div className="w-full h-1 bg-gray-100 rounded overflow-hidden mt-0.5">
-          <div className="h-full rounded transition-all" style={{ width: `${level}%`, backgroundColor: dotColor }} />
-        </div>
       </div>
       {/* 우선순위/레벨 수정 진입점 */}
       {onEdit && (
@@ -1829,9 +1942,6 @@ function ViewDetailCardEditable({ title, subtitle, priority, skillLevel, row, on
             {level}
           </button>
         )}
-        <div className="w-full h-1 bg-gray-100 rounded overflow-hidden mt-0.5">
-          <div className="h-full rounded transition-all" style={{ width: `${level}%`, backgroundColor: dotColor }} />
-        </div>
       </div>
 
       {/* fallback: Drawer 열기 */}
@@ -1839,7 +1949,7 @@ function ViewDetailCardEditable({ title, subtitle, priority, skillLevel, row, on
         type="button"
         title="드로어에서 우선순위/스킬레벨 수정"
         onClick={onEdit}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition opacity-0 group-hover:opacity-100"
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition"
       >
         <Pencil className="size-3" />
       </button>
@@ -1871,6 +1981,7 @@ interface InlineAssignPanelProps {
   emptyText: string;
   items: InlineAssignItem[];
   onEdit: (row: SkillAgentResponse) => void;
+  onClose: () => void;
   onPanelMouseEnter: () => void;
   onPanelMouseLeave: () => void;
 }
@@ -1885,6 +1996,7 @@ function InlineAssignPanel({
   emptyText,
   items,
   onEdit,
+  onClose,
   onPanelMouseEnter,
   onPanelMouseLeave,
 }: InlineAssignPanelProps) {
@@ -1896,6 +2008,19 @@ function InlineAssignPanel({
     if (visible && !prevVisibleRef.current) setFilterText('');
     prevVisibleRef.current = visible;
   }, [visible]);
+
+  // ESC 키 닫힘
+  useEffect(() => {
+    if (!visible) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [visible, onClose]);
 
   const filteredItems = useMemo(() => {
     const kw = filterText.trim().toLowerCase();
@@ -1931,6 +2056,15 @@ function InlineAssignPanel({
             <div className="text-[13px] font-bold text-gray-800 truncate leading-tight">{entityName}</div>
           </div>
           {entitySub != null && <span className="text-[11px] text-gray-500 flex-shrink-0">{entitySub}</span>}
+          {/* X 닫기 버튼 */}
+          <button
+            type="button"
+            title="닫기 (ESC)"
+            onClick={onClose}
+            className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition"
+          >
+            <X className="size-3.5" />
+          </button>
         </div>
         <div className="flex items-center gap-2 mt-1">
           {!fetching && (
@@ -2153,16 +2287,13 @@ function SidePanelRow({ title, subtitle, priority, skillLevel, row, onEdit }: Si
             {level}
           </button>
         )}
-        <div className="w-full h-0.5 bg-gray-100 rounded overflow-hidden mt-1">
-          <div className="h-full rounded" style={{ width: `${level}%`, backgroundColor: dotColor }} />
-        </div>
       </div>
       {/* fallback: Drawer 열기 */}
       <button
         type="button"
         title="드로어에서 우선순위/스킬레벨 수정"
         onClick={onEdit}
-        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition opacity-0 group-hover:opacity-100"
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-[#405189] hover:bg-[#eef1fb] transition"
       >
         <Pencil className="size-3" />
       </button>
@@ -2391,7 +2522,7 @@ function SkillsetCoverageCell({ skillsetId, skillsetName, holding, total, select
       trigger="click"
       placement="leftTop"
       destroyOnHidden
-      content={<BreakdownPanel title={`⚒️ ${skillsetName}`} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} />}
+      content={<BreakdownPanel title={skillsetName} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} />}
     >
       <button
         type="button"
@@ -2456,7 +2587,7 @@ function AgentCoverageCell({ agentId, agentName, holding, total, selectedSkillse
       trigger="click"
       placement="leftTop"
       destroyOnHidden
-      content={<BreakdownPanel title={`👤 ${agentName}`} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} />}
+      content={<BreakdownPanel title={agentName} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} />}
     >
       <button
         type="button"

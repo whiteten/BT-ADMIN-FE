@@ -84,7 +84,7 @@ export default function ModelDetail() {
 
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AOE 관리', path: '/aoe/agent-config' },
       { title: 'AI 모델', path: '/aoe/agent-config/model/list' },
       { title: ':modelName', path: `/aoe/agent-config/model/${modelId}` },
     ];

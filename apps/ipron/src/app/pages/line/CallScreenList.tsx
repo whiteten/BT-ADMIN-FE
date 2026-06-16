@@ -13,23 +13,19 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallScreenDrawer, { type CallScreenDrawerRef } from '../../features/call-screen/components/CallScreenDrawer';
 import { callScreenQueryKeys, useDeleteCallScreen, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
 import type { CallScreen } from '../../features/call-screen/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/call-screen' },
-  { title: '수신번호차단관리', path: '/ipron/line/call-screen' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: '수신번호차단관리', path: '/ipron/line/call-screen' }];
 
 export default function CallScreenList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -51,6 +47,7 @@ export default function CallScreenList() {
   const [cardSearchText, setCardSearchText] = useState('');
   /** 번호패턴 서버사이드 LIKE 검색어 — SWAT IPR20S1060L numPattern 대응 */
   const [numPatternSearch, setNumPatternSearch] = useState('');
+  const [selectedRows, setSelectedRows] = useState<CallScreen[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
@@ -107,8 +104,9 @@ export default function CallScreenList() {
   const { mutate: deleteCallScreen } = useDeleteCallScreen({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('수신번호 차단이 삭제되었습니다.');
+        toast.success('수신번호 차단이 삭제되었습니다');
         invalidateList();
+        setSelectedRows([]);
       },
     },
   });
@@ -243,27 +241,27 @@ export default function CallScreenList() {
   };
 
   const handleCreate = useCallback(() => {
-    if (selectedNodeId && selectedTenantId) {
-      drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
+    if (!selectedNodeId || !selectedTenantId || selectedTenantId === -1) {
+      toast.warning('노드와 특정 테넌트를 선택하세요');
+      return;
     }
+    drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
   }, [selectedNodeId, selectedTenantId, selectedNodeName, selectedTenantName]);
 
   const handleEdit = useCallback((item: CallScreen) => {
     drawerRef.current?.open(item);
   }, []);
 
-  const handleDelete = useCallback(
-    (item: CallScreen) => {
-      modal.confirm.execute({
-        onOk: () => deleteCallScreen({ id: item.callscreenId }),
-        options: {
-          title: '수신번호 차단 삭제',
-          content: `"${item.numPattern}" 차단을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteCallScreen],
-  );
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRows.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => selectedRows.forEach((item) => deleteCallScreen({ id: item.callscreenId })),
+      options: {
+        title: '수신번호 차단 삭제',
+        content: `선택한 ${selectedRows.length}건의 차단번호를 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, selectedRows, deleteCallScreen]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateList();
@@ -277,7 +275,7 @@ export default function CallScreenList() {
         field: 'nodeName',
         flex: 1,
         minWidth: 110,
-        valueFormatter: (params) => params.data?.nodeName ?? `Node ${params.data?.nodeId ?? '-'}`,
+        valueFormatter: (params) => params.data?.nodeName ?? '-',
       },
       {
         headerName: '테넌트명',
@@ -290,6 +288,7 @@ export default function CallScreenList() {
         field: 'numPattern',
         flex: 2,
         minWidth: 200,
+        tooltipField: 'numPattern',
         cellStyle: { fontFamily: 'monospace' },
       },
       {
@@ -297,33 +296,11 @@ export default function CallScreenList() {
         field: 'screenDesc',
         flex: 1.5,
         minWidth: 160,
+        tooltipField: 'screenDesc',
         valueFormatter: (params) => params.data?.screenDesc ?? '-',
       },
-      {
-        headerName: '',
-        field: 'callscreenId',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<CallScreen>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -415,7 +392,13 @@ export default function CallScreenList() {
                 onChange={handleCardSearchChange}
                 style={{ width: 140 }}
               />
-              <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedNodeId || !selectedTenantId} onClick={handleCreate}>
+              <Button
+                type="primary"
+                icon={<Plus className="size-3.5" />}
+                onClick={handleCreate}
+                disabled={!selectedNodeId || !selectedTenantId || selectedTenantId === -1}
+                title={!selectedNodeId || !selectedTenantId || selectedTenantId === -1 ? '노드와 테넌트를 선택하세요' : undefined}
+              >
                 추가
               </Button>
             </div>
@@ -516,12 +499,23 @@ export default function CallScreenList() {
           {(selectedNodeId && selectedTenantId) || isNumPatternSearching ? (
             <>
               {/* Grid header */}
-              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
                 <span className="text-sm font-semibold text-gray-800">
                   {isNumPatternSearching
                     ? `차단번호패턴 "${numPatternSearch.trim()}" 검색 결과 (${callScreens.length}건)`
                     : `${selectedNodeName} / ${selectedTenantId === -1 ? '전체 테넌트' : selectedTenantName} 수신번호차단 (${callScreens.length}건)`}
                 </span>
+                <div className="ml-auto">
+                  <Button
+                    danger
+                    icon={<Trash2 className="size-3.5" />}
+                    onClick={handleDeleteSelected}
+                    disabled={selectedRows.length === 0}
+                    title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
+                  >
+                    삭제
+                  </Button>
+                </div>
               </div>
 
               {/* Grid */}
@@ -541,12 +535,14 @@ export default function CallScreenList() {
                       pagination: false,
                       sideBar: false,
                     }}
+                    rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
                     loading={isLoading}
                     getRowId={(params) => String(params.data.callscreenId)}
-                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                    defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                     onRowDoubleClicked={(e) => {
                       if (e.data) handleEdit(e.data);
                     }}
+                    onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
                   />
                 )}
               </div>

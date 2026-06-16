@@ -2,8 +2,8 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Drawer, Form, type FormProps, Input, Radio, Row, Select } from 'antd';
 import { Log } from '@/log';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useGetTenants } from '../hooks/useCommonQueries';
 import { dnQueryKeys, useCreateSttDn, useUpdateSttDn } from '../hooks/useDnQueries';
 import type { SttDnCreateData, SttDnItem } from '../types';
 
@@ -21,8 +21,8 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
   const [form] = Form.useForm<SttDnCreateData>();
   const queryClient = useQueryClient();
 
-  const { data: tenants } = useGetTenants({});
-  const tenantOptions = tenants?.map((t) => ({ label: t.tenantName, value: String(t.tenantId) })) ?? [];
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const tenantOptions = availableTenants.map((t) => ({ label: t.tenantName, value: String(t.tenantId) }));
 
   useImperativeHandle(ref, () => ({
     open: (hn: string, item?: SttDnItem) => {
@@ -73,14 +73,14 @@ const SttDnDrawer = forwardRef<SttDnDrawerRef>((_, ref) => {
       form.setFieldsValue({
         dnStatus: '1',
         useYn: '1',
-        tenantId: tenants?.[0] ? String(tenants[0].tenantId) : undefined,
+        tenantId: availableTenants[0] ? String(availableTenants[0].tenantId) : undefined,
       });
     }
     return () => {
       Log.debug('SttDnDrawer resetFields');
       form.resetFields();
     };
-  }, [form, open, editItem, tenants]);
+  }, [form, open, editItem, availableTenants]);
 
   const handleDnNoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     form.setFieldValue('dnNo', e.target.value.replace(/[^0-9]/g, '').slice(0, 24));

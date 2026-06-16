@@ -61,7 +61,7 @@ export default function CtiRoutingTimeline({ hops, loading }: Props) {
               <div className="text-[11px] text-gray-600 mt-0.5">{hop.description}</div>
               <div className="text-[10px] text-gray-400 mt-0.5 flex flex-wrap gap-x-2">
                 {hop.enterTime && <span className="font-mono">{fmtTime(hop.enterTime)}</span>}
-                {hop.actionCode != null && <span>actionCode={hop.actionCode}</span>}
+                {hop.actionCode != null && <span>동작: {hop.actionCode}</span>}
                 {hop.endReason && <span>· {hop.endReason}</span>}
                 {hop.agentName && (
                   <span>

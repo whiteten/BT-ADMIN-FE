@@ -11,6 +11,11 @@
  *    ipron-agent-master-move             POST   그룹 이동 (드래그앤드롭)
  *    ipron-agent-master-duplicate-check  GET    로그인 ID 중복 체크
  *    ipron-agent-master-tenants          GET    테넌트 통계
+ *    ipron-agent-master-excel-import     POST   엑셀 가져오기 시작 (multipart, taskId 반환)
+ *    ipron-agent-master-excel-import-status GET 엑셀 가져오기 진행 상태 (polling)
+ *    ipron-agent-master-excel-export     GET    엑셀 내보내기 (XLSX 다운로드)
+ *  아웃소싱업체 (/api/ipron/oscoms)
+ *    ipron-oscom-list                    GET    업체 마스터 콤보
  *  상담그룹 (/api/ipron/agent-groups)
  *    ipron-agent-group-tree              GET    트리
  *    ipron-agent-group-detail            GET    상세
@@ -34,6 +39,7 @@ import type {
   AgentResponse,
   AgentTenantStat,
   AgentUpdateRequest,
+  Oscom,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -62,6 +68,16 @@ export const agentMasterApi = {
 
   getTenants: async (): Promise<AgentTenantStat[]> => {
     const res = await apiClient.get<ApiResponse<{ value: AgentTenantStat[] }>>('/ipron-agent-master-tenants');
+    return res.data?.data?.value ?? [];
+  },
+
+  /**
+   * 아웃소싱업체(oscom) 마스터 콤보 — 상담그룹/상담사 Drawer 의 "아웃소싱업체" 콤보 소스.
+   * BE: GET /api/ipron/oscoms (현재 테넌트 필터 BE 처리, FE 는 호출만).
+   * BFF flow: ipron-oscom-list. BE 가 ApiResponse<List<Oscom>> 반환 → BFF 가 data.value 로 wrap (tenants 동일 패턴).
+   */
+  getOscoms: async (): Promise<Oscom[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: Oscom[] }>>('/ipron-oscom-list');
     return res.data?.data?.value ?? [];
   },
 
@@ -108,8 +124,9 @@ export const agentMasterApi = {
   },
 
   getGroupChildrenCount: async (id: number): Promise<number> => {
-    const res = await apiClient.get<ApiResponse<number>>('/ipron-agent-group-children-count', { params: { id } });
-    return res.data?.data;
+    // BFF 단일 step 래핑: BE ApiResponse<Long> → BFF가 {value: N} 으로 감싸 반환
+    const res = await apiClient.get<ApiResponse<{ value: number }>>('/ipron-agent-group-children-count', { params: { id } });
+    return res.data?.data?.value ?? 0;
   },
 
   // ─── 상담그룹 변경 ───────────────────────────────────────────────────────
@@ -135,5 +152,69 @@ export const agentMasterApi = {
       params: { id },
     });
     return res.data?.data;
+  },
+
+  // ─── 엑셀 가져오기/내보내기 ─────────────────────────────────────────────
+
+  /**
+   * 상담사 엑셀 내보내기.
+   * Backend: byte[] (XLSX binary) — BFF 가 그대로 forward.
+   * @flow ipron-agent-master-excel-export
+   */
+  exportExcel: async (params?: { tenantId?: number; groupId?: number; keyword?: string }): Promise<Blob> => {
+    const response = await apiClient.get<Blob>('/ipron-agent-master-excel-export', {
+      params,
+      responseType: 'blob',
+    });
+    return (response as unknown as { data: Blob }).data;
+  },
+
+  /**
+   * 상담사 엑셀 가져오기 시작 — 비동기. 즉시 taskId 반환 후 status polling 으로 진행률 확인.
+   * Backend: ApiResponse<{ taskId }> — BFF: data:{...} -> response.data?.data
+   * @flow ipron-agent-master-excel-import
+   *
+   * ⚠ groupId 는 BE 필수 파라미터.
+   */
+  startImport: async (params: { tenantId: number; groupId: number; file: File }): Promise<{ taskId: string }> => {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    // ⚠ Content-Type 헤더는 명시하지 않는다. axios가 FormData를 감지하면
+    //    'multipart/form-data; boundary=...' 를 자동 설정한다.
+    const response = await apiClient.post<ApiResponse<{ taskId: string }>>('/ipron-agent-master-excel-import', formData, {
+      params: { tenantId: params.tenantId, groupId: params.groupId },
+    });
+    return response.data?.data;
+  },
+
+  /**
+   * 상담사 엑셀 가져오기 진행 상태 조회 (1초 polling 용).
+   * @flow ipron-agent-master-excel-import-status
+   */
+  getImportStatus: async (
+    taskId: string,
+  ): Promise<{
+    taskId: string;
+    total: number;
+    processed: number;
+    success: number;
+    failedCount: number;
+    failed: Array<{ rowNum: number; agentLoginId: string | null; reason: string }>;
+    done: boolean;
+    errorMessage: string | null;
+  }> => {
+    const response = await apiClient.get<
+      ApiResponse<{
+        taskId: string;
+        total: number;
+        processed: number;
+        success: number;
+        failedCount: number;
+        failed: Array<{ rowNum: number; agentLoginId: string | null; reason: string }>;
+        done: boolean;
+        errorMessage: string | null;
+      }>
+    >('/ipron-agent-master-excel-import-status', { params: { taskId } });
+    return response.data?.data;
   },
 };

@@ -29,7 +29,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
   const queryClient = useQueryClient();
   const [visible, setVisible] = useState(false);
   const [mentfileIds, setMentfileIds] = useState<number[]>([]);
-  const [rtServKind, setRtServKind] = useState<MentRtServKind>(1);
+  const [rtServKind, setRtServKind] = useState<MentRtServKind>(0);
   const [reservationAt, setReservationAt] = useState<Dayjs | null>(null);
   const [checkedSystems, setCheckedSystems] = useState<Set<number>>(new Set());
   const [result, setResult] = useState<MentApplyResponse | null>(null);
@@ -69,7 +69,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
         queryClient.invalidateQueries({ queryKey: mentFileQueryKeys.applyTargets._def });
 
         if (data.failCount === 0) {
-          toast.success(rtServKind === 1 ? `즉시 적용 성공 — ${data.successCount}건` : `예약 적용 등록 — ${data.successCount}건 (예약 ID: ${data.svcResvId})`);
+          toast.success(rtServKind === 0 ? `즉시 적용 성공 — ${data.successCount}건` : `예약 적용 등록 — ${data.successCount}건 (예약 ID: ${data.svcResvId})`);
         } else if (data.successCount === 0) {
           toast.error(`적용 실패 — 전체 ${data.failCount}건 실패`);
         } else {
@@ -83,7 +83,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
   useImperativeHandle(ref, () => ({
     open: (ids) => {
       setMentfileIds(ids);
-      setRtServKind(1);
+      setRtServKind(0);
       setReservationAt(null);
       setCheckedSystems(new Set());
       setResult(null);
@@ -138,6 +138,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
   return (
     <Drawer
       title="멘트파일 적용"
+      closable={{ placement: 'end' }}
       placement="right"
       styles={{ wrapper: { width: 560 } }}
       open={visible}
@@ -153,7 +154,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
             <Button onClick={() => setVisible(false)}>{result ? '닫기' : '취소'}</Button>
             {!result && (
               <Button type="primary" loading={isPending} disabled={checkedSystems.size === 0} onClick={handleSubmit}>
-                {rtServKind === 1 ? '즉시 적용' : '예약 등록'}
+                {rtServKind === 0 ? '즉시 적용' : '예약 등록'}
               </Button>
             )}
           </div>
@@ -228,7 +229,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
                   }
                 }}
               >
-                <Radio value={1}>즉시</Radio>
+                <Radio value={0}>즉시</Radio>
                 <Radio value={2}>예약</Radio>
               </Radio.Group>
               <DatePicker

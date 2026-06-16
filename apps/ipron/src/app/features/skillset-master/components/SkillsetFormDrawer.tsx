@@ -5,7 +5,7 @@
  *       미디어타입(필수) · 활성화(필수) · 정렬순서 · 설명(0~256)
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Select, Switch } from 'antd';
 import { MEDIA_TYPE_OPTIONS, type SkillsetCreateRequest, type SkillsetGroupResponse, type SkillsetResponse, type SkillsetUpdateRequest } from '../types';
 
 interface TenantOption {
@@ -32,7 +32,7 @@ interface FormValues {
   skillsetName: string;
   mediaType: number;
   activateYn: boolean;
-  sortSeq?: number;
+  sortSeq?: number | null;
   skillsetDesc?: string;
 }
 
@@ -48,7 +48,7 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetName: skillset.skillsetName,
         mediaType: skillset.mediaType ?? 0,
         activateYn: skillset.activateYn === 1,
-        sortSeq: skillset.sortSeq ?? 0,
+        sortSeq: skillset.sortSeq ?? 1,
         skillsetDesc: skillset.skillsetDesc ?? '',
       });
     } else {
@@ -58,7 +58,7 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetName: '',
         mediaType: 0,
         activateYn: true,
-        sortSeq: 0,
+        sortSeq: undefined, // 미입력 시 BE 가 동일 테넌트 MAX(SORT_SEQ)+1 자동 채번
         skillsetDesc: '',
       });
     }
@@ -75,7 +75,8 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetDesc: values.skillsetDesc ?? null,
         mediaType: values.mediaType,
         activateYn: values.activateYn ? 1 : 0,
-        sortSeq: values.sortSeq ?? 0,
+        // 미입력(빈값) 시 null 전송 → BE 자동 채번(MAX(SORT_SEQ)+1). 값이 있으면 수동 지정값 그대로.
+        sortSeq: values.sortSeq == null ? null : values.sortSeq,
       };
       onSubmit(req);
     } else {
@@ -85,7 +86,8 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
         skillsetDesc: values.skillsetDesc ?? null,
         mediaType: values.mediaType,
         activateYn: values.activateYn ? 1 : 0,
-        sortSeq: values.sortSeq ?? 0,
+        // 수정 시 기존 정렬순서 보존(프리필된 현재값 그대로 전송)
+        sortSeq: values.sortSeq ?? null,
       };
       onSubmit(req);
     }
@@ -94,17 +96,18 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
   return (
     <Drawer
       title={mode === 'create' ? '스킬셋 등록' : '스킬셋 수정'}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={480}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" loading={loading} onClick={() => form.submit()}>
             {mode === 'create' ? '등록' : '저장'}
           </Button>
-        </Space>
+        </div>
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} requiredMark>
@@ -145,6 +148,10 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
 
         <Form.Item name="activateYn" label="활성화" valuePropName="checked">
           <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+        </Form.Item>
+
+        <Form.Item name="sortSeq" label="정렬순서" extra="미입력 시 자동으로 가장 큰 순서 다음 값으로 채번됩니다.">
+          <InputNumber min={1} max={999999} style={{ width: '100%' }} placeholder="자동 채번" />
         </Form.Item>
 
         <Form.Item name="skillsetDesc" label="설명" rules={[{ max: 127, message: '127자까지 입력 가능합니다' }]}>

@@ -18,19 +18,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { didRouteQueryKeys, useDeleteDidRoute, useGetDidRouteList, useGetNodes } from '../../features/did-route/hooks/useDidRouteQueries';
 import { type DidRoute, getRoutingDisplayText } from '../../features/did-route/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/did-route' },
-  { title: 'DID라우트관리', path: '/ipron/line/did-route' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: 'DID라우트관리', path: '/ipron/line/did-route' }];
 
 export default function DidRouteList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -49,6 +45,7 @@ export default function DidRouteList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [selectedRows, setSelectedRows] = useState<DidRoute[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
@@ -111,9 +108,10 @@ export default function DidRouteList() {
     mutationOptions: {
       onSuccess: () => {
         // SWAT IPR20S1036Controller.java:138: 삭제 성공 후 특수코드 연계 안내
-        toast.success('DID라우트가 삭제되었습니다.');
-        toast.info('삭제된 라우트정보를 가지고 있던 특수코드 정보가 수정되었습니다.');
+        toast.success('DID라우트가 삭제되었습니다');
+        toast.info('삭제된 라우트정보를 가지고 있던 특수코드 정보가 수정되었습니다');
         invalidateList();
+        setSelectedRows([]);
       },
     },
   });
@@ -134,18 +132,16 @@ export default function DidRouteList() {
     [navigate],
   );
 
-  const handleDelete = useCallback(
-    (didRoute: DidRoute) => {
-      modal.confirm.execute({
-        onOk: () => deleteDidRoute({ id: didRoute.didrouteId }),
-        options: {
-          title: 'DID라우트 삭제',
-          content: `"${didRoute.didrouteName}" DID라우트를 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteDidRoute],
-  );
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRows.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => selectedRows.forEach((r) => deleteDidRoute({ id: r.didrouteId })),
+      options: {
+        title: 'DID라우트 삭제',
+        content: `선택한 ${selectedRows.length}건의 DID라우트를 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, selectedRows, deleteDidRoute]);
 
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DidRoute>[] = useMemo(
@@ -155,14 +151,16 @@ export default function DidRouteList() {
         field: 'nodeName',
         flex: 1,
         minWidth: 110,
-        valueFormatter: (params) => params.data?.nodeName ?? `Node ${params.data?.nodeId ?? '-'}`,
+        tooltipField: 'nodeName',
+        valueFormatter: (params) => params.data?.nodeName ?? `노드 ${params.data?.nodeId ?? '-'}`,
       },
-      { headerName: '라우트명', field: 'didrouteName', flex: 2, minWidth: 140 },
+      { headerName: '라우트명', field: 'didrouteName', flex: 2, minWidth: 140, tooltipField: 'didrouteName' },
       {
         headerName: 'ANI패턴',
         field: 'aniPattern',
         flex: 1.5,
         minWidth: 120,
+        tooltipField: 'aniPattern',
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return params.data.aniPattern || '-';
@@ -173,6 +171,7 @@ export default function DidRouteList() {
         field: 'dnisPattern',
         flex: 1.5,
         minWidth: 120,
+        tooltipField: 'dnisPattern',
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return params.data.dnisPattern || '-';
@@ -185,6 +184,11 @@ export default function DidRouteList() {
         colId: 'routingPosition',
         flex: 1,
         minWidth: 110,
+        filterValueGetter: (params) => {
+          if (!params.data) return null;
+          const routeId = params.data.routeId;
+          return !routeId || routeId === 0 ? '내부착신' : '국선중계';
+        },
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           const routeId = params.data.routeId;
@@ -196,6 +200,7 @@ export default function DidRouteList() {
         colId: 'routingIn',
         flex: 2,
         minWidth: 160,
+        tooltipValueGetter: (params) => (params.data ? getRoutingDisplayText(params.data.routeName, params.data.dnNo) : null),
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return getRoutingDisplayText(params.data.routeName, params.data.dnNo);
@@ -208,6 +213,11 @@ export default function DidRouteList() {
         colId: 'afterRoutingPosition',
         flex: 1,
         minWidth: 110,
+        filterValueGetter: (params) => {
+          if (!params.data) return null;
+          const afterRouteId = params.data.afterRouteId;
+          return !afterRouteId || afterRouteId === 0 ? '내부착신' : '국선중계';
+        },
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           const afterRouteId = params.data.afterRouteId;
@@ -219,48 +229,26 @@ export default function DidRouteList() {
         colId: 'routingOut',
         flex: 2,
         minWidth: 160,
+        tooltipValueGetter: (params) => (params.data ? getRoutingDisplayText(params.data.afterRouteName, params.data.afterDnNo) : null),
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return getRoutingDisplayText(params.data.afterRouteName, params.data.afterDnNo);
         },
       },
-      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80 },
+      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '비고',
         field: 'didrouteDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'didrouteDesc',
         cellRenderer: (params: ICellRendererParams<DidRoute>) => {
           if (!params.data) return null;
           return params.data.didrouteDesc || '-';
         },
       },
-      {
-        headerName: '',
-        field: 'didrouteId',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellRenderer: (params: ICellRendererParams<DidRoute>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -345,8 +333,8 @@ export default function DidRouteList() {
                           <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
                         </div>
 
-                        {/* Card info: Node ID */}
-                        <div className="text-xs text-gray-500">Node ID: {node.nodeId}</div>
+                        {/* Card info: 노드명 서브텍스트 */}
+                        <div className="text-xs text-gray-500">{node.nodeName}</div>
 
                         {/* 하단 태그: 등록 건수 */}
                         <div className="flex flex-wrap gap-1 mt-auto pt-2">
@@ -376,8 +364,24 @@ export default function DidRouteList() {
         {/* ===== 하단: DID 라우트 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Header */}
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
+            {selectedRows.length > 0 && (
+              <span className="text-xs text-gray-500">
+                {didRouteList.length}건 중 {selectedRows.length}건 선택
+              </span>
+            )}
+            <div className="ml-auto">
+              <Button
+                danger
+                icon={<Trash2 className="size-3.5" />}
+                onClick={handleDeleteSelected}
+                disabled={selectedRows.length === 0}
+                title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
+              >
+                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              </Button>
+            </div>
           </div>
 
           {/* Grid */}
@@ -391,12 +395,14 @@ export default function DidRouteList() {
                 pagination: false,
                 sideBar: false,
               }}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.didrouteId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}
+              onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
             />
           </div>
         </div>

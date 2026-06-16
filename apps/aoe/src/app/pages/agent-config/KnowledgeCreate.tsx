@@ -74,7 +74,7 @@ function ChunkCard({ chunk }: { chunk: KnowledgeChunkData }) {
 }
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: '지식', path: '/aoe/agent-config/knowledge/list' },
   { title: '지식 추가', path: '/aoe/agent-config/knowledge/create' },
 ];

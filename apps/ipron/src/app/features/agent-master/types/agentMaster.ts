@@ -183,6 +183,18 @@ export interface AgentGroupUpdateRequest {
   mediaMatrix?: AgentMediaMatrix | null;
 }
 
+// ─── 아웃소싱업체(oscom) 마스터 ─────────────────────────────────────────────
+
+/**
+ * 아웃소싱업체 콤보 옵션. SWAT 정합: cbCreate("#poOscomId","oscom",...) — 업체 마스터 콤보.
+ * BE: GET /api/ipron/oscoms (현재 테넌트 필터는 BE 처리, FE 는 호출만) → ApiResponse<List<Oscom>>.
+ */
+export interface Oscom {
+  oscomId: number;
+  oscomName: string;
+  oscomAlias: string;
+}
+
 /** 그룹 트리 D&D 재배치 (BEFORE/AFTER/INSIDE). */
 export type AgentGroupReorderPosition = 'BEFORE' | 'AFTER' | 'INSIDE';
 

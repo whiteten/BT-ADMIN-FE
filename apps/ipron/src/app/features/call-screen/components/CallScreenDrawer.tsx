@@ -97,7 +97,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   const { mutate: createCallScreen, isPending: isCreating } = useCreateCallScreen({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('수신번호 차단이 등록되었습니다.');
+        toast.success('수신번호 차단이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -107,7 +107,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   const { mutate: updateCallScreen, isPending: isUpdating } = useUpdateCallScreen({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('수신번호 차단이 수정되었습니다.');
+        toast.success('수신번호 차단이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -117,7 +117,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   const { mutate: deleteCallScreen, isPending: isDeleting } = useDeleteCallScreen({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('수신번호 차단이 삭제되었습니다.');
+        toast.success('수신번호 차단이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -149,7 +149,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         updateCallScreen({ id: editData.callscreenId, data: payload });
       } else {
         if (!nodeId || !tenantId) {
-          toast.error('노드와 테넌트 정보가 필요합니다.');
+          toast.error('노드와 테넌트 정보가 필요합니다');
           return;
         }
         const payload: CallScreenCreateRequest = {
@@ -200,6 +200,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         title={isEditMode ? '수신번호 차단 수정' : '수신번호 차단 등록'}
         open={visible}
         onClose={handleClose}
+        closable={{ placement: 'end' }}
         styles={{ wrapper: { width: 420, display: patternDrawerOpen ? 'none' : undefined } }}
         footer={
           <div className="flex justify-between">

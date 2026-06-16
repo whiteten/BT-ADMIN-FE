@@ -155,6 +155,7 @@ const PropertyEditDrawer = forwardRef<PropertyEditDrawerRef, Props>(({ onSuccess
   return (
     <Drawer
       title={isUpdate ? '속성 수정' : '속성 추가'}
+      closable={{ placement: 'end' }}
       placement="right"
       open={open}
       onClose={handleClose}

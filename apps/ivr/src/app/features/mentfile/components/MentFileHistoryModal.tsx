@@ -10,14 +10,14 @@
  * <p>레거시는 예약(RT_SERV_KIND=2)만 조회했지만, 리뉴얼은 즉시+예약 통합 운영 이력.
  * 멘트파일은 환경변수처럼 DB 백업 이력/복구 탭이 없어 단일 탭으로 구성 (디스크 백업 자체는 적용 시점에 수행).</p>
  */
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, Modal, Select, Switch, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import { useGetMentFileHistory } from '../hooks/useMentFileQueries';
-import type { MentFileHistoryRow } from '../types';
+import { MENT_HIST_KIND_LABELS, MENT_HIST_STATUS_LABELS, type MentFileHistoryRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const { RangePicker } = DatePicker;
@@ -66,23 +66,39 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
       setKeyword('');
       const hasChecked = payload.checkedMentfileIds.length > 0;
       setScopeToChecked(hasChecked);
-      // 자동 초기 조회 — 오늘 + 체크된 멘트만 (체크 있을 때)
+      // 자동 초기 조회 — 오늘 + 체크된 멘트만 (체크 있을 때). endOf('day') 로 마지막일 포함.
       setQueryParams({
         mentfileIds: hasChecked ? payload.checkedMentfileIds : undefined,
-        startDate: today[0].format('YYYY-MM-DDTHH:mm:ss'),
-        endDate: today[1].format('YYYY-MM-DDTHH:mm:ss'),
+        startDate: today[0].startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: today[1].endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
       });
       setVisible(true);
     },
     close: () => setVisible(false),
   }));
 
+  // 검색조건 변경 시 자동 재조회 — debounce 300ms (키워드 타이핑 시 호출 폭주 방지)
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => {
+      setQueryParams({
+        mentfileIds: scopeToChecked && checkedIds.length > 0 ? checkedIds : undefined,
+        rtServKind,
+        startDate: dateRange?.[0]?.startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        endDate: dateRange?.[1]?.endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+        keyword: keyword.trim() || undefined,
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [visible, dateRange, rtServKind, keyword, scopeToChecked, checkedIds]);
+
   const handleSearch = () => {
+    // 명시적 다시 조회 — useEffect 와 동일 로직. debounce 무시하고 즉시.
     setQueryParams({
       mentfileIds: scopeToChecked && checkedIds.length > 0 ? checkedIds : undefined,
       rtServKind,
-      startDate: dateRange?.[0]?.format('YYYY-MM-DDTHH:mm:ss'),
-      endDate: dateRange?.[1]?.format('YYYY-MM-DDTHH:mm:ss'),
+      startDate: dateRange?.[0]?.startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
+      endDate: dateRange?.[1]?.endOf('day').format('YYYY-MM-DDTHH:mm:ss'),
       keyword: keyword.trim() || undefined,
     });
   };
@@ -102,7 +118,7 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
         cellRenderer: (p: ICellRendererParams<MentFileHistoryRow>) => {
           const k = p.data?.rtServKindCode;
           if (k == null) return '-';
-          return <Tag color={k === 1 ? 'blue' : 'purple'}>{p.data?.rtServKindName ?? k}</Tag>;
+          return <Tag color={k === 0 ? 'blue' : 'purple'}>{MENT_HIST_KIND_LABELS[k] ?? k}</Tag>;
         },
       },
       { headerName: '멘트명', field: 'mentName', flex: 1, minWidth: 140 },
@@ -123,23 +139,15 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
       {
         headerName: '상태',
         field: 'applyStatusCode',
-        width: 90,
+        width: 110,
         cellRenderer: (p: ICellRendererParams<MentFileHistoryRow>) => {
+          // 예약취소는 상태코드가 아니라 플래그 — 라벨 오버라이드 (레거시 IPR30S3025 동일)
+          if (p.data?.canceled) return <Tag color="default">예약취소</Tag>;
           const c = p.data?.applyStatusCode;
           if (c == null) return '-';
-          const color = c === 50 ? 'green' : c === 55 ? 'red' : 'gold';
-          return <Tag color={color}>{p.data?.applyStatusName ?? c}</Tag>;
-        },
-      },
-      {
-        headerName: '결과',
-        field: 'applyResultCode',
-        width: 90,
-        cellRenderer: (p: ICellRendererParams<MentFileHistoryRow>) => {
-          const c = p.data?.applyResultCode;
-          if (c == null) return p.data?.cancelTime ? <Tag>취소</Tag> : '-';
-          const color = c === 1 ? 'green' : c === 2 ? 'red' : 'default';
-          return <Tag color={color}>{p.data?.applyResultName ?? c}</Tag>;
+          // 성공류(20/30/50) green / 실패류(25/35/55) red / 미처리(9) orange / 예약(10) gold
+          const color = c === 50 || c === 20 || c === 30 ? 'green' : c === 55 || c === 25 || c === 35 ? 'red' : c === 9 ? 'orange' : 'gold';
+          return <Tag color={color}>{MENT_HIST_STATUS_LABELS[c] ?? c}</Tag>;
         },
       },
       { headerName: '작업자', field: 'workUserName', width: 110 },
@@ -169,7 +177,7 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
           style={{ width: 110 }}
           options={[
             { value: 'ALL', label: '전체' },
-            { value: 1, label: '즉시' },
+            { value: 0, label: '즉시' },
             { value: 2, label: '예약' },
           ]}
         />
@@ -186,7 +194,7 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
       </div>
 
       <div className="text-[12px] text-slate-500 mb-2">
-        조회 결과 <b>{rows.length}</b>건 — 기준 테이블: TB_IR_MENTFILE_SYSTEM_HISTORY (즉시 + 예약 통합). 예약의 실시간 결과는 RESERVE 가 갱신될 때까지 미확정 상태로 표시됩니다.
+        조회 결과 <b>{rows.length}</b>건 — 기준 테이블: TB_IR_MENTFILE_SYSTEM_HISTORY (즉시 + 예약 통합). 상태는 BE 가 예약취소/미처리까지 계산한 단일 코드 기준입니다.
       </div>
 
       <div style={{ height: 480 }}>

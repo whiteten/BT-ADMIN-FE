@@ -94,6 +94,7 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
   return (
     <Drawer
       title={isEdit ? '시나리오 수정' : '시나리오 추가'}
+      closable={{ placement: 'end' }}
       placement="right"
       width={520}
       open={visible}

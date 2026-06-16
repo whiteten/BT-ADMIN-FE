@@ -132,6 +132,7 @@ const MaskUnmaskReviewDrawer = forwardRef<MaskUnmaskReviewDrawerRef, Props>(({ o
           {request && <span className="text-[11px] text-gray-400 font-mono">REQ-#{request.requestId}</span>}
         </div>
       }
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={closeDrawer}
       styles={{ wrapper: { width: 480 } }}

@@ -14,7 +14,7 @@
  *  bt-shadow + rounded-md + border-gray-200
  */
 import { useMemo } from 'react';
-import { ChevronDown, Lock, LockOpen, Maximize2, Minimize2 } from 'lucide-react';
+import { ChevronDown, Lock, LockOpen, Maximize2, Minimize2, X } from 'lucide-react';
 import type { CallSegment } from '../types';
 import { fmtAxisLabel, fmtDurFull as formatDur, fmtDurShort as formatDurShort } from '../utils/timeFormat';
 
@@ -425,7 +425,7 @@ export default function CallFlowDiagram({
                     <span className="font-mono text-[10.5px] font-bold opacity-70 flex-shrink-0">H{hopNo}</span>
                     <span className="truncate min-w-0 flex-1 text-left">{hopContent(hop)}</span>
                     {occupiedSec > 0 && <span className="font-mono text-[10.5px] opacity-80 flex-shrink-0">{formatDurShort(occupiedSec)}</span>}
-                    {isFail && <span className="text-red-600 font-bold flex-shrink-0">✕</span>}
+                    {isFail && <X className="size-3 text-red-600 flex-shrink-0" />}
                     {renderHopDetail && (
                       <span
                         role="button"

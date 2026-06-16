@@ -20,11 +20,19 @@ function isResolved(t?: string | null): boolean {
   return s.length > 0 && !/^0+$/.test(s);
 }
 
+/** 등급(0~3) → 색. AggridAlarmLevelRenderer 와 동일 팔레트(헬스보드 정렬)로 통일. */
+const LEVEL_HEX: Record<number, string> = {
+  0: '#0a8a4a', // 정상·녹
+  1: '#b7791f', // 주의·노랑
+  2: '#d9480f', // 경고·주황
+  3: '#c92a2a', // 위험·빨강
+};
+
 const AggridAlarmStatusRenderer: React.FC<ICellRendererParams> = (params) => {
   const d = (params.data ?? {}) as AlarmStatusData;
-  // FCA 상태 배지와 동일한 soft 톤(컬러 텍스트 + 10%(1A) 배경, rounded-md).
+  // 컬러 텍스트 + 10%(1A) 배경, rounded-md soft 톤. 색은 등급 배지(AlarmLevelRenderer)와 동일 팔레트로 통일.
   if (isResolved(d.repairTime)) {
-    const hex = '#0AB39C';
+    const hex = '#0a8a4a'; // 복구 완료 = 정상 녹색(등급 0 색과 동일)
     return (
       <span className="inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium leading-none" style={{ color: hex, background: `${hex}1A` }}>
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -34,8 +42,11 @@ const AggridAlarmStatusRenderer: React.FC<ICellRendererParams> = (params) => {
       </span>
     );
   }
-  const danger = (Number(d.level) || 0) >= 2;
-  const hex = danger ? '#F06548' : '#F7B84B';
+  // 미복구 — 등급별 4색 그대로(주의/경고/위험). 경고·위험(level≥2) dot 에 관제 모션(bt-pulse).
+  const raw = Number(d.level);
+  const lv = Number.isFinite(raw) ? Math.max(0, Math.min(3, Math.round(raw))) : 0;
+  const hex = LEVEL_HEX[lv];
+  const danger = lv >= 2;
   return (
     <span className="inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-[11px] font-medium leading-none" style={{ color: hex, background: `${hex}1A` }}>
       <span className={`h-1.5 w-1.5 rounded-full ${danger ? 'bt-pulse' : ''}`} style={{ background: hex }} />
