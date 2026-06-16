@@ -19,7 +19,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ColDef, GridOptions, IRowNode } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Empty, Input, Modal, Popover, Spin, Tag } from 'antd';
+import { Button, Empty, Input, InputNumber, Modal, Popover, Spin, Tag } from 'antd';
 import {
   Check,
   ChevronLeft,
@@ -56,6 +56,7 @@ import SkillGroupApplyDrawer from '../../features/skill-assign/components/SkillG
 import {
   useBulkGrant,
   useBulkRevoke,
+  useBulkUpdatePl,
   useGetAgentCoverage,
   useGetAgentsBySkillset,
   useGetSkillAssignTenants,
@@ -242,6 +243,20 @@ export default function SkillAssignList() {
     },
   });
 
+  const { mutate: bulkUpdatePl, isPending: bulkUpdatePlPending } = useBulkUpdatePl({
+    mutationOptions: {
+      onSuccess: (updated) => {
+        toast.success(`${updated}건 우선순위·스킬레벨 수정됨`);
+        setSelectedAgentIds([]);
+        setSelectedSkillsetIds([]);
+      },
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '수정 실패';
+        toast.error(msg);
+      },
+    },
+  });
+
   // ─── Derived ────────────────────────────────────────────────────────────
   const totalStats = useMemo(() => {
     let agentCount = 0;
@@ -375,6 +390,22 @@ export default function SkillAssignList() {
     });
   }, [selectedAgentIds, selectedSkillsetIds, bulkRevoke]);
 
+  // 선택 N명 × M건 교차 행의 우선순위·스킬레벨을 툴바 입력값으로 일괄 SET (미존재 조합은 skip)
+  const handleBulkUpdatePl = useCallback(() => {
+    if (!selectedAgentIds.length || !selectedSkillsetIds.length) return;
+    Modal.confirm({
+      title: '우선순위·스킬레벨 일괄 수정',
+      content: `상담사 ${selectedAgentIds.length}명 × 스킬셋 ${selectedSkillsetIds.length}건 중 배정된 행의 우선순위를 ${toolbarPriority}, 스킬레벨을 ${toolbarSkillLevel} 로 일괄 수정합니다. 배정되지 않은 조합은 변경되지 않습니다. 진행하시겠습니까?`,
+      onOk: () =>
+        bulkUpdatePl({
+          agentIds: selectedAgentIds,
+          skillsetIds: selectedSkillsetIds,
+          priority: toolbarPriority,
+          skillLevel: toolbarSkillLevel,
+        }),
+    });
+  }, [selectedAgentIds, selectedSkillsetIds, toolbarPriority, toolbarSkillLevel, bulkUpdatePl]);
+
   const handleGrantSubmit = useCallback(
     async (mappings: GrantMapping[]) => {
       if (!mappings.length) {
@@ -460,7 +491,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
@@ -556,7 +587,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
@@ -609,7 +640,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
         const rows = e.api.getSelectedRows();
@@ -652,7 +683,7 @@ export default function SkillAssignList() {
       statusBar: undefined,
       pagination: false,
       sideBar: false,
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
         const rows = e.api.getSelectedRows();
@@ -1613,6 +1644,34 @@ export default function SkillAssignList() {
                 style={{ opacity: bothSelected ? 1 : 0.38 }}
               >
                 해제
+              </Button>
+              {/* 우선순위·스킬레벨 일괄 수정: 선택 교차 행 전체에 동일 값 SET (배정된 행만, 미존재 조합 skip) */}
+              <span className="flex items-center gap-1.5 whitespace-nowrap flex-shrink-0" style={{ opacity: bothSelected ? 1 : 0.38 }}>
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  우선순위
+                </span>
+                <InputNumber size="small" min={0} max={9} value={toolbarPriority} onChange={(v) => setToolbarPriority(v ?? 0)} disabled={!bothSelected} style={{ width: 56 }} />
+                <span className="text-xs" style={{ color: '#e2e8f0' }}>
+                  스킬레벨
+                </span>
+                <InputNumber
+                  size="small"
+                  min={0}
+                  max={99}
+                  value={toolbarSkillLevel}
+                  onChange={(v) => setToolbarSkillLevel(v ?? 0)}
+                  disabled={!bothSelected}
+                  style={{ width: 56 }}
+                />
+              </span>
+              <Button
+                icon={<Pencil className="size-3.5" />}
+                disabled={!bothSelected}
+                onClick={handleBulkUpdatePl}
+                loading={bulkUpdatePlPending}
+                style={{ backgroundColor: '#334155', borderColor: '#475569', color: '#e2e8f0', opacity: bothSelected ? 1 : 0.38 }}
+              >
+                우선순위·스킬레벨 수정
               </Button>
               <Button
                 type="primary"

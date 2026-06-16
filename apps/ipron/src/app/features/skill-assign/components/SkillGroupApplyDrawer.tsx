@@ -9,12 +9,15 @@
  *  - [적용] = 병합(upsert). 적용 후 드로어 유지 — 연속 적용 가능.
  */
 import { useEffect, useMemo, useState } from 'react';
+import type { ColDef, GridOptions } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Input, Spin } from 'antd';
 import { Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import type { AgentResponse } from '../../agent-master/types';
 import { useApplySkillGroup, useGetSkillGroupMembers, useGetSkillGroups } from '../hooks/useSkillAssignQueries';
-import type { SkillGroupResponse } from '../types';
+import type { SkillGroupMemberResponse, SkillGroupResponse } from '../types';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface Props {
   open: boolean;
@@ -28,6 +31,7 @@ interface Props {
 const CHIP_MAX = 8;
 
 export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose }: Props) {
+  const { gridOptions: baseGridOptions } = useAggridOptions();
   const [groupSearch, setGroupSearch] = useState('');
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
@@ -76,6 +80,29 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
   };
 
   const canApply = selectedGroupId != null && members.length > 0 && agents.length > 0 && !membersFetching;
+
+  // ── 멤버 미리보기 그리드 (읽기전용, 단일 선택 없음, 페이징 없음) ──
+  const memberColumns = useMemo<ColDef<SkillGroupMemberResponse>[]>(
+    () => [
+      { field: 'skillsetName', headerName: '스킬셋', flex: 1, minWidth: 160, tooltipField: 'skillsetName' },
+      { headerName: '우선순위', width: 110, valueGetter: (p) => p.data?.priority ?? 0, filter: 'agNumberColumnFilter', cellStyle: { textAlign: 'center' } },
+      { headerName: '스킬레벨', width: 110, valueGetter: (p) => p.data?.skillLevel ?? 0, filter: 'agNumberColumnFilter', cellStyle: { textAlign: 'center' } },
+    ],
+    [],
+  );
+
+  const memberGridOptions = useMemo<GridOptions<SkillGroupMemberResponse>>(
+    () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      sideBar: false,
+      pagination: false,
+      rowNumbers: false,
+      rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: false },
+      getRowId: ({ data }) => String(data.skillsetId),
+    }),
+    [baseGridOptions],
+  );
 
   return (
     <Drawer
@@ -184,25 +211,8 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
         ) : members.length === 0 ? (
           <div className="text-center text-xs text-gray-400 py-5 border border-dashed border-gray-200 rounded-md">이 모음에 등록된 멤버 스킬셋이 없습니다</div>
         ) : (
-          <div className="max-h-[220px] overflow-y-auto">
-            <table className="w-full border border-gray-200 border-collapse text-xs">
-              <thead>
-                <tr>
-                  <th className="bg-gray-50 text-gray-500 font-semibold text-left px-2.5 py-1.5 border-b border-gray-200">스킬셋</th>
-                  <th className="bg-gray-50 text-gray-500 font-semibold text-center px-2.5 py-1.5 border-b border-gray-200 w-[90px]">우선순위</th>
-                  <th className="bg-gray-50 text-gray-500 font-semibold text-center px-2.5 py-1.5 border-b border-gray-200 w-[90px]">스킬레벨</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.skillsetId}>
-                    <td className="px-2.5 py-1.5 border-b border-gray-100 text-gray-800">{m.skillsetName}</td>
-                    <td className="px-2.5 py-1.5 border-b border-gray-100 text-center font-semibold text-[#405189] tabular-nums">{m.priority ?? 0}</td>
-                    <td className="px-2.5 py-1.5 border-b border-gray-100 text-center font-semibold text-[#405189] tabular-nums">{m.skillLevel ?? 0}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="ag-theme-quartz h-[240px]">
+            <AgGridReact<SkillGroupMemberResponse> rowData={members} columnDefs={memberColumns} gridOptions={memberGridOptions} />
           </div>
         )}
       </div>

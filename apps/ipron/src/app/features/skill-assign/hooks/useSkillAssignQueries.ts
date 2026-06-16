@@ -17,6 +17,7 @@ import type {
   BulkGrantResult,
   BulkRevokeRequest,
   BulkRevokeResult,
+  BulkUpdatePlRequest,
   SkillAgentBulkAssignRequest,
   SkillAgentBulkAssignResult,
   SkillAgentResponse,
@@ -185,6 +186,19 @@ export const useBulkRevoke = ({ mutationOptions }: MutationHookOptions<BulkRevok
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body) => skillAssignApi.bulkRevoke(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentSkill(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/** N × M 배정행 우선순위·스킬레벨 일괄 수정 (모드 ① Bulk Bar — 미존재 조합은 skip, 반환=갱신 행 수) */
+export const useBulkUpdatePl = ({ mutationOptions }: MutationHookOptions<number, BulkUpdatePlRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => skillAssignApi.bulkUpdatePl(body),
     ...mutationOptions,
     onSuccess: (...args) => {
       invalidateAgentSkill(qc);

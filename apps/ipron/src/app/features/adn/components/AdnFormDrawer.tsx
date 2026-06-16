@@ -10,20 +10,16 @@
  *  - 그룹발신번호용 그룹DN (Select, 테넌트 선택 후 활성 — tenant-only 콤보)
  *  - MD5 인증 (Switch) — 설정 시 ID + 비밀번호
  *  - 내선 IP 인증 (유형/IPv4/IPv6/갱신)
- *
- * Summary Panel 재배치: 기존 AdnForm 의 우측 320px Summary Panel 은 드로어 폭에서
- * 별도 사이드 컬럼으로 둘 수 없어, 드로어 본문 상단의 접이식 요약 바(Collapse)로 재배치한다.
- * 읽기전용 요약 내용(테넌트/ADN번호/DN유형/초기상태/기본상태/MD5인증)은 그대로 보존.
  */
 import { useEffect, useMemo } from 'react';
-import { Button, Col, Collapse, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
+import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { Lock, Network } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
 import { useAdnGrpdnOptions } from '../hooks/useAdnGrpdnOptions';
 import { useCreateAdn, useGetAdnDetail, useUpdateAdn } from '../hooks/useAdnQueries';
 import type { AdnCreateRequest, AdnDefaultStateCode, AdnUpdateRequest, ExtAuthtypeCode } from '../types';
-import { ADN_DFT_STATE_OPTIONS, EXT_AUTHTYPE_OPTIONS, getAdnDftStateName, getDnStatusName } from '../utils/adnEnums';
+import { ADN_DFT_STATE_OPTIONS, EXT_AUTHTYPE_OPTIONS } from '../utils/adnEnums';
 
 interface AdnFormDrawerProps {
   open: boolean;
@@ -92,8 +88,6 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
 
   const md5Auth = Form.useWatch('md5Auth', form);
   const watchedTenantId = Form.useWatch('tenantId', form);
-  const watchedDnNo = Form.useWatch('dnNo', form);
-  const watchedAdnDftState = Form.useWatch('adnDftState', form);
   const watchedExtAuthtype = Form.useWatch('extAuthtype', form) as ExtAuthtypeCode | null | undefined;
 
   // 그룹발신번호(GDN_TYPE=16) 콤보 옵션 — 테넌트 선택 후 활성 (tenant-only)
@@ -162,36 +156,6 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
     }
   };
 
-  // 접이식 요약 바 (기존 우측 Summary Panel 재배치) — 등록 모드는 기본 접힘, 수정 모드는 기본 펼침.
-  const summaryContent = (
-    <dl className="text-sm grid grid-cols-2 gap-x-6 gap-y-2">
-      <div className="flex justify-between">
-        <dt className="text-gray-500">테넌트</dt>
-        <dd className="font-medium">{tenantOptions.find((t) => t.value === watchedTenantId)?.label ?? watchedTenantId ?? '-'}</dd>
-      </div>
-      <div className="flex justify-between">
-        <dt className="text-gray-500">ADN 번호</dt>
-        <dd className="font-mono font-semibold">{watchedDnNo || '-'}</dd>
-      </div>
-      <div className="flex justify-between">
-        <dt className="text-gray-500">DN 유형</dt>
-        <dd>ADN (상담 내선)</dd>
-      </div>
-      <div className="flex justify-between">
-        <dt className="text-gray-500">초기 상태</dt>
-        <dd>{getDnStatusName('9')} (등록 시)</dd>
-      </div>
-      <div className="flex justify-between">
-        <dt className="text-gray-500">기본 상태</dt>
-        <dd>{getAdnDftStateName(watchedAdnDftState)}</dd>
-      </div>
-      <div className="flex justify-between">
-        <dt className="text-gray-500">MD5 인증</dt>
-        <dd className={md5Auth === 1 ? 'text-blue-600 font-semibold' : 'text-gray-500'}>{md5Auth === 1 ? '설정' : '해제'}</dd>
-      </div>
-    </dl>
-  );
-
   return (
     <Drawer
       title={isEditMode ? `ADN 수정 — ${detail?.dnNo ?? ''}` : 'ADN 등록'}
@@ -209,8 +173,6 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
         </div>
       }
     >
-      <Collapse className="!mb-4" defaultActiveKey={isEditMode ? ['summary'] : []} items={[{ key: 'summary', label: '요약', children: summaryContent }]} />
-
       <Form form={form} layout="vertical" requiredMark>
         <Row gutter={16}>
           <Col span={12}>

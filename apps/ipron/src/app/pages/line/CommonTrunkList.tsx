@@ -190,7 +190,7 @@ export default function CommonTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -225,7 +225,7 @@ export default function CommonTrunkList() {
       pagination: false,
       rowNumbers: false,
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowDoubleClicked: (e) => {
         if (e.data) setGdnDrawer({ open: true, mode: 'edit', detail: e.data });
@@ -356,6 +356,13 @@ export default function CommonTrunkList() {
         maxWidth: 140,
         valueGetter: (p) => (p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null),
         filterValueGetter: (p) => {
+          const kind = p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null;
+          if (kind === 1) return 'IPRON-IE';
+          if (kind === 9) return '외부 교환기(PBX)';
+          return getTrunkKindName(kind);
+        },
+        // 셀이 배지/약식 표기라 호버 시 종류 풀네임을 툴팁으로 노출 (말줄임 방지)
+        tooltipValueGetter: (p) => {
           const kind = p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null;
           if (kind === 1) return 'IPRON-IE';
           if (kind === 9) return '외부 교환기(PBX)';

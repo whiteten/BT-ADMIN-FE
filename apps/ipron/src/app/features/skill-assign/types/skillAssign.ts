@@ -72,6 +72,19 @@ export interface BulkRevokeResult {
   removed: number;
 }
 
+/**
+ * N × M 배정행 우선순위·스킬레벨 일괄 수정.
+ * BE 계약: POST /api/ipron/skill-agents/bulk-update-pl
+ *   body { agentIds, skillsetIds, priority(0~9), skillLevel(0~99) }
+ * 존재하지 않는 조합은 skip (신규 생성하지 않음). 반환 = 갱신된 행 수.
+ */
+export interface BulkUpdatePlRequest {
+  agentIds: number[];
+  skillsetIds: number[];
+  priority: number;
+  skillLevel: number;
+}
+
 // ──────────────────────────────────────────────────────────
 //  상담사↔스킬셋 (SkillAgent)
 // ──────────────────────────────────────────────────────────
