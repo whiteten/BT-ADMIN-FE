@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Tooltip } from 'antd';
 import { formatDuration, initialOf, liveDurationSec, toStr } from '../helpers';
-import { alarmLevel, statusMeta } from '../statusMap';
+import { agentStatusLabel, alarmLevel, statusMeta } from '../statusMap';
 import type { AgentRow, Threshold } from '../types';
 
 /**
@@ -11,6 +11,8 @@ export interface AgentDotProps {
   row: AgentRow;
   nowMs: number;
   thresholds?: Record<string, Threshold>;
+  /** 이석 사유명 맵 (`{tenantId}_{reasonCode}` → 사유명). */
+  reasonNames?: Record<string, string>;
   onActivate?: (row: AgentRow) => void;
 }
 
@@ -22,20 +24,21 @@ const BG_BY_GROUP: Record<string, string> = {
   offline: 'bg-gray-300',
 };
 
-function AgentDotImpl({ row, nowMs, thresholds, onActivate }: AgentDotProps) {
+function AgentDotImpl({ row, nowMs, thresholds, reasonNames, onActivate }: AgentDotProps) {
   const meta = statusMeta(row.AGENT_STATUS, row.REASON_CODE);
   const dur = liveDurationSec(row, nowMs);
-  const alarm = alarmLevel(row.AGENT_STATUS, row.REASON_CODE, dur, thresholds);
+  const alarm = alarmLevel(row.AGENT_STATUS, row.REASON_CODE, row.TENANT_ID, dur, thresholds);
   const isAlert = alarm === 2;
 
   const bg = isAlert ? 'bg-red-500' : BG_BY_GROUP[meta.group];
   const name = toStr(row.AGENT_NAME) || toStr(row.AGENT_LOGIN_ID) || '?';
+  const label = agentStatusLabel(row.AGENT_STATUS, row.REASON_CODE, row.TENANT_ID, reasonNames);
 
   const tip = (
     <div className="space-y-0.5 text-xs">
       <div className="font-semibold">{name}</div>
       <div className="opacity-80">
-        {meta.label} · {formatDuration(dur)}
+        {label} · {formatDuration(dur)}
       </div>
     </div>
   );
@@ -45,7 +48,7 @@ function AgentDotImpl({ row, nowMs, thresholds, onActivate }: AgentDotProps) {
       <button
         type="button"
         onClick={() => onActivate?.(row)}
-        aria-label={`${name} ${meta.label} ${formatDuration(dur)}`}
+        aria-label={`${name} ${label} ${formatDuration(dur)}`}
         className={[
           'relative aspect-square w-full overflow-hidden rounded outline-none transition-transform duration-150',
           'hover:scale-125 hover:z-10 focus-visible:ring-2 focus-visible:ring-white',

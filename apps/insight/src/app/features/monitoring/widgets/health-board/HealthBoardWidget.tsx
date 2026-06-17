@@ -125,7 +125,7 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
   useEffect(() => {
     if (settingsOpen) setForm(t);
   }, [settingsOpen, t]);
-  const setBand = useCallback((key: keyof HealthBoardThresholds, band: 'good' | 'warn', value: number | null) => {
+  const setBand = useCallback((key: keyof HealthBoardThresholds, band: 'warn' | 'danger', value: number | null) => {
     setForm((p) => ({ ...p, [key]: { ...p[key], [band]: value ?? 0 } }));
   }, []);
 
@@ -167,7 +167,7 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
             icon={<Percent className="h-3.5 w-3.5" />}
             value={d.answerRate}
             max={100}
-            target={t?.answerRate?.good ?? 90}
+            target={t?.answerRate?.warn ?? 90}
             display={fmtPctUnit(d.answerRate)}
             sev={answerRateSev(d, t)}
             caption={
@@ -188,7 +188,7 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
             icon={<Gauge className="h-3.5 w-3.5" />}
             value={d.serviceLevel}
             max={100}
-            target={t?.serviceLevel?.good ?? 90}
+            target={t?.serviceLevel?.warn ?? 90}
             display={fmtPctUnit(d.serviceLevel)}
             sev={serviceLevelSev(d, t)}
             footer={<SevPill sev={serviceLevelSev(d, t)} okText="목표 충족" warnText="목표 미달" />}
@@ -198,7 +198,7 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
             icon={<PhoneMissed className="h-3.5 w-3.5" />}
             value={d.abandonRate}
             max={100}
-            target={t?.abandonRate?.good ?? 3}
+            target={t?.abandonRate?.warn ?? 3}
             display={fmtPctUnit(d.abandonRate)}
             sev={abandonSev(d, t)}
             footer={<SevPill sev={abandonSev(d, t)} okText="목표 이내" warnText="목표 초과" />}
@@ -316,10 +316,10 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
                       주의 기준
                     </span>
                     <InputNumber
-                      value={band.good}
+                      value={band.warn}
                       min={0}
                       max={m.max}
-                      onChange={(v) => setBand(m.key, 'good', v)}
+                      onChange={(v) => setBand(m.key, 'warn', v)}
                       addonAfter={m.unit}
                       style={{ width: '100%' }}
                       disabled={isSaving}
@@ -332,10 +332,10 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
                       위험 기준
                     </span>
                     <InputNumber
-                      value={band.warn}
+                      value={band.danger}
                       min={0}
                       max={m.max}
-                      onChange={(v) => setBand(m.key, 'warn', v)}
+                      onChange={(v) => setBand(m.key, 'danger', v)}
                       addonAfter={m.unit}
                       style={{ width: '100%' }}
                       disabled={isSaving}

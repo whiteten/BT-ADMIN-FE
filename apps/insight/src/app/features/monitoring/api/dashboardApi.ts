@@ -1,5 +1,14 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { CustomWidgetCatalogItem, DashboardCreateDatas, DashboardDetail, DashboardListItem, DashboardUpdateDatas, Widget, WidgetCreateDatas } from '../types';
+import type {
+  CustomWidgetCatalogItem,
+  CustomWidgetCatalogUpdateDatas,
+  DashboardCreateDatas,
+  DashboardDetail,
+  DashboardListItem,
+  DashboardUpdateDatas,
+  Widget,
+  WidgetCreateDatas,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -69,5 +78,10 @@ export const dashboardApi = {
   getCustomWidgetCatalog: async (params?: Record<string, unknown>): Promise<CustomWidgetCatalogItem[]> => {
     const response = await apiClient.get<ApiResponse<{ items: CustomWidgetCatalogItem[] }>>('/monitoring-custom-widget-list', { params });
     return response.data?.data?.items ?? [];
+  },
+
+  updateCustomWidgetCatalog: async (widgetTypeId: string, data: CustomWidgetCatalogUpdateDatas): Promise<CustomWidgetCatalogItem> => {
+    const response = await apiClient.put<ApiResponse<CustomWidgetCatalogItem>>('/monitoring-custom-widget-update', data, { params: { widgetTypeId } });
+    return response.data?.data;
   },
 };

@@ -1,7 +1,7 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Drawer, Input, Radio, Tooltip } from 'antd';
+import { Button, Drawer, Input, InputNumber, Radio, Tooltip } from 'antd';
 import {
   AlertTriangle,
   ChevronDown,
@@ -27,17 +27,27 @@ import AgentDot from './parts/AgentDot';
 import AgentRadarModal from './parts/AgentRadarModal';
 import AgentStatusGrid from './parts/AgentStatusGrid';
 import MosLegend from './parts/MosLegend';
-import { LEGACY_STATE_KEYS, alarmLevel, statusKey, statusMeta } from './statusMap';
+import { DEFAULT_THRESHOLDS, alarmLevel, reasonThresholdKey, statusKey, statusMeta } from './statusMap';
 import type { AgentRow, Density, GroupBy, SortBy, StatusGroup, Threshold } from './types';
+import type { AgentReasonCodeItem } from '../../api/widgetSettingApi';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
-import { useGetMediaTypes, useGetWidgetUserSetting, useUpdateWidgetUserSetting, widgetSettingKeys } from '../../hooks/useWidgetSettingQueries';
+import { useGetAgentReasonCodes, useGetMediaTypes, useGetWidgetUserSetting, useUpdateWidgetUserSetting, widgetSettingKeys } from '../../hooks/useWidgetSettingQueries';
 import NoData from '@/components/custom/NoData';
 import { usePersistentState } from '@/libs/shared-ui/src/hooks/usePersistentState';
 
 // 가상 리스트용 아이템 타입 정의
 type VirtualItem =
   | { type: 'header'; id: string; label: string; groupRows: AgentRow[]; allRows: AgentRow[]; isCollapsed: boolean; onToggle: () => void }
-  | { type: 'row'; id: string; rows: AgentRow[]; density: Density; nowMs: number; thresholds?: Record<string, Threshold>; onActivate: (r: AgentRow) => void };
+  | {
+      type: 'row';
+      id: string;
+      rows: AgentRow[];
+      density: Density;
+      nowMs: number;
+      thresholds?: Record<string, Threshold>;
+      reasonNames?: Record<string, string>;
+      onActivate: (r: AgentRow) => void;
+    };
 
 /**
  * 상담사 상태 모니터 위젯 v3 — 디자인은 원본 유지 + 가상 렌더링(성능 최적화) 적용.
@@ -55,20 +65,40 @@ export interface AgentStatusWidgetProps {
   onRequestPause?: () => void;
 }
 
-const LEGACY_STATES: { key: string; label: string }[] = [
-  { key: '10', label: '로그아웃' },
-  { key: '30', label: '이석' },
-  { key: '41', label: '대기 IB' },
-  { key: '42', label: '대기 OB' },
-  { key: '5010', label: '통화 IB' },
-  { key: '5020', label: '통화 OB' },
-  { key: '51', label: '벨울림' },
-  { key: '52', label: '다이얼링' },
-  { key: '53', label: '보류' },
-  { key: '60', label: '후처리' },
-];
+/** 상태 칩 — codes 는 이 칩이 합산·필터·토글할 statusKey 목록. */
+interface StateChip {
+  key: string;
+  label: string;
+  codes: string[];
+}
 
-const DEFAULT_ACTIVE_STATES = new Set(['30', '41', '42', '5010', '5020', '60']);
+/**
+ * 대기 표시 방식(standbyType)에 따른 상태 칩 목록.
+ * - 1: 대기 통합 — '대기' 하나로(40·41·42 합산)  (레거시 기본)
+ * - 2: 대기 IB / 대기 OB 분리
+ */
+function buildStateChips(standbyType: 1 | 2): StateChip[] {
+  const waiting: StateChip[] =
+    standbyType === 2
+      ? [
+          { key: '41', label: '대기 IB', codes: ['41'] },
+          { key: '42', label: '대기 OB', codes: ['42'] },
+        ]
+      : [{ key: '40', label: '대기', codes: ['40', '41', '42'] }];
+  return [
+    { key: '10', label: '로그아웃', codes: ['10'] },
+    { key: '30', label: '이석', codes: ['30'] },
+    ...waiting,
+    { key: '5010', label: '통화 IB', codes: ['5010'] },
+    { key: '5020', label: '통화 OB', codes: ['5020'] },
+    { key: '51', label: '벨울림', codes: ['51'] },
+    { key: '52', label: '다이얼링', codes: ['52'] },
+    { key: '53', label: '보류', codes: ['53'] },
+    { key: '60', label: '후처리', codes: ['60'] },
+  ];
+}
+
+const DEFAULT_ACTIVE_STATES = new Set(['30', '40', '41', '42', '5010', '5020', '60']);
 
 // 오리지널 디자인 (Soft Tone) 유지
 const CHIP_STYLE: Record<string, { active: string; idle: string }> = {
@@ -82,6 +112,7 @@ const CHIP_STYLE: Record<string, { active: string; idle: string }> = {
 const TAG_COLOR_BY_STATE: Record<string, string> = {
   '10': 'default',
   '30': 'default',
+  '40': 'green',
   '41': 'green',
   '42': 'green',
   '5010': 'blue',
@@ -141,6 +172,27 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
   const activeStates = useMemo(() => new Set(ui.activeStates), [ui.activeStates]);
   const { density, alertOnly, summaryCollapsed } = ui;
 
+  // 대기 표시 방식(1=대기 통합 / 2=대기 IB·OB 분리). 저장 설정 → SUBSCRIBE options 로 전달, 기본 1.
+  const standbyType: 1 | 2 = options?.standbyType === 2 ? 2 : 1;
+  const stateChips = useMemo(() => buildStateChips(standbyType), [standbyType]);
+  // 상담사 상태 임계 행 — 통화도 대기 표시 방식(standbyType)에 따라 통합('통화')/분리('통화 IB'/'통화 OB').
+  const thresholdRows = useMemo<{ key: string; label: string; codes: string[] }[]>(() => {
+    const talk =
+      standbyType === 2
+        ? [
+            { key: '5010', label: '통화 IB', codes: ['5010'] },
+            { key: '5020', label: '통화 OB', codes: ['5020'] },
+          ]
+        : [{ key: '5010', label: '통화', codes: ['5010', '5020'] }];
+    return [
+      ...talk,
+      { key: '53', label: '보류', codes: ['53'] },
+      { key: '51', label: '벨울림', codes: ['51'] },
+      { key: '52', label: '다이얼링', codes: ['52'] },
+      { key: '60', label: '후처리', codes: ['60'] },
+    ];
+  }, [standbyType]);
+
   const setDensity = useCallback((d: Density) => setUi((p: any) => ({ ...p, density: d })), [setUi]);
   const toggleSummary = useCallback(() => setUi((p: any) => ({ ...p, summaryCollapsed: !p.summaryCollapsed })), [setUi]);
   const setAlertOnly = useCallback((next: any) => setUi((p: any) => ({ ...p, alertOnly: typeof next === 'function' ? next(p.alertOnly) : next })), [setUi]);
@@ -149,12 +201,13 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
   const [groupBy] = useState<GroupBy>(options?.groupBy ?? 'queue');
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const toggleState = useCallback(
-    (k: string) => {
+  // 칩 토글 — codes(여러 statusKey)를 한꺼번에 켜고/끈다. 하나라도 켜져 있으면 전체 끄기.
+  const toggleStates = useCallback(
+    (codes: string[]) => {
       setUi((prev: any) => {
         const s = new Set(prev.activeStates);
-        if (s.has(k)) s.delete(k);
-        else s.add(k);
+        const anyOn = codes.some((c) => s.has(c));
+        codes.forEach((c) => (anyOn ? s.delete(c) : s.add(c)));
         return { ...prev, activeStates: Array.from(s) };
       });
     },
@@ -181,7 +234,7 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
 
   const alertCount = useMemo(() => {
     let n = 0;
-    for (const r of rows) if (alarmLevel(r.AGENT_STATUS, r.REASON_CODE, liveDurationSec(r, nowMs), options?.thresholds) === 2) n++;
+    for (const r of rows) if (alarmLevel(r.AGENT_STATUS, r.REASON_CODE, r.TENANT_ID, liveDurationSec(r, nowMs), options?.thresholds) === 2) n++;
     return n;
   }, [rows, nowMs, options?.thresholds]);
 
@@ -215,7 +268,7 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
   const visible = useMemo(() => {
     let f = rows.filter((r) => activeStates.has(statusKey(r.AGENT_STATUS, r.REASON_CODE)));
     if (search) f = f.filter((r) => matchSearch(r, search));
-    if (alertOnly) f = f.filter((r) => alarmLevel(r.AGENT_STATUS, r.REASON_CODE, liveDurationSec(r, nowMs), options?.thresholds) === 2);
+    if (alertOnly) f = f.filter((r) => alarmLevel(r.AGENT_STATUS, r.REASON_CODE, r.TENANT_ID, liveDurationSec(r, nowMs), options?.thresholds) === 2);
     return [...f].sort((a, b) => liveDurationSec(b, nowMs) - liveDurationSec(a, nowMs));
   }, [rows, activeStates, search, alertOnly, nowMs, options?.thresholds]);
 
@@ -247,6 +300,14 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
     }
   }, [containerSize.width, density]);
 
+  // 이석 사유명 맵 — 카드/그리드/도트의 이석 상태 라벨에 테넌트별 사유명 표시 (현재 테넌트 컨텍스트 스코프, 5분 캐시).
+  const { data: reasonCodes = [], isLoading: isReasonLoading } = useGetAgentReasonCodes();
+  const reasonNameMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const r of reasonCodes) m[`${r.tenantId}_${r.reasonCode}`] = r.reasonName;
+    return m;
+  }, [reasonCodes]);
+
   const virtualItems = useMemo<VirtualItem[]>(() => {
     if (density === 'grid') return [];
     const items: VirtualItem[] = [];
@@ -258,12 +319,21 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
       if (!isCollapsed) {
         for (let i = 0; i < g.rows.length; i += columnCount) {
           const chunk = g.rows.slice(i, i + columnCount);
-          items.push({ type: 'row', id: `r_${g.id}_${i}`, rows: chunk, density, nowMs, thresholds: options?.thresholds, onActivate: (r) => setRadarAgent(r) });
+          items.push({
+            type: 'row',
+            id: `r_${g.id}_${i}`,
+            rows: chunk,
+            density,
+            nowMs,
+            thresholds: options?.thresholds,
+            reasonNames: reasonNameMap,
+            onActivate: (r) => setRadarAgent(r),
+          });
         }
       }
     });
     return items;
-  }, [grouped, columnCount, density, nowMs, options?.thresholds, groupBy, allRowsByGroup, collapsedGroups, toggleGroup]);
+  }, [grouped, columnCount, density, nowMs, options?.thresholds, reasonNameMap, groupBy, allRowsByGroup, collapsedGroups, toggleGroup]);
 
   // 그룹 접기/펴기로 data 길이가 바뀌면 rc-virtual-list 의 높이 캐시·scrollTop 이 stale 상태가 되어
   // 맨 아래 그룹 카드가 스크롤 전까지 렌더되지 않는다. 토글 후 현재 위치로 재스크롤해 강제 재계산한다.
@@ -300,21 +370,53 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
     },
   });
 
+  // 테넌트별 이석 설정용 그룹 (사유 조회는 상단 reasonNameMap 과 공유)
+  const reasonGroups = useMemo(() => {
+    const m = new Map<number, { tenantId: number; tenantName: string; reasons: AgentReasonCodeItem[] }>();
+    for (const r of reasonCodes) {
+      let g = m.get(r.tenantId);
+      if (!g) {
+        g = { tenantId: r.tenantId, tenantName: r.tenantName, reasons: [] };
+        m.set(r.tenantId, g);
+      }
+      g.reasons.push(r);
+    }
+    return [...m.values()];
+  }, [reasonCodes]);
+
   const [formMediaType, setFormMediaType] = useState<number | null>(null);
+  const [formStandbyType, setFormStandbyType] = useState<1 | 2>(1);
+  const [formThresholds, setFormThresholds] = useState<Record<string, Threshold>>({});
   useEffect(() => {
     if (!settingsOpen) return;
     const saved = userSetting?.settings?.mediaType;
     setFormMediaType(typeof saved === 'number' ? saved : null);
+    setFormStandbyType(userSetting?.settings?.standbyType === 2 ? 2 : 1);
+    // 상태 기본 임계 위에 사용자 저장값(상태 오버라이드 + reason:{tid}:{code})을 덮어 병합
+    const savedTh = (userSetting?.settings?.thresholds ?? {}) as Record<string, Threshold>;
+    setFormThresholds({ ...DEFAULT_THRESHOLDS, ...savedTh });
   }, [settingsOpen, userSetting]);
+
+  const setThreshold = useCallback((key: string, v: Threshold) => setFormThresholds((p) => ({ ...p, [key]: v })), []);
+  // 통화 통합 표시 시 한 행이 5010·5020 두 키에 같은 값을 쓴다.
+  const setThresholdCodes = useCallback(
+    (codes: string[], v: Threshold) =>
+      setFormThresholds((p) => {
+        const next = { ...p };
+        codes.forEach((c) => (next[c] = v));
+        return next;
+      }),
+    [],
+  );
 
   const handleSaveSettings = useCallback(() => {
     if (!hasWidgetId) {
       toast.error('위젯 식별자가 없어 저장할 수 없습니다.');
       return;
     }
-    const settings: Record<string, unknown> = { mediaType: formMediaType ?? 0 };
+    const settings: Record<string, unknown> = { mediaType: formMediaType ?? 0, standbyType: formStandbyType, thresholds: formThresholds };
     saveUserSetting({ widgetId: numericWidgetId, settings });
-  }, [hasWidgetId, numericWidgetId, formMediaType, saveUserSetting]);
+  }, [hasWidgetId, numericWidgetId, formMediaType, formStandbyType, formThresholds, saveUserSetting]);
 
   // 툴바 디자인 확정 (오리지널 스타일 기반 + 스위치 그룹화 + 아이콘 개선)
   const toolbar = (
@@ -422,18 +524,19 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 border-b border-gray-200 bg-white px-4 py-2">
-        {LEGACY_STATES.map(({ key, label }) => {
-          const checked = activeStates.has(key);
+        {stateChips.map(({ key, label, codes }) => {
+          const checked = codes.some((c) => activeStates.has(c));
+          const count = codes.reduce((n, c) => n + (stateCounts[c] ?? 0), 0);
           const palette = CHIP_STYLE[TAG_COLOR_BY_STATE[key] ?? 'default'];
           return (
             <button
               key={key}
               type="button"
-              onClick={() => toggleState(key)}
+              onClick={() => toggleStates(codes)}
               className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs transition-colors ${checked ? palette.active : palette.idle}`}
             >
               <span>{label}</span>
-              <span className="font-mono tabular-nums opacity-80">({stateCounts[key] ?? 0})</span>
+              <span className="font-mono tabular-nums opacity-80">({count})</span>
             </button>
           );
         })}
@@ -444,7 +547,7 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
 
       <div className="flex-1 min-h-0 relative">
         {density === 'grid' ? (
-          <AgentStatusGrid rows={visible} nowMs={nowMs} />
+          <AgentStatusGrid rows={visible} nowMs={nowMs} reasonNames={reasonNameMap} />
         ) : visible.length === 0 ? (
           <div className="flex h-full items-center justify-center">
             <NoData message="데이터가 없습니다." />
@@ -468,15 +571,23 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
                 // 간격을 wrapper 의 padding 으로 준다(GroupHeader 의 mt-6/mb-4 를 옮김).
                 // margin 은 rc-virtual-list 의 offsetHeight 측정에서 제외되어 가상 스크롤 높이를 어긋나게 한다.
                 <div className="pt-6 pb-4">
-                  <GroupHeader item={item} allRows={item.allRows} />
+                  <GroupHeader item={item} allRows={item.allRows} stateChips={stateChips} />
                 </div>
               ) : (
                 <div className={`grid px-4 pb-3 ${density === 'dot' ? 'gap-1' : 'gap-2'}`} style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
                   {item.rows.map((r: AgentRow, i: number) =>
                     density === 'dot' ? (
-                      <AgentDot key={i} row={r} nowMs={nowMs} thresholds={item.thresholds} onActivate={item.onActivate} />
+                      <AgentDot key={i} row={r} nowMs={nowMs} thresholds={item.thresholds} reasonNames={item.reasonNames} onActivate={item.onActivate} />
                     ) : (
-                      <AgentCard key={i} row={r} nowMs={nowMs} thresholds={item.thresholds} onActivate={item.onActivate} compact={density === 'row'} />
+                      <AgentCard
+                        key={i}
+                        row={r}
+                        nowMs={nowMs}
+                        thresholds={item.thresholds}
+                        reasonNames={item.reasonNames}
+                        onActivate={item.onActivate}
+                        compact={density === 'row'}
+                      />
                     ),
                   )}
                   {Array.from({ length: columnCount - item.rows.length }).map((_, i) => (
@@ -510,9 +621,11 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
           </div>
         }
       >
-        <div className="flex h-full flex-col gap-5">
-          <section className="flex flex-col gap-2">
-            <span className="text-sm font-semibold text-gray-700">미디어 타입</span>
+        <div className="flex h-full flex-col gap-4">
+          {/* ① 미디어 타입 */}
+          <section className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+            <span className="text-sm font-semibold text-gray-800">미디어 타입</span>
+            <p className="text-[12px] leading-relaxed text-gray-500">이 위젯에 표시할 상담사의 미디어 타입을 선택합니다.</p>
             {isMediaTypesLoading ? (
               <div className="text-xs text-gray-400">로딩 중…</div>
             ) : mediaTypes.length === 0 ? (
@@ -529,13 +642,125 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
               </Radio.Group>
             )}
           </section>
+
+          {/* ② 대기 표시 방식 */}
+          <section className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+            <span className="text-sm font-semibold text-gray-800">대기 표시 방식</span>
+            <p className="text-[12px] leading-relaxed text-gray-500">상태 서머리·그룹 상태에서 대기 상담사를 합쳐서 또는 IB/OB로 나눠서 표시합니다.</p>
+            <Radio.Group value={formStandbyType} onChange={(e) => setFormStandbyType(e.target.value)} disabled={isSavingSetting}>
+              <div className="flex flex-col gap-2">
+                <Radio value={1}>
+                  <span className="text-sm text-gray-900">대기 (통합)</span>
+                </Radio>
+                <Radio value={2}>
+                  <span className="text-sm text-gray-900">대기 IB + 대기 OB (분리)</span>
+                </Radio>
+              </div>
+            </Radio.Group>
+          </section>
+
+          {/* ③ 상담사 상태 임계 (초) */}
+          <section className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+            <span className="text-sm font-semibold text-gray-800">상담사 상태 임계 (초)</span>
+            <p className="text-[12px] leading-relaxed text-gray-500">
+              상태 지속이 <span className="font-medium text-amber-600">주의(초)</span> 초과 시 노랑, <span className="font-medium text-red-600">위험(초)</span> 초과 시 빨강으로
+              강조됩니다.
+            </p>
+            <div className="grid grid-cols-[1fr_84px_84px] items-center gap-x-2 gap-y-1.5">
+              <span />
+              <span className="text-center text-[11px] font-medium text-amber-600">주의</span>
+              <span className="text-center text-[11px] font-medium text-red-600">위험</span>
+              {thresholdRows.map(({ key, label, codes }) => {
+                const v = formThresholds[key] ?? { warn: 0, danger: 0 };
+                return (
+                  <Fragment key={key}>
+                    <span className="text-[13px] text-gray-700">{label}</span>
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      max={7200}
+                      step={5}
+                      value={v.warn}
+                      disabled={isSavingSetting}
+                      style={{ width: '100%' }}
+                      onChange={(n) => setThresholdCodes(codes, { ...v, warn: typeof n === 'number' ? n : 0 })}
+                    />
+                    <InputNumber
+                      size="small"
+                      min={0}
+                      max={7200}
+                      step={5}
+                      value={v.danger}
+                      disabled={isSavingSetting}
+                      style={{ width: '100%' }}
+                      onChange={(n) => setThresholdCodes(codes, { ...v, danger: typeof n === 'number' ? n : 0 })}
+                    />
+                  </Fragment>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* ③ 테넌트별 이석 임계 (초) */}
+          <section className="flex flex-col gap-2 rounded-lg border border-gray-200 p-3">
+            <span className="text-sm font-semibold text-gray-800">테넌트별 이석 임계 (초)</span>
+            <p className="text-[12px] leading-relaxed text-gray-500">이석 임계는 사유별로 지정합니다. 미지정 사유는 기본 이석 기준으로 강조됩니다.</p>
+            {isReasonLoading ? (
+              <div className="text-xs text-gray-400">로딩 중…</div>
+            ) : reasonGroups.length === 0 ? (
+              <div className="text-xs text-gray-400">조회 가능한 이석 사유가 없습니다.</div>
+            ) : (
+              reasonGroups.map((g) => (
+                <div key={g.tenantId} className="flex flex-col gap-1.5 rounded-md border border-gray-100 bg-gray-50/50 p-2.5">
+                  <span className="text-[12px] font-semibold text-gray-700">{g.tenantName}</span>
+                  <div className="grid grid-cols-[1fr_84px_84px] items-center gap-x-2 gap-y-1.5">
+                    <span />
+                    <span className="text-center text-[11px] font-medium text-amber-600">주의</span>
+                    <span className="text-center text-[11px] font-medium text-red-600">위험</span>
+                    {g.reasons.map((r) => {
+                      const key = reasonThresholdKey(r.tenantId, r.reasonCode);
+                      const fallback = formThresholds['30'] ?? DEFAULT_THRESHOLDS['30'] ?? { warn: 0, danger: 0 };
+                      const v = formThresholds[key] ?? fallback;
+                      return (
+                        <Fragment key={key}>
+                          <span className="truncate text-[13px] text-gray-700" title={r.reasonName}>
+                            {r.reasonName}
+                          </span>
+                          <InputNumber
+                            size="small"
+                            min={0}
+                            max={7200}
+                            step={5}
+                            value={v.warn}
+                            disabled={isSavingSetting}
+                            style={{ width: '100%' }}
+                            onChange={(n) => setThreshold(key, { ...v, warn: typeof n === 'number' ? n : 0 })}
+                          />
+                          <InputNumber
+                            size="small"
+                            min={0}
+                            max={7200}
+                            step={5}
+                            value={v.danger}
+                            disabled={isSavingSetting}
+                            style={{ width: '100%' }}
+                            onChange={(n) => setThreshold(key, { ...v, danger: typeof n === 'number' ? n : 0 })}
+                          />
+                        </Fragment>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))
+            )}
+          </section>
         </div>
       </Drawer>
     </div>
   );
 }
 
-function GroupHeader({ item, allRows }: { item: VirtualItem & { type: 'header' }; allRows: AgentRow[] }) {
+function GroupHeader({ item, allRows, stateChips }: { item: VirtualItem & { type: 'header' }; allRows: AgentRow[]; stateChips: StateChip[] }) {
   const dist = useMemo(() => {
     const d: Record<StatusGroup, number> = { available: 0, talking: 0, ringing: 0, wrapup: 0, offline: 0 };
     for (const r of allRows) d[statusMeta(r.AGENT_STATUS, r.REASON_CODE).group]++;
@@ -578,10 +803,10 @@ function GroupHeader({ item, allRows }: { item: VirtualItem & { type: 'header' }
       <Tooltip
         title={
           <div className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 p-1 text-xs">
-            {LEGACY_STATE_KEYS.map(({ key, label }) => (
+            {stateChips.map(({ key, label, codes }) => (
               <div key={key} className="contents">
                 <span className="text-slate-300 font-medium">{label}</span>
-                <span className="text-right font-mono font-bold tabular-nums text-white">{stateCounts[key] ?? 0}</span>
+                <span className="text-right font-mono font-bold tabular-nums text-white">{codes.reduce((n, c) => n + (stateCounts[c] ?? 0), 0)}</span>
               </div>
             ))}
           </div>
