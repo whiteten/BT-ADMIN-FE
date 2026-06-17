@@ -38,6 +38,11 @@ const SYSTEMS: SysSpec[] = [
   { systemId: 7133, systemName: 'SLEE_03', irType: 1, total: 250, dist: [40, 120, 4, 50, 8, 30, 2, 24, 1, 1] },
 ];
 
+/** 데모 시나리오명 — SERVICE_ID 100~107 에 매핑. */
+const SCENARIO_NAMES = ['대표 IVR', '인바운드봇', '상담 연결', '해지 방어', '요금 안내', '콜백 예약', '만족도 조사', 'OB 캠페인'];
+/** 데모 메뉴명 — 활성(점유/인입) 채널에만 부여. */
+const MENU_NAMES = ['메인 메뉴', '상담사 연결', '자동 안내', '본인 인증', '금액 조회', '재입력', '종료 안내'];
+
 function genSystem(spec: SysSpec): ChannelRow[] {
   const rnd = makeRnd(spec.systemId);
   const pool: number[] = [];
@@ -49,6 +54,7 @@ function genSystem(spec: SysSpec): ChannelRow[] {
     const st = pool[Math.floor(rnd() * pool.length)] ?? 1;
     const inout = st === 4 ? 10 : st === 3 ? (rnd() < 0.8 ? 20 : 30) : rnd() < 0.6 ? 20 : 10;
     const hasCtx = st === 2 || st === 3 || st === 4;
+    const svcIdx = Math.floor(rnd() * SCENARIO_NAMES.length);
     rows.push({
       CENTER_ID: 1,
       SYSTEM_ID: spec.systemId,
@@ -62,7 +68,9 @@ function genSystem(spec: SysSpec): ChannelRow[] {
       SERVICE_ANI: hasCtx ? `010-${2000 + Math.floor(rnd() * 7999)}-${1000 + Math.floor(rnd() * 8999)}` : '',
       SERVICE_DNIS: hasCtx ? `15${10 + Math.floor(rnd() * 89)}-${1000 + Math.floor(rnd() * 8999)}` : '',
       UCID: st === 3 ? String(Math.floor(rnd() * 9e9) + 1e9) : '',
-      SERVICE_ID: 100 + Math.floor(rnd() * 8),
+      SERVICE_ID: 100 + svcIdx,
+      SERVICE_NAME: SCENARIO_NAMES[svcIdx],
+      MENU_NAME: hasCtx ? MENU_NAMES[Math.floor(rnd() * MENU_NAMES.length)] : '',
       DB_UPDATE_TIME: '20260614104512',
     });
   }

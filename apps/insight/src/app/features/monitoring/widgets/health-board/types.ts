@@ -48,13 +48,16 @@ export interface QueueRow {
   sev: Severity;
 }
 
-/** 상담사 상태 분포 (5상태). */
+/** 상담사 상태 분포 (8상태 — 상담사 상태 매트릭스와 동일 정의). */
 export interface AgentDistribution {
-  available: number; // 가용
-  talking: number; // 통화
-  wrapup: number; // 후처리
+  logout: number; // 로그아웃
   aux: number; // 이석
-  offline: number; // 오프라인
+  ready: number; // 대기
+  talking: number; // 통화
+  ringing: number; // 벨울림
+  dialing: number; // 다이얼링
+  hold: number; // 보류
+  wrapup: number; // 후처리
 }
 
 /** 통화 품질 (MoS). */
@@ -69,46 +72,44 @@ export interface QualityInfo {
   lowestAgentDn?: string;
 }
 
-/** 회선 포화 — SIP 트렁크 1건 (사용율 높은 순 Top-N). */
+/** 회선 1건 — 국선 GW 또는 SIP 트렁크(TRK_ID), 점유율 높은 순 Top-N. */
 export interface TrunkInfo {
-  /** 트렁크 표시명 — TRK_NAME */
+  /** 종류 — CO(국선 GW) | SIP(개별 트렁크) */
+  kind: 'CO' | 'SIP';
+  /** 표시명 — 국선: GW_NAME, SIP: TRK_NAME */
   name: string;
-  /** 점유율 % = (IN_BUSY + OUT_BUSY) / LINE × 100 */
+  /** 점유율 % = (IN_BUSY + OUT_BUSY) / 분모(LINE | TOT_LINE) × 100 */
   rate: number;
   /** 사용중 회선 (IN_BUSY + OUT_BUSY) */
   busyLine: number;
-  /** 총 채널 (LINE) */
+  /** 총 채널 */
   totalLine: number;
   /** 수신 점유 */
   inBusy: number;
   /** 발신 점유 */
   outBusy: number;
-  /** 블록 여부 (1: 블록) */
-  block: number;
-  /** 등록 상태 (0: 미등록, 1: 등록) */
-  registered: number;
+  /** 이상 여부 — 블록/미등록/에러 (국선은 GW 자체 상태, SIP 은 트렁크 상태) */
+  issueCnt: number;
   severity: Severity;
 }
 
-/** 회선 포화 전체 요약. */
+/** 회선 전체 요약 (국선 + SIP 합산). */
 export interface TrunkSummary {
   /** 전체 점유율 % */
   rate: number;
   busyLine: number;
   totalLine: number;
-  /** 등록 트렁크 총 수 */
+  /** 회선(국선 GW + SIP 트렁크) 총 수 */
   totalCnt: number;
-  /** 블록 트렁크 수 */
+  /** 블록 회선 수 */
   blockCnt: number;
-  /** 에러/미등록 트렁크 수 */
+  /** 에러/미등록 회선 수 */
   errorCnt: number;
-  /** 정상 트렁크 수 */
+  /** 정상 회선 수 */
   normalCnt: number;
-  /** 포화(점유율 > 83) 트렁크 수 */
-  saturatedCnt: number;
 }
 
-/** 회선 포화 보드 (요약 + Top-N 목록). */
+/** 회선 보드 (요약 + Top-N 목록). */
 export interface TrunkBoard {
   summary: TrunkSummary;
   items: TrunkInfo[];

@@ -1,5 +1,15 @@
 import { isChannelBusy } from './statusMap';
-import type { ChannelRow, SystemGroup } from './types';
+import type { ChannelOccThresholds, ChannelRow, OccSeverity, SystemGroup } from './types';
+
+/** 점유 세츄레이션 임계 기본값 — 주의 70% · 위험 85%. */
+export const DEFAULT_OCC_THRESHOLDS: ChannelOccThresholds = { warn: 70, danger: 85 };
+
+/** 점유율(%) → 심각도. 위험(danger) 우선, 그다음 주의(warn), 아니면 정상. */
+export function occSeverity(occPct: number, t: ChannelOccThresholds): OccSeverity {
+  if (occPct >= t.danger) return 'danger';
+  if (occPct >= t.warn) return 'warn';
+  return 'normal';
+}
 
 /** 안전 숫자 변환. 문자열 숫자도 처리. */
 export function toNum(v: unknown): number | null {

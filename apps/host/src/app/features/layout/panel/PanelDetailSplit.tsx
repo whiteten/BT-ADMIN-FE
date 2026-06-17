@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { isMenuActive } from './PanelMenuPrimitives';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { NewWindowButton } from '../components/NewWindowButton';
+import { PANEL_DETAIL_LIST_WIDTH } from '../constants/layoutConstants';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -89,7 +90,7 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
   return (
     <div className="flex-1 min-h-0 flex">
       {/* 좌측 컴팩트 리스트 */}
-      <div className="w-[300px] shrink-0 overflow-y-auto border-r border-[#e9ecef] p-3">
+      <div style={{ width: PANEL_DETAIL_LIST_WIDTH }} className="shrink-0 overflow-y-auto border-r border-[#e9ecef] p-3">
         {entries.map((entry, i) =>
           entry.type === 'group' ? (
             <p key={`g-${i}`} className="mt-3 mb-1.5 px-1.5 text-xs font-bold text-[#868e96] first:mt-0">

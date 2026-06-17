@@ -1,41 +1,21 @@
 import { useCallback, useMemo } from 'react';
-import type { ColDef, RowClassParams, ValueFormatterParams } from 'ag-grid-community';
+import type { ColDef, ColGroupDef, RowClassParams, RowDataUpdatedEvent, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { formatColumnValue as formatValue } from '../../../../utils/columnFormat';
 import { evaluateRowExpression, extractFieldRefs } from '../../../../utils/rowExpression';
 import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
-import type { ColumnFormat, PanelDetail } from '../../../report/types';
+import type { PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+// 자동 크기 시 한 열이 차지할 수 있는 최대 폭(px). 초과분은 잘리고 툴팁으로 전체값 노출.
+const AUTO_SIZE_MAX_WIDTH = 360;
 
 interface PanelGridProps {
   panel: PanelDetail;
   reportId: number;
-}
-
-function formatValue(value: unknown, format: ColumnFormat | undefined): string {
-  if (value === null || value === undefined) return '—';
-  const num = Number(value);
-  if (isNaN(num)) return String(value);
-  switch (format) {
-    case 'Decimal':
-      return num.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    case 'Rate':
-      return `${num.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}%`;
-    case 'Time': {
-      const h = Math.floor(num / 3600)
-        .toString()
-        .padStart(2, '0');
-      const m = Math.floor((num % 3600) / 60)
-        .toString()
-        .padStart(2, '0');
-      const s = (num % 60).toString().padStart(2, '0');
-      return `${h}:${m}:${s}`;
-    }
-    default:
-      return num.toLocaleString('ko-KR');
-  }
 }
 
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {
@@ -82,25 +62,60 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
-  const columnDefs: ColDef[] = useMemo(() => {
-    const dimCols: ColDef[] = rowFields.map((f) => ({
-      field: f.fieldName,
-      headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
-      sortable: true,
-      minWidth: 100,
+  const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => {
+    const dimCols: ColDef[] = rowFields.map((f) => {
+      const isTimeKey = f.fieldName === 'PSR_TIME_KEY';
       // 시간축 키(yyyyMMdd...)는 단위별 구분자 포맷으로 표시 (합계 행 등 비숫자는 원본 유지)
-      ...(f.fieldName === 'PSR_TIME_KEY' ? { valueFormatter: (params: ValueFormatterParams) => formatTimeKey(params.value) } : {}),
-    }));
-    const msrCols: ColDef[] = valueFields.map((f) => ({
-      field: f.fieldName,
-      headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
-      sortable: true,
-      type: 'numericColumn',
-      minWidth: 100,
-      valueFormatter: (params: ValueFormatterParams) => formatValue(params.value, f.columnFormat),
-    }));
+      const fmt = (v: unknown) => (isTimeKey ? formatTimeKey(v) : v == null ? '' : String(v));
+      return {
+        field: f.fieldName,
+        headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
+        sortable: true,
+        minWidth: 100,
+        maxWidth: AUTO_SIZE_MAX_WIDTH, // 극단적으로 긴 값은 폭 상한, 잘리면 툴팁으로 전체 확인
+        ...(isTimeKey ? { valueFormatter: (params: ValueFormatterParams) => formatTimeKey(params.value) } : {}),
+        tooltipValueGetter: (params) => fmt(params.value),
+      };
+    });
+    // 값컬럼은 headerGroup 으로 부모헤더 병합(AS-IS makeParentChildColumn).
+    // ag-Grid 그룹은 인접 컬럼만 묶으므로 첫 등장 순서로 모은다. 빈값=평면 컬럼.
+    const msrCols: (ColDef | ColGroupDef)[] = [];
+    const groupChildren = new Map<string, ColDef[]>();
+    valueFields.forEach((f) => {
+      const col: ColDef = {
+        field: f.fieldName,
+        headerName: displayNameMap.get(f.fieldName) ?? f.fieldName,
+        sortable: true,
+        type: 'numericColumn',
+        minWidth: 100,
+        maxWidth: AUTO_SIZE_MAX_WIDTH,
+        valueFormatter: (params: ValueFormatterParams) => formatValue(params.value, f.columnFormat),
+        tooltipValueGetter: (params) => formatValue(params.value, f.columnFormat),
+      };
+      const group = f.headerGroup?.trim();
+      if (!group) {
+        msrCols.push(col);
+        return;
+      }
+      let children = groupChildren.get(group);
+      if (!children) {
+        children = [];
+        groupChildren.set(group, children);
+        msrCols.push({ headerName: group, children } as ColGroupDef);
+      }
+      children.push(col);
+    });
     return [...dimCols, ...msrCols];
   }, [rowFields, valueFields, displayNameMap]);
+
+  // 모든 열을 콘텐츠 폭에 맞춰 자동 크기 — 우클릭 "모든 열 크기 자동 설정"(autoSizeAllColumns)을 자동 호출.
+  // autoSizeStrategy(첫 렌더 1회)는 비동기 데이터(rowData=[]) 시점에 측정돼 폭이 어긋나므로
+  // 데이터가 실제로 렌더/갱신된 뒤(onRowDataUpdated)에 측정해야 우클릭 결과와 동일해진다.
+  // flex 분배(공유 defaultColDef)는 autoSize 를 무시시키므로 이 그리드에서만 flex 를 해제한다.
+  const gridDefaultColDef = useMemo(() => ({ ...gridOptions.defaultColDef, flex: undefined }), [gridOptions.defaultColDef]);
+  // 셀 DOM 페인트 후 측정해야 폭이 정확 — 동기 호출은 측정 실패로 폭이 안 줄어든다.
+  // requestAnimationFrame 으로 한 프레임 미뤄 우클릭 타이밍과 동일하게 맞춘다.
+  const onRowDataUpdated = useCallback((e: RowDataUpdatedEvent) => requestAnimationFrame(() => e.api.autoSizeAllColumns()), []);
 
   const rowData = useMemo(() => queryResult?.current ?? [], [queryResult]);
   const showSumRow = (panel.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true;
@@ -177,7 +192,18 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
 
   // 편집 미리보기(draft) → 선택된 컬럼 구조만 깔끔히 표시 (데이터/합계/페이저/상태바 없음, autoHeight)
   if (isDraft) {
-    return <AgGridReact {...gridOptions} rowData={[]} columnDefs={columnDefs} domLayout="autoHeight" pagination={false} statusBar={undefined} pinnedBottomRowData={undefined} />;
+    return (
+      <AgGridReact
+        {...gridOptions}
+        defaultColDef={gridDefaultColDef}
+        rowData={[]}
+        columnDefs={columnDefs}
+        domLayout="autoHeight"
+        pagination={false}
+        statusBar={undefined}
+        pinnedBottomRowData={undefined}
+      />
+    );
   }
 
   // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이 + 영역 내부 세로 스크롤. 페이징 없음.
@@ -187,6 +213,9 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     <div className="h-full w-full" style={{ minHeight: 220 }}>
       <AgGridReact
         {...gridOptions}
+        defaultColDef={gridDefaultColDef}
+        onRowDataUpdated={onRowDataUpdated}
+        suppressColumnVirtualisation
         rowData={rowData}
         columnDefs={columnDefs}
         loading={isFetching}

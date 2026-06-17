@@ -1,4 +1,5 @@
 import PanelAppSection from './PanelAppSection';
+import { PANEL_SIDEBAR_WIDTH } from '../constants/layoutConstants';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 
 interface PanelSidebarProps {
@@ -12,7 +13,7 @@ const PanelSidebar = ({ onNavigate }: PanelSidebarProps) => {
   if (view === 'favorite') return null;
 
   return (
-    <aside className="w-[300px] shrink-0 h-full bg-white text-[#495057] border-r border-[#e9ecef] flex flex-col overflow-hidden">
+    <aside style={{ width: PANEL_SIDEBAR_WIDTH }} className="shrink-0 h-full bg-white text-[#495057] border-r border-[#e9ecef] flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto pb-4">
         <PanelAppSection onNavigate={onNavigate} />
       </div>

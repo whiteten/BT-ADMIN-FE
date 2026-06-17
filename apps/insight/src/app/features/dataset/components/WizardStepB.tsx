@@ -685,7 +685,11 @@ export default function WizardStepB({
               },
             ];
 
-            const sortedRows = [...fieldDisplays].sort((a, b) => a.sortOrder - b.sortOrder);
+            // 체크(isVisible)된 컬럼을 원처뷰 순서(sortOrder)대로 맨 위에 모으고, 미체크 컬럼을 그 아래에 배치
+            const sortedRows = [...fieldDisplays].sort((a, b) => {
+              if (a.isVisible !== b.isVisible) return a.isVisible ? -1 : 1;
+              return a.sortOrder - b.sortOrder;
+            });
 
             return (
               <div className="h-full">

@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
-import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle } from './echartsPanelTheme';
+import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, paletteAt, splitLineStyle } from './echartsPanelTheme';
+import { formatColumnValue } from '../../../../utils/columnFormat';
 import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
-import type { LineChartOptions, PanelDetail } from '../../../report/types';
+import type { ColumnFormat, LineChartOptions, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
 
 interface PanelLineChartProps {
@@ -45,6 +46,9 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
   const goalLine = options.goalLine;
   // 시리즈 슬롯(그룹 분리 디멘션) — 있으면 그 값별로 라인 분리
   const seriesField = panel.fieldMap.find((f) => f.slotType === 'SERIES');
+  // Top N(LIMIT 슬롯) — BE 후처리(시간축 제외 디멘션 그룹별 상위 N)가 누락된 경계 대비.
+  // BE 가 이미 상위 N 시리즈만 내려주면(시리즈 ≤ N) FE 는 무동작 → 중복/오작동 없음.
+  const limitField = panel.fieldMap.find((f) => f.slotType === 'LIMIT');
 
   const option = useMemo(() => {
     if (!xField) return {};
@@ -74,7 +78,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     const categories = catKeys.map((k) => formatTimeKey(k));
 
     // 공통 라인 시리즈 스타일 빌더
-    const makeLine = (name: string, i: number, values: number[], single: boolean) => {
+    const makeLine = (name: string, i: number, values: number[], single: boolean, format: ColumnFormat | undefined) => {
       const color = paletteAt(i);
       return {
         type: 'line',
@@ -87,7 +91,11 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
         // 단일 라인일 때만 하단 면적 채움(다중이면 겹쳐서 지저분)
         areaStyle: single ? { color: areaGradient(color) } : undefined,
         emphasis: { focus: 'series' as const },
-        label: showDataLabel ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => koNum(Number(p.value ?? 0)) } : { show: false },
+        label: showDataLabel
+          ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), format) }
+          : { show: false },
+        // 툴팁 값도 컬럼 서식 적용
+        tooltip: { valueFormatter: (v: unknown) => formatColumnValue(v, format) },
         markLine: goalLine?.enabled && goalLine.value != null ? goalMarkLine(goalLine.value) : undefined,
         data: values,
       };
@@ -111,14 +119,24 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
         }
         m.set(rawOf(row), (m.get(rawOf(row)) ?? 0) + Number(row[measure.fieldName] ?? 0));
       }
-      lineCount = order.length;
-      series = order.map((sv, i) => {
+      // 상위 N 시리즈 제한 — 정렬기준 측정값(LIMIT.fieldName, 없으면 첫 Y) 합 기준.
+      let keptOrder = order;
+      if (limitField?.topN && order.length > limitField.topN) {
+        const sortFld = limitField.fieldName || measure?.fieldName;
+        const totals = new Map<string, number>();
+        for (const row of data) totals.set(String(row[sName] ?? ''), (totals.get(String(row[sName] ?? '')) ?? 0) + Number(row[sortFld as string] ?? 0));
+        const dir = limitField.sortDirection === 'ASC' ? 1 : -1;
+        keptOrder = [...order].sort((a, b) => dir * ((totals.get(a) ?? 0) - (totals.get(b) ?? 0))).slice(0, limitField.topN);
+      }
+      lineCount = keptOrder.length;
+      series = keptOrder.map((sv, i) => {
         const m = bySeries.get(sv)!;
         return makeLine(
           sv || '(미지정)',
           i,
           catKeys.map((k) => m.get(k) ?? 0),
           lineCount === 1,
+          measure?.columnFormat,
         );
       });
     } else {
@@ -137,6 +155,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
           i,
           catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
           lineCount === 1,
+          f.columnFormat,
         ),
       );
     }
@@ -160,7 +179,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       yAxis: { type: 'value', axisLabel: axisLabelStyle, splitLine: splitLineStyle },
       series,
     };
-  }, [xField, yFields, seriesField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, displayNameMap]);
+  }, [xField, yFields, seriesField, limitField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, displayNameMap]);
 
   if (!hasMapping) {
     return (

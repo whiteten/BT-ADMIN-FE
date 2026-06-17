@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
-import { PANEL_PALETTE, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle, verticalGradient } from './echartsPanelTheme';
+import { PANEL_PALETTE, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, paletteAt, splitLineStyle, verticalGradient } from './echartsPanelTheme';
+import { formatColumnValue } from '../../../../utils/columnFormat';
 import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
@@ -98,8 +99,16 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
         itemStyle: { color: single ? verticalGradient(color) : color, borderRadius },
         emphasis: { focus: 'series', itemStyle: { shadowBlur: 10, shadowColor: `${color}66` } },
         label: showDataLabel
-          ? { show: true, position: isHorizontal ? 'right' : 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => koNum(Number(p.value ?? 0)) }
+          ? {
+              show: true,
+              position: isHorizontal ? 'right' : 'top',
+              fontSize: 10,
+              color: '#475467',
+              formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), f.columnFormat),
+            }
           : { show: false },
+        // 툴팁 값도 컬럼 서식(Rate %, Time hh:mm:ss 등) 적용
+        tooltip: { valueFormatter: (v: unknown) => formatColumnValue(v, f.columnFormat) },
         markLine: goalLine?.enabled && goalLine.value != null && !isHorizontal ? goalMarkLine(goalLine.value) : undefined,
         data: catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
       };

@@ -126,7 +126,7 @@ export default function MenuManagement() {
         {/* 우측: 상세 폼 */}
         <div className="flex-1 min-h-0">
           {selectedMenu ? (
-            <MenuDetailForm menu={selectedMenu} apps={apps} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
+            <MenuDetailForm menu={selectedMenu} menus={menus} apps={apps} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
           ) : (
             <div className="h-full bg-white bt-shadow flex items-center justify-center">
               <NoData message="좌측 트리에서 메뉴를 선택해주세요" />
