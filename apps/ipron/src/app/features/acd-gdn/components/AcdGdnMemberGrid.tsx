@@ -31,7 +31,10 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
     [],
   );
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
 
   const columnDefs: ColDef<GdnMemberResponse>[] = useMemo(
     () => [
@@ -42,7 +45,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         maxWidth: 90,
         pinned: 'left',
         sortable: false,
-        filter: false,
+        filterValueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
         valueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
         cellStyle: { display: 'flex', alignItems: 'center' } as CellStyle,
         cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) =>
@@ -62,7 +65,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         // 갭1: 우선순위 인라인 편집 (기배정 행만 editable — SWAT IPR20S3030 정합)
         headerName: '우선순위',
         field: 'memberPriority',
-        width: 85,
+        width: 96,
         type: 'numericColumn',
         filter: 'agNumberColumnFilter',
         editable: (p) => p.data?.assigned === true,
@@ -97,7 +100,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         tooltipField: 'backUpNodeName',
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : String(p.value)),
       },
-      { headerName: '테넌트', field: 'tenantName', width: 120, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '테넌트', field: 'tenantName', width: 120, valueFormatter: (p) => p.value ?? '-', tooltipField: 'tenantName' },
       {
         headerName: '블록',
         field: 'extBlockYn',

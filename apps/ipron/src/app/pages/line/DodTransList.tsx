@@ -24,7 +24,7 @@ import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/d
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../../features/dod-trans/components/DodTransMasterDrawer';
 import {
   dodTransQueryKeys,
-  useDeleteItem,
+  useDeleteItemBatch,
   useDeleteMaster,
   useGetItemList,
   useGetMasterList,
@@ -100,7 +100,7 @@ export default function DodTransList() {
     },
   });
 
-  const { mutate: deleteItem } = useDeleteItem({
+  const { mutate: deleteItemBatch } = useDeleteItemBatch({
     mutationOptions: {
       onSuccess: () => {
         toast.success('변환 패턴이 삭제되었습니다');
@@ -317,7 +317,7 @@ export default function DodTransList() {
     if (selectedItems.length === 0) return;
     modal.confirm.execute({
       onOk: () => {
-        selectedItems.forEach((item) => deleteItem({ dodTransId: item.dodTransId, listSeq: item.listSeq }));
+        deleteItemBatch(selectedItems.map((item) => ({ dodTransId: item.dodTransId, listSeq: item.listSeq })));
         setSelectedItems([]);
       },
       options: {
@@ -325,7 +325,7 @@ export default function DodTransList() {
         content: `선택한 ${selectedItems.length}건을 삭제하시겠습니까?`,
       },
     });
-  }, [modal, deleteItem, selectedItems]);
+  }, [modal, deleteItemBatch, selectedItems]);
 
   const handleMasterDrawerSuccess = useCallback(() => {
     invalidateMasters();

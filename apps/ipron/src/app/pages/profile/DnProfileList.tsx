@@ -21,7 +21,14 @@ import { toast } from '@/shared-util';
 import { dnQueryKeys } from '../../features/dn/hooks/useDnQueries';
 import DnAssignDialog from '../../features/dn-profile/components/DnAssignDialog';
 import DnProfileTable from '../../features/dn-profile/components/DnProfileTable';
-import { dnProfileQueryKeys, useDeleteDnProfile, useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfiles } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import {
+  dnProfileQueryKeys,
+  useDeleteDnProfile,
+  useDeleteDnProfileBatch,
+  useGetDnProfileNodeTenants,
+  useGetDnProfileNodes,
+  useGetDnProfiles,
+} from '../../features/dn-profile/hooks/useDnProfileQueries';
 import type { DnProfile } from '../../features/dn-profile/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -241,6 +248,16 @@ export default function DnProfileList() {
     },
   });
 
+  const { mutate: deleteProfileBatch } = useDeleteDnProfileBatch({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('프로파일이 삭제되었습니다');
+        setSelectedProfiles([]);
+        invalidateProfiles();
+      },
+    },
+  });
+
   // ─── Profile actions ───────────────────────────────────────────────────────
   const handleProfileCreate = () => {
     navigate('/ipron/profile/dn-profile/create');
@@ -263,7 +280,7 @@ export default function DnProfileList() {
     } else {
       modal.confirm.execute({
         onOk: () => {
-          selectedProfiles.forEach((p) => deleteProfile(p.dnProfileId));
+          deleteProfileBatch(selectedProfiles.map((p) => p.dnProfileId));
         },
         options: {
           title: '프로파일 삭제',

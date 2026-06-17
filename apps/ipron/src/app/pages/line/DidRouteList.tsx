@@ -21,7 +21,7 @@ import { Button, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { didRouteQueryKeys, useDeleteDidRoute, useGetDidRouteList, useGetNodes } from '../../features/did-route/hooks/useDidRouteQueries';
+import { didRouteQueryKeys, useDeleteDidRouteBatch, useGetDidRouteList, useGetNodes } from '../../features/did-route/hooks/useDidRouteQueries';
 import { type DidRoute, getRoutingDisplayText } from '../../features/did-route/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -104,7 +104,7 @@ export default function DidRouteList() {
   }, [queryClient, listParams]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutate: deleteDidRoute } = useDeleteDidRoute({
+  const { mutate: deleteDidRouteBatch } = useDeleteDidRouteBatch({
     mutationOptions: {
       onSuccess: () => {
         // SWAT IPR20S1036Controller.java:138: 삭제 성공 후 특수코드 연계 안내
@@ -135,13 +135,13 @@ export default function DidRouteList() {
   const handleDeleteSelected = useCallback(() => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
-      onOk: () => selectedRows.forEach((r) => deleteDidRoute({ id: r.didrouteId })),
+      onOk: () => deleteDidRouteBatch(selectedRows.map((r) => r.didrouteId)),
       options: {
         title: 'DID라우트 삭제',
         content: `선택한 ${selectedRows.length}건의 DID라우트를 삭제하시겠습니까?`,
       },
     });
-  }, [modal, selectedRows, deleteDidRoute]);
+  }, [modal, selectedRows, deleteDidRouteBatch]);
 
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DidRoute>[] = useMemo(

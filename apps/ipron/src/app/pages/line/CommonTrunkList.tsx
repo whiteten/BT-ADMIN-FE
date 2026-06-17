@@ -13,9 +13,9 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import type { CellStyle, ColDef, GridOptions } from 'ag-grid-community';
+import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Input, Modal, Select, Tag } from 'antd';
+import { Button, Input, Modal, Select } from 'antd';
 import { ChevronLeft, ChevronRight, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -190,7 +190,7 @@ export default function CommonTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -225,7 +225,7 @@ export default function CommonTrunkList() {
       pagination: false,
       rowNumbers: false,
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowDoubleClicked: (e) => {
         if (e.data) setGdnDrawer({ open: true, mode: 'edit', detail: e.data });
@@ -273,7 +273,12 @@ export default function CommonTrunkList() {
         width: 100,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value > 0 ? <Tag color="green">{p.value}건</Tag> : <span className="text-gray-300 italic">-</span>),
+        cellRenderer: (p: { value: number }) =>
+          p.value > 0 ? (
+            <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">{p.value}건</span>
+          ) : (
+            <span className="text-[11px] italic text-gray-400">—</span>
+          ),
       },
       {
         field: 'blockYn',
@@ -281,7 +286,12 @@ export default function CommonTrunkList() {
         width: 70,
         cellStyle: { textAlign: 'center' } as CellStyle,
         filterValueGetter: (p) => ((p.data as CommonGdnResponse | undefined)?.blockYn === 1 ? '사용' : '미사용'),
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="red">사용</Tag> : <Tag>미사용</Tag>),
+        cellRenderer: (p: { value: number }) =>
+          p.value === 1 ? (
+            <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">사용</span>
+          ) : (
+            <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">미사용</span>
+          ),
       },
       // 갭4: 라우팅 이름 3종 (SWAT 그리드 정합)
       {
@@ -321,17 +331,26 @@ export default function CommonTrunkList() {
       {
         field: 'assignYn',
         headerName: '배정상태',
-        width: 84,
+        width: 96,
         cellStyle: { textAlign: 'center' } as CellStyle,
         filterValueGetter: (p) => ((p.data as CommonTrunkMemberResponse | undefined)?.assignYn ? '배정중' : '미배정'),
-        cellRenderer: (p: { value: boolean }) => (p.value ? <Tag color="green">배정중</Tag> : <span className="text-gray-400 italic">미배정</span>),
+        cellRenderer: (p: { value: boolean }) =>
+          p.value ? (
+            <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">배정중</span>
+          ) : (
+            <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-px text-[10px] font-semibold italic text-gray-400">미배정</span>
+          ),
       },
       {
         field: 'targetName',
         headerName: 'SIP트렁크 이름',
         flex: 1,
         minWidth: 150,
-        cellStyle: { fontWeight: 600, color: '#374151' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<CommonTrunkMemberResponse>) => (
+          <span className="font-semibold" style={{ color: p.data?.assignYn ? '#405189' : '#374151' }}>
+            {p.value ?? ''}
+          </span>
+        ),
         tooltipField: 'targetName',
       },
       { field: 'targetNo', headerName: '번호', minWidth: 80, maxWidth: 120, cellStyle: { fontFamily: 'monospace' } as CellStyle },
@@ -346,8 +365,21 @@ export default function CommonTrunkList() {
           if (kind === 9) return '외부 교환기(PBX)';
           return getTrunkKindName(kind);
         },
+        // 셀이 배지/약식 표기라 호버 시 종류 풀네임을 툴팁으로 노출 (말줄임 방지)
+        tooltipValueGetter: (p) => {
+          const kind = p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null;
+          if (kind === 1) return 'IPRON-IE';
+          if (kind === 9) return '외부 교환기(PBX)';
+          return getTrunkKindName(kind);
+        },
         cellRenderer: (p: { value: number | null }) =>
-          p.value === 1 ? <Tag color="blue">IPRON-IE</Tag> : p.value === 9 ? <Tag color="purple">외부 교환기(PBX)</Tag> : <span>{getTrunkKindName(p.value)}</span>,
+          p.value === 1 ? (
+            <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-px text-[10px] font-semibold text-blue-700">IPRON-IE</span>
+          ) : p.value === 9 ? (
+            <span className="inline-flex items-center rounded border border-purple-200 bg-purple-50 px-1.5 py-px text-[10px] font-semibold text-purple-700">외부 교환기(PBX)</span>
+          ) : (
+            <span>{getTrunkKindName(p.value)}</span>
+          ),
       },
       { field: 'chnlCnt', headerName: '채널', width: 64, filter: 'agNumberColumnFilter', cellStyle: { textAlign: 'center', fontFamily: 'monospace' } as CellStyle },
       {
@@ -364,7 +396,7 @@ export default function CommonTrunkList() {
               <div className="flex-1 h-[5px] bg-gray-200 rounded overflow-hidden min-w-[30px]">
                 <div className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: col }} />
               </div>
-              <span style={{ color: col, fontWeight: 600 }} className="whitespace-nowrap tabular-nums">
+              <span className="whitespace-nowrap tabular-nums text-[10.5px] font-semibold" style={{ color: col }}>
                 {used}/{max} ({pct}%)
               </span>
             </div>
@@ -374,7 +406,7 @@ export default function CommonTrunkList() {
       {
         field: 'memberPriority',
         headerName: '우선순위',
-        width: 80,
+        width: 100,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
@@ -382,7 +414,7 @@ export default function CommonTrunkList() {
       {
         field: 'channelLimitCount',
         headerName: '배정채널',
-        width: 84,
+        width: 100,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
@@ -450,7 +482,7 @@ export default function CommonTrunkList() {
           {/* 공용 고정 아이콘 */}
           <div className="flex-shrink-0 flex flex-col items-center justify-center w-[44px] border-r border-gray-200" title="공용 트렁크: 노드 단위 고정">
             <Network className="size-4" style={{ color: '#0369a1' }} />
-            <span className="text-[8px] font-bold mt-0.5" style={{ color: '#0369a1' }}>
+            <span className="text-[10px] font-bold mt-0.5" style={{ color: '#0369a1' }}>
               공용
             </span>
           </div>
@@ -657,26 +689,21 @@ export default function CommonTrunkList() {
           <span className="text-xs" style={{ color: '#94a3b8' }}>
             그룹DN
           </span>
-          <span className={`px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center ${selectedGdn ? 'bg-[#405189]' : 'bg-slate-600'}`} style={{ color: '#e2e8f0' }}>
+          <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${selectedGdn ? 'bg-[#405189]' : 'bg-slate-600'}`} style={{ color: '#e2e8f0' }}>
             {selectedGdn?.gdnNo ?? '-'}
           </span>
         </span>
-        <span className="text-sm" style={{ color: '#94a3b8' }}>
-          ↔
-        </span>
+        <span style={{ color: '#94a3b8' }}>×</span>
         <span className="flex items-center gap-1.5">
           <span className="text-xs" style={{ color: '#94a3b8' }}>
             트렁크
           </span>
           <span
-            className={`px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center ${selectedTrunks.length > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}
+            className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${selectedTrunks.length > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}
             style={{ color: '#e2e8f0' }}
           >
             {selectedTrunks.length}건
           </span>
-        </span>
-        <span className="mx-1" style={{ color: '#64748b' }}>
-          ·
         </span>
         <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!showBulkBar} style={{ opacity: showBulkBar ? 1 : 0.38 }} onClick={() => setAssignDrawerOpen(true)}>
           배정 (우선순위·채널수 입력)

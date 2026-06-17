@@ -5,7 +5,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { endpointApi } from '../api/endpointApi';
+import { type CountryOption, endpointApi } from '../api/endpointApi';
 import type { Endpoint, EndpointMember, EndpointRegnum } from '../types';
 
 export const endpointQueryKeys = createQueryKeys('endpoints', {
@@ -14,6 +14,7 @@ export const endpointQueryKeys = createQueryKeys('endpoints', {
   getMembers: (params?: Record<string, unknown>) => [params],
   getRegnums: (params?: Record<string, unknown>) => [params],
   getNodes: null,
+  getCountries: null,
 });
 
 // ─── Endpoint Queries ───────────────────────────────────────────────────────
@@ -113,6 +114,16 @@ export const useDeleteMember = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+/**
+ * 멤버 일괄 삭제
+ */
+export const useDeleteMembersBatch = ({ mutationOptions }: MutationHookOptions<void, { endptId: number; memIds: number[] }> = {}) => {
+  return useMutation({
+    mutationFn: ({ endptId, memIds }: { endptId: number; memIds: number[] }) => endpointApi.deleteMembersBatch(endptId, memIds),
+    ...mutationOptions,
+  });
+};
+
 // ─── Regnum Queries ─────────────────────────────────────────────────────────
 
 /**
@@ -156,6 +167,16 @@ export const useDeleteRegnum = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+/**
+ * 인증번호 일괄 삭제
+ */
+export const useDeleteRegnumsBatch = ({ mutationOptions }: MutationHookOptions<void, { endptId: number; regIds: number[] }> = {}) => {
+  return useMutation({
+    mutationFn: ({ endptId, regIds }: { endptId: number; regIds: number[] }) => endpointApi.deleteRegnumsBatch(endptId, regIds),
+    ...mutationOptions,
+  });
+};
+
 // ─── Node Query ─────────────────────────────────────────────────────────────
 
 interface NodeSimpleResponse {
@@ -170,6 +191,19 @@ export const useGetNodes = ({ queryOptions }: QueryHookOptions<NodeSimpleRespons
   return useQuery({
     queryKey: endpointQueryKeys.getNodes.queryKey,
     queryFn: () => endpointApi.getNodes(),
+    ...queryOptions,
+  });
+};
+
+// ─── Country Query ───────────────────────────────────────────────────────────
+
+/**
+ * 국가코드 콤보 목록 조회 (TB_CC_COUNTRY — "+IDD 국가명" 라벨)
+ */
+export const useGetCountries = ({ queryOptions }: QueryHookOptions<CountryOption[]> = {}) => {
+  return useQuery({
+    queryKey: endpointQueryKeys.getCountries.queryKey,
+    queryFn: () => endpointApi.getCountries(),
     ...queryOptions,
   });
 };

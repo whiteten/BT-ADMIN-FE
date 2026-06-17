@@ -341,6 +341,12 @@ export default function MsGroupList() {
         field: 'redisState',
         flex: 1,
         minWidth: 80,
+        // 필터 드롭다운이 raw 0/1/2 아닌 셀 표시 라벨(장애/정상/준비)로 뜨도록 — 셀 statusMap 과 동일 기준
+        filterValueGetter: (params) => {
+          const state = (params.data as unknown as { redisState?: number | null })?.redisState;
+          const labelMap: Record<number, string> = { 0: '장애', 1: '정상', 2: '준비' };
+          return state != null && labelMap[state] != null ? labelMap[state] : '-';
+        },
         cellRenderer: (params: ICellRendererParams<MediaServer>) => {
           if (!params.data) return null;
           const state = (params.data as unknown as { redisState?: number | null }).redisState;

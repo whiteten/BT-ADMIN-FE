@@ -269,6 +269,9 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     [mentOptions],
   );
 
+  // DR노드 콤보 옵션 — 현재 노드 제외(SipGdn/CommonGdn 동일 패턴)
+  const drNodeSelectOptions = useMemo(() => [{ value: 0, label: '없음' }, ...nodeOptions.filter((o) => o.value !== nodeId)], [nodeOptions, nodeId]);
+
   const maxWaitOff = wMaxWaitYn !== 1;
   const collectOff = wCollectYn !== 1;
   const skillRequired = wRoutingKind === 1 || wRoutingKind === 3;
@@ -299,7 +302,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     if (collectOff) form.setFieldsValue({ collectTimeout: 0 });
   }, [collectOff, form, state.open]);
 
-  // BSR 탭 활성 중 bsrYn=0 변경 시 라우팅 탭 강제 이동 (NOTES.md 규칙)
+  // bsrYn=0 변경 시 BSR 탭이 숨겨지므로, 활성 탭이 'bsr'이면 라우팅 탭으로 강제 이동 (빈 화면 방지)
   useEffect(() => {
     if (!state.open) return;
     if (!bsrOn && activeTab === 'bsr') {
@@ -722,7 +725,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       label: '기본정보',
       forceRender: true,
       children: (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-0 [&_.ant-form-item]:!mb-1.5">
           {isEdit ? (
             <Form.Item label="테넌트명">
               <Input value={(state.open && state.tenantName) || (state.open && state.tenantId != null ? `테넌트 ${state.tenantId}` : '-')} disabled />
@@ -741,8 +744,8 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
               <Select options={nodeOptions} showSearch optionFilterProp="label" placeholder="노드 선택" />
             </Form.Item>
           )}
-          <Form.Item label="DR노드 ID (백업 노드)" name="backUpNodeId" tooltip="DR노드 지정 시 Global DN 사용이 강제됩니다">
-            <InputNumber style={{ width: '100%' }} min={0} placeholder="없으면 0" />
+          <Form.Item label="DR노드 (백업 노드)" name="backUpNodeId" tooltip="DR노드 지정 시 Global DN 사용이 강제됩니다">
+            <Select options={drNodeSelectOptions} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
           <Form.Item label="Global DN" name="globalDnYn">
             <Radio.Group disabled={hasDrNode}>
@@ -782,6 +785,9 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
               placeholder={hasDrNode ? '미지정' : 'DR노드 지정 시 활성'}
             />
           </Form.Item>
+          <Form.Item className="col-span-2" label="CTI큐설명" name="ctiqDesc" rules={[{ max: 512 }]}>
+            <Input maxLength={512} />
+          </Form.Item>
         </div>
       ),
     },
@@ -790,7 +796,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       label: '초기구성',
       forceRender: true,
       children: (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-0 [&_.ant-form-item]:!mb-1.5">
           <Form.Item label="초기멘트" name="initMent" tooltip="교환기 멘트 관리에 등록된 멘트(노드/테넌트 기준)">
             <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
@@ -824,7 +830,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           <Form.Item label="국선호보류멘트" name="coHoldMent">
             <Select options={mentSelectOptions} loading={mentLoading} showSearch optionFilterProp="label" placeholder="없음" />
           </Form.Item>
-          <div className="col-span-2 my-2 border-t border-dashed border-gray-200" />
+          <div className="col-span-2 my-1 border-t border-dashed border-gray-200" />
           <Form.Item label="블록여부" name="blockYn">
             {ynRadio('설정', '해제')}
           </Form.Item>
@@ -839,7 +845,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       label: '큐설정',
       forceRender: true,
       children: (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-0 [&_.ant-form-item]:!mb-2">
           <Form.Item label="IN/OUT구분" name="inoutKind">
             <Select options={INOUT_KIND_OPTIONS} />
           </Form.Item>
@@ -879,41 +885,6 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           <Form.Item label="목표 서비스레벨(%)" name="serviceLevelTargetValue">
             <InputNumber style={{ width: '100%' }} min={0} max={100} />
           </Form.Item>
-          <Form.Item className="col-span-2" label="CTI큐설명" name="ctiqDesc" rules={[{ max: 512 }]}>
-            <Input maxLength={512} />
-          </Form.Item>
-          {/* 예약 적용 (SWAT IPR20S3020 applyType/applyDatetime 정합) */}
-          <div className="col-span-2 border-t border-dashed border-gray-200 mt-1 pt-3">
-            <div className="flex items-center gap-4 flex-wrap">
-              <Form.Item label="적용방식" name="applyType" className="!mb-0">
-                <Radio.Group>
-                  <Radio value={0}>즉시 적용</Radio>
-                  <Radio value={1}>예약 적용</Radio>
-                </Radio.Group>
-              </Form.Item>
-              {wApplyType === 1 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Form.Item
-                    label="예약일자"
-                    name="applyDate"
-                    className="!mb-0"
-                    rules={[
-                      { required: wApplyType === 1, message: '날짜 필수 (YYYYMMDD)' },
-                      { pattern: /^\d{8}$/, message: 'YYYYMMDD 형식' },
-                    ]}
-                  >
-                    <Input maxLength={8} className="font-mono w-28" placeholder="YYYYMMDD" />
-                  </Form.Item>
-                  <Form.Item label="시" name="applyHour" className="!mb-0" rules={[{ pattern: /^\d{2}$/, message: 'HH' }]}>
-                    <Input maxLength={2} className="font-mono w-14" placeholder="HH" />
-                  </Form.Item>
-                  <Form.Item label="분" name="applyMinute" className="!mb-0" rules={[{ pattern: /^\d{2}$/, message: 'mm' }]}>
-                    <Input maxLength={2} className="font-mono w-14" placeholder="mm" />
-                  </Form.Item>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       ),
     },
@@ -922,8 +893,8 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       label: '라우팅정보',
       forceRender: true,
       children: (
-        <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-x-6 gap-y-0 [&_.ant-form-item]:!mb-1.5">
             <Form.Item label="기본라우팅그룹" name="firstGroupId" rules={[{ required: true, message: '필수' }]}>
               <Select options={groupSelectOptions} loading={groupLoading} showSearch optionFilterProp="label" />
             </Form.Item>
@@ -958,15 +929,15 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
           </div>
 
           {/* 미디어별 SKILL */}
-          <section className="border-t border-dashed border-gray-200 pt-4">
-            <div className="flex items-center gap-2 mb-3">
+          <section className="border-t border-dashed border-gray-200 pt-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <h4 className="text-xs font-semibold text-gray-600">미디어별 기본 SKILL</h4>
               <span className="text-[11px] text-gray-400">(시스템 라이선스 활성 미디어만 노출)</span>
               {skillRequired && <span className="text-[11px] bg-red-50 text-red-500 border border-red-200 rounded px-1.5 py-0.5">Skill-Based — 스킬셋 필수</span>}
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {activeMedia.map(({ mediaType, label }) => (
-                <div key={mediaType} className={`grid grid-cols-[180px_1fr_120px] gap-3 items-center py-1 px-2 rounded ${skillRequired ? 'bg-red-50/40' : ''}`}>
+                <div key={mediaType} className={`grid grid-cols-[180px_1fr_120px] gap-3 items-center py-0.5 px-2 rounded ${skillRequired ? 'bg-red-50/40' : ''}`}>
                   <span className="text-[12.5px] text-gray-700">{label}</span>
                   <Form.Item name={skillIdKey(mediaType)} className="!mb-0">
                     <Select options={skillsetSelectOptions} loading={skillsetLoading} showSearch optionFilterProp="label" size="small" />
@@ -982,122 +953,162 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       ),
     },
     {
-      key: 'bsr',
-      label: 'BSR',
-      disabled: !bsrOn,
+      key: 'apply',
+      label: '적용방식',
       forceRender: true,
       children: (
-        <div className="space-y-5">
-          {/* BSR 그룹 관리 일괄 배정 링크 (상주 배너 금지 — 버튼 1개만) */}
-          <div className="flex justify-end">
-            <Button
-              type="link"
-              size="small"
-              icon={<ArrowRight className="size-3" />}
-              iconPosition="end"
-              onClick={() => {
-                onClose();
-                navigate('/ipron/bsr-group-mgmt');
-              }}
-            >
-              BSR 그룹 관리에서 일괄 배정
-            </Button>
-          </div>
-
-          {/* BSR 속성 (bsrYn 은 라우팅 탭에 위치 — 여기서 중복 배치 금지) */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <Form.Item label="BSR 분배여부" name="bsrDistributeYn">
-              {ynRadio()}
-            </Form.Item>
-            <div />
-            <Form.Item label="BSR 그룹" name="bsrGroupId" required={bsrOn}>
-              <Select options={bsrGroupSelectOptions} loading={bsrGroupLoading} disabled={!bsrOn} showSearch optionFilterProp="label" />
-            </Form.Item>
-            <Form.Item label="BSR 가중치 (0~1000)" name="bsrWeight">
-              <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={!bsrOn} />
-            </Form.Item>
-          </div>
-
-          {/* BSR Schedule 서브그리드 */}
-          <section className="border-t border-dashed border-gray-200 pt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-gray-500">
-                BSR Schedule 설정 <span className="text-gray-400 font-normal">{isEdit ? '' : '(저장 후 활성)'}</span>
-              </h4>
-              {isEdit && (
-                <Button
-                  size="small"
-                  icon={<Plus className="size-3" />}
-                  onClick={() => {
-                    setBsrPickerSelected([]);
-                    setBsrPickerOpen(true);
-                  }}
-                  disabled={bsrAssigning || bsrUnassigning}
-                >
-                  추가
-                </Button>
-              )}
+        <div className="space-y-4">
+          <Form.Item label="적용방식" name="applyType" className="!mb-0">
+            <Radio.Group>
+              <Radio value={0}>즉시 적용</Radio>
+              <Radio value={1}>예약 적용</Radio>
+            </Radio.Group>
+          </Form.Item>
+          {wApplyType === 1 && (
+            <div className="flex items-end gap-2 flex-wrap">
+              <Form.Item
+                label="예약일자"
+                name="applyDate"
+                className="!mb-0"
+                rules={[
+                  { required: wApplyType === 1, message: '날짜 필수 (YYYYMMDD)' },
+                  { pattern: /^\d{8}$/, message: 'YYYYMMDD 형식' },
+                ]}
+              >
+                <Input maxLength={8} className="font-mono w-28" placeholder="YYYYMMDD" />
+              </Form.Item>
+              <Form.Item label="시" name="applyHour" className="!mb-0" rules={[{ pattern: /^\d{2}$/, message: 'HH' }]}>
+                <Input maxLength={2} className="font-mono w-14" placeholder="HH" />
+              </Form.Item>
+              <Form.Item label="분" name="applyMinute" className="!mb-0" rules={[{ pattern: /^\d{2}$/, message: 'mm' }]}>
+                <Input maxLength={2} className="font-mono w-14" placeholder="mm" />
+              </Form.Item>
             </div>
-            {isEdit ? (
-              <div className="border border-gray-200 rounded overflow-x-auto">
-                <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
-                  <thead className="bg-gray-50 text-gray-600">
-                    <tr>
-                      <th className="px-2 h-8 border-b text-left">스케줄명</th>
-                      <th className="px-2 h-8 border-b text-left">시작일자</th>
-                      <th className="px-2 h-8 border-b text-left">종료일자</th>
-                      <th className="px-2 h-8 border-b text-right">시작</th>
-                      <th className="px-2 h-8 border-b text-right">종료</th>
-                      <th className="px-2 h-8 border-b text-center">요일</th>
-                      <th className="px-2 h-8 border-b text-right">가중치</th>
-                      <th className="px-2 h-8 border-b text-center">인입/전환</th>
-                      <th className="px-2 h-8 border-b text-center w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bsrSchedules.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
-                          배정된 BSR 스케줄이 없습니다
-                        </td>
-                      </tr>
-                    ) : (
-                      bsrSchedules.map((s) => (
-                        <tr key={s.quebsrScheduleId} className="hover:bg-gray-50">
-                          <td className="px-2 h-8 border-b">{s.quebsrScheduleName ?? '-'}</td>
-                          <td className="px-2 h-8 border-b">{s.startDate ?? '-'}</td>
-                          <td className="px-2 h-8 border-b">{s.endDate ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-right">{s.startTime ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-right">{s.finishTime ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-center">{dayString(s)}</td>
-                          <td className="px-2 h-8 border-b text-right">{s.bsrWeight ?? '-'}</td>
-                          <td className="px-2 h-8 border-b text-center">
-                            {ynChar(s.useBsrIncomYn)} / {ynChar(s.useBsrRdyrouteYn)}
-                          </td>
-                          <td className="px-2 h-8 border-b text-center">
-                            <button
-                              type="button"
-                              disabled={bsrUnassigning}
-                              onClick={() => ctiqId != null && unassignBsr({ ctiqId, scheduleId: s.quebsrScheduleId })}
-                              className="text-red-400 hover:text-red-600 disabled:opacity-40"
-                              title="배정 해제"
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-[11.5px] text-gray-400">큐 저장 후 BSR 스케줄을 배정할 수 있습니다.</p>
-            )}
-          </section>
+          )}
         </div>
       ),
     },
+    // BSR 미사용(bsrYn=0)이면 탭 자체를 숨김 — 비활성 대신 배열에서 제외
+    ...(bsrOn
+      ? [
+          {
+            key: 'bsr',
+            label: 'BSR',
+            forceRender: true,
+            children: (
+              <div className="space-y-5">
+                {/* BSR 그룹 관리 일괄 배정 링크 (상주 배너 금지 — 버튼 1개만) */}
+                <div className="flex justify-end">
+                  <Button
+                    type="link"
+                    size="small"
+                    icon={<ArrowRight className="size-3" />}
+                    iconPosition="end"
+                    onClick={() => {
+                      onClose();
+                      navigate('/ipron/bsr-group-mgmt');
+                    }}
+                  >
+                    BSR 그룹 관리에서 일괄 배정
+                  </Button>
+                </div>
+
+                {/* BSR 속성 (bsrYn 은 라우팅 탭에 위치 — 여기서 중복 배치 금지) */}
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                  <Form.Item label="BSR 분배여부" name="bsrDistributeYn">
+                    {ynRadio()}
+                  </Form.Item>
+                  <div />
+                  <Form.Item label="BSR 그룹" name="bsrGroupId" required={bsrOn}>
+                    <Select options={bsrGroupSelectOptions} loading={bsrGroupLoading} disabled={!bsrOn} showSearch optionFilterProp="label" />
+                  </Form.Item>
+                  <Form.Item label="BSR 가중치 (0~1000)" name="bsrWeight">
+                    <InputNumber style={{ width: '100%' }} min={0} max={1000} disabled={!bsrOn} />
+                  </Form.Item>
+                </div>
+
+                {/* BSR Schedule 서브그리드 */}
+                <section className="border-t border-dashed border-gray-200 pt-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-gray-500">
+                      BSR Schedule 설정 <span className="text-gray-400 font-normal">{isEdit ? '' : '(저장 후 활성)'}</span>
+                    </h4>
+                    {isEdit && (
+                      <Button
+                        size="small"
+                        icon={<Plus className="size-3" />}
+                        onClick={() => {
+                          setBsrPickerSelected([]);
+                          setBsrPickerOpen(true);
+                        }}
+                        disabled={bsrAssigning || bsrUnassigning}
+                      >
+                        추가
+                      </Button>
+                    )}
+                  </div>
+                  {isEdit ? (
+                    <div className="border border-gray-200 rounded overflow-x-auto">
+                      <table className="w-full border-collapse text-[11.5px] whitespace-nowrap">
+                        <thead className="bg-gray-50 text-gray-600">
+                          <tr>
+                            <th className="px-2 h-8 border-b text-left">스케줄명</th>
+                            <th className="px-2 h-8 border-b text-left">시작일자</th>
+                            <th className="px-2 h-8 border-b text-left">종료일자</th>
+                            <th className="px-2 h-8 border-b text-right">시작</th>
+                            <th className="px-2 h-8 border-b text-right">종료</th>
+                            <th className="px-2 h-8 border-b text-center">요일</th>
+                            <th className="px-2 h-8 border-b text-right">가중치</th>
+                            <th className="px-2 h-8 border-b text-center">인입/전환</th>
+                            <th className="px-2 h-8 border-b text-center w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bsrSchedules.length === 0 ? (
+                            <tr>
+                              <td colSpan={9} className="px-2 h-10 text-center text-gray-400">
+                                배정된 BSR 스케줄이 없습니다
+                              </td>
+                            </tr>
+                          ) : (
+                            bsrSchedules.map((s) => (
+                              <tr key={s.quebsrScheduleId} className="hover:bg-gray-50">
+                                <td className="px-2 h-8 border-b">{s.quebsrScheduleName ?? '-'}</td>
+                                <td className="px-2 h-8 border-b">{s.startDate ?? '-'}</td>
+                                <td className="px-2 h-8 border-b">{s.endDate ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-right">{s.startTime ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-right">{s.finishTime ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-center">{dayString(s)}</td>
+                                <td className="px-2 h-8 border-b text-right">{s.bsrWeight ?? '-'}</td>
+                                <td className="px-2 h-8 border-b text-center">
+                                  {ynChar(s.useBsrIncomYn)} / {ynChar(s.useBsrRdyrouteYn)}
+                                </td>
+                                <td className="px-2 h-8 border-b text-center">
+                                  <button
+                                    type="button"
+                                    disabled={bsrUnassigning}
+                                    onClick={() => ctiqId != null && unassignBsr({ ctiqId, scheduleId: s.quebsrScheduleId })}
+                                    className="text-red-400 hover:text-red-600 disabled:opacity-40"
+                                    title="배정 해제"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-[11.5px] text-gray-400">큐 저장 후 BSR 스케줄을 배정할 수 있습니다.</p>
+                  )}
+                </section>
+              </div>
+            ),
+          },
+        ]
+      : []),
     {
       key: 'slt',
       label: '목표SLT스케줄',

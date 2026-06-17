@@ -212,7 +212,7 @@ export default function BsrCtiqAssignPanel({
       },
       {
         field: 'gdnNo',
-        headerName: 'GDN번호',
+        headerName: '그룹DN번호',
         width: 100,
         tooltipField: 'gdnName',
         filterValueGetter: ({ data }) => data?.gdnNo ?? '-',

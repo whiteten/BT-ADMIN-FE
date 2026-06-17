@@ -44,6 +44,7 @@ const FIELD_ROLE_META: Record<string, { label: string; color: string }> = {
 // formatterType → 편집화면 서식 명칭 (역할 색상과 겹치지 않게 분리)
 const FIELD_FORMAT_META: Record<string, { label: string; color: string }> = {
   NUMBER: { label: 'Number', color: 'blue' },
+  DECIMAL: { label: 'Decimal', color: 'lime' },
   PERCENT: { label: 'Rate', color: 'gold' },
   DATETIME: { label: 'Date', color: 'cyan' },
   DURATION: { label: 'Time', color: 'geekblue' },

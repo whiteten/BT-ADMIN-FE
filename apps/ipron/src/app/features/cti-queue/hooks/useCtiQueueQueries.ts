@@ -19,6 +19,8 @@ import type {
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMediaSkillBatchRequest,
+  CtiQueueMediaSkillBatchResult,
   CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
@@ -201,10 +203,43 @@ export const useBulkUpdateCtiQueues = ({ mutationOptions }: MutationHookOptions<
   });
 };
 
+/**
+ * 미디어 스킬 매트릭스 일괄 저장 — "스킬 배정 보기" 토글.
+ * 성공/부분성공(207) 후 목록 쿼리 invalidate.
+ */
+export const useMediaSkillsBatchCtiQueues = ({ mutationOptions }: MutationHookOptions<CtiQueueMediaSkillBatchResult, CtiQueueMediaSkillBatchRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.mediaSkillsBatch(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
 export const useDeleteCtiQueue = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (ctiqId) => ctiQueueApi.delete(ctiqId),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * CTI 큐 일괄 삭제 (벌크 1콜) — BSR 배정 시 409 전체 거부.
+ */
+export const useDeleteCtiQueueBatch = ({ mutationOptions }: MutationHookOptions<number, number[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ctiqIds) => ctiQueueApi.deleteBatch(ctiqIds),
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });

@@ -10,6 +10,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { agentMasterApi } from '../api/agentMasterApi';
 import type {
+  AgentBulkMediaRequest,
   AgentConfig,
   AgentCreateRequest,
   AgentGroupCreateRequest,
@@ -21,6 +22,8 @@ import type {
   AgentResponse,
   AgentTenantStat,
   AgentUpdateRequest,
+  BulkChangeResult,
+  BulkGroupChangeRequest,
   Oscom,
 } from '../types';
 
@@ -155,6 +158,37 @@ export const useMoveAgent = ({ mutationOptions }: MutationHookOptions<AgentRespo
     ...mutationOptions,
     onSuccess: (...args) => {
       invalidateAgentList(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 상담사 다건 그룹 일괄 변경 (벌크 1콜). 그룹 트리 agentCount 변동도 invalidate.
+ */
+export const useBulkGroupAgents = ({ mutationOptions }: MutationHookOptions<BulkChangeResult, BulkGroupChangeRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BulkGroupChangeRequest) => agentMasterApi.bulkGroup(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentList(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 상담사 다건 미디어 일괄 변경 (벌크 1콜).
+ */
+export const useBulkMediaAgents = ({ mutationOptions }: MutationHookOptions<void, AgentBulkMediaRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AgentBulkMediaRequest) => agentMasterApi.bulkMedia(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentList(qc);
+      qc.invalidateQueries({ queryKey: agentMasterQueryKeys.getDetail._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });

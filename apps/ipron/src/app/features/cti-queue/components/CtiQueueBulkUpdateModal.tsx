@@ -23,13 +23,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Checkbox, DatePicker, Form, InputNumber, Modal, Radio, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useBulkUpdateCtiQueues } from '../hooks/useCtiQueueQueries';
 import {
   type BulkFieldGroup,
   type BulkFieldKey,
   type CtiQueueBulkItemResult,
+  type CtiQueueBulkResult,
   type CtiQueueBulkUpdateRequest,
   type CtiQueueMediaOption,
   type CtiQueueOptionItem,
@@ -96,7 +96,7 @@ const STATIC_BULK_FIELD_GROUPS: BulkFieldGroup[] = [
       { key: 'maxWaittimeYn', label: '최대대기 사용' },
       { key: 'serviceLevelTime', label: '서비스 레벨(초)' },
       { key: 'abandonAcktime', label: '큐포기 기준(초)' },
-      { key: 'collectYn', label: '호회수 T/O 사용' },
+      { key: 'collectYn', label: '호회수 타임아웃 사용' },
       { key: 'overflowQid', label: '오버플로우 큐' },
       { key: 'serviceLevelTargetYn', label: '서비스 레벨 목표 사용' },
       { key: 'activateYn', label: '활성화' },
@@ -170,7 +170,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
 
   // ─── 결과 모달 ───────────────────────────────────────────────────────────
   const [resultVisible, setResultVisible] = useState(false);
-  const [bulkResult, setBulkResult] = useState<{ successCount: number; failCount: number; items: CtiQueueBulkItemResult[] } | null>(null);
+  const [bulkResult, setBulkResult] = useState<CtiQueueBulkResult | null>(null);
 
   // ─── 초기화 ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -403,29 +403,12 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
 
   // ─── 결과 테이블 컬럼 ────────────────────────────────────────────────────
   const resultColumns: ColumnsType<CtiQueueBulkItemResult> = [
-    { title: 'CTIQ ID', dataIndex: 'ctiqId', width: 90 },
-    { title: '그룹DN이름', dataIndex: 'gdnName', ellipsis: true, render: (v: string | null) => v ?? '-' },
-    {
-      title: '결과',
-      dataIndex: 'success',
-      width: 80,
-      render: (v: boolean) =>
-        v ? (
-          <span className="inline-flex items-center gap-1 text-green-600 text-xs font-medium">
-            <CheckCircle2 className="size-3.5" /> 성공
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium">
-            <XCircle className="size-3.5" /> 실패
-          </span>
-        ),
-    },
+    { title: 'CTI큐 ID', dataIndex: 'ctiqId', width: 90 },
     {
       title: '사유',
       dataIndex: 'message',
       ellipsis: true,
-      render: (v: string | null, row: CtiQueueBulkItemResult) =>
-        row.success ? <span className="text-gray-400">—</span> : <span className="text-red-500 text-xs">{v ?? '알 수 없는 오류'}</span>,
+      render: (v: string | null) => <span className="text-red-500 text-xs">{v ?? '알 수 없는 오류'}</span>,
     },
   ];
 
@@ -675,7 +658,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
                 {isChecked('collectYn') && (
                   <>
                     {renderFieldRow(
-                      '호회수 T/O 사용',
+                      '호회수 타임아웃 사용',
                       <Form.Item name="collectYn" style={{ marginBottom: 0 }} initialValue={1}>
                         <Radio.Group>
                           <Radio value={1}>사용</Radio>
@@ -684,7 +667,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
                       </Form.Item>,
                     )}
                     {renderFieldRow(
-                      '호회수 T/O(초)',
+                      '호회수 타임아웃(초)',
                       <Form.Item name="collectTimeout" style={{ marginBottom: 0 }} initialValue={10}>
                         <InputNumber min={0} max={9999} style={{ width: 90 }} addonAfter="초" />
                       </Form.Item>,
@@ -784,17 +767,23 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
                 <span className="text-xs text-gray-500">성공</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-2xl font-bold text-red-500">{bulkResult.failCount}</span>
+                <span className="text-2xl font-bold text-gray-700">{bulkResult.totalCount}</span>
+                <span className="text-xs text-gray-500">전체</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-2xl font-bold text-red-500">{bulkResult.failures.length}</span>
                 <span className="text-xs text-gray-500">실패</span>
               </div>
             </div>
-            <Table<CtiQueueBulkItemResult>
-              size="small"
-              dataSource={bulkResult.items.map((item) => ({ ...item, key: item.ctiqId }))}
-              columns={resultColumns}
-              pagination={false}
-              scroll={{ y: 260 }}
-            />
+            {bulkResult.failures.length > 0 && (
+              <Table<CtiQueueBulkItemResult>
+                size="small"
+                dataSource={bulkResult.failures.map((item) => ({ ...item, key: item.ctiqId }))}
+                columns={resultColumns}
+                pagination={false}
+                scroll={{ y: 260 }}
+              />
+            )}
           </>
         )}
       </Modal>

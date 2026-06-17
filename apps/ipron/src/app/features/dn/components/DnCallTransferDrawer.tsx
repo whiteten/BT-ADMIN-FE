@@ -294,7 +294,7 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
             {...gridOptions}
             rowData={list}
             columnDefs={columnDefs}
-            defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+            defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
             onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
             pagination={false}
             sideBar={false}

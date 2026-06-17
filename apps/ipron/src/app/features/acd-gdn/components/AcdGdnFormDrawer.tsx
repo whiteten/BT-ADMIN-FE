@@ -1,10 +1,11 @@
 /**
  * ACD 그룹DN 등록/수정 드로어.
  *
- * 탭 기본정보 (소속 + 그룹DN + 분배·헌팅)
+ * 탭 기본정보 (소속 + 그룹DN)
+ * 탭 번호·접근설정 (Global DN/채널제한/접근코드 프로파일/DR 접근코드 프로파일)
+ * 탭 호분배 / ACD / 헌팅 (호분배/ACD + 헌팅)
  * 탭 멘트 (8단계)
  * 탭 라우팅 정책 (블록/장애/Busy DNIS + 블록/종료 옵션)
- * 탭 DN 멤버 / CTI큐
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select, Tabs } from 'antd';
@@ -296,12 +297,12 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
   const tabItems = [
     {
       key: 'basic',
-      label: '기본정보 (분배·헌팅)',
+      label: '기본정보',
       children: (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">소속</h4>
-            <div className="grid grid-cols-3 gap-4">
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">소속</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트 필수' }]}>
                 <Select options={tenantOptions} disabled={isEdit} placeholder="테넌트 선택" />
               </Form.Item>
@@ -346,19 +347,12 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
                   }}
                 />
               </Form.Item>
-              {/* 갭2: 접근코드 프로파일 콤보 (SWAT IPR20S3010.jsp:863-876, nodeId 기준) */}
-              <Form.Item label="접근코드 프로파일" name="accessCodeProfileId" tooltip="메인 노드 기준 접근코드 프로파일">
-                <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
-              </Form.Item>
-              <Form.Item label="DR 접근코드 프로파일" name="drAccessCodeProfileId" tooltip="DR 노드 기준 접근코드 프로파일">
-                <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
-              </Form.Item>
             </div>
           </section>
 
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">그룹DN</h4>
-            <div className="grid grid-cols-3 gap-4">
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">그룹DN</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               <Form.Item label="그룹DN 번호" name="gdnNo" rules={[{ required: true, min: 3, max: 16, message: '그룹DN 번호는 3~16자 필수입니다' }]}>
                 <Input disabled={isEdit} placeholder="3~16자" maxLength={16} />
               </Form.Item>
@@ -368,6 +362,19 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
               <Form.Item label="발신 대표번호" name="aniNo">
                 <Input maxLength={48} placeholder="예: 021234567" />
               </Form.Item>
+            </div>
+          </section>
+        </div>
+      ),
+    },
+    {
+      key: 'number',
+      label: '번호·접근설정',
+      children: (
+        <div className="space-y-4">
+          <section>
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">번호 · 접근 설정</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               {/* 갭6: DR 노드 있으면 비활성 (SWAT doDrNode_OnSelect 정합) */}
               <Form.Item label="Global DN" name="globalDnYn">
                 <Select options={YN_OPTIONS} disabled={globalDnDisabled} />
@@ -375,12 +382,28 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
               <Form.Item label="채널 제한" name="channelLimitCount">
                 <InputNumber style={{ width: '100%' }} min={0} placeholder="(미지정)" />
               </Form.Item>
+              {/* 빈 셀(3열 정렬용) */}
+              <div />
+              {/* 갭2: 접근코드 프로파일 콤보 (SWAT IPR20S3010.jsp:863-876, nodeId 기준) */}
+              <Form.Item label="접근코드 프로파일" name="accessCodeProfileId" tooltip="메인 노드 기준 접근코드 프로파일">
+                <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
+              </Form.Item>
+              <Form.Item label="DR 접근코드 프로파일" name="drAccessCodeProfileId" tooltip="DR 노드 기준 접근코드 프로파일">
+                <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
+              </Form.Item>
             </div>
           </section>
-
+        </div>
+      ),
+    },
+    {
+      key: 'acd',
+      label: '호분배 / ACD / 헌팅',
+      children: (
+        <div className="space-y-4">
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">호분배 / ACD</h4>
-            <div className="grid grid-cols-3 gap-4">
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">호분배 / ACD</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               <Form.Item label="호분배 여부" name="acdYn" rules={[{ required: true }]}>
                 <Select options={YN_OPTIONS} />
               </Form.Item>
@@ -440,8 +463,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           </section>
 
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">헌팅</h4>
-            <div className="grid grid-cols-3 gap-4">
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">헌팅</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               <Form.Item label="헌팅 여부" name="huntingYn">
                 <Select options={YN_OPTIONS} disabled={isDirectRouting} />
               </Form.Item>
@@ -464,7 +487,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           {isDirectRouting && (
             <div className="bg-amber-50 border-l-[3px] border-amber-500 px-3 py-2 text-xs text-amber-700">라우팅기준=직접 — 대기/종료 멘트는 자동 비활성됩니다.</div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <Form.Item label="초기 멘트" name="initMent" tooltip="접속 직후 1회 재생">
               <Select options={mentSelectOptions} showSearch optionFilterProp="label" allowClear placeholder="(미사용)" />
             </Form.Item>
@@ -497,10 +520,10 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
       key: 'routing',
       label: '라우팅 정책',
       children: (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">라우팅 번호 (각 상황별, 24자)</h4>
-            <div className="grid grid-cols-1 gap-4">
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">라우팅 번호 (각 상황별, 24자)</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               <Form.Item label="블록 시 라우팅" name="blockRoutingDnis" tooltip="블록 여부=설정 + 종료방법 도달 시 → 블록멘트 재생 후 이 번호로 라우팅" rules={[{ max: 24 }]}>
                 <Input maxLength={24} className="font-mono" placeholder="(없으면 비워두세요)" />
               </Form.Item>
@@ -519,8 +542,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           </section>
 
           <section>
-            <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">블록 / 종료 옵션</h4>
-            <div className="grid grid-cols-3 gap-4">
+            <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">블록 / 종료 옵션</h4>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
               <Form.Item label="블록 여부" name="blockYn">
                 <Select options={YN_OPTIONS} />
               </Form.Item>
@@ -532,11 +555,6 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           </section>
         </div>
       ),
-    },
-    {
-      key: 'members',
-      label: 'DN 멤버 / CTI큐',
-      children: <div className="space-y-4" />,
     },
   ];
 

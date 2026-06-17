@@ -214,7 +214,7 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
   };
 
   const basicTab = (
-    <div className="grid grid-cols-2 gap-x-4">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-0 [&_.ant-form-item]:!mb-3">
       {/* 갭1: 내선프로파일 필수 콤보 — SWAT IPR20S3030.jsp:1755~1758, 1890~1894 정합 */}
       <Form.Item
         label="내선프로파일"
@@ -286,15 +286,11 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
           <Input maxLength={63} placeholder="::" />
         </Form.Item>
       )}
-
-      <Form.Item label="SIP트렁크 설명" name="sipTrunkDesc" className="col-span-2">
-        <Input maxLength={256} />
-      </Form.Item>
     </div>
   );
 
   const extraTab = (
-    <div className="grid grid-cols-2 gap-x-4">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-0 [&_.ant-form-item]:!mb-3">
       <Form.Item label="Transport 타입" name="transportType">
         <Select options={TRANSPORT_TYPE_OPTIONS} />
       </Form.Item>
@@ -320,6 +316,11 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
       </Form.Item>
       <Form.Item label="IP업데이트" name="trkIpUpdate" className="col-span-2" extra="등록 후 IP가 변경될 때 자동 갱신 여부">
         <Radio.Group options={TRK_IP_UPDATE_OPTIONS} />
+      </Form.Item>
+
+      {/* 기본정보 탭 768px 오버플로 해소: 전폭 설명 필드를 여유 있는 부가정보 탭으로 이관 */}
+      <Form.Item label="SIP트렁크 설명" name="sipTrunkDesc" className="col-span-2">
+        <Input maxLength={256} />
       </Form.Item>
     </div>
   );

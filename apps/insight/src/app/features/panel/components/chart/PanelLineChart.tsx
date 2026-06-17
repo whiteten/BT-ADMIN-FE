@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
-import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, koNum, paletteAt, splitLineStyle } from './echartsPanelTheme';
+import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, paletteAt, splitLineStyle } from './echartsPanelTheme';
+import { formatColumnValue } from '../../../../utils/columnFormat';
 import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
-import type { LineChartOptions, PanelDetail } from '../../../report/types';
+import type { ColumnFormat, LineChartOptions, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
 
 interface PanelLineChartProps {
@@ -77,7 +78,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     const categories = catKeys.map((k) => formatTimeKey(k));
 
     // 공통 라인 시리즈 스타일 빌더
-    const makeLine = (name: string, i: number, values: number[], single: boolean) => {
+    const makeLine = (name: string, i: number, values: number[], single: boolean, format: ColumnFormat | undefined) => {
       const color = paletteAt(i);
       return {
         type: 'line',
@@ -90,7 +91,11 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
         // 단일 라인일 때만 하단 면적 채움(다중이면 겹쳐서 지저분)
         areaStyle: single ? { color: areaGradient(color) } : undefined,
         emphasis: { focus: 'series' as const },
-        label: showDataLabel ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => koNum(Number(p.value ?? 0)) } : { show: false },
+        label: showDataLabel
+          ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), format) }
+          : { show: false },
+        // 툴팁 값도 컬럼 서식 적용
+        tooltip: { valueFormatter: (v: unknown) => formatColumnValue(v, format) },
         markLine: goalLine?.enabled && goalLine.value != null ? goalMarkLine(goalLine.value) : undefined,
         data: values,
       };
@@ -131,6 +136,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
           i,
           catKeys.map((k) => m.get(k) ?? 0),
           lineCount === 1,
+          measure?.columnFormat,
         );
       });
     } else {
@@ -149,6 +155,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
           i,
           catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
           lineCount === 1,
+          f.columnFormat,
         ),
       );
     }

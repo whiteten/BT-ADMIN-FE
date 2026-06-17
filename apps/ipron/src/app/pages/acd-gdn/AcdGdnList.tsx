@@ -353,8 +353,8 @@ export default function AcdGdnList() {
       {
         headerName: '글로벌여부',
         field: 'globalDnYn',
-        minWidth: 90,
-        maxWidth: 100,
+        minWidth: 96,
+        maxWidth: 110,
         suppressHeaderMenuButton: true,
         cellStyle: { textAlign: 'center' },
         filterValueGetter: (p) => BOOL_OX_LABEL(p.data?.globalDnYn),
@@ -386,7 +386,7 @@ export default function AcdGdnList() {
       {
         headerName: '대기시간(s)',
         field: 'maxWaittime',
-        width: 90,
+        width: 100,
         type: 'numericColumn',
         filter: 'agNumberColumnFilter',
         valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
@@ -402,7 +402,7 @@ export default function AcdGdnList() {
       {
         headerName: '블록 시 라우팅',
         field: 'blockRoutingDnis',
-        minWidth: 110,
+        minWidth: 120,
         flex: 1,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
         tooltipField: 'blockRoutingDnis',
@@ -410,7 +410,7 @@ export default function AcdGdnList() {
       {
         headerName: '장애 시 라우팅',
         field: 'errorRoutingDnis',
-        minWidth: 110,
+        minWidth: 120,
         flex: 1,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
         tooltipField: 'errorRoutingDnis',
@@ -418,7 +418,7 @@ export default function AcdGdnList() {
       {
         headerName: '통화량 초과 시 라우팅',
         field: 'busyRoutingDnis',
-        minWidth: 130,
+        minWidth: 150,
         flex: 1,
         valueFormatter: (p) => (p.value == null || p.value === '' ? '-' : p.value),
         tooltipField: 'busyRoutingDnis',

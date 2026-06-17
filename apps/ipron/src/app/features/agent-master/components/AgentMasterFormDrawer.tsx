@@ -257,7 +257,20 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           <Spin />
         </div>
       ) : (
-        <Form form={form} layout="vertical" requiredMark>
+        <Form form={form} layout="vertical" requiredMark className="agent-master-compact-form">
+          {/* 무스크롤 목표: 이 드로어 폼에 한정한 여백 축소(전역 antd 미오버라이드) */}
+          <style>{`
+            .agent-master-compact-form .ant-form-item { margin-bottom: 8px; }
+            .agent-master-compact-form .ant-form-item-label { padding-bottom: 1px; }
+            .agent-master-compact-form .ant-tabs-content-holder { padding-top: 2px; }
+            /* 미디어 옵션 탭: 공용 AgentMediaCards 비수정, 이 드로어 한정 카드 간격/패딩만 축소 */
+            .agent-master-media-compact .flex.flex-col.gap-2 { gap: 4px; }
+            .agent-master-media-compact .flex.flex-col.gap-2 > div > button { padding-top: 4px; padding-bottom: 4px; }
+            .agent-master-media-compact .flex.flex-col.gap-2 > div > .border-t { padding-top: 8px; padding-bottom: 8px; }
+            .agent-master-media-compact .flex.flex-col.gap-2 > div > .border-t.grid { row-gap: 8px; }
+            .agent-master-media-compact > h3 { margin-top: 0; margin-bottom: 4px; }
+            .agent-master-media-compact > .ant-form-item { margin-bottom: 4px; }
+          `}</style>
           <Tabs
             defaultActiveKey="basic"
             items={[
@@ -343,17 +356,6 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                           <Select options={oscomOptions} placeholder="업체 선택 (없음=비워두기)" showSearch allowClear optionFilterProp="label" />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
-                        <Form.Item label="주 업무 스킬" name="masterCtiqId">
-                          <Select
-                            options={masterSkillOptions}
-                            placeholder={selectedTenantId ? '스킬셋 선택' : '테넌트를 먼저 선택하세요'}
-                            disabled={!selectedTenantId}
-                            showSearch
-                            optionFilterProp="label"
-                          />
-                        </Form.Item>
-                      </Col>
                     </Row>
 
                     <SectionTitle>상태</SectionTitle>
@@ -413,7 +415,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                 key: 'media',
                 label: '미디어 옵션',
                 children: (
-                  <div>
+                  <div className="agent-master-media-compact">
                     <SectionTitle>미디어 옵션 방식</SectionTitle>
                     {/* SWAT IPR20S4010 L2922-2930 정합: 개별/그룹 라디오 */}
                     <Form.Item name="useGrpMdaOpt">
@@ -483,10 +485,27 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     </Row>
 
                     <SectionTitle>스킬 배정</SectionTitle>
-                    {/* agent-005: SWAT poUseGrpSkill radio — useGrpSkill 항상 0 전송 버그 수정 */}
-                    <Form.Item name="useGrpSkill" label="스킬 배정 방식">
-                      <Radio.Group options={USE_GRP_SKILL_OPTIONS} />
-                    </Form.Item>
+                    {/* 기본정보 탭 무스크롤 위해 "주 업무 스킬"을 여유 큰 CTI 탭(edit 전용)으로 이관.
+                        Form.Item name/검증/disabled 동일 — create 모드는 기존대로 masterCtiqId 기본 0 전송. */}
+                    <Row gutter={16}>
+                      <Col span={12}>
+                        <Form.Item label="주 업무스킬(통계용)" name="masterCtiqId">
+                          <Select
+                            options={masterSkillOptions}
+                            placeholder={selectedTenantId ? '스킬셋 선택' : '테넌트를 먼저 선택하세요'}
+                            disabled={!selectedTenantId}
+                            showSearch
+                            optionFilterProp="label"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        {/* agent-005: SWAT poUseGrpSkill radio — useGrpSkill 항상 0 전송 버그 수정 */}
+                        <Form.Item name="useGrpSkill" label="스킬 배정 방식">
+                          <Radio.Group options={USE_GRP_SKILL_OPTIONS} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
                   </div>
                 ),
               },
@@ -498,9 +517,9 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   );
 }
 
-function SectionTitle({ children, marginTop = 8 }: { children: React.ReactNode; marginTop?: number }) {
+function SectionTitle({ children, marginTop = 4 }: { children: React.ReactNode; marginTop?: number }) {
   return (
-    <h3 className="text-[13px] font-semibold text-gray-700 mb-3" style={{ marginTop }}>
+    <h3 className="text-[13px] font-semibold text-gray-700 mb-1.5" style={{ marginTop }}>
       {children}
     </h3>
   );

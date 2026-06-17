@@ -26,6 +26,8 @@ export default function useAggridOptions() {
     [],
   );
   // 2026-06-12 사용자 확정: 컬럼 필터 전면 활성
+  // 2026-06-16: 헤더 폭 잘림 차단 — wrapHeaderText+autoHeaderHeight 전역 적용.
+  //   좁은 컬럼에서 헤더 텍스트가 '우선순...' 처럼 말줄임되던 문제를 줄바꿈+행높이 자동확장으로 해소.
   const defaultColDef = useMemo(
     () => ({
       flex: 1,
@@ -38,6 +40,8 @@ export default function useAggridOptions() {
       filter: true,
       editable: false,
       suppressHeaderMenuButton: true,
+      wrapHeaderText: true,
+      autoHeaderHeight: true,
     }),
     [],
   );
@@ -78,6 +82,12 @@ export default function useAggridOptions() {
     }),
     [],
   );
+  // 체크박스 좌측고정 가드 (2026-06-15):
+  // selection 활성(rowSelection.checkboxes=true) 시 selectionColumnDef 를 기본 주입해
+  // ag-Grid selection 컬럼이 항상 pinned:'left' 로 맨 왼쪽에 위치하도록 강제한다.
+  // 화면이 이미 selectionColumnDef 를 오버라이드 하면 spread 로 덮어쓰므로 자동 존중된다.
+  const selectionColumnDef = useMemo<GridOptions['selectionColumnDef']>(() => ({ pinned: 'left', lockPinned: true, width: 44 }), []);
+
   const gridOptions = useMemo<GridOptions>(
     () => ({
       defaultColDef,
@@ -85,6 +95,7 @@ export default function useAggridOptions() {
       sideBar,
       statusBar,
       components,
+      selectionColumnDef,
       reactiveCustomComponents: true,
       columnHoverHighlight: true,
       animateRows: true,
@@ -103,7 +114,7 @@ export default function useAggridOptions() {
       tooltipShowDelay: 0,
       tooltipHideDelay: 10000,
     }),
-    [defaultColDef, theme, sideBar, statusBar, components],
+    [defaultColDef, theme, sideBar, statusBar, components, selectionColumnDef],
   );
-  return { gridOptions, defaultColDef, theme, sideBar, statusBar };
+  return { gridOptions, defaultColDef, theme, sideBar, statusBar, selectionColumnDef };
 }

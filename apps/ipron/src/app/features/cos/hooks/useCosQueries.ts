@@ -107,3 +107,13 @@ export const useDeleteCos = ({ mutationOptions }: MutationHookOptions = {}) => {
     ...mutationOptions,
   });
 };
+
+/**
+ * COS 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteCosBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => cosApi.deleteBatch(ids),
+    ...mutationOptions,
+  });
+};

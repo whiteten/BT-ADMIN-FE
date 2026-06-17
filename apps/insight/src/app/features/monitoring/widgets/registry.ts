@@ -16,6 +16,7 @@ import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
 import HealthBoardWidget from './health-board/HealthBoardWidget';
 import NodeDetailWidget from './node-detail/NodeDetailWidget';
 import QualityRiskWidget from './quality-risk/QualityRiskWidget';
+import TimeTrendWidget from './time-trend/TimeTrendWidget';
 import TrunkFlowWidget from './trunk-flow/TrunkFlowWidget';
 
 /** 모든 커스텀 위젯 컴포넌트의 공통 props. */
@@ -175,6 +176,9 @@ const REGISTRY: Record<string, CustomWidgetEntry> = {
   // 통화 품질 위험판 — IE:EXTDN(통화중 MoS) ⨝ IC:AGENT(상담사명)을 BE 가 집계해
   // {summary/dist/items} 단일 객체로 내려준다. 화이트리스트 없이 전체 수신.
   'quality-risk-board': { component: QualityRiskWidget },
+  // 타임트렌드 종합판 — PSR 누적(인입 vs 응대 추세 + 미처리 음영)을 BE 가 {series/current/peak}
+  // 단일 객체로 내려준다(min10/hour/day 3입자 모두). 화이트리스트 없이 전체 수신.
+  'time-trend-board': { component: TimeTrendWidget },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {

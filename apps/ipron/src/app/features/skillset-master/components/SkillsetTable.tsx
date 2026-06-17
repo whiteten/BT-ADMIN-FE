@@ -1,7 +1,8 @@
 /**
  * 스킬셋 마스터 ag-Grid — AdnTable 패턴.
  *
- * 컬럼: ☐ | 테넌트 | 업무그룹 | 스킬셋ID | 스킬셋명 | 미디어타입 | 정렬 | 상담사수 | 활성 | 설명 | [휴지통]
+ * 컬럼: ☐ | 테넌트 | 업무그룹 | 스킬셋ID | ⠿스킬셋명 | 미디어타입 | 정렬 | 상담사수 | 활성 | 설명 | [휴지통]
+ * (드래그핸들은 스킬셋명 셀 인라인 — 체크박스가 절대 첫 열)
  */
 import { useMemo, useRef } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
@@ -97,34 +98,6 @@ export default function SkillsetTable({
 
   const columnDefs: ColDef<SkillsetResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 28,
-        maxWidth: 28,
-        pinned: 'left',
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: { padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (params: ICellRendererParams<SkillsetResponse>) => {
-          const data = params.data;
-          if (!data) return null;
-          return (
-            <div
-              draggable
-              onDragStart={(e) => {
-                const ids = getDragSkillsetIds?.(data) ?? [data.skillsetId];
-                e.dataTransfer.setData(SKILLSET_DRAG_MIME, JSON.stringify(ids));
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600"
-              title="드래그하여 업무그룹 이동"
-            >
-              <GripVertical className="size-3.5" />
-            </div>
-          );
-        },
-      },
       { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: !showTenantColumn },
       {
         headerName: '업무그룹',
@@ -139,7 +112,35 @@ export default function SkillsetTable({
         },
       },
       { headerName: '스킬셋 ID', field: 'skillsetId', width: 130, filter: 'agNumberColumnFilter', cellStyle: { textAlign: 'right' } as CellStyle },
-      { headerName: '스킬셋명', field: 'skillsetName', minWidth: 200, flex: 1.5, tooltipField: 'skillsetName' },
+      {
+        headerName: '스킬셋명',
+        field: 'skillsetName',
+        minWidth: 200,
+        flex: 1.5,
+        tooltipField: 'skillsetName',
+        cellRenderer: (params: ICellRendererParams<SkillsetResponse>) => {
+          const data = params.data;
+          if (!data) return null;
+          return (
+            <div className="flex items-center gap-1 w-full h-full">
+              <div
+                draggable
+                onDragStart={(e) => {
+                  const ids = getDragSkillsetIds?.(data) ?? [data.skillsetId];
+                  e.dataTransfer.setData(SKILLSET_DRAG_MIME, JSON.stringify(ids));
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.stopPropagation();
+                }}
+                className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600"
+                title="드래그하여 업무그룹 이동"
+              >
+                <GripVertical className="size-3.5" />
+              </div>
+              <span className="truncate">{data.skillsetName}</span>
+            </div>
+          );
+        },
+      },
       {
         headerName: '미디어 타입',
         field: 'mediaType',

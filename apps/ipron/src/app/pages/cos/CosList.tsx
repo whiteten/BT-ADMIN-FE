@@ -22,7 +22,7 @@ import { Button, Empty, Input, Modal } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { cosQueryKeys, useDeleteCos, useGetCosList, useGetNodeTenants } from '../../features/cos/hooks/useCosQueries';
+import { cosQueryKeys, useDeleteCosBatch, useGetCosList, useGetNodeTenants } from '../../features/cos/hooks/useCosQueries';
 import type { Cos } from '../../features/cos/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -111,7 +111,7 @@ export default function CosList() {
   }, [cosList, searchText]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutateAsync: deleteCosAsync } = useDeleteCos({
+  const { mutateAsync: deleteCosBatchAsync } = useDeleteCosBatch({
     mutationOptions: {
       onSuccess: () => {
         invalidateList();
@@ -170,7 +170,7 @@ export default function CosList() {
       onOk: async () => {
         setIsDeleting(true);
         try {
-          await Promise.all(selectedRows.map((c) => deleteCosAsync({ cosId: c.cosId })));
+          await deleteCosBatchAsync(selectedRows.map((c) => c.cosId));
           toast.success(`${selectedRows.length}건이 삭제되었습니다`);
           setSelectedRows([]);
         } catch {
@@ -184,7 +184,7 @@ export default function CosList() {
         content: `선택한 ${selectedRows.length}건의 COS를 삭제하시겠습니까?`,
       },
     });
-  }, [modal, deleteCosAsync, selectedRows]);
+  }, [modal, deleteCosBatchAsync, selectedRows]);
 
   // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
   const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);

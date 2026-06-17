@@ -67,7 +67,6 @@ export default function SipTrunkList() {
   const [topSearch, setTopSearch] = useState('');
   const [gdnSearch, setGdnSearch] = useState('');
   const [selectedGdn, setSelectedGdn] = useState<SipGdnResponse | null>(null);
-  const [selectedGdns, setSelectedGdns] = useState<SipGdnResponse[]>([]);
   const [assignFilter, setAssignFilter] = useState<AssignFilter>('all');
   const [kindFilter, setKindFilter] = useState<string>('');
   const [selectedTrunks, setSelectedTrunks] = useState<SipTrunkMemberResponse[]>([]);
@@ -233,22 +232,23 @@ export default function SipTrunkList() {
     },
   });
 
-  const handleGdnDelete = useCallback(
-    (gdns: SipGdnResponse[]) => {
-      if (gdns.length === 0) return;
-      modal.confirm.execute({
-        onOk: () => {
-          deleteGdns(gdns.map((g) => g.gdnId));
-          setSelectedGdns([]);
-        },
-        options: {
-          title: '그룹DN 삭제',
-          content: gdns.length === 1 ? `"${gdns[0].gdnNo}" 그룹DN을 삭제하시겠습니까?` : `선택한 그룹DN ${gdns.length}건을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteGdns],
-  );
+  // 단일선택 삭제 — 선택된 그룹DN 1건 삭제 (AcdGdnList 정합)
+  const handleGdnDelete = useCallback(() => {
+    if (!selectedGdn) {
+      toast.warning('삭제할 그룹DN을 선택하세요');
+      return;
+    }
+    modal.confirm.execute({
+      onOk: () => {
+        deleteGdns([selectedGdn.gdnId]);
+        setSelectedGdn(null);
+      },
+      options: {
+        title: '그룹DN 삭제',
+        content: `"${selectedGdn.gdnNo}" 그룹DN을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deleteGdns, selectedGdn]);
 
   const handleTrunkDeleteSelected = useCallback(
     (trunks: SipTrunkMemberResponse[]) => {
@@ -342,6 +342,7 @@ export default function SipTrunkList() {
         maxWidth: 110,
         cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'backUpNodeName',
       },
       // F-2: 차단/오류/만석 우회 DNIS 컬럼 (SWAT IPR20S3030 GDN_TYPE=18 정합)
       {
@@ -351,6 +352,7 @@ export default function SipTrunkList() {
         maxWidth: 130,
         cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'blockRoutingDnis',
       },
       {
         headerName: '오류우회DNIS',
@@ -359,6 +361,7 @@ export default function SipTrunkList() {
         maxWidth: 130,
         cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'errorRoutingDnis',
       },
       {
         headerName: '만석우회DNIS',
@@ -367,12 +370,14 @@ export default function SipTrunkList() {
         maxWidth: 130,
         cellStyle: { fontFamily: 'monospace' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'busyRoutingDnis',
       },
     ],
     [],
   );
 
-  const gdnRowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+  // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop — 의도적 단일선택(행=우측 패널 갱신, 벌크 없음 / AcdGdnList 정합)
+  const gdnRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
 
   const gdnGridOptions = useMemo<GridOptions<SipGdnResponse>>(
     () => ({
@@ -381,7 +386,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowClicked: (e) => {
         if (e.data) {
@@ -389,7 +394,6 @@ export default function SipTrunkList() {
           setSelectedTrunks([]);
         }
       },
-      onSelectionChanged: (e) => setSelectedGdns(e.api.getSelectedRows()),
       onRowDoubleClicked: (e) => {
         if (e.data) gdnDrawerRef.current?.openEdit(e.data);
       },
@@ -403,8 +407,8 @@ export default function SipTrunkList() {
       {
         headerName: '배정상태',
         field: 'assignYn',
-        width: 84,
-        maxWidth: 92,
+        width: 96,
+        maxWidth: 106,
         cellStyle: { textAlign: 'center' } as CellStyle,
         filterValueGetter: (p) => (p.data?.assignYn ? '배정중' : '미배정'),
         cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) =>
@@ -425,7 +429,7 @@ export default function SipTrunkList() {
           </span>
         ),
       },
-      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace' } as CellStyle },
+      { headerName: '번호', field: 'targetNo', minWidth: 110, maxWidth: 140, cellStyle: { fontFamily: 'monospace' } as CellStyle, tooltipField: 'targetNo' },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
@@ -433,6 +437,7 @@ export default function SipTrunkList() {
         maxWidth: 110,
         cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
         valueFormatter: (p) => p.value ?? '—',
+        tooltipField: 'backUpNodeName',
       },
       {
         headerName: '채널 사용률',
@@ -458,8 +463,8 @@ export default function SipTrunkList() {
       {
         headerName: '우선순위',
         field: 'memberPriority',
-        width: 80,
-        maxWidth: 90,
+        width: 100,
+        maxWidth: 110,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
@@ -467,8 +472,8 @@ export default function SipTrunkList() {
       {
         headerName: '배정채널',
         field: 'channelLimitCount',
-        width: 84,
-        maxWidth: 94,
+        width: 100,
+        maxWidth: 110,
         filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
@@ -489,7 +494,7 @@ export default function SipTrunkList() {
       sideBar: false,
       pagination: false,
       rowNumbers: false,
-      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true },
+      defaultColDef: { sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -755,9 +760,9 @@ export default function SipTrunkList() {
                   size="small"
                   danger
                   icon={<Trash2 className="size-3" />}
-                  disabled={selectedGdns.length === 0}
-                  title={selectedGdns.length === 0 ? '삭제할 그룹DN을 선택하세요' : `선택한 ${selectedGdns.length}건 삭제`}
-                  onClick={() => handleGdnDelete(selectedGdns)}
+                  disabled={!selectedGdn}
+                  title={!selectedGdn ? '삭제할 그룹DN을 선택하세요' : `"${selectedGdn.gdnNo}" 삭제`}
+                  onClick={() => handleGdnDelete()}
                 >
                   삭제
                 </Button>
@@ -883,7 +888,7 @@ export default function SipTrunkList() {
           icon={<Trash2 className="size-3.5" />}
           disabled={!selectedGdn || selectedTrunks.length === 0}
           style={{ opacity: selectedGdn && selectedTrunks.length > 0 ? 1 : 0.38 }}
-          onClick={handleRevoke}
+          onClick={() => handleRevoke()}
         >
           해제
         </Button>

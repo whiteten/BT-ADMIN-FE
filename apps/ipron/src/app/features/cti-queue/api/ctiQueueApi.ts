@@ -10,6 +10,8 @@
  *  ipron-cti-queue-create           POST 등록 (그룹DN 결합)
  *  ipron-cti-queue-update           PUT  수정 ({ctiqId})
  *  ipron-cti-queue-delete           DELETE 삭제 ({ctiqId})
+ *  ipron-cti-queue-delete-batch     DELETE 일괄 삭제 (body: ctiqIds[], BSR 배정 시 409 전체 거부)
+ *  cti-queue-media-skills-save      PUT  미디어 스킬 매트릭스 일괄 저장 (큐별 차등, 207)
  *  ipron-cti-queue-tenants          GET  테넌트 통계
  *  ipron-cti-queue-duplicate-check  GET  그룹DN(=큐) 번호 중복검증
  *  ipron-cti-queue-options-groups           GET  기본 라우팅그룹 콤보
@@ -36,6 +38,8 @@ import type {
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMediaSkillBatchRequest,
+  CtiQueueMediaSkillBatchResult,
   CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
@@ -97,12 +101,35 @@ export const ctiQueueApi = {
   },
 
   /**
+   * CTI 큐 일괄 삭제 — cascade 4종, BSR 스케줄 배정된 큐 포함 시 409 전체 거부.
+   * BE: POST /api/ipron/cti-queues/delete-batch → ApiResponse<Integer>(삭제 건수).
+   * @flow ipron-cti-queue-delete-batch (body: { ctiqIds })
+   */
+  deleteBatch: async (ctiqIds: number[]): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<number>>('/ipron-cti-queue-delete-batch', { ctiqIds });
+    return res.data?.data ?? 0;
+  },
+
+  /**
    * 일괄 설정 (Bulk Update) — P1.
    * BE: PUT /api/ipron/cti-queues/bulk-update (field mask 기반, 207 부분 성공).
    * BFF: ipron-cti-queue-bulk-update flow 경유.
    */
   bulkUpdate: async (body: CtiQueueBulkUpdateRequest): Promise<CtiQueueBulkResult> => {
     const res = await apiClient.put<ApiResponse<CtiQueueBulkResult>>('/ipron-cti-queue-bulk-update', body);
+    return res.data?.data;
+  },
+
+  /**
+   * 미디어 스킬 매트릭스 일괄 저장 — "스킬 배정 보기" 토글 (큐별 차등 스킬·레벨).
+   * BE: PUT /api/ipron/cti-queues/media-skills (field mask 기반, 207 부분 성공).
+   * BFF: cti-queue-media-skills-save flow 경유 (seed: seed-additions-2026-06-12.sql).
+   * 207(부분 성공) 응답도 본문(CtiQueueBulkResult)을 받아 결과 모달에 표시해야 하므로 validateStatus 로 허용.
+   */
+  mediaSkillsBatch: async (body: CtiQueueMediaSkillBatchRequest): Promise<CtiQueueMediaSkillBatchResult> => {
+    const res = await apiClient.put<ApiResponse<CtiQueueMediaSkillBatchResult>>('/cti-queue-media-skills-save', body, {
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 207,
+    });
     return res.data?.data;
   },
 
@@ -204,15 +231,20 @@ export const ctiQueueApi = {
    * CTI 큐 Excel 가져오기 (SWAT doExcelImport_init 정합).
    * BE: POST /api/ipron/cti-queues/import (multipart/form-data).
    * BFF: ipron-cti-queue-import flow 경유.
-   * 오류 행 존재 시 207 응답 → errors 배열 포함.
+   *
+   * BE 가 행별 성패를 항상 HTTP 200 · ok:true · 평탄 data{successCount, errors[]} 로 반환한다
+   * (207/400 미사용 — BFF single-step 언래핑 비대칭 회피, BE CtiQueueController.importExcel JavaDoc 참조).
+   * 따라서 BFF error 경로에 진입하지 않고 평탄 data 단일경로로 도착한다.
+   * validateStatus 는 200·207 만 허용(과거 안전망 — BE 200 고정이라 207 은 사실상 미발생).
+   * 반환을 평탄 결과로 언래핑해 화면이 successCount/errors 를 바로 사용한다.
    */
-  importExcel: async (file: File): Promise<ApiResponse<{ successCount: number; errors: { rowNum: number; message: string }[] }>> => {
+  importExcel: async (file: File): Promise<{ successCount: number; errors: { rowNum: number; message: string }[] }> => {
     const formData = new FormData();
     formData.append('file', file);
     const res = await apiClient.post<ApiResponse<{ successCount: number; errors: { rowNum: number; message: string }[] }>>('/ipron-cti-queue-import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      validateStatus: (status) => (status >= 200 && status < 300) || status === 207,
     });
-    return res.data;
+    return res.data?.data ?? { successCount: 0, errors: [] };
   },
 
   // ─── 업무그룹 트리 (TB_TR_CTIQ_MASTER) ───────────────────────────────────────

@@ -26,8 +26,8 @@ import {
   didTransQueryKeys,
   useCopyAniTrans,
   useCopyDnisTrans,
-  useDeleteAniTrans,
-  useDeleteDnisTrans,
+  useDeleteAniTransBatch,
+  useDeleteDnisTransBatch,
   useGetAniTransList,
   useGetDnisTransList,
   useGetNodes,
@@ -148,22 +148,22 @@ export default function DidTransList() {
     [category],
   );
 
-  // DNIS 삭제
-  const { mutate: deleteDnisTrans } = useDeleteDnisTrans({
+  // DNIS 일괄 삭제 (벌크 1콜)
+  const { mutate: deleteDnisTransBatch } = useDeleteDnisTransBatch({
     mutationOptions: { onSuccess: () => invalidateTransList() },
   });
 
-  // ANI 삭제
-  const { mutate: deleteAniTrans } = useDeleteAniTrans({
+  // ANI 일괄 삭제 (벌크 1콜)
+  const { mutate: deleteAniTransBatch } = useDeleteAniTransBatch({
     mutationOptions: { onSuccess: () => invalidateTransList() },
   });
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedRows.length === 0) return;
-    const deleteFn = category === 'dnis' ? deleteDnisTrans : deleteAniTrans;
+    const deleteBatchFn = category === 'dnis' ? deleteDnisTransBatch : deleteAniTransBatch;
     modal.confirm.execute({
       onOk: () => {
-        selectedRows.forEach((trans) => deleteFn({ id: trans.transId }));
+        deleteBatchFn(selectedRows.map((trans) => trans.transId));
         setSelectedRows([]);
       },
       options: {
@@ -171,7 +171,7 @@ export default function DidTransList() {
         content: `선택한 ${selectedRows.length}건을 삭제하시겠습니까?`,
       },
     });
-  }, [modal, category, deleteDnisTrans, deleteAniTrans, selectedRows]);
+  }, [modal, category, deleteDnisTransBatch, deleteAniTransBatch, selectedRows]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateTransList();
@@ -369,7 +369,7 @@ export default function DidTransList() {
                             <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
                             <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
                           </div>
-                          <div className="text-xs text-gray-500">노드 ID: {node.nodeId}</div>
+                          <div className="text-xs text-gray-500">{node.nodeName}</div>
                           <div className="flex flex-wrap gap-1 mt-auto pt-2">
                             <span
                               className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${

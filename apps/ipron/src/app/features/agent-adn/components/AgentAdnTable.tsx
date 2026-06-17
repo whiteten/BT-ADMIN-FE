@@ -5,12 +5,10 @@
  * SWAT IPR20S3011 양쪽 그리드(미배정/배정) 모두 "노드명" 컬럼 표시 (#40).
  * 행 클릭으로 체크박스 토글. 우측 휴지통(삭제로 오해 소지) 컬럼은 제거 —
  * 배정 해제는 상단 일괄 버튼만 사용.
- * 미배정 행은 팔레트 고정색(ROW_COLOR_PALETTE.unassigned = #fff7ed)으로 식별.
  */
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { ROW_COLOR_PALETTE } from '../../../components/GridRowColorLegend';
 import type { AgentAdnRowResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -23,7 +21,10 @@ interface AgentAdnTableProps {
 export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }: AgentAdnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
 
   const rowSelection = useMemo<RowSelectionOptions>(
     () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
@@ -101,10 +102,6 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
 
   return (
     <div className="h-full">
-      <style>{`
-        .ag-row-unassigned { background-color: ${ROW_COLOR_PALETTE.unassigned} !important; }
-        .ag-row-unassigned:hover { background-color: #e2e8f0 !important; }
-      `}</style>
       <AgGridReact<AgentAdnRowResponse>
         rowData={rowData}
         columnDefs={columnDefs}
@@ -114,7 +111,6 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
           statusBar: undefined,
           pagination: false,
           sideBar: false,
-          getRowClass: (params) => (params.data?.mappingStatus === 'UNASSIGNED' ? 'ag-row-unassigned' : ''),
         }}
         rowSelection={rowSelection}
         loading={isLoading}

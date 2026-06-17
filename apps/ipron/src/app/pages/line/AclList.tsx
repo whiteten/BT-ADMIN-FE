@@ -22,7 +22,7 @@ import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search,
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclDrawer';
-import { aclQueryKeys, useDeleteAcl, useDeleteCtiAcl, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
+import { aclQueryKeys, useDeleteAclBatch, useDeleteCtiAclBatch, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
 import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -146,8 +146,8 @@ export default function AclList() {
     [category],
   );
 
-  // PBX 삭제
-  const { mutate: deletePbxAcl } = useDeleteAcl({
+  // PBX 일괄 삭제 (벌크 1콜)
+  const { mutate: deletePbxAclBatch } = useDeleteAclBatch({
     mutationOptions: {
       onSuccess: () => {
         invalidateAcls();
@@ -156,8 +156,8 @@ export default function AclList() {
     },
   });
 
-  // CTI 삭제
-  const { mutate: deleteCtiAcl } = useDeleteCtiAcl({
+  // CTI 일괄 삭제 (벌크 1콜)
+  const { mutate: deleteCtiAclBatch } = useDeleteCtiAclBatch({
     mutationOptions: {
       onSuccess: () => {
         invalidateAcls();
@@ -168,15 +168,15 @@ export default function AclList() {
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedRows.length === 0) return;
-    const deleteFn = category === 'pbx' ? deletePbxAcl : deleteCtiAcl;
+    const deleteBatchFn = category === 'pbx' ? deletePbxAclBatch : deleteCtiAclBatch;
     modal.confirm.execute({
-      onOk: () => selectedRows.forEach((acl) => deleteFn({ id: acl.aclId })),
+      onOk: () => deleteBatchFn(selectedRows.map((acl) => acl.aclId)),
       options: {
         title: 'IP 접근제어 삭제',
         content: `선택한 ${selectedRows.length}건의 접근제어를 삭제하시겠습니까?`,
       },
     });
-  }, [modal, category, selectedRows, deletePbxAcl, deleteCtiAcl]);
+  }, [modal, category, selectedRows, deletePbxAclBatch, deleteCtiAclBatch]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateAcls();

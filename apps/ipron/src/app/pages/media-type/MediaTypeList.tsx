@@ -13,7 +13,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MediaTypeFormDrawer, { type MediaTypeDrawerState } from '../../features/media-type/components/MediaTypeFormDrawer';
 import MediaTypeTable from '../../features/media-type/components/MediaTypeTable';
-import { useDeleteMediaType, useGetMediaTypeMeta, useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
+import { useDeleteMediaTypeBatch, useGetMediaTypeMeta, useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import type { MediaTypeResponse } from '../../features/media-type/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -35,7 +35,7 @@ export default function MediaTypeList() {
 
   const { data: meta = [], refetch: refetchMeta } = useGetMediaTypeMeta();
 
-  const { mutateAsync: deleteMtAsync, isPending: isDeleting } = useDeleteMediaType();
+  const { mutateAsync: deleteMtBatchAsync, isPending: isDeleting } = useDeleteMediaTypeBatch();
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -56,7 +56,7 @@ export default function MediaTypeList() {
     modal.confirm.execute({
       onOk: async () => {
         try {
-          await Promise.all(selectedRows.map((r) => deleteMtAsync(r.mediaType)));
+          await deleteMtBatchAsync(selectedRows.map((r) => r.mediaType));
           toast.success(`${selectedRows.length}건의 미디어 코드가 삭제되었습니다`);
         } catch (err: unknown) {
           toast.error(extractMessage(err) ?? '일부 항목 삭제에 실패했습니다');

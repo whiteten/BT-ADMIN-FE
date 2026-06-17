@@ -13,6 +13,7 @@ import PanelPieChart from './chart/PanelPieChart';
 import PanelRadarChart from './chart/PanelRadarChart';
 import PanelGrid from './grid/PanelGrid';
 import PanelKpiCard from './kpi/PanelKpiCard';
+import { formatterTypeToColumnFormat } from '../../../utils/columnFormat';
 import { useGetDataSourceFields, useGetDatasets } from '../../dataset/hooks/useDatasetQueries';
 import type { FieldMetaItem } from '../../dataset/types';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
@@ -164,7 +165,8 @@ function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: 
     // 데이터셋 CALC 필드는 플래그 유지 — 합계 행 제외·SQL 제외 판정에 쓰임
     isCalcField: field.fieldRole === 'CALC',
     aggFunc: defaultAggFunc(field, slotType),
-    columnFormat: isMsr ? 'Number' : undefined,
+    // 데이터셋 필드에 지정된 서식(formatterType)을 그대로 상속 — 보고서 표시값이 데이터셋 정의와 일치하도록.
+    columnFormat: isMsr ? formatterTypeToColumnFormat(field.formatterType) : undefined,
   };
 }
 
@@ -276,6 +278,29 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const visibleFields = fields.filter((f) => f.isVisible && f.fieldRole !== 'CALC');
   const dimFields = visibleFields.filter((f) => f.fieldRole === 'DIMENSION' || f.fieldRole === 'TIMESTAMP');
   const msrFields = visibleFields.filter((f) => f.fieldRole === 'MEASURE');
+
+  // 데이터셋 서식이 항상 우선 — 패널 로드/데이터셋 변경 시 슬롯 필드의 columnFormat을
+  // 데이터셋의 현재 formatterType으로 덮어쓴다(측정값/계산필드만, 디멘션은 미지정).
+  // (저장 당시 기본값 'Number'로 박힌 기존 패널도 데이터셋 정의대로 표시되도록.)
+  useEffect(() => {
+    if (fields.length === 0) return;
+    const metaMap = new Map(fields.map((f) => [f.fieldName, f]));
+    const apply = (setter: React.Dispatch<React.SetStateAction<PanelFieldMap[]>>) =>
+      setter((prev) => {
+        let changed = false;
+        const next = prev.map((e) => {
+          const meta = metaMap.get(e.fieldName);
+          if (!meta) return e;
+          const isMsr = meta.fieldRole === 'MEASURE' || meta.fieldRole === 'CALC';
+          const cf = isMsr ? formatterTypeToColumnFormat(meta.formatterType) : undefined;
+          if (e.columnFormat === cf) return e;
+          changed = true;
+          return { ...e, columnFormat: cf };
+        });
+        return changed ? next : prev;
+      });
+    [setGroupByFields, setValueFields, setSortFields, setXAxisFields, setYAxisFields, setSeriesFields, setSliceFields, setPieValueFields, setKpiFields].forEach(apply);
+  }, [fields]);
 
   // ─── Slot map: slotType → { fields, setter, maxItems } ───────────────────
   const slotMap: Record<string, { fields: PanelFieldMap[]; setter: React.Dispatch<React.SetStateAction<PanelFieldMap[]>>; maxItems?: number }> = {

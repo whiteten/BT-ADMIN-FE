@@ -10,6 +10,7 @@
  *  상담사↔스킬셋 (/api/ipron/skill-agents)
  *    ipron-skill-skillsets-by-agent      GET    한 상담사의 스킬셋 (path: agentId)
  *    ipron-skill-bulk-assign             POST   상담사에 스킬셋 일괄 배정 (path: agentId, body)
+ *    ipron-skill-bulk-update-pl          POST   N×M 배정행 우선순위·스킬레벨 일괄 수정 (body)
  *    ipron-skill-update                  PUT    P/L 수정 (path: agentId/skillsetId, body)
  *    ipron-skill-unassign                DELETE 단건 해제 (path: agentId/skillsetId)
  *
@@ -30,6 +31,7 @@ import type {
   BulkGrantResult,
   BulkRevokeRequest,
   BulkRevokeResult,
+  BulkUpdatePlRequest,
   SkillAgentBulkAssignRequest,
   SkillAgentBulkAssignResult,
   SkillAgentResponse,
@@ -115,6 +117,12 @@ export const skillAssignApi = {
   bulkRevoke: async (body: BulkRevokeRequest): Promise<BulkRevokeResult> => {
     const res = await apiClient.post<ApiResponse<BulkRevokeResult>>('/ipron-skill-assignments-bulk-revoke', body);
     return res.data?.data;
+  },
+
+  /** N × M 배정행 우선순위·스킬레벨 일괄 수정. 미존재 조합은 skip. 반환 = 갱신된 행 수. */
+  bulkUpdatePl: async (body: BulkUpdatePlRequest): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<number>>('/ipron-skill-bulk-update-pl', body);
+    return res.data?.data ?? 0;
   },
 
   // ─── 스킬모음 ──────────────────────────────────────────────────────────────

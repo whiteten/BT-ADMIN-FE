@@ -67,6 +67,20 @@ export interface SystemGroup {
 }
 
 /**
+ * 점유 세츄레이션 임계값 — 시스템(SLEE) 점유율(%)이 이 값 이상이면 주의/위험으로 강조.
+ * 사용자별 위젯 설정(D55, `settings.occThresholds`)에 저장된다. (HealthBoard 임계 패턴)
+ */
+export interface ChannelOccThresholds {
+  /** 주의 기준 % — 이상이면 주황 */
+  warn: number;
+  /** 위험 기준 % — 이상이면 빨강 */
+  danger: number;
+}
+
+/** 점유 심각도 — 정상 / 주의(warn) / 위험(danger). */
+export type OccSeverity = 'normal' | 'warn' | 'danger';
+
+/**
  * 영속화 UI 상태 — localStorage `bt-admin.insight.monitoring.widget.{widgetId}.ui` 에 저장.
  * CtiqStatusWidget 와 같은 키 패턴.
  */

@@ -222,12 +222,12 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
               ),
             },
             {
-              key: 'areacode',
-              label: '지역번호 라우팅',
+              key: 'areacode1',
+              label: '지역 라우팅(수도권·중부)',
               disabled: mode === 'create',
               children: (
                 <>
-                  <Form.Item name="areacodeRoutingYn" label="지역번호 라우팅 우선여부">
+                  <Form.Item name="areacodeRoutingYn" label="지역번호 라우팅 우선여부" style={{ marginBottom: 12 }}>
                     <Radio.Group onChange={(e) => setAreacodeYn(e.target.value as number)}>
                       <Radio value={1}>설정</Radio>
                       <Radio value={0}>해제</Radio>
@@ -236,9 +236,9 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
 
                   <div className="text-xs text-gray-400 mb-3">각 지역의 라우팅 CTI큐를 선택합니다 (BSR 분배 미사용 CTI큐만 표시).</div>
 
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    {AREACODE_FIELDS.map((f) => (
-                      <Form.Item key={f.key} name={f.key} label={f.label} className="mb-3">
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-0">
+                    {AREACODE_FIELDS.slice(0, 9).map((f) => (
+                      <Form.Item key={f.key} name={f.key} label={f.label} style={{ marginBottom: 12 }}>
                         <Select
                           placeholder={areacodeYn === 1 ? '지역 CTI큐 선택' : ''}
                           disabled={areacodeYn !== 1}
@@ -253,6 +253,29 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
                     ))}
                   </div>
                 </>
+              ),
+            },
+            {
+              key: 'areacode2',
+              label: '지역 라우팅(영남·호남·제주)',
+              disabled: mode === 'create',
+              children: (
+                <div className="grid grid-cols-3 gap-x-3 gap-y-0">
+                  {AREACODE_FIELDS.slice(9).map((f) => (
+                    <Form.Item key={f.key} name={f.key} label={f.label} style={{ marginBottom: 12 }}>
+                      <Select
+                        placeholder={areacodeYn === 1 ? '지역 CTI큐 선택' : ''}
+                        disabled={areacodeYn !== 1}
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        options={ctiqOptions}
+                        style={{ width: '100%' }}
+                        notFoundContent={ctiqOptions.length === 0 ? <span className="text-xs text-gray-400">배정된 CTI큐가 없습니다</span> : undefined}
+                      />
+                    </Form.Item>
+                  ))}
+                </div>
               ),
             },
           ]}

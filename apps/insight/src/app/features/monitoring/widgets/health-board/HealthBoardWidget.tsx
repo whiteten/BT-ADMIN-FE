@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, InputNumber } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import { Activity, AlertTriangle, Cable, ChevronRight, Clock, Headset, Hourglass, PhoneIncoming, PhoneMissed, Radio, Server, Settings, Timer } from 'lucide-react';
+import { Activity, AlertTriangle, Cable, ChevronRight, Clock, Gauge, Headset, Hourglass, Percent, PhoneMissed, Radio, Server, Settings } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { genHealthBoardDemo, isHealthBoardDemoMode } from './demoData';
 import {
@@ -29,7 +29,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/libs/shared-ui/
 /** 설정 드로어 — 4개 응대 지표의 임계 메타. dir=higher 는 기준 미만 시 강조, lower 는 초과 시 강조. */
 const THRESHOLD_METRICS: { key: keyof HealthBoardThresholds; label: string; unit: string; dir: 'higher' | 'lower'; max?: number }[] = [
   { key: 'answerRate', label: '응대율', unit: '%', dir: 'higher', max: 100 },
-  { key: 'serviceLevel', label: 'SL', unit: '%', dir: 'higher', max: 100 },
+  { key: 'serviceLevel', label: 'SLA', unit: '%', dir: 'higher', max: 100 },
   { key: 'abandonRate', label: '포기율', unit: '%', dir: 'lower', max: 100 },
   { key: 'waiting', label: '현재 대기', unit: '건', dir: 'lower' },
 ];
@@ -38,7 +38,7 @@ const THRESHOLD_METRICS: { key: keyof HealthBoardThresholds; label: string; unit
  * 종합 헬스보드 위젯 — "지금 우리 센터, 정상인가?"
  *
  * 시안: docs/insight/monitoring/mvp-design/wireframes/01-healthboard.html
- * - KPI 스트립(상태 5종): 응대율·SL·포기율 게이지 / 현재대기 / 알람 듀얼 신호등
+ * - KPI 스트립(상태 5종): 응대율·SLA·포기율 게이지 / 현재대기 / 알람 듀얼 신호등
  * - 시스템 신호등(IE·IC·IR 노드 헬스, LED glow)
  * - 요약 3카드: 큐 현황 / 상담사 상태 도넛 / 통화 품질(MoS)
  *
@@ -164,7 +164,7 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           <GaugeCard
             label="응대율"
-            icon={<PhoneIncoming className="h-3.5 w-3.5" />}
+            icon={<Percent className="h-3.5 w-3.5" />}
             value={d.answerRate}
             max={100}
             target={t?.answerRate?.good ?? 90}
@@ -184,8 +184,8 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
             footer={<SevPill sev={answerRateSev(d, t)} okText="목표 충족" warnText="목표 미달" />}
           />
           <GaugeCard
-            label="SL"
-            icon={<Timer className="h-3.5 w-3.5" />}
+            label="SLA"
+            icon={<Gauge className="h-3.5 w-3.5" />}
             value={d.serviceLevel}
             max={100}
             target={t?.serviceLevel?.good ?? 90}

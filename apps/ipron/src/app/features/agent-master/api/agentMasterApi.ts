@@ -9,6 +9,8 @@
  *    ipron-agent-master-update           PUT    수정
  *    ipron-agent-master-delete-batch     POST   일괄 삭제 (body: agentIds[])
  *    ipron-agent-master-move             POST   그룹 이동 (드래그앤드롭)
+ *    ipron-agent-master-bulk-group       PUT    다건 그룹 일괄 변경 (body: { agentIds, groupId }, 207)
+ *    ipron-agent-master-bulk-media       PUT    다건 미디어 일괄 변경 (body: { items:[{agentId, useGrpMdaOpt, mediaMatrix}] })
  *    ipron-agent-master-duplicate-check  GET    로그인 ID 중복 체크
  *    ipron-agent-master-tenants          GET    테넌트 통계
  *    ipron-agent-master-excel-import     POST   엑셀 가져오기 시작 (multipart, taskId 반환)
@@ -27,6 +29,7 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  AgentBulkMediaRequest,
   AgentConfig,
   AgentCreateRequest,
   AgentDuplicateCheckParams,
@@ -39,6 +42,8 @@ import type {
   AgentResponse,
   AgentTenantStat,
   AgentUpdateRequest,
+  BulkChangeResult,
+  BulkGroupChangeRequest,
   Oscom,
 } from '../types';
 
@@ -109,6 +114,25 @@ export const agentMasterApi = {
       params: { id },
     });
     return res.data?.data;
+  },
+
+  /**
+   * 상담사 다건 그룹 일괄 변경 (벌크 1콜).
+   * BE: PUT /api/ipron/agents/bulk-group — 207 best-effort (일부 실패 시 failures 수집).
+   * @flow ipron-agent-master-bulk-group
+   */
+  bulkGroup: async (body: BulkGroupChangeRequest): Promise<BulkChangeResult> => {
+    const res = await apiClient.put<ApiResponse<BulkChangeResult>>('/ipron-agent-master-bulk-group', body);
+    return res.data?.data;
+  },
+
+  /**
+   * 상담사 다건 미디어 일괄 변경 (벌크 1콜).
+   * BE: PUT /api/ipron/agents/bulk-media — 단일 트랜잭션 전체 롤백. 미디어 필드만 행별 부분갱신.
+   * @flow ipron-agent-master-bulk-media
+   */
+  bulkMedia: async (body: AgentBulkMediaRequest): Promise<void> => {
+    await apiClient.put('/ipron-agent-master-bulk-media', body);
   },
 
   // ─── 상담그룹 조회 ───────────────────────────────────────────────────────

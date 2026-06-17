@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
-import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip, koNum } from './echartsPanelTheme';
+import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip } from './echartsPanelTheme';
+import { formatColumnValue } from '../../../../utils/columnFormat';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { PanelDetail, PieChartOptions } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -47,9 +48,10 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
     }));
     const total = data.reduce((s, d) => s + d.value, 0);
 
+    const fmt = (v: number) => formatColumnValue(v, valueField.columnFormat);
     const labelFormatter = (p: { name: string; value: number; percent: number }) => {
       if (labelType === 'name') return p.name;
-      if (labelType === 'value') return koNum(p.value);
+      if (labelType === 'value') return fmt(p.value);
       return `${p.name} ${p.percent.toFixed(1)}%`;
     };
 
@@ -58,7 +60,7 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
       animationEasing: 'cubicOut',
       tooltip: {
         trigger: 'item',
-        formatter: (p: { name: string; value: number; percent: number }) => `${p.name}<br/>${koNum(p.value)} (${p.percent.toFixed(1)}%)`,
+        formatter: (p: { name: string; value: number; percent: number }) => `${p.name}<br/>${fmt(p.value)} (${p.percent.toFixed(1)}%)`,
         ...baseTooltip,
       },
       legend: { ...baseLegend(showLegend), type: 'scroll', orient: 'horizontal' },
@@ -69,7 +71,7 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
               type: 'text',
               left: 'center',
               top: showLegend ? '42%' : '46%',
-              style: { text: koNum(total), fontSize: 22, fontWeight: 700, fill: '#1f2937', fontFamily: FONT_FAMILY, textAlign: 'center' },
+              style: { text: fmt(total), fontSize: 22, fontWeight: 700, fill: '#1f2937', fontFamily: FONT_FAMILY, textAlign: 'center' },
             },
             {
               type: 'text',

@@ -75,6 +75,16 @@ export const useDeleteDnisTrans = ({ mutationOptions }: MutationHookOptions = {}
   });
 };
 
+/**
+ * DNIS 번호변환 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteDnisTransBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => didTransApi.deleteDnisTransBatch(ids),
+    ...mutationOptions,
+  });
+};
+
 // ─── ANI 훅 ───────────────────────────────────────────────────────────────
 
 /**
@@ -115,6 +125,16 @@ export const useCreateAniTrans = ({ mutationOptions }: MutationHookOptions = {})
 export const useUpdateAniTrans = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: didTransApi.updateAniTrans,
+    ...mutationOptions,
+  });
+};
+
+/**
+ * ANI 번호변환 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteAniTransBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => didTransApi.deleteAniTransBatch(ids),
     ...mutationOptions,
   });
 };

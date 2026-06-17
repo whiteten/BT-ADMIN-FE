@@ -64,3 +64,19 @@ export const useDeleteMediaType = ({ mutationOptions }: MutationHookOptions<void
     },
   });
 };
+
+/**
+ * 미디어타입 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteMediaTypeBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (mediaTypes) => mediaTypeApi.deleteMediaTypeBatch(mediaTypes),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: mediaTypeQueryKeys.list.queryKey });
+      qc.invalidateQueries({ queryKey: mediaTypeQueryKeys.meta.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};

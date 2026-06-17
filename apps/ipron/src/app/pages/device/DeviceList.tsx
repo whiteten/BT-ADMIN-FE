@@ -305,7 +305,7 @@ export default function DeviceList() {
       },
       { field: 'macAddr', headerName: 'MAC 주소', flex: 1.2, minWidth: 140, tooltipField: 'macAddr' },
       { field: 'dnNo', headerName: '대표DN', flex: 0.8, minWidth: 100 },
-      { field: 'ipAddr', headerName: 'IP주소', flex: 1, minWidth: 120, tooltipField: 'ipAddr' },
+      { field: 'ipAddr', headerName: 'IP 주소', flex: 1, minWidth: 120, tooltipField: 'ipAddr' },
       { field: 'firmVersion', headerName: '펌웨어버전', flex: 1, minWidth: 110, tooltipField: 'firmVersion' },
       {
         field: 'firmUpdUseYn',
