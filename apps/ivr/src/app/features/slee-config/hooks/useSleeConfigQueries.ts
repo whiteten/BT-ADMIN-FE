@@ -3,10 +3,11 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractApiErrorMessage, extractFileName, toast } from '@/shared-util';
 import { sleeConfigApi } from '../api/sleeConfigApi';
 import type {
   SleeConfigApplyResult,
+  SleeConfigApplyResultRow,
   SleeConfigBackupCompareRow,
   SleeConfigBackupHeader,
   SleeConfigBackupRestoreResponse,
@@ -51,6 +52,7 @@ export const sleeConfigQueryKeys = createQueryKeys('sleeConfig', {
   getProperties: (params?: Record<string, unknown>) => [params],
   getIrSystems: (params?: Record<string, unknown>) => [params],
   getHistory: (params?: Record<string, unknown>) => [params],
+  getApplyResults: (params?: Record<string, unknown>) => [params],
   getBackups: (params?: Record<string, unknown>) => [params],
   getBackupCompare: (params?: Record<string, unknown>) => [params],
 });
@@ -138,6 +140,23 @@ export const useImportUserconfig = ({ mutationOptions }: MutationHookOptions<Sle
   });
 };
 
+/** 환경변수 cfg ZIP Export (Blob → 브라우저 다운로드) — AS-IS IPR30S3030EX. */
+export const useExportSleeConfig = ({ mutationOptions }: MutationHookOptions<void, { tenantId: number; configFile: string }> = {}) => {
+  return useMutation({
+    mutationFn: async (params: { tenantId: number; configFile: string }) => {
+      try {
+        const response = await sleeConfigApi.exportConfig(params);
+        const fileName = extractFileName(response.headers['content-disposition'], 'SCENARIO_CONFIG.zip');
+        downloadBlob(response.data, fileName);
+      } catch (err) {
+        toast.error(await extractApiErrorMessage(err, '환경변수 Export에 실패했습니다.'));
+        throw err;
+      }
+    },
+    ...mutationOptions,
+  });
+};
+
 // ─── Phase 1: 환경파일 전체 삭제 ─────────────────────────────────────────
 
 export const useDeleteConfigFile = ({ mutationOptions }: MutationHookOptions<SleeConfigDeleteFileResponse, { tenantId: number; configFile: string }> = {}) => {
@@ -168,6 +187,27 @@ export const useGetHistory = ({
   return useQuery({
     queryKey: sleeConfigQueryKeys.getHistory(params as Record<string, unknown> | undefined).queryKey,
     queryFn: () => sleeConfigApi.getHistory(params as GetHistoryParams),
+    enabled: !!params?.tenantId && !!params?.configFile,
+    ...queryOptions,
+  });
+};
+
+interface GetApplyResultsParams {
+  tenantId: number;
+  configFile: string;
+}
+
+/** 예약 적용 결과 조회 — AS-IS IPR30S3030L3. tenant/configFile 둘 다 있을 때만 조회. */
+export const useGetApplyResults = ({
+  params,
+  queryOptions,
+}: {
+  params?: GetApplyResultsParams;
+  queryOptions?: Omit<Parameters<typeof useQuery<SleeConfigApplyResultRow[]>>[0], 'queryKey' | 'queryFn'>;
+} = {}) => {
+  return useQuery({
+    queryKey: sleeConfigQueryKeys.getApplyResults(params as Record<string, unknown> | undefined).queryKey,
+    queryFn: () => sleeConfigApi.getApplyResults(params as GetApplyResultsParams),
     enabled: !!params?.tenantId && !!params?.configFile,
     ...queryOptions,
   });

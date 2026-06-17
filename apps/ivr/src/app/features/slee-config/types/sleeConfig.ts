@@ -175,6 +175,46 @@ export interface SleeConfigHistoryRow {
   workUserName: string | null;
 }
 
+// === 예약 적용 결과 (AS-IS IPR30S3030L3 / selectApplyList) ===
+
+/**
+ * 예약 적용 결과 한 행 — (tenant, configFile) 의 CONFIGSYSTEM 을 시스템별로 그룹핑한 적용 상태.
+ * 공통코드명은 BE 조인 대신 코드만 내려주고 FE 가 라벨 매핑(멘트파일 이력 패턴 동일).
+ * 예약취소는 상태코드가 아니라 canceled 플래그로 처리.
+ */
+export interface SleeConfigApplyResultRow {
+  systemId: number;
+  systemName: string | null;
+  rtResvKind: number | null;
+  /** IR_APPLY_STATUS 원시코드: 10 예약/20 파일전송성공/25 파일전송실패/30 제어명령성공/35 제어명령실패/50 적용완료/55 적용실패 */
+  applyStatusCode: number | null;
+  /** IR_APPLY_RESULT: 1 성공/2 실패/9 미처리(2h 초과 미실행, BE 파생) */
+  applyResultCode: number | null;
+  /** 예약취소 여부 — true 면 상태 라벨을 "예약취소"로 표시 */
+  canceled: boolean;
+  applyDatetime: string | null;
+  svcResvId: string | null;
+  workUserName: string | null;
+}
+
+/** 예약 적용 결과 — IR_APPLY_STATUS 전체 라벨 (이력의 축약 라벨과 별개). */
+export const SLEE_APPLY_RESULT_STATUS_LABELS: Record<number, string> = {
+  10: '예약',
+  20: '파일전송성공',
+  25: '파일전송실패',
+  30: '제어명령성공',
+  35: '제어명령실패',
+  50: '적용완료',
+  55: '적용실패',
+};
+
+/** 예약 적용 결과 — IR_APPLY_RESULT 라벨. */
+export const SLEE_APPLY_RESULT_LABELS: Record<number, string> = {
+  1: '성공',
+  2: '실패',
+  9: '미처리',
+};
+
 // === 백업 이력 (Phase 2) ===
 
 export interface SleeConfigBackupHeader {

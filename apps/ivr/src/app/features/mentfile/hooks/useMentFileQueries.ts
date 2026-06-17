@@ -49,6 +49,20 @@ export const useCreateMentFile = ({ mutationOptions }: MutationHookOptions = {})
   });
 };
 
+export const useCreateMentFilesBatch = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: mentFileApi.createMentFilesBatch,
+    ...mutationOptions,
+  });
+};
+
+export const useParseMentDesc = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: mentFileApi.parseMentDesc,
+    ...mutationOptions,
+  });
+};
+
 export const useUpdateMentFile = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: mentFileApi.updateMentFile,
@@ -117,6 +131,40 @@ export const useDownloadMentFile = ({ mutationOptions }: MutationHookOptions = {
       } catch (err) {
         // blob 응답이라 에러 본문도 Blob → 헬퍼로 백엔드 message 추출 후 토스트
         toast.error(await extractApiErrorMessage(err, '다운로드에 실패했습니다.'));
+        throw err;
+      }
+    },
+    ...mutationOptions,
+  });
+};
+
+/** 멘트파일 목록 엑셀 내보내기 (Blob → 브라우저 다운로드). AS-IS doExcel. */
+export const useExportMentFiles = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        const response = await mentFileApi.exportMentFiles();
+        const fileName = extractFileName(response.headers['content-disposition'], 'mentfile_list.xlsx');
+        downloadBlob(response.data, fileName);
+      } catch (err) {
+        toast.error(await extractApiErrorMessage(err, '엑셀 내보내기에 실패했습니다.'));
+        throw err;
+      }
+    },
+    ...mutationOptions,
+  });
+};
+
+/** 멘트설명 입력 양식(xlsx) 다운로드 (Blob). */
+export const useDownloadDescTemplate = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      try {
+        const response = await mentFileApi.downloadDescTemplate();
+        const fileName = extractFileName(response.headers['content-disposition'], 'ment_desc_template.xlsx');
+        downloadBlob(response.data, fileName);
+      } catch (err) {
+        toast.error(await extractApiErrorMessage(err, '양식 다운로드에 실패했습니다.'));
         throw err;
       }
     },
