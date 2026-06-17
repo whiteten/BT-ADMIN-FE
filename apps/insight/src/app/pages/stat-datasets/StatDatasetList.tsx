@@ -14,7 +14,7 @@ import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../feat
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Highlight } from '@/components/custom/Highlight';
 import NoData from '@/components/custom/NoData';
-import { TreeCaret, TreeLabel, TreeRow } from '@/components/custom/TreeView';
+import { TreeCaret, TreeRow } from '@/components/custom/TreeView';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
@@ -207,12 +207,13 @@ export default function StatDatasetList() {
           <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
         )}
         {isGroup ? (
-          <TreeLabel selected={isSelected}>
+          // 그룹(도메인) 라벨 — leaf(13.5px)와 동급 크기 + semibold 로 키워 위계 구분 (기본 TreeLabel 12.5px 보다 큼)
+          <span className={`flex-1 truncate text-[13.5px] font-semibold ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-700'}`}>
             <Highlight text={node.label} query={search} />
-          </TreeLabel>
+          </span>
         ) : (
-          // leaf 데이터셋명 — 그룹 라벨보다 키워(13.5px·medium) 대표 데이터 느낌으로 위계 부여
-          <span className={`flex-1 truncate text-[13.5px] font-medium ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
+          // leaf 데이터셋명 — 그룹 라벨(13.5px semibold)보다 작고 일반 굵기(13px·normal)로 낮춰 위계 구분
+          <span className={`flex-1 truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
             <Highlight text={node.label} query={search} />
           </span>
         )}

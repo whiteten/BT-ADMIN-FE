@@ -17,7 +17,6 @@ export interface ReportListItem {
   datasetId: number;
   /** 보고서 패널들이 사용하는 데이터셋명 목록 (distinct, 이름순). v5.0 패널 단위 데이터셋. */
   datasetNames?: string[];
-  isPublished: boolean;
   /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
   isSystem?: boolean;
   ownerUserId: number;
@@ -32,7 +31,6 @@ export interface ReportDetail {
   domain: DomainCode;
   datasetId: number;
   iconType?: ReportIconType;
-  isPublished: boolean;
   /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
   isSystem?: boolean;
   ownerUserId: number;

@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import type { CustomToolPanelProps } from 'ag-grid-react';
-import { GitBranch, Layers, OctagonAlert } from 'lucide-react';
+import { FileText, GitBranch, Layers, OctagonAlert } from 'lucide-react';
 import { CATEGORY_OPTIONS, type InputType, type SearchConditionListItem } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -72,9 +72,10 @@ function SearchConditionDetailPanel(props: CustomToolPanelProps<SearchConditionL
       </div>
 
       {/* 요약 통계 */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <StatBox icon={<Layers className="size-3.5" />} label="단계" value={String(nodes.length)} />
         <StatBox icon={<GitBranch className="size-3.5" />} label="옵션 SQL" value={`${sqlCount}/${nodes.length}`} />
+        <StatBox icon={<FileText className="size-3.5" />} label="사용 보고서" value={String(row.usedReportCount ?? 0)} />
       </div>
 
       {/* 입력 유형 */}
