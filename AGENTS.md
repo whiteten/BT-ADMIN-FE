@@ -20,6 +20,7 @@
 | 검색 기능(client-side fuzzy) 작성 | [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) |
 | AG-Grid 테이블 작성 | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
 | 정식 화면 변형(page variant) 작성 | [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) |
+| React 성능 점검·리팩터 (번들·async·리렌더 체크리스트) | [.claude/skills/react-perf/SKILL.md](.claude/skills/react-perf/SKILL.md) |
 | 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
 | 기존 remote 앱 점검·정규화 | [.claude/commands/update-remote.md](.claude/commands/update-remote.md) |
 
