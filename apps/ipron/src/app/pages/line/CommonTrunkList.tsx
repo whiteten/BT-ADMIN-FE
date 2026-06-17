@@ -331,7 +331,7 @@ export default function CommonTrunkList() {
       {
         field: 'assignYn',
         headerName: '배정상태',
-        width: 84,
+        width: 96,
         cellStyle: { textAlign: 'center' } as CellStyle,
         filterValueGetter: (p) => ((p.data as CommonTrunkMemberResponse | undefined)?.assignYn ? '배정중' : '미배정'),
         cellRenderer: (p: { value: boolean }) =>

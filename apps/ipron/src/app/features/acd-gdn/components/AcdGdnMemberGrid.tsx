@@ -65,7 +65,7 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         // 갭1: 우선순위 인라인 편집 (기배정 행만 editable — SWAT IPR20S3030 정합)
         headerName: '우선순위',
         field: 'memberPriority',
-        width: 85,
+        width: 96,
         type: 'numericColumn',
         filter: 'agNumberColumnFilter',
         editable: (p) => p.data?.assigned === true,

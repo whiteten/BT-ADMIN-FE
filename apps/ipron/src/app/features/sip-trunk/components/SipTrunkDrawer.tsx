@@ -252,8 +252,23 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         }
         createTrunk({ nodeId, tenantId, ...common });
       }
-    } catch {
-      setActiveTab('basic');
+    } catch (err) {
+      // 검증 실패 시 첫 에러 필드가 속한 탭으로 전환 (이관 필드 trkAuthtype/sipTrunkDesc 는 부가정보 탭)
+      const extraTabFields = new Set([
+        'trkAuthtype',
+        'sipTrunkDesc',
+        'transportType',
+        'allocDelayTime',
+        'trkIpUpdate',
+        'callTraceYn',
+        'blockYn',
+        'ssRefreshType',
+        'registSeconds',
+        'registYn',
+      ]);
+      const errFields = (err as { errorFields?: { name: (string | number)[] }[] })?.errorFields ?? [];
+      const firstName = errFields[0]?.name?.[0];
+      setActiveTab(typeof firstName === 'string' && extraTabFields.has(firstName) ? 'extra' : 'basic');
     }
   }, [form, isEdit, editData, nodeId, tenantId, createTrunk, updateTrunk, is3rdParty]);
 
@@ -384,7 +399,12 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
       >
         <Input placeholder="::" maxLength={63} disabled={ipVersion === 4} />
       </Form.Item>
+    </div>
+  );
 
+  const extraTab = (
+    <div className="grid grid-cols-2 gap-x-4">
+      {/* 기본정보 탭에서 이관 — IP유형(trkAuthtype) / SIP트렁크 설명(sipTrunkDesc) */}
       <Form.Item name="trkAuthtype" label="IP유형">
         <Radio.Group>
           {IP_AUTH_TYPE_OPTIONS.map((o) => (
@@ -394,15 +414,9 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
           ))}
         </Radio.Group>
       </Form.Item>
-
       <Form.Item name="sipTrunkDesc" label="SIP트렁크 설명" className="col-span-2" rules={[{ max: 256, message: '256자 이내' }]}>
         <Input placeholder="설명 입력" maxLength={256} />
       </Form.Item>
-    </div>
-  );
-
-  const extraTab = (
-    <div className="grid grid-cols-2 gap-x-4">
       <Form.Item name="transportType" label="Transport 타입" extra="WS/WSS 제외">
         <Select options={TRANSPORT_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
       </Form.Item>
@@ -471,7 +485,15 @@ const SipTrunkDrawer = forwardRef<SipTrunkDrawerRef, Props>(({ nodeId, tenantId,
         </div>
       }
     >
-      <Form form={form} layout="vertical">
+      {/* 파일 한정 여백 축소 — 이 드로어 내부 Form.Item 만 대상(고유 래퍼 클래스), 전역 antd 오버라이드 아님 */}
+      <style>{`
+        .sip-trunk-drawer-form .ant-form-item { margin-bottom: 6px; }
+        .sip-trunk-drawer-form .ant-form-item .ant-form-item-label { padding-bottom: 1px; }
+        .sip-trunk-drawer-form .ant-form-item .ant-form-item-label > label { height: 26px; }
+        .sip-trunk-drawer-form .ant-form-item .ant-form-item-extra { font-size: 11px; line-height: 1.2; margin-top: 0; }
+        .sip-trunk-drawer-form .ant-tabs-nav { margin-bottom: 8px; }
+      `}</style>
+      <Form form={form} layout="vertical" className="sip-trunk-drawer-form">
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}

@@ -407,8 +407,8 @@ export default function SipTrunkList() {
       {
         headerName: '배정상태',
         field: 'assignYn',
-        width: 84,
-        maxWidth: 92,
+        width: 96,
+        maxWidth: 106,
         cellStyle: { textAlign: 'center' } as CellStyle,
         filterValueGetter: (p) => (p.data?.assignYn ? '배정중' : '미배정'),
         cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) =>

@@ -1,8 +1,8 @@
 /**
  * 공용 그룹DN (GDN_TYPE=18) 등록/수정 드로어.
  *
- * 탭 ① 기본정보 — 번호/이름/DR노드/Global/대기/블럭/접근코드 프로파일(갭2)/라우팅기준(갭3)
- * 탭 ② 초기구성 — 멘트 6종(갭1) + 블럭여부→closeType 연동(갭1) + 라우팅 DNIS 3종(갭1)
+ * 탭 ① 기본정보 — 번호/이름/DR노드/Global/대기/접근코드 프로파일(갭2)/라우팅기준(갭3)
+ * 탭 ② 초기구성 — 멘트 6종(갭1) + 블럭여부→closeType 연동(갭1, 블럭여부 소스 단일화) + 라우팅 DNIS 3종(갭1)
  *
  * SWAT IPR20S3030 poPopup01 정합:
  *  - DR노드 지정 시 → Global DN 자동 강제 (doDrNode_OnSelect)
@@ -303,7 +303,7 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
   };
 
   const basicTab = (
-    <div className="grid grid-cols-2 gap-x-4">
+    <div className="grid grid-cols-2 gap-x-4 gap-y-0 [&_.ant-form-item]:!mb-3">
       <Form.Item
         label="그룹DN 번호"
         name="gdnNo"
@@ -336,13 +336,6 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
         <InputNumber style={{ width: '100%' }} min={0} />
       </Form.Item>
 
-      <Form.Item label="블록 여부" name="blockYn">
-        <Radio.Group>
-          <Radio value={1}>설정</Radio>
-          <Radio value={0}>해제</Radio>
-        </Radio.Group>
-      </Form.Item>
-
       {/* 갭3: 라우팅기준 (ACD_ROUTING_KIND) — disabled (SWAT 정합: GDN_TYPE=18 disabled) */}
       <Form.Item label="라우팅 기준" name="routingKind" extra="읽기전용 (시스템 설정)">
         <Select options={ACD_ROUTING_KIND_OPTIONS} disabled placeholder="(시스템 설정)" />
@@ -359,10 +352,10 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
   );
 
   const configTab = (
-    <div className="space-y-4">
+    <div className="space-y-1.5">
       <section>
-        <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">멘트 정보</h4>
-        <div className="grid grid-cols-2 gap-x-4">
+        <h4 className="text-xs text-gray-500 font-semibold mb-1 pb-0.5 border-b border-dashed border-gray-200">멘트 정보</h4>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-0 [&_.ant-form-item]:!mb-1.5">
           <Form.Item label="초기멘트" name="initMent">
             <Select options={mentOptions} placeholder="(없음)" allowClear />
           </Form.Item>
@@ -385,8 +378,8 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
       </section>
 
       <section>
-        <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">블럭 및 대기 정보</h4>
-        <div className="grid grid-cols-2 gap-x-4">
+        <h4 className="text-xs text-gray-500 font-semibold mb-1 pb-0.5 border-b border-dashed border-gray-200">블럭 및 대기 정보</h4>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-0 [&_.ant-form-item]:!mb-1.5">
           <Form.Item label="블럭 여부" name="blockYn">
             <Radio.Group>
               <Radio value={1}>설정</Radio>
@@ -401,8 +394,8 @@ export default function CommonGdnFormDrawer({ open, mode, detail, nodeId, nodeNa
       </section>
 
       <section>
-        <h4 className="text-xs text-gray-500 font-semibold mb-3 pb-1 border-b border-dashed border-gray-200">우회 라우팅 정보</h4>
-        <div className="grid grid-cols-2 gap-x-4">
+        <h4 className="text-xs text-gray-500 font-semibold mb-1 pb-0.5 border-b border-dashed border-gray-200">우회 라우팅 정보</h4>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-0 [&_.ant-form-item]:!mb-1.5">
           <Form.Item label="장애시라우팅 DNIS" name="errorRoutingDnis" rules={[{ max: 24, message: '최대 24자' }]}>
             <Input maxLength={24} placeholder="숫자만" />
           </Form.Item>
