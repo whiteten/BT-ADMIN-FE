@@ -8,9 +8,9 @@ import dayjs from 'dayjs';
 import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { fuzzyScore, toast } from '@/shared-util';
-import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
+import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem, FieldMetaItem } from '../../features/dataset/types';
-import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Highlight } from '@/components/custom/Highlight';
 import { TreeCaret, TreeRow } from '@/components/custom/TreeView';
@@ -466,11 +466,35 @@ function ChipOption({ active, onClick, children }: { active: boolean; onClick: (
 // ─── 상세 패널 (선택 데이터셋 1건 — datasetId 로 remount) ─────────────────────────
 
 function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetListItem; onEdit: () => void; onDelete: () => void }) {
+  const modal = useModal();
   const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
   const canDelete = !listItem.isSystem || isSystemAdmin;
   const { gridOptions } = useAggridOptions();
 
   const { data: detail, isLoading } = useGetDataset({ params: { datasetId: listItem.datasetId } });
+
+  // 시스템 데이터셋 승격/해제 — 시스템 관리자 전용 (편집 화면에서 이관)
+  const { mutate: setSystemFlag, isPending: isFlagPending } = useSetDatasetSystemFlag({
+    mutationOptions: {
+      onSuccess: (_, { toSystem }) => toast.success(toSystem ? '시스템 데이터셋으로 승격되었습니다.' : '시스템 데이터셋 승격이 해제되었습니다.'),
+      onError: () => toast.error('처리 중 오류가 발생했습니다.'),
+    },
+  });
+
+  const handleToggleSystem = () => {
+    const toSystem = !listItem.isSystem;
+    modal.confirm.execute({
+      onOk: () => setSystemFlag({ datasetId: listItem.datasetId, toSystem }),
+      options: {
+        title: toSystem ? '시스템 데이터셋 승격' : '시스템 데이터셋 승격 해제',
+        content: toSystem
+          ? '시스템 데이터셋으로 승격하면 모든 사용자에게 노출되며, 수정/삭제는 관리자만 가능합니다. 계속하시겠습니까?'
+          : '승격을 해제하면 등록 테넌트 소유의 일반 데이터셋으로 복귀합니다. 계속하시겠습니까?',
+        okText: '확인',
+        cancelText: '취소',
+      },
+    });
+  };
 
   const code = listItem.productCode;
   const units: string[] = Array.isArray(listItem.availableUnits) ? listItem.availableUnits : [];
@@ -489,13 +513,15 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-bt-border">
         <div className="flex items-center gap-2 min-w-0">
-          <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
-            {code}
-          </Tag>
-          <span className="text-sm font-semibold text-bt-fg truncate">{DOMAIN_LABELS[code] ?? code}</span>
-          {DOMAIN_DESCRIPTIONS[code] && <span className="text-xs text-bt-fg-muted truncate hidden xl:block">{DOMAIN_DESCRIPTIONS[code]}</span>}
+          {/* 데이터셋 명칭 — 타이틀 (카테고리·유형은 본문 요약 그리드에 표기) */}
+          <span className="text-lg font-semibold text-bt-fg truncate">{listItem.datasourceName}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {isSystemAdmin && (
+            <Button loading={isFlagPending} onClick={handleToggleSystem}>
+              {listItem.isSystem ? '시스템 승격 해제' : '시스템 데이터셋으로 승격'}
+            </Button>
+          )}
           <Button icon={<Pencil className="size-3.5" />} onClick={onEdit}>
             편집
           </Button>
@@ -509,25 +535,19 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
 
       {/* 본문 */}
       <div className="flex-1 min-h-0 flex flex-col px-6 py-5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-lg font-semibold text-bt-fg">{listItem.datasourceName}</span>
-          {listItem.isSystem && (
-            <Tag color="blue" className="!mb-0 !mr-0">
-              시스템
-            </Tag>
-          )}
-          {!listItem.isActive && (
-            <Tag color="default" className="!mb-0 !mr-0">
-              비활성
-            </Tag>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-bt-fg-muted">{listItem.description || '설명 없음'}</p>
-
         {/* 데이터셋 요약 — 필드 구성 표 윗쪽 */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+          {/* 설명 — 맨 윗줄 전체 폭 */}
+          <DetailField className="col-span-2 md:col-span-3" label="설명" value={listItem.description || '-'} />
           <DetailField label="데이터셋 ID" value={<span className="font-mono">{listItem.datasetId}</span>} />
-          <DetailField label="카테고리" value={`${DOMAIN_LABELS[code] ?? code} (${code})`} />
+          <DetailField
+            label="카테고리"
+            value={
+              <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
+                {code} · {DOMAIN_LABELS[code] ?? code}
+              </Tag>
+            }
+          />
           <DetailField
             label="상태"
             value={
@@ -542,7 +562,20 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
               )
             }
           />
-          <DetailField label="유형" value={listItem.isSystem ? '시스템' : '사용자'} />
+          <DetailField
+            label="유형"
+            value={
+              listItem.isSystem ? (
+                <Tag color="blue" className="!mb-0 !mr-0">
+                  시스템
+                </Tag>
+              ) : (
+                <Tag color="default" className="!mb-0 !mr-0">
+                  사용자
+                </Tag>
+              )
+            }
+          />
           <DetailField label="DB 뷰 Prefix" value={<span className="font-mono">{listItem.dbViewPrefix || '-'}</span>} />
           <DetailField
             label="지원 단위"
@@ -593,9 +626,9 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
   );
 }
 
-function DetailField({ label, value }: { label: string; value: ReactNode }) {
+function DetailField({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <div className="text-[11px] font-semibold uppercase tracking-wide text-bt-fg-muted mb-1">{label}</div>
       <div className="text-sm text-bt-fg">{value}</div>
     </div>

@@ -6,7 +6,7 @@ import { Calendar, Columns3, Database, Layers } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
-import { useGetDataset, useSetDatasetSystemFlag, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
+import { useGetDataset, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { ColumnFormatValue, DataSourceFieldRequest, FieldMetaItem, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import type { DomainCode } from '../../features/report/types';
@@ -153,29 +153,6 @@ export default function StatDatasetEdit() {
     },
   });
 
-  const { mutate: setSystemFlag, isPending: isFlagPending } = useSetDatasetSystemFlag({
-    mutationOptions: {
-      onSuccess: (_, { toSystem }) => {
-        toast.success(toSystem ? '시스템 데이터셋으로 승격되었습니다.' : '시스템 데이터셋 승격이 해제되었습니다.');
-      },
-      onError: () => toast.error('처리 중 오류가 발생했습니다.'),
-    },
-  });
-
-  const handleToggleSystem = () => {
-    if (!dataset || !datasetId) return;
-    const toSystem = !dataset.isSystem;
-    modal.confirm({
-      title: toSystem ? '시스템 데이터셋 승격' : '시스템 데이터셋 승격 해제',
-      content: toSystem
-        ? '시스템 데이터셋으로 승격하면 모든 사용자에게 노출되며, 수정/삭제는 관리자만 가능합니다. 계속하시겠습니까?'
-        : '승격을 해제하면 등록 테넌트 소유의 일반 데이터셋으로 복귀합니다. 계속하시겠습니까?',
-      okText: '확인',
-      cancelText: '취소',
-      onOk: () => setSystemFlag({ datasetId, toSystem }),
-    });
-  };
-
   // 데이터셋 명 인라인 편집 — 로컬 상태만 변경. 실제 저장은 [저장] 버튼에서 전체 payload로 전송.
   // (백엔드 update DTO는 dbViewPrefix @NotBlank 필수 → 이름만 부분 전송 시 400)
   const handleRename = (value: string) => {
@@ -306,11 +283,6 @@ export default function StatDatasetEdit() {
             <span className="text-[10px] font-bold text-bt-fg-muted">VIEW</span>
             <span className="text-xs font-mono text-bt-fg-muted">{dataset!.dbViewPrefix}</span>
           </span>
-          {isSystemAdmin && (
-            <Button size="small" className="ml-auto" loading={isFlagPending} onClick={handleToggleSystem}>
-              {dataset!.isSystem ? '시스템 승격 해제' : '시스템 데이터셋으로 승격'}
-            </Button>
-          )}
         </div>
         {/* 설명 인라인 편집 — 목록 카드에 노출되는 텍스트. 저장 버튼으로 함께 저장. */}
         <Typography.Text
