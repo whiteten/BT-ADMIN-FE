@@ -161,11 +161,15 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     }
 
     const legendOn = options.legend ?? lineCount > 1;
+    // boundaryGap:false 라 마지막 점이 grid 오른쪽 경계에 붙고, X축 마지막 일자 라벨은 가운데 정렬돼
+    // 오른쪽 절반이 grid 밖으로 잘린다. 마지막 라벨 절반폭(≈글자수×6.2px/2)만큼 right 여백을 확보한다.
+    const lastLabel = categories[categories.length - 1] ?? '';
+    const rightPad = Math.min(60, Math.max(16, Math.ceil((lastLabel.length * 6.2) / 2) + 8));
     return {
       animationDuration: 600,
       animationEasing: 'cubicOut',
       color: [...PANEL_PALETTE],
-      grid: baseGrid(legendOn),
+      grid: { ...baseGrid(legendOn), right: rightPad },
       tooltip: { trigger: 'axis', ...baseTooltip },
       legend: baseLegend(legendOn),
       xAxis: {
