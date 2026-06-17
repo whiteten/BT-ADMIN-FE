@@ -5,7 +5,7 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Popover, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Database, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { fuzzyScore, toast } from '@/shared-util';
 import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag } from '../../features/dataset/hooks/useDatasetQueries';
@@ -198,6 +198,10 @@ export default function StatDatasetList() {
     const isGroup = !!node.code;
     const isSelected = node.key === selectedKey;
     const count = isGroup ? datasets.filter((d) => d.productCode === node.code).length : 0;
+    // prefix 보조 표기 — 검색 중이고 이름은 안 걸렸는데 DB 뷰 Prefix 로 매칭된 leaf 만
+    const kw = search.trim();
+    const prefix = node.data?.dbViewPrefix ?? '';
+    const prefixMatched = !isGroup && !!kw && !!prefix && fuzzyScore(kw, prefix) >= 0 && fuzzyScore(kw, node.label) < 0;
     return (
       <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)} className={isGroup ? 'cursor-default' : undefined}>
         <TreeCaret item={item} />
@@ -211,9 +215,20 @@ export default function StatDatasetList() {
         ) : (
           <>
             <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
-            {/* leaf 데이터셋명 — 그룹 뱃지보다 작고 일반 굵기(13px·normal)로 낮춰 위계 구분 */}
-            <span className={`flex-1 truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
-              <Highlight text={node.label} query={search} />
+            <span className="flex-1 min-w-0 flex flex-col">
+              {/* leaf 데이터셋명 — 그룹 뱃지보다 작고 일반 굵기(13px·normal)로 낮춰 위계 구분 */}
+              <span className={`truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
+                <Highlight text={node.label} query={search} />
+              </span>
+              {/* DB 뷰 Prefix 보조 표기 — 이름이 아닌 prefix 로 검색 매칭됐을 때만 노출 + 하이라이트 */}
+              {prefixMatched && (
+                <span className="flex items-center gap-1 text-[11px] font-mono text-gray-400 leading-tight">
+                  <Database className="size-3 flex-shrink-0" />
+                  <span className="truncate">
+                    <Highlight text={node.data!.dbViewPrefix ?? ''} query={search} />
+                  </span>
+                </span>
+              )}
             </span>
           </>
         )}
@@ -224,7 +239,7 @@ export default function StatDatasetList() {
             {/* 뱃지 — hover 시 숨김 (카드와 동일 명칭) */}
             <span className="h-5 inline-flex items-center gap-1 group-hover:hidden">
               {node.data!.isSystem && (
-                <Tag color="blue" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
+                <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
                   시스템
                 </Tag>
               )}
@@ -566,7 +581,7 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
             label="유형"
             value={
               listItem.isSystem ? (
-                <Tag color="blue" className="!mb-0 !mr-0">
+                <Tag color="purple" className="!mb-0 !mr-0">
                   시스템
                 </Tag>
               ) : (
@@ -583,7 +598,7 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
               units.length ? (
                 <span className="flex flex-wrap gap-1">
                   {units.map((u) => (
-                    <span key={u} className="rounded border border-bt-border bg-bt-bg-muted px-1.5 py-0.5 text-[10px] font-mono text-bt-fg-muted">
+                    <span key={u} className="rounded border border-bt-border bg-bt-bg-muted px-2 py-0.5 text-xs font-mono text-bt-fg-muted">
                       {UNIT_LABEL[u] ?? u}
                     </span>
                   ))}

@@ -275,7 +275,7 @@ export default function StatDatasetEdit() {
             {dataset!.productCode}
           </Tag>
           {dataset!.isSystem && (
-            <Tag color="blue" className="!mb-0 !mr-0">
+            <Tag color="purple" className="!mb-0 !mr-0">
               시스템
             </Tag>
           )}
