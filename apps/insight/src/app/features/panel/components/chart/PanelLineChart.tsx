@@ -205,5 +205,5 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     );
   }
 
-  return <PanelEChart option={option} />;
+  return <PanelEChart option={option} panelId={panel.panelId} />;
 }

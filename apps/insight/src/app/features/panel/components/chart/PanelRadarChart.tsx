@@ -111,5 +111,5 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
     );
   }
 
-  return <PanelEChart option={option} />;
+  return <PanelEChart option={option} panelId={panel.panelId} />;
 }

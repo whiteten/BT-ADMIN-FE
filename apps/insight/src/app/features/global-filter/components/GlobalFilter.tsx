@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, DatePicker, Divider, Radio, Select, TimePicker, Tooltip, TreeSelect, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { Camera, Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import ComparisonToggle from './ComparisonToggle';
 import { useExportPanelExcel } from '../../panel/hooks/usePanelQueries';
+import { captureChartsToPng } from '../../panel/utils/captureCharts';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../report/hooks/useReportViewStore';
+import type { PanelType } from '../../report/types';
 import { useGetSearchConditionStages, useResolveStageOptions } from '../../search-condition/hooks/useSearchConditionQueries';
 import type { SearchCondStage, SqlPreviewResult } from '../../search-condition/types';
 import { useTimeUnitLimits } from '../hooks/useTimeUnitLimits';
@@ -332,7 +334,8 @@ const ISO_DATE = 'YYYY-MM-DD';
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────
 // 공통(검색일자 + 단위 + 비교)은 상단 고정 / 데이터셋 동적 검색조건은 그 아래 행.
 export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
-  const { panels } = useReportEditorStore();
+  const { panels, report } = useReportEditorStore();
+  const reportTitle = report?.title ?? '통계 보고서';
   const { globalFilter, committedFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter, hydrateForReport } = useReportViewStore();
 
   // 뷰 진입(또는 보고서 전환) 시 저장된 조건 복원 — 글로벌 공통조건 + 보고서별 searchValues
@@ -355,6 +358,29 @@ export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
       comparison: committedFilter.comparison,
       conditions: committedFilter.conditions,
     });
+  };
+
+  // 차트 패널 PNG 캡처 — 화면의 차트(BAR/LINE/PIE/RADAR)만, 위→아래·좌→우 순으로 최대 6개 자동 분할.
+  const CHART_TYPES: PanelType[] = ['BAR', 'LINE', 'PIE', 'RADAR'];
+  const chartPanels = panels.filter((p) => CHART_TYPES.includes(p.panelType));
+  const [isCapturing, setIsCapturing] = useState(false);
+  const handleCapture = async () => {
+    if (chartPanels.length === 0) return;
+    setIsCapturing(true);
+    try {
+      const ordered = [...chartPanels].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+      const res = await captureChartsToPng(
+        ordered.map((p) => ({ panelId: p.panelId, title: p.title })),
+        reportTitle,
+      );
+      if (!res.ok) toast.error(res.reason ?? '차트 캡처에 실패했습니다.');
+      else if (res.truncated) toast.success(`차트가 많아 상위 6개만 캡처했습니다. (총 ${chartPanels.length}개)`);
+      else toast.success('차트를 캡처했습니다.');
+    } catch {
+      toast.error('차트 캡처에 실패했습니다.');
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   // 통계 설정(TIMEUNIT_LIMIT) 기반 단위별 최대 조회 기간 — 기간 조회조건 제한에 사용
@@ -648,6 +674,11 @@ export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
           <Tooltip title={gridPanel ? undefined : '그리드 패널이 있는 보고서만 Export 가능합니다'}>
             <Button color="cyan" variant="solid" icon={<Download className="size-4" />} disabled={!gridPanel} loading={isExporting} onClick={handleExport}>
               Export
+            </Button>
+          </Tooltip>
+          <Tooltip title={chartPanels.length ? undefined : '차트 패널이 있는 보고서만 캡처할 수 있습니다'}>
+            <Button color="purple" variant="solid" icon={<Camera className="size-4" />} disabled={!chartPanels.length} loading={isCapturing} onClick={handleCapture}>
+              캡처
             </Button>
           </Tooltip>
         </div>

@@ -114,5 +114,5 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
     );
   }
 
-  return <PanelEChart option={option} />;
+  return <PanelEChart option={option} panelId={panel.panelId} />;
 }
