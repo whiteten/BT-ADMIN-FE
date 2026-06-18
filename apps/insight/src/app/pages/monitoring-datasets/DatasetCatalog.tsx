@@ -18,7 +18,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
 
-// ─── 대분류(상위 그룹) 정의 — 통계 데이터셋과 동일 패턴 ─────────────────────────────
+// ─── 솔루션(상위 그룹) 정의 — 통계 데이터셋과 동일 패턴 ─────────────────────────────
 const MAJOR_DEFS: { code: string; label: string; productCodes: string[] }[] = [{ code: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] }];
 const PRODUCT_CODE_MAJOR: Record<string, string> = { IE: 'IPRON', IC: 'IPRON', IR: 'IPRON' };
 const MINOR_ORDER: DomainCode[] = ['IE', 'IC', 'IR'];
@@ -150,7 +150,7 @@ export default function DatasetCatalog() {
     },
   });
 
-  // 데이터에 존재하는 소분류 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
+  // 데이터에 존재하는 도메인 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
   const presentCodes = [...new Set(datasets.map((d) => d.domainCode).filter(Boolean))];
   const allCodes = [...MINOR_ORDER.filter((c) => presentCodes.includes(c)), ...presentCodes.filter((c) => !MINOR_ORDER.includes(c))];
 
@@ -277,7 +277,7 @@ export default function DatasetCatalog() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 대분류/소분류 셀렉트 + 트리 */}
+        {/* 좌측: 검색 + 솔루션/도메인 셀렉트 + 트리 */}
         <div className="w-[340px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 min-h-0">
           <div className="flex items-center gap-2">
             <Input
@@ -297,7 +297,7 @@ export default function DatasetCatalog() {
             <ChipSelect
               open={majorPopOpen}
               onOpenChange={setMajorPopOpen}
-              label="대분류"
+              label="솔루션"
               valueLabel={majorLabel}
               active={majorSel !== null}
               content={
@@ -319,7 +319,7 @@ export default function DatasetCatalog() {
             <ChipSelect
               open={minorPopOpen}
               onOpenChange={setMinorPopOpen}
-              label="소분류"
+              label="도메인"
               valueLabel={minorLabel}
               active={minorSel !== null}
               content={
