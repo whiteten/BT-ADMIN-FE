@@ -25,6 +25,7 @@ import FileImportModal, { type FileImportModalRef } from '@/components/custom/Fi
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: '대표번호별 DNIS관리', path: '/ivr/line/ain-dnis' }];
 
@@ -209,6 +210,7 @@ export default function IvrAinDnis() {
             </span>
           );
         },
+        ...codeFilter<IrAinMaster>('telcoKind', TELCO_KIND_LABELS),
       },
       {
         headerName: '지능망 대표번호',
@@ -342,10 +344,10 @@ export default function IvrAinDnis() {
                 onChange={handleSearchChange}
                 style={{ width: 220 }}
               />
-              <Button icon={<Download className="size-3.5" />} onClick={handleExport} loading={isExporting}>
+              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} onClick={handleExport} loading={isExporting}>
                 내보내기
               </Button>
-              <Button icon={<Upload className="size-3.5" />} onClick={handleImport}>
+              <Button variant="solid" icon={<Upload className="size-3.5" />} onClick={handleImport}>
                 가져오기
               </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>

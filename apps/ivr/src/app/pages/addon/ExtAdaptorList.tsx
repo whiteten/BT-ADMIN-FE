@@ -37,6 +37,7 @@ import {
 import { ADAPTOR_CONN_TYPE_LABELS, ADAPTOR_HA_ROLE_LABELS, ADAPTOR_TYPE_LABELS, type Adaptor, type Watcher } from '../../features/ext-adaptor/types/extAdaptor';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import { codeCol, codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const breadcrumb = [
   { title: '부가기능 관리', path: '/ivr/addon/ext-adaptor' },
@@ -189,7 +190,11 @@ export default function ExtAdaptorList() {
       toast.warning('Watcher는 시스템당 1개만 등록할 수 있습니다');
       return;
     }
-    watcherDrawerRef.current?.open(selectedSystem.systemId, selectedSystem.systemName, selectedSystem.nodeId);
+    watcherDrawerRef.current?.open(null, selectedSystem.systemId, selectedSystem.systemName, selectedSystem.nodeId);
+  };
+  const handleEditWatcher = (w: Watcher) => {
+    if (!selectedSystem) return;
+    watcherDrawerRef.current?.open(w, selectedSystem.systemId, selectedSystem.systemName, selectedSystem.nodeId);
   };
   const handleDeleteWatcher = (w: Watcher) => {
     if (!selectedSystem) return;
@@ -237,14 +242,15 @@ export default function ExtAdaptorList() {
         field: 'useYn',
         width: 90,
         cellRenderer: (p: { value?: number }) => (p.value === 1 ? <Tag color="green">사용</Tag> : <Tag>미사용</Tag>),
+        ...codeFilter<Adaptor>('useYn', { 1: '사용', 0: '미사용' }),
       },
       { headerName: 'Trans ID', field: 'transId', width: 100 },
       { headerName: '이름', field: 'adaptorName', flex: 1, minWidth: 140 },
-      { headerName: '종류', field: 'adaptorType', width: 100, valueFormatter: (p) => ADAPTOR_TYPE_LABELS[p.value] ?? p.value },
-      { headerName: '동작방식', field: 'haRole', width: 110, valueFormatter: (p) => ADAPTOR_HA_ROLE_LABELS[p.value] ?? p.value },
+      { headerName: '종류', field: 'adaptorType', width: 100, ...codeCol<Adaptor>('adaptorType', ADAPTOR_TYPE_LABELS) },
+      { headerName: '동작방식', field: 'haRole', width: 110, ...codeCol<Adaptor>('haRole', ADAPTOR_HA_ROLE_LABELS) },
       { headerName: 'IP', field: 'connIp', width: 130 },
       { headerName: 'PORT', field: 'connPort', width: 90 },
-      { headerName: '접속방식', field: 'connType', width: 110, valueFormatter: (p) => ADAPTOR_CONN_TYPE_LABELS[p.value] ?? p.value },
+      { headerName: '접속방식', field: 'connType', width: 110, ...codeCol<Adaptor>('connType', ADAPTOR_CONN_TYPE_LABELS) },
       { headerName: '응답대기(초)', field: 'respTimeout', width: 110 },
       { headerName: '감시주기(초)', field: 'aliveInterval', width: 110 },
       { headerName: '작업자', field: 'workUserName', width: 100 },
@@ -483,7 +489,11 @@ export default function ExtAdaptorList() {
                 <span className="text-sm">상단에서 시스템을 선택하세요</span>
               </div>
             ) : bottomTab === 'adaptor' ? (
+              // key 로 인스턴스 분리 — 같은 위치의 <AgGridReact> 라 React 가 인스턴스를 재사용하면
+              // 어댑터 탭의 onRowDoubleClicked(handleEditAdaptor) 가 watcher 그리드에 잔존해
+              // watcher 행 더블클릭 시 어댑터 수정 Drawer 가 열리는 버그가 발생한다. (탭 전환 시 완전 remount)
               <AgGridReact<Adaptor>
+                key="adaptor-grid"
                 rowData={adaptors}
                 columnDefs={adaptorColumnDefs}
                 gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
@@ -494,12 +504,14 @@ export default function ExtAdaptorList() {
               />
             ) : (
               <AgGridReact<Watcher>
+                key="watcher-grid"
                 rowData={watchers}
                 columnDefs={watcherColumnDefs}
                 gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
                 defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true, resizable: true }}
                 loading={isWatchersLoading}
                 getRowId={(p) => String(p.data.watcherId)}
+                onRowDoubleClicked={(e) => e.data && handleEditWatcher(e.data)}
               />
             )}
           </div>

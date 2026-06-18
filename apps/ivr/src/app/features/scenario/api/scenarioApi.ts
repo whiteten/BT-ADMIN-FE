@@ -25,6 +25,7 @@ import type {
   DeployedSystem,
   IfeTokenInfo,
   Scenario,
+  ScenarioAssignedStatusRow,
   ScenarioCreateRequest,
   ScenarioPublishRequest,
   ScenarioPublishResult,
@@ -39,6 +40,18 @@ import type {
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const scenarioApi = {
+  // ─── 시스템별 시나리오 할당 현황 (IPR20S6020) ──────────────────────────────
+  /** 현재 할당 현황 (전체/테넌트, TB_IR_DNIS_SERVICE). @flow ivr-scenario-assigned-status */
+  getAssignedStatus: async (): Promise<ScenarioAssignedStatusRow[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: ScenarioAssignedStatusRow[] }>>('/ivr-scenario-assigned-status');
+    return response.data?.data?.value ?? [];
+  },
+  /** 적용 이력 (전체/테넌트, TB_IR_SERVICE_HISTORY 최근 500). @flow ivr-scenario-assigned-history */
+  getAssignedHistory: async (): Promise<ScenarioAssignedStatusRow[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: ScenarioAssignedStatusRow[] }>>('/ivr-scenario-assigned-history');
+    return response.data?.data?.value ?? [];
+  },
+
   // ─── 시나리오 마스터 CRUD ────────────────────────────────────────────────
 
   getScenarios: async (params?: Record<string, unknown>): Promise<Scenario[]> => {

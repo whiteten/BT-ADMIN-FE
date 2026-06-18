@@ -171,6 +171,38 @@ export const adaptorApi = {
     return response.data?.data;
   },
 
+  /**
+   * Watcher 수정 — multipart (파일 optional). 파일 미전송 시 메타(이름/설명)만 수정, 전송 시 파일 교체.
+   * AS-IS U_Watcher.do(메타) / I_Watcher.do(파일) 통합. @flow ivr-watcher-update
+   */
+  updateWatcher: async ({
+    watcherId,
+    systemId,
+    file,
+    watcherName,
+    watcherDesc,
+    emsFilePath,
+    irFilePath,
+  }: {
+    watcherId: number;
+    systemId: number;
+    file?: File;
+    watcherName?: string;
+    watcherDesc?: string;
+    emsFilePath?: string;
+    irFilePath?: string;
+  }): Promise<Watcher> => {
+    const formData = new FormData();
+    if (file) formData.append('uploadFile', file); // BFF 가 파일 파트를 uploadFile 로 전달
+    formData.append('systemId', String(systemId));
+    if (watcherName) formData.append('watcherName', watcherName);
+    if (watcherDesc !== undefined) formData.append('watcherDesc', watcherDesc ?? '');
+    if (emsFilePath) formData.append('emsFilePath', emsFilePath);
+    if (irFilePath) formData.append('irFilePath', irFilePath);
+    const response = await apiClient.post<ApiResponse<Watcher>>('/ivr-watcher-update', formData, { params: { watcherId } });
+    return response.data?.data;
+  },
+
   deleteWatcher: async ({ watcherId, systemId }: { watcherId: number; systemId: number }): Promise<boolean> => {
     const response = await apiClient.delete<ApiResponse<boolean>>('/ivr-watcher-delete', { params: { watcherId, systemId } });
     return response.data?.data ?? false;

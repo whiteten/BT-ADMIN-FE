@@ -99,6 +99,12 @@ export const useCreateWatcher = ({ mutationOptions }: MutationHookOptions = {}) 
     ...mutationOptions,
   });
 
+export const useUpdateWatcher = ({ mutationOptions }: MutationHookOptions = {}) =>
+  useMutation({
+    mutationFn: adaptorApi.updateWatcher,
+    ...mutationOptions,
+  });
+
 export const useDeleteWatcher = ({ mutationOptions }: MutationHookOptions = {}) =>
   useMutation({
     mutationFn: adaptorApi.deleteWatcher,

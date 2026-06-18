@@ -17,6 +17,7 @@ import dayjs from 'dayjs';
 import { useGetApplyResults } from '../hooks/useSleeConfigQueries';
 import { RT_RESV_KIND_LABELS, SLEE_APPLY_RESULT_LABELS, SLEE_APPLY_RESULT_STATUS_LABELS, type SleeConfigApplyResultRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 interface OpenPayload {
   tenantId: number;
@@ -58,6 +59,7 @@ const SleeConfigReservationResultModal = forwardRef<SleeConfigReservationResultM
           if (k == null) return '-';
           return <Tag color={k === 1 ? 'blue' : 'purple'}>{RT_RESV_KIND_LABELS[k] ?? k}</Tag>;
         },
+        ...codeFilter<SleeConfigApplyResultRow>('rtResvKind', RT_RESV_KIND_LABELS),
       },
       {
         headerName: '상태',
@@ -71,6 +73,7 @@ const SleeConfigReservationResultModal = forwardRef<SleeConfigReservationResultM
           const color = s === 50 ? 'green' : s === 55 || s === 25 || s === 35 ? 'red' : s === 10 ? 'gold' : 'blue';
           return <Tag color={color}>{SLEE_APPLY_RESULT_STATUS_LABELS[s] ?? s}</Tag>;
         },
+        ...codeFilter<SleeConfigApplyResultRow>('applyStatusCode', SLEE_APPLY_RESULT_STATUS_LABELS),
       },
       {
         headerName: '결과',
@@ -82,6 +85,7 @@ const SleeConfigReservationResultModal = forwardRef<SleeConfigReservationResultM
           const color = r === 1 ? 'green' : r === 2 ? 'red' : 'default';
           return <Tag color={color}>{SLEE_APPLY_RESULT_LABELS[r] ?? r}</Tag>;
         },
+        ...codeFilter<SleeConfigApplyResultRow>('applyResultCode', SLEE_APPLY_RESULT_LABELS),
       },
       {
         headerName: '예약일시',

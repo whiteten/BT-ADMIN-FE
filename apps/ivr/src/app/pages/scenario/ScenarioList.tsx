@@ -8,9 +8,10 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
-import { Layers, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { Layers, ListChecks, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import ScenarioAssignedStatusModal, { type ScenarioAssignedStatusModalRef } from '../../features/scenario/components/ScenarioAssignedStatusModal';
 import ScenarioMasterSheet, { type ScenarioMasterSheetRef } from '../../features/scenario/components/ScenarioMasterSheet';
 import ScenarioTypeMultiSelect from '../../features/scenario/components/ScenarioTypeMultiSelect';
 import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../../features/scenario/hooks/useScenarioQueries';
@@ -34,6 +35,7 @@ export default function ScenarioList() {
   const [selectedTypes, setSelectedTypes] = useState<ScenarioType[]>([]);
   const [searchText, setSearchText] = useState('');
   const masterSheetRef = useRef<ScenarioMasterSheetRef>(null);
+  const assignedStatusRef = useRef<ScenarioAssignedStatusModalRef>(null);
 
   const queryParams = useMemo(() => {
     const params: Record<string, unknown> = {};
@@ -101,7 +103,10 @@ export default function ScenarioList() {
           />
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-[11px] text-slate-500">※ 테넌트는 로그인 정보로 자동 적용</div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Button color="blue" variant="filled" icon={<ListChecks className="size-3.5" />} onClick={() => assignedStatusRef.current?.open()}>
+            시스템별 할당 현황
+          </Button>
           <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => masterSheetRef.current?.open()}>
             시나리오 추가
           </Button>
@@ -151,6 +156,7 @@ export default function ScenarioList() {
 
       {/* Sheets */}
       <ScenarioMasterSheet ref={masterSheetRef} onSuccess={() => queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getScenarios._def })} />
+      <ScenarioAssignedStatusModal ref={assignedStatusRef} />
     </div>
   );
 }
