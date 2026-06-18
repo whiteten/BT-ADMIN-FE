@@ -87,6 +87,9 @@
     Custom
   */
   --color-bt-primary: #085fb5;
+  --color-bt-primary-soft: #eaf2fb;
+  /* host 헤더(TopHeader·SubHeader) 배경 — 런타임 config(window.__CONFIG__.headerBgColor)로 덮어쓸 수 있음 */
+  --color-bt-header: var(--color-bt-primary);
 }
 
 .dark {
@@ -238,6 +241,11 @@
 .ag-header-cell .ag-header-cell-menu-button,
 .ag-header-cell .ag-header-cell-filter-button {
   flex-shrink: 0;
+}
+
+/* ag-Grid: 헤더 텍스트 가운데 정렬 — 값이 가운데인 바·배지 컬럼용 (colDef headerClass: 'header-center') */
+.ag-header-cell.header-center .ag-header-cell-label {
+  justify-content: center;
 }
 
 /*

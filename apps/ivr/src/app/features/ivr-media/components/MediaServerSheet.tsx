@@ -137,6 +137,7 @@ const MediaServerSheet = forwardRef<MediaServerSheetRef, Props>(({ onSuccess }, 
   return (
     <Drawer
       title={isEditMode ? 'Media Server 수정' : 'Media Server 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 480 } }}

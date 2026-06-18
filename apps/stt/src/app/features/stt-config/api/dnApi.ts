@@ -23,4 +23,9 @@ export const dnApi = {
     const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/stt-dn-excel-import', formData, { params: { hostName } });
     return response.data?.data;
   },
+  exportSttDn: async () => {
+    return await apiClient.get<Blob>('/stt-dn-excel-export', {
+      responseType: 'blob',
+    });
+  },
 };

@@ -3,7 +3,9 @@ import type { ColDef, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { toast } from '@/shared-util';
+import { Download } from 'lucide-react';
+import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { searchApi } from '../api/searchApi';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
 import { useGetSttSearch } from '../hooks/useSearchQueries';
 import type { SttSearchItem, SttSearchParams } from '../types';
@@ -17,6 +19,7 @@ export default function SttSearch() {
   const gridRef = useRef<AgGridReact<SttSearchItem>>(null);
   const drawerRef = useRef<SttSearchDetailDrawerRef>(null);
 
+  const [isExporting, setIsExporting] = useState(false);
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
@@ -37,7 +40,7 @@ export default function SttSearch() {
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchItem>) => {
     if (!event.data) return;
-    drawerRef.current?.open(event.data, keyword.trim());
+    drawerRef.current?.open(event.data, event.data.engineCode, keyword.trim());
   };
 
   const handleSearch = () => {
@@ -69,6 +72,27 @@ export default function SttSearch() {
     const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(searchParams);
     setSearchParams(newParams);
     if (!paramsChanged) void refetch();
+  };
+
+  const handleExcelDownload = async () => {
+    const ucidGkeys: string[] = [];
+    gridRef.current?.api.forEachNodeAfterFilter((node) => {
+      if (node.data?.ucidGkey) ucidGkeys.push(node.data.ucidGkey);
+    });
+    if (!ucidGkeys.length) {
+      toast.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const response = await searchApi.exportSttSearchExcel({ ucidGkeys });
+      const fileName = extractFileName(response.headers['content-disposition'], `STT_SEARCH_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const columnDefs: ColDef<SttSearchItem>[] = [
@@ -150,6 +174,16 @@ export default function SttSearch() {
         <div className="flex items-center gap-2 ml-auto">
           <Button type="primary" onClick={handleSearch}>
             조회
+          </Button>
+          <Button
+            color="cyan"
+            variant="solid"
+            loading={isExporting}
+            icon={<Download className="size-4" />}
+            className="flex items-center gap-1 shrink-0"
+            onClick={handleExcelDownload}
+          >
+            Export
           </Button>
         </div>
       </div>

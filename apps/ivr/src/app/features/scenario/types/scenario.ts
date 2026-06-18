@@ -45,36 +45,48 @@ export type ScenarioType = '10' | '20' | '30' | '40' | '50' | '60' | '70' | '80'
 
 // ─── 적용 방식 (RT_RESV_KIND) ──────────────────────────────────────────────
 
-export const APPLY_TIMING_LABELS: Record<string, string> = {
-  REALTIME: '실시간',
-  RESERVED: '예약',
-  CANCEL_APPLY: '적용해제',
-};
+// 백엔드 enum code(Integer)와 1:1. 비교 시 매직넘버 대신 이 상수 사용.
+export const APPLY_TIMING = { REALTIME: 1, RESERVED: 2, CANCEL_APPLY: 3 } as const;
+export type ApplyTimingKind = (typeof APPLY_TIMING)[keyof typeof APPLY_TIMING]; // 1 | 2 | 3
 
-export type ApplyTimingKind = 'REALTIME' | 'RESERVED' | 'CANCEL_APPLY';
+export const APPLY_TIMING_LABELS: Record<number, string> = {
+  [APPLY_TIMING.REALTIME]: '실시간',
+  [APPLY_TIMING.RESERVED]: '예약',
+  [APPLY_TIMING.CANCEL_APPLY]: '적용해제',
+};
 
 // ─── 적용 상태 (APPLY_STATUS) — 공통코드 IR_APPLY_STATUS와 1:1 매핑 ──────────
 
-export const APPLY_STATUS_LABELS: Record<string, string> = {
-  PENDING: '예약',
-  SEND_OK: '파일전송성공',
-  SEND_FAIL: '파일전송실패',
-  CMD_OK: '제어명령성공',
-  CMD_FAIL: '제어명령실패',
-  APPLIED: '적용완료',
-  APPLY_FAIL: '적용실패',
+export const APPLY_STATUS = {
+  PENDING: 10,
+  SEND_OK: 20,
+  SEND_FAIL: 25,
+  CMD_OK: 30,
+  CMD_FAIL: 35,
+  APPLIED: 50,
+  APPLY_FAIL: 55,
+} as const;
+export type ApplyStatus = (typeof APPLY_STATUS)[keyof typeof APPLY_STATUS];
+
+export const APPLY_STATUS_LABELS: Record<number, string> = {
+  [APPLY_STATUS.PENDING]: '예약',
+  [APPLY_STATUS.SEND_OK]: '파일전송성공',
+  [APPLY_STATUS.SEND_FAIL]: '파일전송실패',
+  [APPLY_STATUS.CMD_OK]: '제어명령성공',
+  [APPLY_STATUS.CMD_FAIL]: '제어명령실패',
+  [APPLY_STATUS.APPLIED]: '적용완료',
+  [APPLY_STATUS.APPLY_FAIL]: '적용실패',
 };
 
-export type ApplyStatus = 'PENDING' | 'SEND_OK' | 'SEND_FAIL' | 'CMD_OK' | 'CMD_FAIL' | 'APPLIED' | 'APPLY_FAIL';
+// ─── 적용 결과 (APPLY_RESULT) — 1=성공, 9=실패 ─────────────────────────────
 
-// ─── 적용 결과 (APPLY_RESULT) ─────────────────────────────────────────────
+export const APPLY_RESULT = { SUCCESS: 1, FAIL: 9 } as const;
+export type ApplyResult = (typeof APPLY_RESULT)[keyof typeof APPLY_RESULT];
 
-export const APPLY_RESULT_LABELS: Record<string, string> = {
-  SUCCESS: '성공',
-  FAIL: '실패',
+export const APPLY_RESULT_LABELS: Record<number, string> = {
+  [APPLY_RESULT.SUCCESS]: '성공',
+  [APPLY_RESULT.FAIL]: '실패',
 };
-
-export type ApplyResult = 'SUCCESS' | 'FAIL';
 
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
 
@@ -124,21 +136,38 @@ export interface ScenarioVersion {
   serviceVer: string;
   versionName?: string | null;
   scenarioFile?: string | null;
+  scenarioDocument?: string | null;
+  scenarioDocumentId?: number | null;
   irFilePath?: string | null;
   emsFilePath?: string | null;
   versionDesc?: string | null;
   statVisible?: number | null;
+  charsetType?: string | null;
   flowEditorId?: number | null;
   workUser?: number | null;
   workUserName?: string | null;
   workTime?: string | null;
 }
 
+export type ScenarioCharsetType = 'euc-kr' | 'utf-8';
+
 export interface ScenarioVersionCreateRequest {
   serviceVer: string;
   versionName?: string;
   versionDesc?: string;
   sourcever?: string; // 복사 시 원본 버전
+  statVisible?: number; // 1=사용(기본), 0=사용안함 (AS-IS IPR20S6020 statVisible)
+  charsetType?: ScenarioCharsetType; // 기본 'euc-kr' (AS-IS IPR20S6020 charsetType)
+  doScenarioAnal?: boolean; // 등록 후 분석 실행 여부 (기본 true)
+}
+
+export interface ScenarioVersionUpdateRequest {
+  versionName?: string;
+  versionDesc?: string;
+  statVisible?: number;
+  charsetType?: ScenarioCharsetType;
+  /** SXML 재업로드 후 자동 분석 실행 여부. multipart with-file 흐름에서만 의미 있음. 기본 true. */
+  doScenarioAnal?: boolean;
 }
 
 // ─── 시나리오 배포 ──────────────────────────────────────────────────────────
@@ -151,14 +180,21 @@ export interface ScenarioPublishRequest {
 export interface DeployedSystem {
   systemId: number;
   systemName?: string | null;
-  systemRole?: string | null; // Master / Slave / Standby
+  systemRole?: string | null; // HA 그룹명 또는 Role
   ipAddress?: string | null;
-  serviceVer: string;
-  applyStatus: ApplyStatus;
-  applyResult: ApplyResult;
+  nodeId?: number | null;
+  haGroupId?: number | null;
+  serviceVer?: string | null; // 현재 적용 버전
+  priorVer?: string | null; // 이전 적용 버전
+  applyVer?: string | null; // 예약 대기 버전
+  applyStatus?: ApplyStatus | null;
+  applyResult?: ApplyResult | null;
   applyDatetime?: string | null;
   rtResvKind?: ApplyTimingKind | null;
   svcResvId?: string | null;
+  workUser?: number | null;
+  workUserName?: string | null;
+  workTime?: string | null;
 }
 
 /** 배포 대상 시스템 — 사이드바 표시용. 할당(assignSystem=1) + HA 백업(assignSystem=0). */
@@ -169,6 +205,34 @@ export interface DeployTargetSystem {
   haGroupId?: number | null;
   haGroupName?: string | null;
   assignSystem: number; // 1=할당, 0=HA 백업
+}
+
+// ─── 시나리오 배포 결과 (publish 응답) ──────────────────────────────────────
+
+/** 배포 결과 항목 — 시스템별 파일전송(deploy) / 적용(apply) 결과. */
+export interface ScenarioPublishResultItem {
+  systemId: number;
+  systemName?: string | null;
+  success: boolean;
+  errorCode: string;
+  message: string;
+}
+
+/**
+ * 시나리오 배포 응답 — 백엔드 ScenarioDeployResponseDto와 1:1.
+ * REALTIME: deployResults/applyResults 시스템별 채움, svcResvId=null.
+ * RESERVED: deployResults/applyResults 비고 svcResvId 채워짐.
+ */
+export interface ScenarioPublishResult {
+  accessId?: string | null;
+  totalCount: number;
+  deployResults: ScenarioPublishResultItem[];
+  deploySuccessCount: number;
+  deployFailCount: number;
+  applyResults: ScenarioPublishResultItem[];
+  applySuccessCount: number;
+  applyFailCount: number;
+  svcResvId?: string | null;
 }
 
 // ─── 배포 설정 (FCA 봇 BotDeployConfig 패턴 미러링) ─────────────────────────

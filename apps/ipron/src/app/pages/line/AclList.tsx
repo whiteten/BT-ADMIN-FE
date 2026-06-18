@@ -18,21 +18,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Network, Phone, Plus, Radio, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
+import { toast } from '@/shared-util';
 import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclDrawer';
-import { aclQueryKeys, useDeleteAcl, useDeleteCtiAcl, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
-import { type Acl, USE_YN_LABELS } from '../../features/acl/types';
-import { IconTrash } from '@/components/custom/Icons';
+import { aclQueryKeys, useDeleteAclBatch, useDeleteCtiAclBatch, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
+import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type AclCategory = 'pbx' | 'cti';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/acl' },
-  { title: 'IP 접근관리', path: '/ipron/line/acl' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '제어' }, { title: 'IP접근관리', path: '/ipron/line/acl' }];
 
 const CATEGORY_STYLES: Record<AclCategory, { label: string; icon: typeof Phone }> = {
   pbx: { label: 'PBX', icon: Phone },
@@ -56,6 +53,7 @@ export default function AclList() {
   const [category, setCategory] = useState<AclCategory>('pbx');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [selectedRows, setSelectedRows] = useState<Acl[]>([]);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const aclDrawerRef = useRef<AclDrawerRef>(null);
@@ -103,7 +101,7 @@ export default function AclList() {
   const gridHeaderText = useMemo(() => {
     const prefix = CATEGORY_STYLES[category].label;
     const suffix = selectedNodeName ?? '전체';
-    return `${prefix} ${suffix} IP 접근관리 (${acls.length}건)`;
+    return `${prefix} ${suffix} IP접근관리 (${acls.length}건)`;
   }, [category, selectedNodeName, acls.length]);
 
   // ─── Invalidation helpers ──────────────────────────────────────────────────
@@ -117,6 +115,7 @@ export default function AclList() {
     setCategory(cat);
     setSelectedNodeId(null);
     setSearchText('');
+    setSelectedRows([]);
   };
 
   const handleNodeSelect = (nodeId: number) => {
@@ -132,6 +131,11 @@ export default function AclList() {
   };
 
   const handleCreate = useCallback(() => {
+    // SWAT IPR20S1073.jsp:52~56 — CTI는 노드 선택 필수, PBX는 전체 허용
+    if (category === 'cti' && !selectedNodeId) {
+      toast.warning('노드를 먼저 선택하세요');
+      return;
+    }
     aclDrawerRef.current?.open(undefined, selectedNodeId ?? undefined, selectedNodeName ?? undefined, category, selectedNodeId ? undefined : nodes);
   }, [selectedNodeId, selectedNodeName, category, nodes]);
 
@@ -142,29 +146,37 @@ export default function AclList() {
     [category],
   );
 
-  // PBX 삭제
-  const { mutate: deletePbxAcl } = useDeleteAcl({
-    mutationOptions: { onSuccess: () => invalidateAcls() },
-  });
-
-  // CTI 삭제
-  const { mutate: deleteCtiAcl } = useDeleteCtiAcl({
-    mutationOptions: { onSuccess: () => invalidateAcls() },
-  });
-
-  const handleDelete = useCallback(
-    (acl: Acl) => {
-      const deleteFn = category === 'pbx' ? deletePbxAcl : deleteCtiAcl;
-      modal.confirm.execute({
-        onOk: () => deleteFn({ id: acl.aclId }),
-        options: {
-          title: 'IP 접근제어 삭제',
-          content: `"${acl.aclName}" 접근제어를 삭제하시겠습니까?`,
-        },
-      });
+  // PBX 일괄 삭제 (벌크 1콜)
+  const { mutate: deletePbxAclBatch } = useDeleteAclBatch({
+    mutationOptions: {
+      onSuccess: () => {
+        invalidateAcls();
+        setSelectedRows([]);
+      },
     },
-    [modal, category, deletePbxAcl, deleteCtiAcl],
-  );
+  });
+
+  // CTI 일괄 삭제 (벌크 1콜)
+  const { mutate: deleteCtiAclBatch } = useDeleteCtiAclBatch({
+    mutationOptions: {
+      onSuccess: () => {
+        invalidateAcls();
+        setSelectedRows([]);
+      },
+    },
+  });
+
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRows.length === 0) return;
+    const deleteBatchFn = category === 'pbx' ? deletePbxAclBatch : deleteCtiAclBatch;
+    modal.confirm.execute({
+      onOk: () => deleteBatchFn(selectedRows.map((acl) => acl.aclId)),
+      options: {
+        title: 'IP 접근제어 삭제',
+        content: `선택한 ${selectedRows.length}건의 접근제어를 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, category, selectedRows, deletePbxAclBatch, deleteCtiAclBatch]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateAcls();
@@ -173,20 +185,35 @@ export default function AclList() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<Acl>[] = useMemo(
     () => [
-      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
-      { headerName: '접근제어명', field: 'aclName', flex: 2, minWidth: 140 },
-      { headerName: 'IP NET', field: 'ipNet', flex: 2, minWidth: 130 },
-      { headerName: 'IP MASK', field: 'ipMask', flex: 2, minWidth: 130 },
+      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100, tooltipField: 'nodeName' },
+      { headerName: '접근제어명', field: 'aclName', flex: 2, minWidth: 140, tooltipField: 'aclName' },
+      {
+        headerName: '허용/금지',
+        field: 'aclType',
+        flex: 1,
+        minWidth: 90,
+        filterValueGetter: (params) => (params.data ? (ACL_TYPE_LABELS[params.data.aclType] ?? String(params.data.aclType)) : null),
+        cellRenderer: (params: ICellRendererParams<Acl>) => {
+          if (!params.data) return null;
+          const aclType = params.data.aclType;
+          const label = ACL_TYPE_LABELS[aclType] ?? String(aclType);
+          const color = aclType === 1 ? 'var(--color-bt-primary)' : '#dc2626';
+          return <span style={{ color, fontWeight: 500 }}>{label}</span>;
+        },
+      },
+      { headerName: 'IP NET', field: 'ipNet', flex: 2, minWidth: 130, tooltipField: 'ipNet' },
+      { headerName: 'IP MASK', field: 'ipMask', flex: 2, minWidth: 130, tooltipField: 'ipMask' },
       {
         headerName: '활성화 여부',
         field: 'useYn',
         flex: 1,
         minWidth: 100,
+        filterValueGetter: (params) => (params.data ? (USE_YN_LABELS[params.data.useYn] ?? String(params.data.useYn)) : null),
         cellRenderer: (params: ICellRendererParams<Acl>) => {
           if (!params.data) return null;
           const useYn = params.data.useYn;
           const label = USE_YN_LABELS[useYn] ?? String(useYn);
-          const color = useYn === 1 ? '#16a34a' : '#6b7280';
+          const color = useYn === 1 ? 'var(--color-bt-primary)' : '#6b7280';
           return <span style={{ color, fontWeight: 500 }}>{label}</span>;
         },
       },
@@ -195,33 +222,11 @@ export default function AclList() {
         field: 'aclDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'aclDesc',
         valueFormatter: (params) => params.data?.aclDesc ?? '-',
       },
-      {
-        headerName: '',
-        field: 'aclId',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<Acl>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -256,7 +261,7 @@ export default function AclList() {
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="IP 접근관리 검색"
+                placeholder="IP접근관리 검색"
                 value={searchText}
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
@@ -324,7 +329,6 @@ export default function AclList() {
                           <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
                           <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
                         </div>
-                        <div className="text-xs text-gray-500">Node ID: {node.nodeId}</div>
                         <div className="flex flex-wrap gap-1 mt-auto pt-2">
                           <span
                             className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
@@ -351,8 +355,19 @@ export default function AclList() {
 
         {/* ===== 하단: ACL 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
+            <div className="ml-auto">
+              <Button
+                danger
+                icon={<Trash2 className="size-3.5" />}
+                onClick={handleDeleteSelected}
+                disabled={selectedRows.length === 0}
+                title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
+              >
+                삭제
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1">
@@ -365,12 +380,14 @@ export default function AclList() {
                 pagination: false,
                 sideBar: false,
               }}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.aclId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}
+              onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
             />
           </div>
         </div>

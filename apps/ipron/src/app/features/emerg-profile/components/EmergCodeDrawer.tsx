@@ -56,14 +56,14 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
       if (isEditMode && editCode) {
         onUpdate(editCode.emergencyCode, {
           emergencyCodeName: values.emergencyCodeName,
-          routeId: values.routeId ?? null,
+          routeId: values.routeId,
           emergencyCodeDesc: values.emergencyCodeDesc ?? null,
         });
       } else {
         onCreate({
           emergencyCode: values.emergencyCode,
           emergencyCodeName: values.emergencyCodeName,
-          routeId: values.routeId ?? null,
+          routeId: values.routeId,
           emergencyCodeDesc: values.emergencyCodeDesc ?? null,
         });
       }
@@ -71,8 +71,6 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
       // validation error
     }
   };
-
-  const allRouteOptions = [{ label: '미지정', value: 0 }, ...routeOptions];
 
   const footer = (
     <div className="flex items-center justify-end gap-2">
@@ -105,7 +103,26 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
             { pattern: /^[0-9]+$/, message: '긴급코드는 숫자만 가능합니다' },
           ]}
         >
-          <Input placeholder="긴급코드를 입력하세요 (숫자)" maxLength={10} disabled={isEditMode} />
+          <Input
+            placeholder="긴급코드를 입력하세요 (숫자)"
+            maxLength={10}
+            disabled={isEditMode}
+            onKeyPress={(e) => {
+              // SWAT: onkeypress="ourKeyPress('number')" — 숫자 외 문자 keypress 단계에서 즉시 차단
+              if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            onChange={(e) => {
+              // SWAT: onkeyup="checkHangul()" — 한글 등 비숫자 문자 onChange 단계에서 제거
+              const numericOnly = e.target.value.replace(/[^0-9]/g, '');
+              if (numericOnly !== e.target.value) {
+                e.target.value = numericOnly;
+                // Ant Design Form field 값도 동기화
+                form.setFieldValue('emergencyCode', numericOnly);
+              }
+            }}
+          />
         </Form.Item>
 
         <Form.Item
@@ -119,8 +136,8 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
           <Input placeholder="코드명을 입력하세요" maxLength={128} />
         </Form.Item>
 
-        <Form.Item label="라우트" name="routeId">
-          <Select placeholder="라우트 선택" options={allRouteOptions} allowClear showSearch optionFilterProp="label" />
+        <Form.Item label="라우트" name="routeId" rules={[{ required: true, message: '라우트는 필수입니다' }]}>
+          <Select placeholder="라우트 선택" options={routeOptions} showSearch optionFilterProp="label" />
         </Form.Item>
 
         <Form.Item label="설명" name="emergencyCodeDesc" rules={[{ max: 256, message: '설명은 256자 이내여야 합니다' }]}>

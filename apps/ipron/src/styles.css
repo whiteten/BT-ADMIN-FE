@@ -1,0 +1,9 @@
+/* ag-Grid 헤더 wrapHeaderText 활성 시 host 공용 nowrap 규칙 해제 (IPRON 전용) */
+.ag-header-cell-wrap-text .ag-header-cell-label {
+  overflow: visible;
+}
+.ag-header-cell-wrap-text .ag-header-cell-text {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}

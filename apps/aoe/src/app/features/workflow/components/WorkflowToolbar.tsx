@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Tooltip } from 'antd';
-import { Download, PlayCircle, Rocket, Workflow, X } from 'lucide-react';
+import { Download, History, PlayCircle, Rocket, Workflow, X } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import AgentVersionHistoryDrawer, { type AgentVersionHistoryDrawerRef } from './AgentVersionHistoryDrawer';
 import { agentQueryKeys } from '../../agent-config/hooks/useAgentQueries';
 import type { AgentItem, AoeDeployFlag } from '../../agent-config/types';
 import { useDeployAgent, useExportWorkflow, workflowQueryKeys } from '../hooks/useWorkflowQueries';
@@ -18,6 +20,7 @@ interface WorkflowToolbarProps {
 
 export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onOpenPlayground }: WorkflowToolbarProps) {
   const queryClient = useQueryClient();
+  const versionHistoryRef = useRef<AgentVersionHistoryDrawerRef>(null);
 
   const { mutate: deployAgent, isPending: isDeploying } = useDeployAgent({
     mutationOptions: {
@@ -99,6 +102,11 @@ export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onO
             테스트
           </Button>
         </Tooltip>
+        <Tooltip title="배포 이력 — 과거 버전 보기/불러오기">
+          <Button icon={<History size={14} />} onClick={() => versionHistoryRef.current?.open()}>
+            배포 이력
+          </Button>
+        </Tooltip>
         <Tooltip title="현재 그래프를 동기화하고 AOE 엔진에 배포합니다.">
           <Button type="primary" icon={<Rocket size={14} />} loading={isDeploying} onClick={handleDeploy}>
             배포
@@ -108,6 +116,8 @@ export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onO
           <Button icon={<X size={14} />} onClick={handleClose} />
         </Tooltip>
       </div>
+
+      <AgentVersionHistoryDrawer ref={versionHistoryRef} agentId={agentId} />
     </header>
   );
 }

@@ -14,7 +14,7 @@ import { useCreateMediaServer, useDeleteMediaServer, useUpdateMediaServer } from
 import { IP_VERSION_OPTIONS, type MediaServer, type MediaServerCreateRequest } from '../types';
 
 export interface MediaServerDrawerRef {
-  open: (data?: MediaServer, nodeId?: number) => void;
+  open: (data?: MediaServer, nodeId?: number, nodeName?: string) => void;
   close: () => void;
 }
 
@@ -28,18 +28,44 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<MediaServer | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
+  const [nodeName, setNodeName] = useState<string>('');
   const isEditMode = !!editData;
 
+  const ipVersion = Form.useWatch('ipVersion', form) as string | undefined;
+
+  // IPv4 정규식 (SWAT ourPattern('ipv4') 기준)
+  const IPV4_PATTERN = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+  // IPv6 정규식 (RFC 5952, 압축 표기 포함)
+  const IPV6_PATTERN =
+    /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]+|::(ffff(:0{1,4})?:)?((25[0-5]|(2[0-4]|1?\d)?\d)\.){3}(25[0-5]|(2[0-4]|1?\d)?\d)|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1?\d)?\d)\.){3}(25[0-5]|(2[0-4]|1?\d)?\d))$/;
+
+  const ipAddrRules = [
+    { required: true, message: 'IP 주소는 필수입니다' },
+    {
+      validator(_r: unknown, value: string) {
+        if (!value) return Promise.resolve();
+        const pattern = ipVersion === '6' ? IPV6_PATTERN : IPV4_PATTERN;
+        const label = ipVersion === '6' ? 'IPv6' : 'IPv4';
+        if (!pattern.test(value)) {
+          return Promise.reject(new Error(`${label} 주소 형식이 올바르지 않습니다`));
+        }
+        return Promise.resolve();
+      },
+    },
+  ];
+
   useImperativeHandle(ref, () => ({
-    open: (data?: MediaServer, initNodeId?: number) => {
+    open: (data?: MediaServer, initNodeId?: number, initNodeName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
+      setNodeName(initNodeName ?? '');
       setVisible(true);
     },
     close: () => {
       setVisible(false);
       setEditData(null);
       setNodeId(null);
+      setNodeName('');
       form.resetFields();
     },
   }));
@@ -65,7 +91,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: createMediaServer, isPending: isCreating } = useCreateMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 등록되었습니다.');
+        toast.success('미디어서버가 등록되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -75,7 +101,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: updateMediaServer, isPending: isUpdating } = useUpdateMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 수정되었습니다.');
+        toast.success('미디어서버가 수정되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -85,7 +111,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   const { mutate: deleteMediaServer, isPending: isDeleting } = useDeleteMediaServer({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어서버가 삭제되었습니다.');
+        toast.success('미디어서버가 삭제되었습니다');
         closeDrawer();
         onSuccess();
       },
@@ -98,6 +124,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
     setVisible(false);
     setEditData(null);
     setNodeId(null);
+    setNodeName('');
     form.resetFields();
     onCloseProp?.();
   }, [form, onCloseProp]);
@@ -145,6 +172,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
   return (
     <Drawer
       title={isEditMode ? '미디어서버 수정' : '미디어서버 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={closeDrawer}
       styles={{ wrapper: { width: 420 } }}
@@ -160,7 +188,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
           <div className="flex gap-2">
             <Button onClick={closeDrawer}>취소</Button>
             <Button type="primary" onClick={handleSubmit} loading={isPending}>
-              {isEditMode ? '수정' : '등록'}
+              저장
             </Button>
           </div>
         </div>
@@ -183,7 +211,7 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
         <h4 className="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">기본정보</h4>
 
         <Form.Item label="노드">
-          <Input value={nodeId ? `Node ${nodeId}` : ''} disabled />
+          <Input value={nodeName} disabled />
         </Form.Item>
 
         <Row gutter={16}>
@@ -222,16 +250,8 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
 
         <Row gutter={16}>
           <Col span={16}>
-            <Form.Item
-              name="ipAddr"
-              label="IP 주소"
-              required
-              rules={[
-                { required: true, message: 'IP 주소는 필수입니다' },
-                { pattern: /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/, message: 'IP 주소 형식이 올바르지 않습니다' },
-              ]}
-            >
-              <Input placeholder="0.0.0.0" />
+            <Form.Item name="ipAddr" label="IP 주소" required rules={ipAddrRules} dependencies={['ipVersion']}>
+              <Input placeholder={ipVersion === '6' ? '::1' : '0.0.0.0'} />
             </Form.Item>
           </Col>
           <Col span={8}>
@@ -254,9 +274,9 @@ const MediaServerDrawer = forwardRef<MediaServerDrawerRef, Props>(({ onSuccess, 
 
         <Form.Item
           name="natIpAddr"
-          label="외부 IP"
+          label="NAT IP"
           rules={[
-            { max: 128, message: '외부 IP는 128자 이내여야 합니다' },
+            { max: 128, message: 'NAT IP는 128자 이내여야 합니다' },
             { pattern: /^$|^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)$/, message: 'NAT IP 주소 형식이 올바르지 않습니다' },
           ]}
         >

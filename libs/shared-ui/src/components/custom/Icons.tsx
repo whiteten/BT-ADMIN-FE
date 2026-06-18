@@ -38,3 +38,8 @@ export { ReactComponent as IconRemoteIpron } from '../../assets/images/icon/icon
 export { ReactComponent as IconRemoteStt } from '../../assets/images/icon/icon-remote-stt.svg';
 export { ReactComponent as IconRemoteAoe } from '../../assets/images/icon/icon-remote-aoe.svg';
 export { ReactComponent as IconStar } from '../../assets/images/icon/icon-star.svg';
+export { ReactComponent as IconRemoteVel } from '../../assets/images/icon/icon-remote-vel.svg';
+export { ReactComponent as IconRemoteManager } from '../../assets/images/icon/icon-remote-manager.svg';
+export { ReactComponent as IconRemoteInsight } from '../../assets/images/icon/icon-remote-insight.svg';
+export { ReactComponent as IconRemoteIvr } from '../../assets/images/icon/icon-remote-ivr.svg';
+export { ReactComponent as IconRemoteTaskboard } from '../../assets/images/icon/icon-remote-taskboard.svg';

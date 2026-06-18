@@ -4,13 +4,15 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Pause, Play, Trash2 } from 'lucide-react';
+import { Download, Pause, Play, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { fileUploadApi } from '../../features/stt-config/api/fileUploadApi';
 import FileUploadDrawer, { type FileUploadDrawerRef } from '../../features/stt-config/components/FileUploadDrawer';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../../features/stt-config/components/SttSearchDetailDrawer';
 import { fileUploadQueryKeys, useDeleteFileUpload, useGetFileUploadList } from '../../features/stt-config/hooks/useFileUploadQueries';
 import type { FileUploadItem, FileUploadSearchParams, SttSearchItem } from '../../features/stt-config/types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -20,17 +22,17 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const WORK_KIND_CONFIG: Record<string, { label: string; className: string }> = {
-  진행중: { label: '진행중', className: 'text-blue-600 bg-blue-100' },
+  진행중: { label: '진행중', className: 'text-blue-600 bg-blue-50' },
   대기중: { label: '대기중', className: 'text-gray-500 bg-gray-100' },
-  종료: { label: '종료', className: 'text-emerald-600 bg-emerald-100' },
-  실패: { label: '실패', className: 'text-red-500 bg-red-100' },
+  종료: { label: '종료', className: 'text-emerald-600 bg-emerald-50' },
+  실패: { label: '실패', className: 'text-red-500 bg-red-50' },
 };
 
 const PAGE_SIZE = 20;
 
 function WorkKindCellRenderer({ value }: ICellRendererParams<FileUploadItem>) {
   const config = WORK_KIND_CONFIG[String(value)] ?? { label: String(value ?? ''), className: 'text-gray-500 bg-gray-100' };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.className}`}>{config.label}</span>;
+  return <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${config.className}`}>{config.label}</Badge>;
 }
 
 interface ActionCellParams extends ICellRendererParams<FileUploadItem> {
@@ -62,6 +64,7 @@ export default function FileUploadList() {
   const drawerRef = useRef<FileUploadDrawerRef>(null);
   const detailDrawerRef = useRef<SttSearchDetailDrawerRef>(null);
 
+  const [isExporting, setIsExporting] = useState(false);
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -88,7 +91,7 @@ export default function FileUploadList() {
       toast.warning('STT가 완료된 후 청취가 가능합니다.');
       return;
     }
-    detailDrawerRef.current?.open(event.data as unknown as SttSearchItem);
+    detailDrawerRef.current?.open(event.data as unknown as SttSearchItem, event.data.engineCode);
   };
 
   const { mutate: deleteFile } = useDeleteFileUpload({
@@ -105,6 +108,27 @@ export default function FileUploadList() {
 
   const handleDelete = (data: FileUploadItem) => {
     modal.confirm.delete({ onOk: () => deleteFile(data.ucidGkey) });
+  };
+
+  const handleExcelDownload = async () => {
+    const ucidGkeys: string[] = [];
+    gridRef.current?.api.forEachNodeAfterFilter((node) => {
+      if (node.data?.ucidGkey) ucidGkeys.push(node.data.ucidGkey);
+    });
+    if (!ucidGkeys.length) {
+      toast.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const response = await fileUploadApi.exportFileUploadExcel({ ucidGkeys });
+      const fileName = extractFileName(response.headers['content-disposition'], `STT_FILE_UPLOAD_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const columnDefs: ColDef<FileUploadItem>[] = [
@@ -176,7 +200,17 @@ export default function FileUploadList() {
                 {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
               </button>
             </Tooltip>
-            <Button color="cyan" variant="solid" onClick={() => drawerRef.current?.open()}>
+            <Button
+              color="cyan"
+              variant="solid"
+              loading={isExporting}
+              icon={<Download className="size-4" />}
+              className="flex items-center gap-1 shrink-0"
+              onClick={handleExcelDownload}
+            >
+              Export
+            </Button>
+            <Button type="primary" onClick={() => drawerRef.current?.open()}>
               파일업로드
             </Button>
           </div>

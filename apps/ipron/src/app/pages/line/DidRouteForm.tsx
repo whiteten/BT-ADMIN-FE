@@ -8,19 +8,22 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import {
   didRouteQueryKeys,
   useCreateDidRoute,
   useDeleteDidRoute,
   useGetDidRouteDetail,
+  useGetDnGroupOptions,
   useGetNodes,
   useGetRoutesByNode,
+  useGetWorktimeOptions,
   useUpdateDidRoute,
 } from '../../features/did-route/hooks/useDidRouteQueries';
 import { BLOCK_CONTROL_LABELS, BLOCK_CONTROL_OPTIONS, DID_ROUTE_FORM_STEPS, DID_ROUTE_INITIAL_VALUES, type DidRouteCreateRequest } from '../../features/did-route/types';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../features/did-trans/components/NumPatternDrawer';
+import { useGetMentOptions } from '../../features/ment-mgmt/hooks/useMentQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -42,6 +45,16 @@ export default function DidRouteForm() {
   const isEditMode = !!id;
   const didrouteId = id ? Number(id) : null;
 
+  // DN그룹 선택 시 tenantId 추출 — 업무시간 재조회에 사용
+  // SWAT IPR20S1036.jsp:411: selectedNode.id==="0" → tenantId=1, 그 외 → selectedNode.tenantId
+  const [dnGroupTenantId, setDnGroupTenantId] = useState<number | null>(null);
+
+  // 세션 테넌트 ID — JWT에서 추출 (SWAT sessionScope.tenantId 정합)
+  const sessionTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
   const { data: routeDetail, isFetching } = useGetDidRouteDetail({
@@ -56,6 +69,19 @@ export default function DidRouteForm() {
 
   const effectiveNodeId = watchedNodeId ?? defaultNodeId ?? routeDetail?.nodeId;
   const { data: nodeRoutes = [] } = useGetRoutesByNode(effectiveNodeId);
+
+  // DN그룹 콤보 — 세션 테넌트 기준 조회
+  // SWAT: treeDnGroupByTenantId.do (IPR20S1036.jsp:14) — sessionScope.tenantId
+  const { data: dnGroupOptions = [] } = useGetDnGroupOptions(sessionTenantId);
+
+  // 업무시간 콤보 — DN그룹 선택 시 해당 그룹의 tenantId 로 재조회
+  // SWAT: common.selWorktimeList (IPR20S1036.jsp:385)
+  const effectiveWorktimeTenantId = dnGroupTenantId ?? sessionTenantId ?? null;
+  const { data: worktimeOptions = [] } = useGetWorktimeOptions(effectiveWorktimeTenantId);
+
+  // 블록 멘트 콤보 — SWAT: type="ment" params="&nodeId={nodeId}&tenantId=0"
+  // BFF flow: ipron-ment-options (?nodeId=&tenantId=)
+  const { data: mentOptions = [] } = useGetMentOptions(effectiveNodeId, undefined);
 
   // Route select options
   const routeSelectOptions = nodeRoutes.map((r) => ({ label: r.routeName, value: r.routeId }));
@@ -89,8 +115,14 @@ export default function DidRouteForm() {
       };
       form.setFieldsValue(vals);
       setFormValues(vals);
+
+      // 수정 모드: 저장된 dnGroupId 의 tenantId 복원 → 업무시간 콤보 동기화
+      if (routeDetail.dnGroupId && dnGroupOptions.length > 0) {
+        const grp = dnGroupOptions.find((g) => g.id === routeDetail.dnGroupId);
+        if (grp) setDnGroupTenantId(grp.tenantId);
+      }
     }
-  }, [routeDetail, isEditMode, form]);
+  }, [routeDetail, isEditMode, form, dnGroupOptions]);
 
   // ─── Set default nodeId ────────────────────────────────────────────────────
   useEffect(() => {
@@ -103,7 +135,7 @@ export default function DidRouteForm() {
   const { mutate: createDidRoute, isPending: isCreating } = useCreateDidRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DID라우트가 등록되었습니다.');
+        toast.success('DID라우트가 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: didRouteQueryKeys.getList().queryKey });
         navigate('/ipron/line/did-route');
       },
@@ -113,7 +145,7 @@ export default function DidRouteForm() {
   const { mutate: updateDidRoute, isPending: isUpdating } = useUpdateDidRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DID라우트가 수정되었습니다.');
+        toast.success('DID라우트가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: didRouteQueryKeys.getList().queryKey });
         navigate('/ipron/line/did-route');
       },
@@ -123,7 +155,9 @@ export default function DidRouteForm() {
   const { mutate: deleteDidRoute } = useDeleteDidRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DID라우트가 삭제되었습니다.');
+        // SWAT IPR20S1036Controller.java:138: 삭제 성공 후 특수코드 연계 안내
+        toast.success('DID라우트가 삭제되었습니다');
+        toast.info('삭제된 라우트정보를 가지고 있던 특수코드 정보가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: didRouteQueryKeys.getList().queryKey });
         navigate('/ipron/line/did-route');
       },
@@ -145,7 +179,7 @@ export default function DidRouteForm() {
         const aniVal = form.getFieldValue('aniPattern');
         const dnisVal = form.getFieldValue('dnisPattern');
         if (!aniVal && !dnisVal) {
-          toast.error('ANI 패턴 또는 DNIS 패턴 중 하나 이상 입력해야 합니다.');
+          toast.error('ANI 패턴 또는 DNIS 패턴 중 하나 이상 입력해야 합니다');
           return;
         }
       }
@@ -205,7 +239,8 @@ export default function DidRouteForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: 'DID라우트관리', path: '/ipron/line/did-route' },
       {
         title: isEditMode ? '수정' : '등록',
@@ -405,13 +440,41 @@ export default function DidRouteForm() {
                     </Row>
                     <Row gutter={20}>
                       <Col span={8}>
+                        {/* SWAT IPR20S1036.jsp:14: poDnGroupId combotree (treeDnGroupByTenantId.do)
+                            onChange 시 선택 노드의 tenantId 추출 → 업무시간 재조회 */}
                         <Form.Item name="dnGroupId" label="DN그룹">
-                          <Select allowClear placeholder="TODO: DN그룹 API 연동" options={[]} disabled />
+                          <Select
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            placeholder="DN그룹 선택"
+                            options={[{ label: '사용안함', value: 0 }, ...(Array.isArray(dnGroupOptions) ? dnGroupOptions : []).map((g) => ({ label: g.name, value: g.id }))]}
+                            onChange={(val: number | null) => {
+                              // SWAT IPR20S1036.jsp:411:
+                              // selectedNode.id === "0" → tenantId=1(사용안함), 그 외 → selectedNode.tenantId
+                              if (val == null || val === 0) {
+                                setDnGroupTenantId(1);
+                              } else {
+                                const grp = dnGroupOptions.find((g) => g.id === val);
+                                setDnGroupTenantId(grp?.tenantId ?? 1);
+                              }
+                              // 업무시간 초기화 (다른 그룹 선택 시 이전 값 클리어)
+                              form.setFieldValue('ieWorktimeId', null);
+                            }}
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={8}>
+                        {/* SWAT IPR20S1036.jsp:385: cbCreate('#poIeWorktimeId', 'worktime', 'tenantId='+tenantId)
+                            DN그룹 onChange 후 tenantId 기준 재조회 */}
                         <Form.Item name="ieWorktimeId" label="업무시간 설정">
-                          <Select allowClear placeholder="TODO: 업무시간 API 연동" options={[]} disabled />
+                          <Select
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                            placeholder="업무시간 선택"
+                            options={[{ label: '없음', value: 0 }, ...worktimeOptions.map((w) => ({ label: w.name, value: w.id }))]}
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={8}>
@@ -505,7 +568,20 @@ export default function DidRouteForm() {
                       {showBlockMent && watchedBlockYn === 1 && (
                         <Col span={8}>
                           <Form.Item name="blockMentId" label="블록 멘트">
-                            <Select allowClear placeholder="TODO: 멘트 API 연동" options={[]} disabled />
+                            <Select
+                              allowClear
+                              showSearch
+                              optionFilterProp="label"
+                              placeholder={effectiveNodeId ? '멘트 선택' : '노드 선택 후 조회'}
+                              disabled={!effectiveNodeId}
+                              options={[
+                                { label: '없음', value: 0 },
+                                ...mentOptions.map((m) => ({
+                                  label: m.fileName ? `${m.name} (${m.fileName})` : m.name,
+                                  value: m.id,
+                                })),
+                              ]}
+                            />
                           </Form.Item>
                         </Col>
                       )}

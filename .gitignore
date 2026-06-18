@@ -38,11 +38,21 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# 현장 커스텀(custom remote) 산출물 — 현장에서 자체 형상관리.
+# 본사 repo는 빌드 껍데기와 빈 등록 파일(module-federation.config.ts·site-manifest.ts)만 유지
+apps/custom/src/app/overrides/*
+!apps/custom/src/app/overrides/.gitkeep
+
 # host 개발 서버 개인 proxy override (공유본은 proxy.config.js)
 apps/host/proxy.config.local.json
 
 # serve-host 스크립트 개인 옵션 override (env 등)
 scripts/serve-host.local.json
+
+# generate-manual 스킬 개인 설정(로그인 계정) 및 산출 임시 파일
+.claude/skills/generate-manual/manual.config.json
+.claude/skills/generate-manual/_routes.json
+doc/manuals/.manual-progress.json
 
 .nx/cache
 .nx/workspace-data
@@ -55,8 +65,11 @@ CLAUDE.local.md
 .claude/settings.local.json
 tmpclaude-*
 
-# Cursor
-.cursor/
+# Cursor — agents.mdc(공유 포인터 룰)만 추적하고 나머지는 무시
+.cursor/*
+!.cursor/rules/
+.cursor/rules/*
+!.cursor/rules/agents.mdc
 .cursorrules
 
 # Playwright

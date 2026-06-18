@@ -5,9 +5,10 @@
  * <p>저장 시 서버는 delta apply — 빠진 systemId는 DELETE(버전 미보유 행만), 새 systemId는 INSERT.</p>
  */
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Transfer, type TransferProps } from 'antd';
 import { toast } from '@/shared-util';
-import { useGetDeployConfig, useSaveDeployConfig } from '../hooks/useScenarioQueries';
+import { scenarioQueryKeys, useGetDeployConfig, useSaveDeployConfig } from '../hooks/useScenarioQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconList } from '@/components/custom/Icons';
 
@@ -22,6 +23,7 @@ interface DrawerState {
 }
 
 const ScenarioDeployConfigDrawer = forwardRef<ScenarioDeployConfigDrawerRef>((_, ref) => {
+  const queryClient = useQueryClient();
   const [drawerState, setDrawerState] = useState<DrawerState>({ open: false, serviceId: null });
   const { open, serviceId } = drawerState;
 
@@ -34,6 +36,9 @@ const ScenarioDeployConfigDrawer = forwardRef<ScenarioDeployConfigDrawerRef>((_,
     mutationOptions: {
       onSuccess: () => {
         toast.success('배포 설정이 저장되었습니다.');
+        // 배포 설정 변경 → 배포 사이드바의 대상 시스템 목록(getDeployTargets) + 다음 진입 시 Transfer dataSource(getDeployConfig) 갱신.
+        queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getDeployTargets._def });
+        queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getDeployConfig._def });
         handleClose();
       },
     },

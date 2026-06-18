@@ -8,7 +8,6 @@ import type {
   PanelCreateDatas,
   PanelDetail,
   PanelLayoutUpdateItem,
-  PublishDatas,
   ReportCreateDatas,
   ReportDetail,
   ReportFullDetail,
@@ -49,6 +48,10 @@ export const useUpdateReport = ({ mutationOptions }: { mutationOptions?: UseMuta
 
 export const useDeleteReport = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) =>
   useMutation({ mutationFn: (reportId: number) => reportApi.deleteReport(reportId), ...mutationOptions });
+
+/** 시스템 장표 승격/해제 — 시스템 관리자 전용. */
+export const useSetReportSystemFlag = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<ReportDetail, Error, { reportId: number; toSystem: boolean }> } = {}) =>
+  useMutation({ mutationFn: ({ reportId, toSystem }) => reportApi.setReportSystemFlag(reportId, toSystem), ...mutationOptions });
 
 export const useGetFieldDisplays = ({
   params: { reportId },
@@ -117,9 +120,3 @@ export const useDeletePanel = ({ mutationOptions }: { mutationOptions?: UseMutat
 
 export const useUpdatePanelLayouts = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, { reportId: number; layouts: PanelLayoutUpdateItem[] }> } = {}) =>
   useMutation({ mutationFn: ({ reportId, layouts }) => reportApi.updatePanelLayouts(reportId, layouts), ...mutationOptions });
-
-export const usePublishReport = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<{ menuId: number }, Error, { reportId: number; data: PublishDatas }> } = {}) =>
-  useMutation({ mutationFn: ({ reportId, data }) => reportApi.publishReport(reportId, data), ...mutationOptions });
-
-export const useUnpublishReport = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) =>
-  useMutation({ mutationFn: (reportId: number) => reportApi.unpublishReport(reportId), ...mutationOptions });

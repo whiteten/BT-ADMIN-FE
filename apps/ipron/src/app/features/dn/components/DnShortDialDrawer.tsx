@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Form, Input } from 'antd';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useCreateDnShortDial, useDeleteDnShortDial, useGetDnShortDialList, useUpdateDnShortDial } from '../hooks/useDnQueries';
 import type { DnShortDialRequest, DnShortDialResponse } from '../types';
@@ -105,15 +105,14 @@ export default function DnShortDialDrawer({ open, dnId, dnNo, onClose }: DnShort
     () => [
       { headerName: '단축번호', field: 'shortDial', width: 100 },
       { headerName: '전화번호', field: 'dialingNo', width: 140 },
-      { headerName: '표시이름', field: 'dispName', width: 160 },
-      { headerName: '설명', field: 'shortdialDesc', flex: 1, tooltipField: 'shortdialDesc' },
+      { headerName: '표시이름', field: 'dispName', minWidth: 120, flex: 1, tooltipField: 'dispName' },
+      { headerName: '설명', field: 'shortdialDesc', minWidth: 120, flex: 2, tooltipField: 'shortdialDesc' },
       {
         headerName: '',
-        width: 90,
+        width: 50,
         pinned: 'right',
         cellRenderer: (p: { data: DnShortDialResponse }) => (
           <div className="flex items-center gap-1 h-full">
-            <Button size="small" type="text" icon={<Pencil className="size-3.5" />} onClick={() => loadRow(p.data)} />
             <Button size="small" type="text" danger icon={<Trash2 className="size-3.5" />} onClick={() => handleDelete(p.data.shortDial)} />
           </div>
         ),
@@ -131,6 +130,7 @@ export default function DnShortDialDrawer({ open, dnId, dnNo, onClose }: DnShort
       onClose={onClose}
       width={760}
       placement="right"
+      closable={{ placement: 'end' }}
       styles={{ body: { display: 'flex', flexDirection: 'column', padding: 16 } }}
       footer={
         <div className="flex justify-end gap-2">
@@ -148,12 +148,12 @@ export default function DnShortDialDrawer({ open, dnId, dnNo, onClose }: DnShort
           폼 초기화
         </Button>
       </div>
-      <div className="ag-theme-alpine flex-1 min-h-[240px]" style={{ width: '100%' }}>
+      <div className="flex-1 min-h-[240px]" style={{ width: '100%' }}>
         <AgGridReact<DnShortDialResponse>
           {...gridOptions}
           rowData={list}
           columnDefs={columnDefs}
-          defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+          defaultColDef={{ filter: true, sortable: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }}
           onRowDoubleClicked={(e) => e.data && loadRow(e.data)}
           pagination={false}
           sideBar={false}

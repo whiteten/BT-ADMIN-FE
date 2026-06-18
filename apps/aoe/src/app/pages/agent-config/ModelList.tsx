@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
@@ -12,7 +12,7 @@ import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'AI 모델', path: '/aoe/agent-config/model' },
   { title: 'AI 모델 목록', path: '/aoe/agent-config/model/list' },
 ];
@@ -48,17 +48,14 @@ export default function ModelList() {
     },
   });
 
-  const filteredList = useMemo(() => {
-    if (!models) return [];
-    if (!searchValue.trim()) return models;
-
-    const keyword = searchValue.toLowerCase();
-    return models.filter((model) => {
-      const value = model[filterColumn as keyof typeof model];
-      if (value == null) return false;
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [models, filterColumn, searchValue]);
+  const modelList = models ?? [];
+  const filteredList = searchValue.trim()
+    ? modelList.filter((model) => {
+        const value = model[filterColumn as keyof typeof model];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue.toLowerCase());
+      })
+    : modelList;
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);

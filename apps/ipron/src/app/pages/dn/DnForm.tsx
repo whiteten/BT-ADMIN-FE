@@ -30,10 +30,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch, Tooltip } from 'antd';
+import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Steps, Switch, Tooltip } from 'antd';
 import { Lock as LockOutlined } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { dnApi } from '../../features/dn/api/dnApi';
 import DnCallTransferDrawer from '../../features/dn/components/DnCallTransferDrawer';
 import DnScaTab from '../../features/dn/components/DnScaTab';
 import DnShortDialDrawer from '../../features/dn/components/DnShortDialDrawer';
@@ -158,11 +159,6 @@ export default function DnForm() {
 
   const isEditMode = !!id;
   const dnId = id ? Number(id) : null;
-  const steps = useMemo(() => (isEditMode ? [...STEPS_CREATE, ...STEPS_EDIT_EXTRA] : STEPS_CREATE), [isEditMode]);
-  const currentStepIndex = Math.max(
-    0,
-    steps.findIndex((s) => s.key === currentTab),
-  );
 
   // ─── Watch fields ─────────────────────────────────────────────────────────
   const watchedNodeId = Form.useWatch('nodeId', form);
@@ -176,6 +172,14 @@ export default function DnForm() {
   const watchedAutoanswerYn = Form.useWatch('autoanswerYn', form);
   const watchedBackUpNodeId = Form.useWatch('backUpNodeId', form);
   const watchedCosId = Form.useWatch('cosId', form);
+  const watchedTransportType = Form.useWatch('transportType', form);
+  // 전송유형이 WS/DTLS(8) 또는 WSS/DTLS(16)으로 변경되면 srtpYn 을 DTLS(2) 로 자동 설정
+  // SWAT IPR20S2020_Info.jsp setPortNoStatus() 정합
+  useEffect(() => {
+    if (watchedTransportType === '8' || watchedTransportType === '16') {
+      form.setFieldValue('srtpYn', 2);
+    }
+  }, [watchedTransportType, form]);
 
   // 조건부 disabled/required
   const isMd5Required = watchedMd5Auth === 1;
@@ -193,6 +197,14 @@ export default function DnForm() {
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
   const { data: dnDetail, isFetching } = useGetDnDetail(dnId);
+
+  // 갭11: SNR/SCA 탭은 EDN(dnType='11') 수정 모드에서만 표시
+  const isEdnType = watchedDnType === '11' || dnDetail?.dnType === '11';
+  const steps = useMemo(() => (isEditMode && isEdnType ? [...STEPS_CREATE, ...STEPS_EDIT_EXTRA] : STEPS_CREATE), [isEditMode, isEdnType]);
+  const currentStepIndex = Math.max(
+    0,
+    steps.findIndex((s) => s.key === currentTab),
+  );
 
   // 테넌트 옵션 — 선택 노드 할당된 테넌트만
   const tenantOptions = useMemo(() => {
@@ -547,7 +559,7 @@ export default function DnForm() {
   const { mutate: createDn, isPending: isCreating } = useCreateDn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DN이 등록되었습니다.');
+        toast.success('DN이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
         navigate(backToListUrl());
       },
@@ -557,7 +569,7 @@ export default function DnForm() {
   const { mutate: updateDn, isPending: isUpdating } = useUpdateDn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DN이 수정되었습니다.');
+        toast.success('DN이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
         navigate(backToListUrl());
       },
@@ -567,7 +579,7 @@ export default function DnForm() {
   const { mutate: deleteDns } = useDeleteDns({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DN이 삭제되었습니다.');
+        toast.success('DN이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
         navigate(backToListUrl());
       },
@@ -583,18 +595,61 @@ export default function DnForm() {
 
       // 교차검증 (실패 시 기본정보 탭으로 이동)
       if (values.nodeId && values.backUpNodeId && values.nodeId === values.backUpNodeId) {
-        toast.error('DR 노드는 본 노드와 동일할 수 없습니다.');
+        toast.error('DR 노드는 본 노드와 동일할 수 없습니다');
         setCurrentTab('basic');
         return;
       }
       if (values.extAuthtype === '1' && !values.ipv4Address && !values.ipv6Address) {
-        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다.');
+        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다');
         setCurrentTab('basic');
         return;
       }
       if (values.md5Auth === 1 && (!values.md5Authid || !values.md5Authpwd)) {
-        toast.error('MD5 인증 사용 시 인증 ID와 비밀번호는 필수입니다.');
+        toast.error('MD5 인증 사용 시 인증 ID와 비밀번호는 필수입니다');
         setCurrentTab('basic');
+        return;
+      }
+      // 갭8: 전송유형 WS/DTLS(8) 또는 WSS/DTLS(16) 시 내선 프로파일에 MS그룹·중개옵션 필수
+      // SWAT IPR20S2020_Info.jsp isNotRtpOptionAndMsGroup() 정합
+      if (values.transportType === '8' || values.transportType === '16') {
+        const profile = (options?.dnProfiles ?? []).find((p) => p.id === values.dnProfileId);
+        if (!profile) {
+          toast.error('전송유형 WS/WSS 사용 시 내선 프로파일을 선택해야 합니다');
+          setCurrentTab('basic');
+          return;
+        }
+        if (!profile.msGroupId || profile.msGroupId === 0 || !profile.rtpOption || profile.rtpOption === 0) {
+          toast.error('전송유형 WS/WSS 사용 시 내선 프로파일에 중개 옵션, MS 그룹 설정이 필요합니다');
+          setCurrentTab('basic');
+          return;
+        }
+      }
+
+      // 갭10: 착신전환 스위치 ON 시 번호 필수
+      // SWAT IPR20S2020_Info.jsp insertValidate/updateValidate 정합
+      if (values.allTransSvc === 1 && !values.allTransNum) {
+        toast.error('무조건 착신전환 설정 시 무조건 착신전환 번호는 필수입니다');
+        setCurrentTab('term');
+        return;
+      }
+      if (values.noansTransSvc === 1 && !values.noansTransNum) {
+        toast.error('무응답 착신전환 설정 시 무응답 착신전환 번호는 필수입니다');
+        setCurrentTab('term');
+        return;
+      }
+      if (values.busyTransSvc === 1 && !values.busyTransNum) {
+        toast.error('통화중 착신전환 설정 시 통화중 착신전환 번호는 필수입니다');
+        setCurrentTab('term');
+        return;
+      }
+      if (values.moveAnsSvc === 1 && !values.moveAnsNum) {
+        toast.error('이동응답 서비스 설정 시 이동응답 서비스 번호는 필수입니다');
+        setCurrentTab('term');
+        return;
+      }
+      if (values.urTransSvc === 1 && !values.urTransNum) {
+        toast.error('미등록 착신전환 설정 시 착신전화 번호는 필수입니다');
+        setCurrentTab('term');
         return;
       }
 
@@ -708,13 +763,25 @@ export default function DnForm() {
     }
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (!dnId) return;
+    try {
+      const relationCount = await dnApi.getRelationCount(dnId);
+      if (relationCount > 0) {
+        Modal.error({
+          title: '삭제 불가',
+          content: `"${dnDetail?.dnNo}" 내선은 SCA 또는 SNR 정보(${relationCount}건)를 포함하고 있어 삭제할 수 없습니다.\n내선 상세에서 해당 정보를 먼저 삭제 후 다시 시도해주세요.`,
+        });
+        return;
+      }
+    } catch {
+      toast.warning('연관 데이터 조회에 실패했습니다. 삭제 진행 시 주의하세요');
+    }
     modal.confirm.execute({
       onOk: () => deleteDns([dnId]),
       options: {
         title: 'DN 삭제',
-        content: `"${dnDetail?.dnNo}" DN을 삭제하시겠습니까?\n(IPT서비스 / 콜전환 / 단축다이얼 / 그룹DN 연관 데이터가 함께 삭제됩니다)`,
+        content: `"${dnDetail?.dnNo}" DN을 삭제하시겠습니까?`,
       },
     });
   };
@@ -725,8 +792,8 @@ export default function DnForm() {
   useEffect(() => {
     setBreadcrumb([
       { title: '번호자원관리' },
-      { title: 'DN관리' },
-      { title: '내선관리', path: '/ipron/dn' },
+      { title: '교환기 번호관리' },
+      { title: '내선', path: '/ipron/dn' },
       {
         title: isEditMode ? '수정' : '등록',
         path: isEditMode && id ? `/ipron/dn/${id}/edit` : '/ipron/dn/create',
@@ -773,11 +840,11 @@ export default function DnForm() {
     }
     if (steps[currentStepIndex].key === 'basic') {
       if (v.extAuthtype === '1' && !v.ipv4Address && !v.ipv6Address) {
-        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다.');
+        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다');
         return false;
       }
       if (v.backUpNodeId && v.backUpNodeId === v.nodeId) {
-        toast.error('DR 노드는 본 노드와 동일할 수 없습니다.');
+        toast.error('DR 노드는 본 노드와 동일할 수 없습니다');
         return false;
       }
     }
@@ -837,7 +904,7 @@ export default function DnForm() {
             </Col>
           )}
           <Col>
-            <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending} disabled={!canSubmit} style={isSubEntityTab ? { visibility: 'hidden' } : undefined}>
+            <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending} style={isSubEntityTab ? { visibility: 'hidden' } : undefined}>
               {isEditMode ? '수정' : '등록'}
             </Button>
           </Col>
@@ -1050,14 +1117,15 @@ export default function DnForm() {
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item
-                          name="srtpYn"
-                          label="SRTP"
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+                        {/* 갭9: srtpYn 0=미사용/1=SRTP/2=DTLS Select (AS-IS IPR20S2020_Info.jsp 정합) */}
+                        <Form.Item name="srtpYn" label="음성보안(SRTP)">
+                          <Select
+                            options={[
+                              { label: '미사용', value: 0 },
+                              { label: 'SRTP', value: 1 },
+                              { label: 'DTLS', value: 2 },
+                            ]}
+                          />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -1555,15 +1623,16 @@ export default function DnForm() {
                     </Row>
                   </div>
 
-                  {/* ─── Tab 5: SNR (수정모드만) ─── */}
-                  {isEditMode && id && (
+                  {/* ─── Tab 5: SNR (수정모드 + EDN(11)만) ─── */}
+                  {/* 갭11: SNR/SCA 탭은 EDN(dnType='11')에만 노출 — SWAT IPR20S2020_Info.jsp 정합 */}
+                  {isEditMode && id && (watchedDnType === '11' || dnDetail?.dnType === '11') && (
                     <div style={{ display: currentTab === 'snr' ? 'block' : 'none' }}>
                       <DnSnrTab dnId={Number(id)} />
                     </div>
                   )}
 
-                  {/* ─── Tab 6: SCA (수정모드만) ─── */}
-                  {isEditMode && id && (
+                  {/* ─── Tab 6: SCA (수정모드 + EDN(11)만) ─── */}
+                  {isEditMode && id && (watchedDnType === '11' || dnDetail?.dnType === '11') && (
                     <div style={{ display: currentTab === 'sca' ? 'block' : 'none' }}>
                       <DnScaTab dnId={Number(id)} nodeId={formValues?.nodeId ?? dnDetail?.nodeId ?? null} tenantId={formValues?.tenantId ?? dnDetail?.tenantId ?? null} />
                     </div>

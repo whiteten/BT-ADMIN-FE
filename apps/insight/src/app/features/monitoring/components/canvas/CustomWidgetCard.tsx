@@ -7,6 +7,8 @@ interface CustomWidgetCardProps {
   editMode: boolean;
   /** WebSocket DATA 프레임의 `data` (BE 위젯 `computeFromRawData` 반환값). */
   data?: unknown;
+  /** 위젯 인스턴스 사용자 설정 (TB_BT_IS_MON_WIDGET_USER_SETTING). options 에 머지해 FE 표시에 반영. */
+  userSettings?: Record<string, unknown>;
   onDelete?: () => void;
   /** 위젯이 SUBSCRIBE 옵션을 바꾸기 위해 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
@@ -20,15 +22,17 @@ interface CustomWidgetCardProps {
  * - 우선순위 2: 본 파일 내 데모 placeholder (시안 §6 ExtensionStatusGrid / SLA 게이지)
  * - 우선순위 3: GenericCustomPlaceholder (FE 컴포넌트 미구현 widgetType)
  */
-export default function CustomWidgetCard({ widget, editMode, data, onDelete, onRequestPause, draggableClass }: CustomWidgetCardProps) {
+export default function CustomWidgetCard({ widget, editMode, data, userSettings, onDelete, onRequestPause, draggableClass }: CustomWidgetCardProps) {
   const Registered = getCustomWidgetComponent(widget.widgetTypeId);
+  // 위젯 인스턴스 옵션(카탈로그 기본) 위에 사용자 설정을 머지 — FE 가 options 로 표시 설정(mediaType·standbyType·thresholds 등)을 읽는다.
+  const effectiveOptions = { ...(widget.options ?? {}), ...(userSettings ?? {}) };
 
   return (
     <div className="flex flex-col h-full bg-white bt-shadow overflow-hidden">
       <WidgetCardHeader widget={widget} editMode={editMode} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
         {Registered ? (
-          <Registered data={data} options={widget.options} widgetId={widget.widgetId} onRequestPause={onRequestPause} />
+          <Registered data={data} options={effectiveOptions} widgetId={widget.widgetId} onRequestPause={onRequestPause} />
         ) : widget.widgetTypeId === 'extension-status-grid' ? (
           <ExtensionStatusGridDemo />
         ) : widget.widgetTypeId === 'service-level-gauge' ? (

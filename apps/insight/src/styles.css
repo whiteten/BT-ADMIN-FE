@@ -1,3 +1,9 @@
+/* host와 동일한 공용 tailwind 컨텍스트 상속:
+ * tailwindcss + shadcn base(`* { @apply border-border }`) + `--border` 등 토큰을 함께 가져온다.
+ * 자체 `@import 'tailwindcss'`로 preflight를 재생성하면 border base가 빠져
+ * DropdownMenuContent 등 공용 컴포넌트 테두리가 currentColor(검정)로 떨어진다. */
+@import '../../../libs/shared-ui/src/styles/global.css';
+
 @theme {
   /* BT 디자인 시스템 색상 — insight 앱 전용 (03-full-flow.html 기준) */
   --color-bt-primary:       #085fb5;
@@ -14,7 +20,12 @@
   --color-bt-success-soft:  #e6f4ec;
   --color-bt-warn:          #b76e00;
   --color-bt-warn-soft:     #fdf3e1;
-  --color-bt-danger:        #c92a2a;
+  /* 4단계 심각도 — 주의(notice)/경고(warning)/위험(danger) 시각 구분 */
+  --color-bt-notice:        #b7791f;  /* 주의 (amber)      */
+  --color-bt-notice-soft:   #fdf6e3;
+  --color-bt-warning:       #d9480f;  /* 경고 (deep orange) */
+  --color-bt-warning-soft:  #fdeee6;
+  --color-bt-danger:        #c92a2a;  /* 위험 (red)         */
   --color-bt-danger-soft:   #fbeaea;
 
   /* 상담사 상태 시맨틱 토큰 (05-agent-monitor-widget.html §5) */
@@ -46,3 +57,27 @@
 
 /* 듀레이션 바 — 좌측 3px 채움. 시간 증가 시 부드럽게 늘어남 */
 .bt-dur-bar { transition: opacity 0.4s ease, background-color 0.3s ease; }
+
+/* ─── 종합 헬스보드(관제 월보드) 전용 상태 모션 ───────────────────────────
+ * 일반 모니터 위젯은 정적 강조만 쓰지만, 헬스보드는 관제실 월보드 용도라
+ * "위험" 상태에 한해 깜빡임·확산 링으로 시선을 끈다. (시안 01-healthboard.html)
+ * prefers-reduced-motion 사용자는 아래에서 모두 차단된다.
+ */
+@keyframes bt-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.bt-pulse { animation: bt-pulse 1.6s ease-in-out infinite; }
+
+@keyframes bt-pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(201, 42, 42, .45); } 100% { box-shadow: 0 0 0 12px rgba(201, 42, 42, 0); } }
+.bt-pulse-ring { animation: bt-pulse-ring 1.6s ease-out infinite; }
+
+@keyframes bt-pulse-ring-warn { 0% { box-shadow: 0 0 0 0 rgba(183, 110, 0, .4); } 100% { box-shadow: 0 0 0 10px rgba(183, 110, 0, 0); } }
+.bt-pulse-ring-warn { animation: bt-pulse-ring-warn 1.6s ease-out infinite; }
+
+@keyframes bt-pulse-ring-warning { 0% { box-shadow: 0 0 0 0 rgba(217, 72, 15, .4); } 100% { box-shadow: 0 0 0 10px rgba(217, 72, 15, 0); } }
+.bt-pulse-ring-warning { animation: bt-pulse-ring-warning 1.6s ease-out infinite; }
+
+@keyframes bt-countup { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.bt-countup { animation: bt-countup .5s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bt-pulse, .bt-pulse-ring, .bt-pulse-ring-warn, .bt-pulse-ring-warning, .bt-countup { animation: none !important; }
+}

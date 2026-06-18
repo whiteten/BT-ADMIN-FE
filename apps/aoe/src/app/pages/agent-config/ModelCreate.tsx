@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Checkbox, Col, Form, Input, Row, Steps } from 'antd';
-import { Brain, Check, Cpu, type LucideIcon, Server, Sparkles, Wand2, X, Zap } from 'lucide-react';
+import { Brain, Cpu, type LucideIcon, Server, Sparkles, Wand2, Zap } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateModel, useValidateModel } from '../../features/agent-config/hooks/useModelQueries';
 import type { AvailableModelItem } from '../../features/agent-config/types';
+import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel';
+import FormSummaryValue from '../../features/shared/components/FormSummaryValue';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'AI 모델', path: '/aoe/agent-config/model' },
   { title: 'AI 모델 추가', path: '/aoe/agent-config/model/create' },
 ];
@@ -37,11 +39,6 @@ interface Step1FormValues {
   modelName: string;
   apiKey: string;
 }
-
-const displayValue = (value: unknown): React.ReactNode => {
-  if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
-  return value as React.ReactNode;
-};
 
 export default function ModelCreate() {
   const navigate = useNavigate();
@@ -229,45 +226,49 @@ export default function ModelCreate() {
     );
   }
 
-  function renderSummary() {
+  function buildSummaryItems() {
     const values = form.getFieldsValue();
     const provider = PROVIDERS.find((p) => p.key === selectedProvider);
+    const connectionClassName = `font-medium ${validationStatus === 'success' ? 'text-green-600' : validationStatus === 'error' ? 'text-red-500' : ''}`;
 
-    const renderIcon = (valid: boolean) => (valid ? <Check className="w-4 h-4 text-green-500 ml-2 shrink-0" /> : <X className="w-4 h-4 text-red-500 ml-2 shrink-0" />);
+    const items = [
+      {
+        key: 'provider',
+        label: '프로바이더',
+        children: <FormSummaryValue value={provider?.label} valid={!!selectedProvider} />,
+      },
+      {
+        key: 'modelName',
+        label: '모델 그룹명',
+        children: <FormSummaryValue value={values.modelName} valid={!!values.modelName} className="truncate" />,
+      },
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        children: <FormSummaryValue value={values.apiKey ? '••••••••' : undefined} valid={!!values.apiKey} />,
+      },
+      {
+        key: 'connection',
+        label: '연결 상태',
+        children: (
+          <FormSummaryValue
+            value={validationStatus === 'success' ? '검증 완료' : validationStatus === 'error' ? '검증 실패' : undefined}
+            valid={validationStatus === 'success'}
+            className={connectionClassName}
+          />
+        ),
+      },
+    ];
 
-    return (
-      <div className="space-y-3 text-sm">
-        <div className="flex items-center gap-1">
-          <span className="text-gray-500 w-24 shrink-0">프로바이더</span>
-          <span className="text-gray-800 flex-1">{displayValue(provider?.label)}</span>
-          {renderIcon(!!selectedProvider)}
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-500 w-24 shrink-0">모델 그룹명</span>
-          <span className="text-gray-800 flex-1 truncate">{displayValue(values.modelName)}</span>
-          {renderIcon(!!values.modelName)}
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-500 w-24 shrink-0">API Key</span>
-          <span className="text-gray-800 flex-1">{values.apiKey ? '••••••••' : <span className="text-gray-300">-</span>}</span>
-          {renderIcon(!!values.apiKey)}
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-500 w-24 shrink-0">연결 상태</span>
-          <span className={`flex-1 font-medium ${validationStatus === 'success' ? 'text-green-600' : validationStatus === 'error' ? 'text-red-500' : 'text-gray-300'}`}>
-            {validationStatus === 'success' ? '검증 완료' : validationStatus === 'error' ? '검증 실패' : '-'}
-          </span>
-          {renderIcon(validationStatus === 'success')}
-        </div>
-        {currentStep === 1 && (
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">선택 모델</span>
-            <span className="text-gray-800 flex-1">{selectedModelIds.length > 0 ? `${selectedModelIds.length}개` : <span className="text-gray-300">-</span>}</span>
-            {renderIcon(selectedModelIds.length > 0)}
-          </div>
-        )}
-      </div>
-    );
+    if (currentStep === 1) {
+      items.push({
+        key: 'selectedModels',
+        label: '선택 모델',
+        children: <FormSummaryValue value={selectedModelIds.length > 0 ? `${selectedModelIds.length}개` : undefined} valid={selectedModelIds.length > 0} />,
+      });
+    }
+
+    return items;
   }
 
   function renderFooter() {
@@ -335,10 +336,7 @@ export default function ModelCreate() {
           </div>
           <div className="w-full px-7 pb-7 pt-4">{renderFooter()}</div>
         </div>
-        <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
-          <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">입력 정보 요약</div>
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{renderSummary()}</div>
-        </div>
+        <FormSummaryPanel items={buildSummaryItems()} />
       </div>
     </div>
   );

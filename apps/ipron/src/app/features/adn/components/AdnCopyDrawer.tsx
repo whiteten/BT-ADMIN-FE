@@ -48,12 +48,13 @@ export default function AdnCopyDrawer({ open, source, onCancel, onSubmit }: AdnC
   return (
     <Drawer
       title="ADN 복사 생성"
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={480}
-      destroyOnClose
-      extra={
-        <div className="flex gap-2">
+      destroyOnHidden
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" onClick={handleOk} disabled={!source}>
             복사

@@ -10,6 +10,8 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { agentMasterApi } from '../api/agentMasterApi';
 import type {
+  AgentBulkMediaRequest,
+  AgentConfig,
   AgentCreateRequest,
   AgentGroupCreateRequest,
   AgentGroupNode,
@@ -20,16 +22,33 @@ import type {
   AgentResponse,
   AgentTenantStat,
   AgentUpdateRequest,
+  BulkChangeResult,
+  BulkGroupChangeRequest,
+  Oscom,
 } from '../types';
 
 export const agentMasterQueryKeys = createQueryKeys('agent-master', {
+  getConfig: null,
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenants: null,
+  getOscoms: null,
   getGroupTree: (params?: Record<string, unknown>) => [params],
   getGroupDetail: (id?: number) => [id],
   getGroupChildrenCount: (id?: number) => [id],
 });
+
+// ─── Queries — 상담사 설정 ────────────────────────────────────────────────
+
+/** 비밀번호 정책 설정. staleTime=Infinity — 서버 재시작 전까지 변경 없음. */
+export const useGetAgentConfig = ({ queryOptions }: QueryHookOptions<AgentConfig> = {}) => {
+  return useQuery({
+    queryKey: agentMasterQueryKeys.getConfig.queryKey,
+    queryFn: () => agentMasterApi.getConfig(),
+    staleTime: Infinity,
+    ...queryOptions,
+  });
+};
 
 // ─── Queries — 상담사 ──────────────────────────────────────────────────────
 
@@ -54,6 +73,16 @@ export const useGetAgentTenants = ({ queryOptions }: QueryHookOptions<AgentTenan
   return useQuery({
     queryKey: agentMasterQueryKeys.getTenants.queryKey,
     queryFn: () => agentMasterApi.getTenants(),
+    ...queryOptions,
+  });
+};
+
+/** 아웃소싱업체(oscom) 마스터 콤보. 마스터성 데이터 — staleTime 5분으로 잦은 재조회 방지. */
+export const useGetOscoms = ({ queryOptions }: QueryHookOptions<Oscom[]> = {}) => {
+  return useQuery({
+    queryKey: agentMasterQueryKeys.getOscoms.queryKey,
+    queryFn: () => agentMasterApi.getOscoms(),
+    staleTime: 5 * 60 * 1000,
     ...queryOptions,
   });
 };
@@ -129,6 +158,37 @@ export const useMoveAgent = ({ mutationOptions }: MutationHookOptions<AgentRespo
     ...mutationOptions,
     onSuccess: (...args) => {
       invalidateAgentList(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 상담사 다건 그룹 일괄 변경 (벌크 1콜). 그룹 트리 agentCount 변동도 invalidate.
+ */
+export const useBulkGroupAgents = ({ mutationOptions }: MutationHookOptions<BulkChangeResult, BulkGroupChangeRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BulkGroupChangeRequest) => agentMasterApi.bulkGroup(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentList(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 상담사 다건 미디어 일괄 변경 (벌크 1콜).
+ */
+export const useBulkMediaAgents = ({ mutationOptions }: MutationHookOptions<void, AgentBulkMediaRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AgentBulkMediaRequest) => agentMasterApi.bulkMedia(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentList(qc);
+      qc.invalidateQueries({ queryKey: agentMasterQueryKeys.getDetail._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });

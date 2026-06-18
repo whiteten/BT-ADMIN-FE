@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 const AgentList = React.lazy(() => import('./pages/agent-config/AgentList'));
@@ -14,6 +15,7 @@ const KnowledgeDetail = React.lazy(() => import('./pages/agent-config/KnowledgeD
 const EvalCreate = React.lazy(() => import('./pages/agent-config/EvalCreate'));
 const EvalDetail = React.lazy(() => import('./pages/agent-config/EvalDetail'));
 const ToolList = React.lazy(() => import('./pages/agent-config/ToolList'));
+const ToolGroupCreate = React.lazy(() => import('./pages/agent-config/ToolGroupCreate'));
 const ToolGroupDetail = React.lazy(() => import('./pages/agent-config/ToolGroupDetail'));
 const A2AList = React.lazy(() => import('./pages/agent-config/A2AList'));
 const A2ACreate = React.lazy(() => import('./pages/agent-config/A2ACreate'));
@@ -22,6 +24,10 @@ const McpList = React.lazy(() => import('./pages/agent-config/McpList'));
 const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
 const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
 const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
+const Chat = React.lazy(() => import('./pages/analysis/Chat'));
+
+// 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
+const pv = createPageVariantSocket('aoe');
 
 export const routes = [
   {
@@ -42,9 +48,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <AgentList /> },
-              { path: 'create', element: <AgentCreate /> },
-              { path: ':agentId', element: <AgentDetail /> },
+              { path: 'list', element: pv('agent-config/agent/list', AgentList) },
+              { path: 'create', element: pv('agent-config/agent/create', AgentCreate) },
+              { path: ':agentId', element: pv('agent-config/agent/:agentId', AgentDetail) },
             ],
           },
           {
@@ -52,9 +58,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ModelList /> },
-              { path: 'create', element: <ModelCreate /> },
-              { path: ':modelId', element: <ModelDetail /> },
+              { path: 'list', element: pv('agent-config/model/list', ModelList) },
+              { path: 'create', element: pv('agent-config/model/create', ModelCreate) },
+              { path: ':modelId', element: pv('agent-config/model/:modelId', ModelDetail) },
             ],
           },
           {
@@ -62,11 +68,11 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <KnowledgeList /> },
-              { path: 'create', element: <KnowledgeCreate /> },
-              { path: ':documentId', element: <KnowledgeDetail /> },
-              { path: ':documentId/eval/create', element: <EvalCreate /> },
-              { path: ':documentId/eval/:evalId', element: <EvalDetail /> },
+              { path: 'list', element: pv('agent-config/knowledge/list', KnowledgeList) },
+              { path: 'create', element: pv('agent-config/knowledge/create', KnowledgeCreate) },
+              { path: ':documentId', element: pv('agent-config/knowledge/:documentId', KnowledgeDetail) },
+              { path: ':documentId/eval/create', element: pv('agent-config/knowledge/:documentId/eval/create', EvalCreate) },
+              { path: ':documentId/eval/:evalId', element: pv('agent-config/knowledge/:documentId/eval/:evalId', EvalDetail) },
             ],
           },
           {
@@ -74,8 +80,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ToolList /> },
-              { path: ':groupId', element: <ToolGroupDetail /> },
+              { path: 'list', element: pv('agent-config/tool/list', ToolList) },
+              { path: 'create', element: pv('agent-config/tool/create', ToolGroupCreate) },
+              { path: ':groupId', element: pv('agent-config/tool/:groupId', ToolGroupDetail) },
             ],
           },
           {
@@ -83,9 +90,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <A2AList /> },
-              { path: 'create', element: <A2ACreate /> },
-              { path: ':a2aId', element: <A2ADetail /> },
+              { path: 'list', element: pv('agent-config/a2a/list', A2AList) },
+              { path: 'create', element: pv('agent-config/a2a/create', A2ACreate) },
+              { path: ':a2aId', element: pv('agent-config/a2a/:a2aId', A2ADetail) },
             ],
           },
           {
@@ -93,9 +100,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <McpList /> },
-              { path: 'create', element: <McpCreate /> },
-              { path: ':mcpId', element: <McpDetail /> },
+              { path: 'list', element: pv('agent-config/mcp/list', McpList) },
+              { path: 'create', element: pv('agent-config/mcp/create', McpCreate) },
+              { path: ':mcpId', element: pv('agent-config/mcp/:mcpId', McpDetail) },
             ],
           },
         ],
@@ -105,7 +112,15 @@ export const routes = [
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="agent" replace /> },
-          { path: 'agent', element: <MonitoringDashboard /> },
+          { path: 'agent', element: pv('monitoring/agent', MonitoringDashboard) },
+        ],
+      },
+      {
+        path: 'analysis',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="chat" replace /> },
+          { path: 'chat', element: pv('analysis/chat', Chat) },
         ],
       },
     ],

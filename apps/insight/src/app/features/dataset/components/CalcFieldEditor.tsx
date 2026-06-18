@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Button, Form, Input, Select } from 'antd';
+import { useRef, useState } from 'react';
+import { Button, Form, type GetRef, Input, Segmented, Select } from 'antd';
 import { RotateCcw, RotateCw, Trash2 } from 'lucide-react';
 import type { CalcFieldCreateDatas, ColumnFormat, KpiDirection } from '../../report/types';
 import type { LocalFieldDisplay } from '../types';
@@ -121,6 +121,37 @@ function parseExpression(expr: string, msrNames: Set<string>, dimNames: Set<stri
   return result;
 }
 
+// ─── Raw expression validation ─────────────────────────────────────────────────
+
+const FUNC_KEYWORDS = new Set([...MATH_FUNCS, ...COND_FUNCS, 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'AND', 'OR', 'NOT']);
+
+/** 직접 입력 수식 검증 — 정상이면 null, 문제 있으면 한글 사유 반환 */
+function validateRawExpression(expr: string): string | null {
+  const t = expr.trim();
+  if (!t) return '수식을 입력하세요';
+
+  // 괄호 짝 검사
+  let depth = 0;
+  for (const ch of t) {
+    if (ch === '(') depth++;
+    else if (ch === ')' && --depth < 0) return '괄호가 맞지 않습니다';
+  }
+  if (depth !== 0) return '괄호가 맞지 않습니다';
+
+  // 필드 참조 추출 — 데이터셋 미선택 원천 필드도 허용되므로 존재 검사는 하지 않는다
+  // (BE가 참조 컬럼을 숨은 측정값으로 추가하고, 뷰에 없는 이름은 DbQueryExecutor가 걸러냄)
+  const refs = [...t.matchAll(/\{([^}]+)\}/g)].map((m) => m[1]);
+
+  // {} 밖의 식별자는 함수/키워드만 허용 — 필드는 {필드명} 형식이어야 함
+  const bareWords = (t.replace(/\{[^}]+\}/g, ' ').match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? []).filter((w) => !FUNC_KEYWORDS.has(w.toUpperCase()));
+  if (bareWords.length > 0) return `필드는 {필드명} 형식으로 입력하세요: ${bareWords[0]}`;
+
+  // 필드나 숫자를 하나 이상 포함해야 함
+  if (refs.length === 0 && !/\d/.test(t)) return '필드 또는 숫자를 포함해야 합니다';
+
+  return null;
+}
+
 // ─── Token chip ───────────────────────────────────────────────────────────────
 
 function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => void }) {
@@ -214,6 +245,30 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
   const [future, setFuture] = useState<FormulaToken[][]>([]);
   const [fieldSearch, setFieldSearch] = useState('');
   const [pendingNum, setPendingNum] = useState<string | null>(null);
+  const [inputMode, setInputMode] = useState<'builder' | 'raw'>('builder');
+  const [rawText, setRawText] = useState(initialValue?.rowExpression ?? '');
+  const [touched, setTouched] = useState<{ fieldCode?: boolean; displayName?: boolean; raw?: boolean }>({});
+
+  const rawRef = useRef<GetRef<typeof Input.TextArea>>(null);
+
+  /** 직접 입력 모드: 마우스 커서 위치에 텍스트 삽입 (없으면 맨 뒤). 양옆 공백 자동 보정 */
+  const insertRaw = (s: string) => {
+    const el = rawRef.current?.resizableTextArea?.textArea;
+    const start = el?.selectionStart ?? rawText.length;
+    const end = el?.selectionEnd ?? rawText.length;
+    const before = rawText.slice(0, start);
+    const after = rawText.slice(end);
+    const lead = before && !/\s$/.test(before) ? ' ' : '';
+    const trail = after && !/^\s/.test(after) ? ' ' : '';
+    const insert = `${lead}${s}${trail}`;
+    setRawText(before + insert + after);
+    setTouched((t) => ({ ...t, raw: true }));
+    const caret = start + insert.length;
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(caret, caret);
+    });
+  };
 
   const commit = (next: FormulaToken[]) => {
     setHistory((h) => [...h, tokens]);
@@ -235,25 +290,41 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
     setFuture((f) => f.slice(1));
   };
 
-  const addTemplate = (t: Template) => commit(t.build());
-  const addFunc = (name: string) => commit([...tokens, mkFunc(name), mkParen('('), mkSlot('인자'), mkParen(')')]);
-  const addOp = (op: string) => commit([...tokens, mkOp(op)]);
-  const addParens = () => commit([...tokens, mkParen('('), mkSlot('인자'), mkParen(')')]);
+  const addTemplate = (t: Template) => (inputMode === 'raw' ? insertRaw(tokensToFormula(t.build())) : commit(t.build()));
+  const addFunc = (name: string) => (inputMode === 'raw' ? insertRaw(`${name}()`) : commit([...tokens, mkFunc(name), mkParen('('), mkSlot('인자'), mkParen(')')]));
+  const addOp = (op: string) => (inputMode === 'raw' ? insertRaw(op) : commit([...tokens, mkOp(op)]));
+  const addParens = () => (inputMode === 'raw' ? insertRaw('()') : commit([...tokens, mkParen('('), mkSlot('인자'), mkParen(')')]));
   const confirmNum = (val: string) => {
-    if (val.trim() && !isNaN(Number(val))) commit([...tokens, mkNum(val.trim())]);
+    if (val.trim() && !isNaN(Number(val))) {
+      if (inputMode === 'raw') insertRaw(val.trim());
+      else commit([...tokens, mkNum(val.trim())]);
+    }
     setPendingNum(null);
   };
-  const addField = (name: string, role: 'MSR' | 'DIM' | 'CALC') => commit(fillNextSlot(tokens, mkField(name, role)));
+  const addField = (name: string, role: 'MSR' | 'DIM' | 'CALC') => (inputMode === 'raw' ? insertRaw(`{${name}}`) : commit(fillNextSlot(tokens, mkField(name, role))));
   const deleteToken = (id: string) => commit(tokens.filter((t) => t.id !== id));
+
+  const switchMode = (mode: 'builder' | 'raw') => {
+    if (mode === inputMode) return;
+    if (mode === 'raw') {
+      setRawText(tokensToFormula(tokens));
+    } else {
+      commit(parseExpression(rawText, msrNames, dimNames));
+    }
+    setInputMode(mode);
+  };
 
   const msrFields = sourceFields.filter((f) => f.fieldType === 'MSR' && (!fieldSearch || f.fieldName.toLowerCase().includes(fieldSearch.toLowerCase())));
   const dimFields = sourceFields.filter((f) => f.fieldType === 'DIM' && (!fieldSearch || f.fieldName.toLowerCase().includes(fieldSearch.toLowerCase())));
   const calcFiltered = existingCalcFields.filter((c) => !fieldSearch || c.fieldCode.toLowerCase().includes(fieldSearch.toLowerCase()));
 
+  const previewTokens = inputMode === 'raw' ? parseExpression(rawText, msrNames, dimNames) : tokens;
   const hasSlots = tokens.some((t) => t.kind === 'slot');
-  const rowExpression = tokensToFormula(tokens);
+  const rowExpression = inputMode === 'raw' ? rawText.trim() : tokensToFormula(tokens);
+  const rawError = inputMode === 'raw' ? validateRawExpression(rawText) : null;
   const fieldCodeValid = /^[A-Z_][A-Z0-9_]*$/.test(meta.fieldCode);
-  const isValid = !hasSlots && tokens.length > 0 && fieldCodeValid && meta.displayName.length > 0;
+  const isValid =
+    inputMode === 'raw' ? rawError === null && fieldCodeValid && meta.displayName.length > 0 : !hasSlots && tokens.length > 0 && fieldCodeValid && meta.displayName.length > 0;
 
   const handleSave = () => onSave({ ...meta, rowExpression });
 
@@ -407,17 +478,47 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
         {/* Meta — Ant Design Form */}
         <Form layout="vertical" className="mb-4">
           <div className="grid grid-cols-2 gap-x-4">
-            <Form.Item label="필드 코드" required>
+            <Form.Item
+              label="필드 코드"
+              required
+              hasFeedback
+              validateStatus={touched.fieldCode && !fieldCodeValid ? 'error' : ''}
+              help={
+                touched.fieldCode && !fieldCodeValid
+                  ? meta.fieldCode.length === 0
+                    ? '필드 코드를 입력하세요.'
+                    : '대문자로 시작 (영문 대문자·숫자·언더스코어(_)만 가능)'
+                  : undefined
+              }
+            >
               <Input
                 value={meta.fieldCode}
-                onChange={(e) => setMeta((m) => ({ ...m, fieldCode: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))}
+                onChange={(e) => {
+                  setMeta((m) => ({ ...m, fieldCode: e.target.value.toUpperCase() }));
+                  setTouched((t) => ({ ...t, fieldCode: true }));
+                }}
+                onBlur={() => setTouched((t) => ({ ...t, fieldCode: true }))}
                 placeholder="ANSWER_RATE"
                 className="font-mono"
                 disabled={!!initialValue?.fieldCode}
               />
             </Form.Item>
-            <Form.Item label="표시명" required>
-              <Input value={meta.displayName} onChange={(e) => setMeta((m) => ({ ...m, displayName: e.target.value }))} placeholder="응답률(%)" />
+            <Form.Item
+              label="표시명"
+              required
+              hasFeedback
+              validateStatus={touched.displayName && meta.displayName.length === 0 ? 'error' : ''}
+              help={touched.displayName && meta.displayName.length === 0 ? '표시명을 입력하세요.' : undefined}
+            >
+              <Input
+                value={meta.displayName}
+                onChange={(e) => {
+                  setMeta((m) => ({ ...m, displayName: e.target.value }));
+                  setTouched((t) => ({ ...t, displayName: true }));
+                }}
+                onBlur={() => setTouched((t) => ({ ...t, displayName: true }))}
+                placeholder="응답률(%)"
+              />
             </Form.Item>
             <Form.Item label="컬럼 서식">
               <Select value={meta.columnFormat} onChange={(v) => setMeta((m) => ({ ...m, columnFormat: v }))} options={FORMAT_OPTIONS} className="w-full" />
@@ -431,38 +532,72 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
             <span className="text-sm font-semibold text-foreground">
               Row-level 수식 <span className="text-red-500">*</span>
             </span>
-            <div className="flex items-center gap-0.5">
-              <Button size="small" type="text" icon={<RotateCcw size={13} />} disabled={!history.length} onClick={undo} title="실행취소" />
-              <Button size="small" type="text" icon={<RotateCw size={13} />} disabled={!future.length} onClick={redo} title="다시실행" />
-              <Button size="small" type="text" danger icon={<Trash2 size={13} />} disabled={!tokens.length} onClick={() => commit([])} title="모두지우기" />
-            </div>
-          </div>
-
-          <div className="min-h-[88px] rounded-lg border-2 border-dashed border-border bg-muted/20 p-3">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {tokens.map((token) => (
-                <TokenChip key={token.id} token={token} onDelete={() => deleteToken(token.id)} />
-              ))}
-              {pendingNum !== null && (
-                <input
-                  autoFocus
-                  type="number"
-                  className="w-16 rounded border border-amber-400 bg-amber-50 px-2 py-1 font-mono text-sm text-amber-700 focus:outline-none"
-                  value={pendingNum}
-                  onChange={(e) => setPendingNum(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') confirmNum(pendingNum);
-                    if (e.key === 'Escape') setPendingNum(null);
-                  }}
-                  onBlur={() => confirmNum(pendingNum)}
-                  placeholder="0"
-                />
+            <div className="flex items-center gap-2">
+              <Segmented
+                size="small"
+                value={inputMode}
+                onChange={(v) => switchMode(v as 'builder' | 'raw')}
+                options={[
+                  { label: '빌더', value: 'builder' },
+                  { label: '직접 입력', value: 'raw' },
+                ]}
+              />
+              {inputMode === 'builder' && (
+                <div className="flex items-center gap-0.5">
+                  <Button size="small" type="text" icon={<RotateCcw size={13} />} disabled={!history.length} onClick={undo} title="실행취소" />
+                  <Button size="small" type="text" icon={<RotateCw size={13} />} disabled={!future.length} onClick={redo} title="다시실행" />
+                  <Button size="small" type="text" danger icon={<Trash2 size={13} />} disabled={!tokens.length} onClick={() => commit([])} title="모두지우기" />
+                </div>
               )}
             </div>
           </div>
+
+          {inputMode === 'raw' ? (
+            <Input.TextArea
+              ref={rawRef}
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              value={rawText}
+              onChange={(e) => {
+                setRawText(e.target.value);
+                setTouched((t) => ({ ...t, raw: true }));
+              }}
+              onBlur={() => setTouched((t) => ({ ...t, raw: true }))}
+              status={touched.raw && rawError ? 'error' : undefined}
+              placeholder="예) {ANSWER_CNT} / {CALL_CNT} * 100&#10;키보드 입력 · 복사/붙여넣기 가능. 필드는 {필드명} 형식으로 작성하세요."
+              className="font-mono text-sm"
+            />
+          ) : (
+            <div className="min-h-[88px] rounded-lg border-2 border-dashed border-border bg-muted/20 p-3">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {tokens.map((token) => (
+                  <TokenChip key={token.id} token={token} onDelete={() => deleteToken(token.id)} />
+                ))}
+                {pendingNum !== null && (
+                  <input
+                    autoFocus
+                    type="number"
+                    className="w-16 rounded border border-amber-400 bg-amber-50 px-2 py-1 font-mono text-sm text-amber-700 focus:outline-none"
+                    value={pendingNum}
+                    onChange={(e) => setPendingNum(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') confirmNum(pendingNum);
+                      if (e.key === 'Escape') setPendingNum(null);
+                    }}
+                    onBlur={() => confirmNum(pendingNum)}
+                    placeholder="0"
+                  />
+                )}
+              </div>
+            </div>
+          )}
           <p className="mt-1.5 text-xs text-muted-foreground">
-            좌측 팔레트에서 함수 · 필드 · 연산자 · 숫자를 클릭해 추가. 토큰 hover 후 ×로 삭제.
-            {hasSlots && <span className="ml-1.5 font-medium text-amber-500">⚠ 빈 슬롯이 있습니다 — 필드를 클릭해 채우세요.</span>}
+            {inputMode === 'raw' ? (
+              <>키보드로 직접 입력하거나 복사/붙여넣기하세요. 좌측 팔레트 클릭 시 커서 끝에 추가됩니다. 필드는 {'{필드명}'} 형식.</>
+            ) : (
+              <>좌측 팔레트에서 함수 · 필드 · 연산자 · 숫자를 클릭해 추가. 토큰 hover 후 ×로 삭제.</>
+            )}
+            {inputMode === 'builder' && hasSlots && <span className="ml-1.5 font-medium text-amber-500">⚠ 빈 슬롯이 있습니다 — 필드를 클릭해 채우세요.</span>}
+            {inputMode === 'raw' && touched.raw && rawError && <span className="ml-1.5 font-medium text-red-500">⚠ {rawError}</span>}
           </p>
         </div>
 
@@ -472,11 +607,11 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
             <span className="text-sm font-semibold text-foreground">미리보기</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">row-level</span>
           </div>
-          {tokens.length > 0 ? (
+          {previewTokens.length > 0 ? (
             <div className="rounded-lg border border-border bg-card p-3">
               <div className="flex flex-wrap items-baseline gap-1">
                 <span className="mr-1 font-mono text-xs font-bold uppercase tracking-wider text-green-600">ƒ(x)</span>
-                {tokens.map((t, i) => (
+                {previewTokens.map((t, i) => (
                   <span
                     key={i}
                     className={
@@ -509,9 +644,11 @@ export default function CalcFieldEditor({ sourceFields, existingCalcFields = [],
           <div>
             {isValid ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">✓ VALID</span>
-            ) : hasSlots ? (
+            ) : inputMode === 'builder' && hasSlots ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-600">INCOMPLETE — 슬롯을 채우세요</span>
-            ) : tokens.length === 0 ? (
+            ) : inputMode === 'raw' && rawError && rowExpression.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-600">INVALID — {rawError}</span>
+            ) : rowExpression.length === 0 ? (
               <span className="text-sm text-muted-foreground">수식을 입력하세요</span>
             ) : (
               <span className="text-sm text-red-500">필수 항목을 모두 입력하세요</span>

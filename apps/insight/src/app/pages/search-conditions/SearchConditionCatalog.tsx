@@ -8,7 +8,10 @@ import { useGetSearchConditions } from '../../features/search-condition/hooks/us
 import { useSearchConditionStore } from '../../features/search-condition/hooks/useSearchConditionStore';
 import { CATEGORY_OPTIONS } from '../../features/search-condition/types';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '검색조건 정의', path: '/insight/statistics/search-conditions' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '통계', path: '/insight/statistics' },
+  { title: '검색 아이템', path: '/insight/statistics/search-conditions' },
+];
 
 export default function SearchConditionCatalog() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -44,7 +47,7 @@ export default function SearchConditionCatalog() {
             <Input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="묶음명 · 조건 코드 검색…"
+              placeholder="검색조건명 · 조건 코드 검색…"
               prefix={<Search className="size-4 text-gray-400" />}
               className="w-full max-w-[300px]"
               allowClear

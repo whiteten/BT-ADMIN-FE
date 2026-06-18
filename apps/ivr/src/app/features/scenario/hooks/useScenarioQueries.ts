@@ -3,7 +3,7 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { scenarioApi } from '../api/scenarioApi';
 import type { DeployTargetSystem, DeployedSystem, Scenario, ScenarioVersion, SystemDeployItem } from '../types';
 
@@ -13,6 +13,7 @@ export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getVersions: (params?: Record<string, unknown>) => [params],
   getVersionDetail: (params?: Record<string, unknown>) => [params],
   getDeployedSystems: (params?: Record<string, unknown>) => [params],
+  getDeployStatus: (params?: Record<string, unknown>) => [params],
   getDeployTargets: (params?: Record<string, unknown>) => [params],
   getDeployConfig: (params?: Record<string, unknown>) => [params],
 });
@@ -105,6 +106,15 @@ export const useGetDeployedSystems = ({ params, queryOptions }: QueryHookWithPar
   });
 };
 
+/** 배포 현황 — 시나리오 전체의 모든 DNIS 시스템 풀상세. */
+export const useGetDeployStatus = ({ params, queryOptions }: QueryHookWithParamsOptions<DeployedSystem[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioQueryKeys.getDeployStatus(params).queryKey,
+    queryFn: () => scenarioApi.getDeployStatus(params ?? {}),
+    ...queryOptions,
+  });
+};
+
 export const useGetDeployTargets = ({ params, queryOptions }: QueryHookWithParamsOptions<DeployTargetSystem[]> = {}) => {
   return useQuery({
     queryKey: scenarioQueryKeys.getDeployTargets(params).queryKey,
@@ -122,7 +132,23 @@ export const useGetIfeInfo = ({ mutationOptions }: MutationHookOptions = {}) => 
 
 export const useDownloadScenario = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
-    mutationFn: scenarioApi.downloadScenario,
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await scenarioApi.downloadScenario(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `scenario_${params['serviceId']}_v${params['serviceVer']}.SXML`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
+/** 시나리오 첨부 문서 다운로드 (Blob). SXML 다운로드와 좌우 대칭. */
+export const useDownloadScenarioDocument = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await scenarioApi.downloadScenarioDocument(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `scenario_doc_${params['serviceId']}_v${params['serviceVer']}`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };
@@ -139,6 +165,30 @@ export const useUploadScenarioFile = ({ mutationOptions }: MutationHookOptions =
 export const useCreateVersionWithFile = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: scenarioApi.createVersionWithFile,
+    ...mutationOptions,
+  });
+};
+
+/** 버전 메타 수정 (AS-IS IPR20S6020VU.do 대응). 파일은 변경 안 함. */
+export const useUpdateVersion = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: scenarioApi.updateVersion,
+    ...mutationOptions,
+  });
+};
+
+/** 버전 메타 + SXML 재업로드 통합 (AS-IS IPR20S6020FU.do update 분기, 문서 제외). */
+export const useUpdateVersionWithFile = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: scenarioApi.updateVersionWithFile,
+    ...mutationOptions,
+  });
+};
+
+/** 시나리오 첨부 문서 업로드 (UPSERT) — 버전 메타/SXML 업로드와 분리된 독립 호출. */
+export const useUploadDocument = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: scenarioApi.uploadDocument,
     ...mutationOptions,
   });
 };

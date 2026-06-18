@@ -8,11 +8,18 @@
  * - ipron-cos-create:    POST   COS 등록
  * - ipron-cos-update:    PUT    COS 수정
  * - ipron-cos-delete:    DELETE COS 삭제
+ * - ipron-cos-delete-batch: DELETE COS 일괄 삭제 (body: cosIds[])
  * - ipron-cos-ref-count: GET    참조 DN 수 조회
  * - ipron-dod-trans-node-tenants: GET 노드-테넌트 매핑 (재사용)
+ * - ipron-dn-dod-limits: GET    발신제한/허용그룹 목록 (tenantId 필터, TB_IE_DOD_LIMIT)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Cos, CosCreateRequest, CosUpdateRequest } from '../types';
+
+export interface DodLimitOption {
+  id: number;
+  name: string;
+}
 
 export interface NodeTenantItem {
   nodeId: number;
@@ -73,6 +80,14 @@ export const cosApi = {
   },
 
   /**
+   * COS 일괄 삭제
+   * @flow ipron-cos-delete-batch (POST /api/ipron/cos/delete-batch, body: { cosIds })
+   */
+  deleteBatch: async (cosIds: number[]): Promise<void> => {
+    await apiClient.post('/ipron-cos-delete-batch', { cosIds });
+  },
+
+  /**
    * 참조 DN 수 조회
    * @flow ipron-cos-ref-count
    * Backend: ApiResponse<Long> -> BFF: data.value
@@ -91,5 +106,20 @@ export const cosApi = {
   getNodeTenants: async (): Promise<NodeTenantItem[]> => {
     const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
     return response.data?.data?.value ?? [];
+  },
+
+  /**
+   * 발신제한/허용그룹 목록 (테넌트별 TB_IE_DOD_LIMIT)
+   * AS-IS: common.selDodLimitComboList → cbCreate('#poAddDodLimitSvc', 'dod_limit', 'tenantId='+tenantId)
+   * BE: /api/ipron/dns/options?tenantId={tenantId} → DnOptionsResponse.dodLimits 필드
+   * BFF flow: ipron-dn-dod-limits (단일 step, MAIN)
+   * 응답 구조: ApiResponse<DnOptionsResponse> → data.dodLimits: [{id, name}]
+   * @flow ipron-dn-dod-limits
+   */
+  getDodLimits: async (tenantId: number): Promise<DodLimitOption[]> => {
+    const response = await apiClient.get<ApiResponse<{ dodLimits?: DodLimitOption[] }>>('/ipron-dn-dod-limits', {
+      params: { tenantId },
+    });
+    return response.data?.data?.dodLimits ?? [];
   },
 };

@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
-import { Lock, User, Users } from 'lucide-react';
+import { Lock, TriangleAlert, User, Users } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
@@ -24,6 +24,21 @@ export default function Login() {
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
   const { setPasswordExpiringWarning } = useAuthStore();
   const { data: rememberMeData, setRememberMeData } = useRememberMeStore();
+  const [capsLockOn, setCapsLockOn] = useState(false);
+
+  useEffect(() => {
+    const handleCapsLock = (e: KeyboardEvent) => {
+      // 브라우저 확장·자동입력 등이 dispatch한 비표준 이벤트는 getModifierState가 없을 수 있음
+      if (typeof e.getModifierState !== 'function') return;
+      setCapsLockOn(e.getModifierState('CapsLock'));
+    };
+    window.addEventListener('keydown', handleCapsLock);
+    window.addEventListener('keyup', handleCapsLock);
+    return () => {
+      window.removeEventListener('keydown', handleCapsLock);
+      window.removeEventListener('keyup', handleCapsLock);
+    };
+  }, []);
 
   const { mutate: resetPassword } = useResetPassword({
     mutationOptions: {
@@ -248,7 +263,20 @@ export default function Login() {
                   <Input size="large" placeholder="아이디" prefix={<User className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
-                <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력해주세요' }]} className="!mb-4">
+                <Form.Item
+                  name="password"
+                  label="비밀번호"
+                  rules={[{ required: true, message: '비밀번호를 입력해주세요' }]}
+                  className="!mb-4"
+                  extra={
+                    capsLockOn ? (
+                      <span className="flex items-center gap-1 text-[var(--color-bt-warning,#F59E0B)]">
+                        <TriangleAlert className="h-3.5 w-3.5" />
+                        Caps Lock이 켜져 있습니다
+                      </span>
+                    ) : undefined
+                  }
+                >
                   <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 

@@ -1,4 +1,4 @@
-import type { AgentDistribution, HealthBoardData, HealthBoardThresholds, Severity } from './types';
+import type { AgentDistribution, ChannelBoard, HealthBoardData, HealthBoardThresholds, Severity, TrunkBoard } from './types';
 
 /**
  * 순수 헬퍼 — 컴포넌트 의존 없음.
@@ -39,28 +39,62 @@ function toPct(v: unknown): number | null {
   return n > 0 && n <= 1 ? Math.round(n * 1000) / 10 : Math.round(n * 10) / 10;
 }
 
+/**
+ * BE 계약 severity 문자열 → FE Severity.
+ * 'normal'은 'success'로 취급. 미지정/미상값은 'notice'(주의)로 폴백.
+ */
+function normalizeSeverity(v: unknown): Severity {
+  const s = String(v ?? '').toLowerCase();
+  switch (s) {
+    case 'normal':
+    case 'success':
+      return 'success';
+    case 'warning':
+      return 'warning';
+    case 'danger':
+      return 'danger';
+    case 'notice':
+    case 'warn': // 구 계약 호환
+      return 'notice';
+    default:
+      return 'notice';
+  }
+}
+
 /** 원본 DATA → 헬스보드 정규화 모델. */
 export function toHealthData(data: unknown): HealthBoardData {
   const o = unwrap(data);
+  // 상단 요약 카드(응대율·인입·응대)는 BE 가 summary 키로 묶어 내려준다.
+  const summaryRaw = (o.summary ?? {}) as Record<string, unknown>;
   const agentsRaw = (o.agents ?? {}) as Record<string, unknown>;
-  const alarmRaw = (o.alarm ?? {}) as Record<string, unknown>;
+  const alarmRaw = (summaryRaw.alarm ?? {}) as Record<string, unknown>;
   const qualityRaw = (o.quality ?? {}) as Record<string, unknown>;
   const distRaw = (qualityRaw.dist ?? {}) as Record<string, unknown>;
 
   return {
-    answerRate: toPct(o.answerRate),
-    serviceLevel: toPct(o.serviceLevel),
-    abandonRate: toPct(o.abandonRate),
-    inboundCnt: num0(o.inboundCnt),
-    answeredCnt: num0(o.answeredCnt),
-    waitingCnt: num0(o.waitingCnt),
-    alarm: { danger: num0(alarmRaw.danger), warn: num0(alarmRaw.warn) },
+    answerRate: toPct(summaryRaw.answerRate),
+    serviceLevel: toPct(summaryRaw.serviceLevel),
+    abandonRate: toPct(summaryRaw.abandonRate),
+    inboundCnt: num0(summaryRaw.inboundCnt),
+    answeredCnt: num0(summaryRaw.answeredCnt),
+    waitingCnt: num0(summaryRaw.waitingCnt),
+    alarm: { minor: num0(alarmRaw.minor), major: num0(alarmRaw.major), critical: num0(alarmRaw.critical) },
     systems: Array.isArray(o.systems)
       ? (o.systems as Record<string, unknown>[]).map((s) => ({
           code: String(s.code ?? ''),
           name: String(s.name ?? s.code ?? ''),
           up: num0(s.up),
           total: num0(s.total),
+          severity: normalizeSeverity(s.severity),
+          processes: Array.isArray(s.processes)
+            ? (s.processes as Record<string, unknown>[]).map((p) => ({
+                name: String(p.name ?? ''),
+                system: p.system != null ? String(p.system) : undefined,
+                status: num0(p.status),
+                severity: normalizeSeverity(p.severity),
+                active: p.active != null ? num0(p.active) : undefined,
+              }))
+            : [],
         }))
       : [],
     queues: Array.isArray(o.queues)
@@ -70,16 +104,18 @@ export function toHealthData(data: unknown): HealthBoardData {
           waitCnt: toNum(q.waitCnt) ?? undefined,
           serviceLevel: toNum(q.serviceLevel) ?? undefined,
           barPct: num0(q.barPct),
-          sev: (q.sev as Severity) ?? 'warn',
+          sev: normalizeSeverity(q.sev),
         }))
       : [],
-    normalQueueCnt: num0(o.normalQueueCnt),
     agents: {
-      available: num0(agentsRaw.available),
-      talking: num0(agentsRaw.talking),
-      wrapup: num0(agentsRaw.wrapup),
+      logout: num0(agentsRaw.logout),
       aux: num0(agentsRaw.aux),
-      offline: num0(agentsRaw.offline),
+      ready: num0(agentsRaw.ready),
+      talking: num0(agentsRaw.talking),
+      ringing: num0(agentsRaw.ringing),
+      dialing: num0(agentsRaw.dialing),
+      hold: num0(agentsRaw.hold),
+      wrapup: num0(agentsRaw.wrapup),
     },
     quality: {
       bad: num0(qualityRaw.bad),
@@ -95,32 +131,97 @@ export function toHealthData(data: unknown): HealthBoardData {
       lowestAgentName: qualityRaw.lowestAgentName ? String(qualityRaw.lowestAgentName) : undefined,
       lowestAgentDn: qualityRaw.lowestAgentDn ? String(qualityRaw.lowestAgentDn) : undefined,
     },
+    trunks: toTrunkBoard(o.trunks),
+    channels: toChannelBoard(o.channels),
     serverTs: toNum(o.serverTs) ?? undefined,
+  };
+}
+
+/** 원본 channels(요약+목록) → 정규화 ChannelBoard. */
+function toChannelBoard(raw: unknown): ChannelBoard {
+  const t = (raw ?? {}) as Record<string, unknown>;
+  const s = (t.summary ?? {}) as Record<string, unknown>;
+  const items = Array.isArray(t.items)
+    ? (t.items as Record<string, unknown>[]).map((it) => ({
+        name: String(it.name ?? ''),
+        systemId: num0(it.systemId),
+        rate: num0(it.rate),
+        busy: num0(it.busy),
+        total: num0(it.total),
+        inBusy: num0(it.inBusy),
+        outBusy: num0(it.outBusy),
+        severity: normalizeSeverity(it.severity),
+      }))
+    : [];
+  return {
+    summary: {
+      rate: num0(s.rate),
+      busy: num0(s.busy),
+      total: num0(s.total),
+      inBusy: num0(s.inBusy),
+      outBusy: num0(s.outBusy),
+      systemCnt: num0(s.systemCnt),
+    },
+    items,
+  };
+}
+
+/** 원본 trunks(요약+목록) → 정규화 TrunkBoard. */
+function toTrunkBoard(raw: unknown): TrunkBoard {
+  const t = (raw ?? {}) as Record<string, unknown>;
+  const s = (t.summary ?? {}) as Record<string, unknown>;
+  const items = Array.isArray(t.items)
+    ? (t.items as Record<string, unknown>[]).map((it) => ({
+        kind: (it.kind === 'CO' ? 'CO' : 'SIP') as 'CO' | 'SIP',
+        name: String(it.name ?? ''),
+        rate: num0(it.rate),
+        busyLine: num0(it.busyLine),
+        totalLine: num0(it.totalLine),
+        inBusy: num0(it.inBusy),
+        outBusy: num0(it.outBusy),
+        issueCnt: num0(it.issueCnt),
+        severity: normalizeSeverity(it.severity),
+      }))
+    : [];
+  return {
+    summary: {
+      rate: num0(s.rate),
+      busyLine: num0(s.busyLine),
+      totalLine: num0(s.totalLine),
+      totalCnt: num0(s.totalCnt),
+      blockCnt: num0(s.blockCnt),
+      errorCnt: num0(s.errorCnt),
+      normalCnt: num0(s.normalCnt),
+    },
+    items,
   };
 }
 
 // ─── 임계 판정 ─────────────────────────────────────────────────
 
 const DEFAULTS: Required<HealthBoardThresholds> = {
-  answerRate: { good: 90, warn: 80 },
-  serviceLevel: { good: 90, warn: 80 },
-  abandonRate: { good: 3, warn: 5 },
-  waiting: { good: 9, warn: 29 },
+  answerRate: { warn: 90, danger: 80 },
+  serviceLevel: { warn: 90, danger: 80 },
+  abandonRate: { warn: 3, danger: 5 },
+  waiting: { warn: 9, danger: 29 },
 };
 
-/** 높을수록 좋음: good 이상 정상 / warn 이상 주의 / 미만 위험. */
-export function higherBetter(value: number | null, t: { good: number; warn: number }): Severity {
-  if (value == null) return 'warn';
-  if (value >= t.good) return 'success';
-  if (value >= t.warn) return 'warn';
+/** 헬스보드 KPI 임계 기본값 — 설정 드로어 초기화/병합에 사용. (warn: 주의(주황) 경계, danger: 위험(빨강) 경계) */
+export const DEFAULT_HB_THRESHOLDS: Required<HealthBoardThresholds> = DEFAULTS;
+
+/** 높을수록 좋음: warn 이상 정상 / danger 이상 주의 / 미만 위험. (KPI 게이지는 notice/danger 2밴드) */
+export function higherBetter(value: number | null, t: { warn: number; danger: number }): Severity {
+  if (value == null) return 'notice';
+  if (value >= t.warn) return 'success';
+  if (value >= t.danger) return 'notice';
   return 'danger';
 }
 
-/** 낮을수록 좋음: good 이하 정상 / warn 이하 주의 / 초과 위험. */
-export function lowerBetter(value: number | null, t: { good: number; warn: number }): Severity {
-  if (value == null) return 'warn';
-  if (value <= t.good) return 'success';
-  if (value <= t.warn) return 'warn';
+/** 낮을수록 좋음: warn 이하 정상 / danger 이하 주의 / 초과 위험. (KPI 게이지는 notice/danger 2밴드) */
+export function lowerBetter(value: number | null, t: { warn: number; danger: number }): Severity {
+  if (value == null) return 'notice';
+  if (value <= t.warn) return 'success';
+  if (value <= t.danger) return 'notice';
   return 'danger';
 }
 
@@ -137,39 +238,50 @@ export function waitingSev(d: HealthBoardData, t?: HealthBoardThresholds): Sever
   return lowerBetter(d.waitingCnt, t?.waiting ?? DEFAULTS.waiting);
 }
 
-/** 종합 상태 — 위험 요소(알람/노드다운)가 있으면 danger, 주의면 warn, 아니면 success. */
-export function overallStatus(d: HealthBoardData): { sev: Severity; dangerCnt: number; warnCnt: number } {
-  const nodeDown = d.systems.some((s) => s.up < s.total);
-  const dangerCnt = d.alarm.danger;
-  const warnCnt = d.alarm.warn;
+/** 종합 상태 — 위험(danger) > 경고(warning) > 주의(notice) > 정상(success). */
+export function overallStatus(d: HealthBoardData): { sev: Severity; dangerCnt: number; warningCnt: number; noticeCnt: number } {
+  const dangerCnt = d.alarm.critical;
+  const warningCnt = d.alarm.major;
+  const noticeCnt = d.alarm.minor;
+  const worst = (a: Severity, b: Severity): Severity => (SEV_RANK[a] >= SEV_RANK[b] ? a : b);
   let sev: Severity = 'success';
-  if (dangerCnt > 0 || nodeDown) sev = 'danger';
-  else if (warnCnt > 0) sev = 'warn';
-  return { sev, dangerCnt, warnCnt };
+  if (dangerCnt > 0) sev = 'danger';
+  else if (warningCnt > 0) sev = 'warning';
+  else if (noticeCnt > 0) sev = 'notice';
+  // 시스템 심각도도 반영 (노드 severity 중 최악)
+  for (const s of d.systems) sev = worst(sev, s.severity);
+  return { sev, dangerCnt, warningCnt, noticeCnt };
 }
 
 // ─── 색상 토큰 매핑 ────────────────────────────────────────────
 
+/** 심각도 정렬 순위 (높을수록 위험). */
+const SEV_RANK: Record<Severity, number> = { success: 0, notice: 1, warning: 2, danger: 3 };
+
 /** Severity → Tailwind/CSS 토큰. (insight @theme 의 --color-bt-* 사용) */
 export const SEV_TEXT: Record<Severity, string> = {
   success: 'text-bt-success',
-  warn: 'text-bt-warn',
+  notice: 'text-bt-notice',
+  warning: 'text-bt-warning',
   danger: 'text-bt-danger',
 };
 export const SEV_BG: Record<Severity, string> = {
   success: 'bg-bt-success',
-  warn: 'bg-bt-warn',
+  notice: 'bg-bt-notice',
+  warning: 'bg-bt-warning',
   danger: 'bg-bt-danger',
 };
 export const SEV_BG_SOFT: Record<Severity, string> = {
   success: 'bg-bt-success-soft',
-  warn: 'bg-bt-warn-soft',
+  notice: 'bg-bt-notice-soft',
+  warning: 'bg-bt-warning-soft',
   danger: 'bg-bt-danger-soft',
 };
 /** SVG stroke/fill 용 hex (presentation attribute 는 var() 미지원). insight @theme 토큰과 동일 값. */
 export const SEV_HEX: Record<Severity, string> = {
   success: '#0a8a4a',
-  warn: '#b76e00',
+  notice: '#b7791f',
+  warning: '#d9480f',
   danger: '#c92a2a',
 };
 
@@ -214,13 +326,20 @@ export interface DonutSeg {
   dashoffset: number;
 }
 
-/** 상담사 상태 색 (insight @theme --color-bt-st-* 와 동일 hex). */
+/**
+ * 상담사 상태 색 (insight @theme --color-bt-st-* 와 동일 hex).
+ * 표시 순서: 로그아웃 → 이석 → 대기 → 통화 → 벨울림 → 다이얼링 → 보류 → 후처리.
+ * 벨울림·다이얼링은 테마상 동일 ring 토큰이라 도넛 구분을 위해 다이얼링만 밝은 변형색 사용.
+ */
 const AGENT_SEG_META: { key: keyof AgentDistribution; label: string; color: string }[] = [
-  { key: 'available', label: '가용', color: '#0a8a4a' },
-  { key: 'talking', label: '통화', color: '#085fb5' },
-  { key: 'wrapup', label: '후처리', color: '#9b7dff' },
+  { key: 'logout', label: '로그아웃', color: '#cdd2d9' },
   { key: 'aux', label: '이석', color: '#85898f' },
-  { key: 'offline', label: '오프라인', color: '#cdd2d9' },
+  { key: 'ready', label: '대기', color: '#0a8a4a' },
+  { key: 'talking', label: '통화', color: '#085fb5' },
+  { key: 'ringing', label: '벨울림', color: '#b76e00' },
+  { key: 'dialing', label: '다이얼링', color: '#d99a2b' },
+  { key: 'hold', label: '보류', color: '#7a4e9e' },
+  { key: 'wrapup', label: '후처리', color: '#9b7dff' },
 ];
 
 /** 상담사 분포 → 도넛 세그먼트 배열 (누적 offset 계산). */

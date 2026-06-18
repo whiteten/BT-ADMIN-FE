@@ -14,6 +14,31 @@ import { useCreateAniTrans, useCreateDnisTrans, useDeleteAniTrans, useDeleteDnis
 import { type DidTrans, type DidTransCategory, type DidTransCreateRequest, EDIT_OPT_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
+/**
+ * SWAT SwatPattern.testPatternExtended 이식.
+ * 번호패턴 허용 문자: X/Z/N(대소문자), 숫자, !, ., @, +, |, [ ], -, ( )
+ * 동작: "|" 로 OR 분리 → 각 세그먼트가 허용 토큰의 연속인지 검사.
+ */
+function validateNumPatternExtended(patterns: string): boolean {
+  const TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d|[@+]/g;
+  const patternList = patterns.toUpperCase().split('|');
+  for (const segment of patternList) {
+    // 괄호 검사: ( 또는 ) 가 있으면 ^( 로 시작하거나 )$ 로 끝나야 함
+    if (/[()]/g.test(segment) && !/^\(|\)$/.test(segment)) {
+      return false;
+    }
+    const trimmed = segment.replace(/[()]/g, '');
+    if (trimmed === '') return false;
+    try {
+      const matched = trimmed.match(TOKEN_RE);
+      if (!matched || matched.join('') !== trimmed) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface NodeOption {
   nodeId: number;
   nodeName: string;
@@ -83,7 +108,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: createDnis, isPending: isCreatingDnis } = useCreateDnisTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS 번호변환이 등록되었습니다.');
+        toast.success('DNIS 번호변환이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -92,7 +117,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: updateDnis, isPending: isUpdatingDnis } = useUpdateDnisTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS 번호변환이 수정되었습니다.');
+        toast.success('DNIS 번호변환이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -101,7 +126,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: deleteDnis, isPending: isDeletingDnis } = useDeleteDnisTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DNIS 번호변환이 삭제되었습니다.');
+        toast.success('DNIS 번호변환이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -112,7 +137,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: createAni, isPending: isCreatingAni } = useCreateAniTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('ANI 번호변환이 등록되었습니다.');
+        toast.success('ANI 번호변환이 등록되었습니다');
         handleClose();
         onSuccess();
       },
@@ -121,7 +146,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: updateAni, isPending: isUpdatingAni } = useUpdateAniTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('ANI 번호변환이 수정되었습니다.');
+        toast.success('ANI 번호변환이 수정되었습니다');
         handleClose();
         onSuccess();
       },
@@ -130,7 +155,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
   const { mutate: deleteAni, isPending: isDeletingAni } = useDeleteAniTrans({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('ANI 번호변환이 삭제되었습니다.');
+        toast.success('ANI 번호변환이 삭제되었습니다');
         handleClose();
         onSuccess();
       },
@@ -155,7 +180,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
       // 노드 선택 모드일 때 form에서 nodeId 가져오기
       const targetNodeId = nodeId ?? values.nodeId;
       if (!targetNodeId) {
-        toast.error('노드를 선택하세요.');
+        toast.error('노드를 선택하세요');
         return;
       }
 
@@ -205,6 +230,7 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
       title={isEditMode ? `${categoryLabel} 번호변환 수정` : `${categoryLabel} 번호변환 등록`}
       open={visible}
       onClose={handleClose}
+      closable={{ placement: 'end' }}
       styles={{ wrapper: { width: 420, display: patternMode ? 'none' : undefined } }}
       mask={!patternMode}
       footer={
@@ -276,6 +302,13 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
           rules={[
             { required: true, message: '원본패턴은 필수입니다' },
             { max: 256, message: '원본패턴은 256자 이내여야 합니다' },
+            {
+              validator: (_, value: string) => {
+                if (!value) return Promise.resolve();
+                const valid = validateNumPatternExtended(value);
+                return valid ? Promise.resolve() : Promise.reject(new Error('번호패턴 형식이 올바르지 않습니다'));
+              },
+            },
           ]}
         >
           <Input placeholder="원본패턴을 입력하세요" maxLength={256} />
@@ -285,16 +318,30 @@ const DidTransDrawer = forwardRef<DidTransDrawerRef, Props>(({ onSuccess }, ref)
           <Select options={[...EDIT_OPT_OPTIONS]} placeholder="편집옵션을 선택하세요" />
         </Form.Item>
 
-        <Form.Item name="delCount" label="편집 Digit 수" rules={[{ required: true, message: '편집 Digit 수는 필수입니다' }]}>
-          <InputNumber min={0} max={99} placeholder="0" className="w-full" />
+        <Form.Item
+          name="delCount"
+          label="편집 Digit 수"
+          rules={[
+            { required: true, message: '편집 Digit 수는 필수입니다' },
+            { type: 'number', min: -1, message: '-1 이상이어야 합니다' },
+          ]}
+        >
+          <InputNumber min={-1} max={99} placeholder="0" className="w-full" />
         </Form.Item>
 
         <Form.Item name="addDigit" label="추가 Digit" rules={[{ max: 24, message: '추가 Digit은 24자 이내여야 합니다' }]}>
           <Input placeholder="추가 Digit을 입력하세요" maxLength={24} />
         </Form.Item>
 
-        <Form.Item name="transPriority" label="변환 우선순위" rules={[{ required: true, message: '변환 우선순위는 필수입니다' }]}>
-          <InputNumber min={0} max={9999} placeholder="1" className="w-full" />
+        <Form.Item
+          name="transPriority"
+          label="변환 우선순위"
+          rules={[
+            { required: true, message: '변환 우선순위는 필수입니다' },
+            { type: 'number', min: 1, max: 999, message: '변환 우선순위는 1~999 범위여야 합니다' },
+          ]}
+        >
+          <InputNumber min={1} max={999} placeholder="1" className="w-full" />
         </Form.Item>
 
         <Form.Item name="transDesc" label="비고" rules={[{ max: 256, message: '비고는 256자 이내여야 합니다' }]}>

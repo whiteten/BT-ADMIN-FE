@@ -1,0 +1,14 @@
+{
+  "_comment": "이 파일을 같은 폴더의 manual.config.json 으로 복사한 뒤 login 값을 채우세요. manual.config.json 은 .gitignore 처리되어 커밋되지 않습니다. targetApps 는 비워두면(또는 생략) apps/ 에서 동적 발견한 remote 전체를 대상으로 하며, 특정 앱만 원하면 appId 를 나열하세요(예: [\"fca\",\"ipron\"]).",
+  "baseUrl": "http://localhost:4200",
+  "login": {
+    "userAccount": "",
+    "password": "",
+    "tenant": ""
+  },
+  "targetApps": [],
+  "outputDir": "doc/manuals",
+  "serveSelection": "1",
+  "captureDepth": "full",
+  "viewport": { "width": 1920, "height": 1080 }
+}

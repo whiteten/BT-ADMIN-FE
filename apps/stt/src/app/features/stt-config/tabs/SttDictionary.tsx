@@ -2,13 +2,13 @@ import { useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button } from 'antd';
+import { Button, Dropdown } from 'antd';
 import dayjs from 'dayjs';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import SttDictionaryDrawer, { type SttDictionaryDrawerRef } from '../components/SttDictionaryDrawer';
-import { dictionaryQueryKeys, useDeleteSttDictionary, useGetSttDictionaryList, useImportSttDictionary } from '../hooks/useDictionaryQueries';
+import { dictionaryQueryKeys, useDeleteSttDictionary, useExportSttDictionaryTemplate, useGetSttDictionaryList, useImportSttDictionary } from '../hooks/useDictionaryQueries';
 import type { SttDictionaryItem } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,8 @@ export default function SttDictionary() {
   const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
 
   const { data: allData = [], isLoading } = useGetSttDictionaryList({});
+
+  const { mutate: exportTemplate, isPending: isExporting } = useExportSttDictionaryTemplate();
 
   const { mutate: importDictionary, isPending: isImporting } = useImportSttDictionary({
     mutationOptions: {
@@ -148,9 +150,39 @@ export default function SttDictionary() {
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>
-          <Button variant="solid" onClick={handleClickImport}>
-            Import
-          </Button>
+          <Dropdown
+            trigger={['click']}
+            placement="bottomRight"
+            menu={{
+              items: [
+                {
+                  key: 'import-excel',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <Upload className="size-4" />
+                      엑셀로 일괄추가
+                    </span>
+                  ),
+                  onClick: handleClickImport,
+                },
+                {
+                  key: 'template-download',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <Download className="size-4" />
+                      템플릿 다운로드
+                    </span>
+                  ),
+                  onClick: () => exportTemplate(undefined),
+                },
+              ],
+            }}
+          >
+            <Button variant="solid" loading={isExporting}>
+              Import
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </Dropdown>
         </div>
       </div>
 

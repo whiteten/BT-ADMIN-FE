@@ -13,8 +13,6 @@ export const CATEGORY_PRESET: Record<WidgetCategory, { w: number; h: number }> =
 export interface SizedItem {
   minW: number;
   minH: number;
-  defaultW?: number;
-  defaultH?: number;
   widgetCategory?: WidgetCategory;
 }
 
@@ -25,11 +23,11 @@ function clampSize(meta: SizedItem, w: number, h: number): { w: number; h: numbe
   };
 }
 
-/** 카탈로그 메타 + 카테고리 + min 조합으로 신규 위젯의 권장 크기 결정. */
+/** 카탈로그 카테고리 프리셋 + min 으로 신규 위젯의 권장 크기 결정(보조 picker 전용 — 대시보드는 영역 크기에 바인딩). */
 export function resolveSize(item: SizedItem): { w: number; h: number } {
   const cat = item.widgetCategory || 'MISC';
   const preset = CATEGORY_PRESET[cat];
-  return clampSize(item, item.defaultW ?? preset.w, item.defaultH ?? preset.h);
+  return clampSize(item, preset.w, preset.h);
 }
 
 /**

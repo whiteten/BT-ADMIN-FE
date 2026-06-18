@@ -1,7 +1,16 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { dashboardApi } from '../api/dashboardApi';
-import type { CustomWidgetCatalogItem, DashboardCreateDatas, DashboardDetail, DashboardListItem, DashboardUpdateDatas, Widget, WidgetCreateDatas } from '../types';
+import type {
+  CustomWidgetCatalogItem,
+  CustomWidgetCatalogUpdateDatas,
+  DashboardCreateDatas,
+  DashboardDetail,
+  DashboardListItem,
+  DashboardUpdateDatas,
+  Widget,
+  WidgetCreateDatas,
+} from '../types';
 
 export const dashboardKeys = createQueryKeys('monitoring-dashboards', {
   list: (params?: Record<string, unknown>) => [params],
@@ -76,3 +85,8 @@ export const useGetCustomWidgetCatalog = ({
   queryOptions,
 }: { params?: Record<string, unknown>; queryOptions?: Omit<UseQueryOptions<CustomWidgetCatalogItem[]>, 'queryKey' | 'queryFn'> } = {}) =>
   useQuery({ ...dashboardKeys.customWidgetCatalog(params), queryFn: () => dashboardApi.getCustomWidgetCatalog(params), ...queryOptions });
+
+export const useUpdateCustomWidgetCatalog = ({
+  mutationOptions,
+}: { mutationOptions?: UseMutationOptions<CustomWidgetCatalogItem, Error, { widgetTypeId: string; data: CustomWidgetCatalogUpdateDatas }> } = {}) =>
+  useMutation({ mutationFn: ({ widgetTypeId, data }) => dashboardApi.updateCustomWidgetCatalog(widgetTypeId, data), ...mutationOptions });

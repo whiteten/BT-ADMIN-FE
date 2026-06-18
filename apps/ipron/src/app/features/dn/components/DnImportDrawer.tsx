@@ -132,7 +132,7 @@ export default function DnImportDrawer({ open, nodeId, tenantId, nodeName, tenan
       width={560}
       placement="right"
       maskClosable={!inProgress}
-      closable={!inProgress}
+      closable={{ placement: 'end', disabled: inProgress }}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose} disabled={inProgress}>

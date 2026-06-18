@@ -15,10 +15,7 @@ import { sipProfileQueryKeys, useDeleteSipProfile, useGetSipProfiles } from '../
 import { SS_REFRESH_TYPE_LABELS, type SipProfile, getActiveSipOptionTags } from '../../features/sip-profile/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '프로파일 관리', path: '/ipron/profile/sip-profile' },
-  { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '프로파일', path: '/ipron/profile' }, { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' }];
 
 export default function SipProfileList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -43,7 +40,7 @@ export default function SipProfileList() {
   const { mutate: deleteProfile } = useDeleteSipProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 삭제되었습니다.');
+        toast.success('프로파일이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: sipProfileQueryKeys.getProfiles().queryKey });
       },
     },
@@ -102,19 +99,19 @@ export default function SipProfileList() {
       <div className="flex items-center justify-between gap-2 w-full h-[56px] bg-white bt-shadow px-5 flex-shrink-0">
         <div className="flex gap-3 items-center">
           <Input
-            placeholder="프로파일명 검색"
-            prefix={<Search className="size-4 text-gray-400" />}
+            allowClear
+            placeholder="프로파일 검색"
+            prefix={<Search className="size-3.5 text-gray-400" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            allowClear
-            style={{ width: 240 }}
+            style={{ width: 200 }}
           />
           <span className="text-sm text-gray-500">{filteredProfiles.length}건</span>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => navigate('header-manage')}>헤더 관리</Button>
           <Button type="primary" icon={<Plus className="size-4" />} onClick={handleCreate}>
-            프로파일 추가
+            등록
           </Button>
         </div>
       </div>

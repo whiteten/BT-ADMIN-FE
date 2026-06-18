@@ -6,14 +6,24 @@
  * HA 그룹 백업 시스템(assignYn=0)이 있으면 구분하여 함께 표시.
  * 배포 실행 시 대상 시스템을 서버에 전달하지 않고, 백엔드에서 내부 조회.</p>
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, DatePicker, Drawer, Empty, Form, Radio, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Server, ServerOff, Shield } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { scenarioQueryKeys, useGetDeployTargets, useGetDeployedSystems, usePublishScenario } from '../hooks/useScenarioQueries';
-import { APPLY_STATUS_LABELS, type DeployTargetSystem, type DeployedSystem, type ScenarioVersion } from '../types';
+import {
+  APPLY_STATUS,
+  APPLY_STATUS_LABELS,
+  APPLY_TIMING,
+  type ApplyTimingKind,
+  type DeployTargetSystem,
+  type DeployedSystem,
+  type ScenarioPublishResult,
+  type ScenarioVersion,
+} from '../types';
+import ScenarioDeployResultModal, { type ScenarioDeployResultModalRef } from './ScenarioDeployResultModal';
 
 interface ScenarioDeploySidebarProps {
   open: boolean;
@@ -26,13 +36,14 @@ interface ScenarioDeploySidebarProps {
 
 export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion, onClose }: ScenarioDeploySidebarProps) {
   const queryClient = useQueryClient();
-  const [form] = Form.useForm<{ rtResvKind: 'REALTIME' | 'RESERVED'; applyDatetime?: Dayjs }>();
-  const [rtResvKind, setRtResvKind] = useState<'REALTIME' | 'RESERVED'>('REALTIME');
+  const [form] = Form.useForm<{ rtResvKind: ApplyTimingKind; applyDatetime?: Dayjs }>();
+  const [rtResvKind, setRtResvKind] = useState<ApplyTimingKind>(APPLY_TIMING.REALTIME);
+  const resultModalRef = useRef<ScenarioDeployResultModalRef>(null);
 
   // 선택된 버전 변경 시 폼 초기화
   useEffect(() => {
     form.resetFields();
-    setRtResvKind('REALTIME');
+    setRtResvKind(APPLY_TIMING.REALTIME);
   }, [form, selectedVersion?.serviceVer]);
 
   // 배포된(또는 예약된) 시스템 목록 — 현재 상태 표시
@@ -51,29 +62,51 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
 
   const { mutate: publishMutate, isPending: isPublishing } = usePublishScenario({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success(rtResvKind === 'REALTIME' ? '실시간 배포가 시작되었습니다.' : '예약 배포가 등록되었습니다.');
+      onSuccess: (data) => {
+        const result = data as ScenarioPublishResult;
+        // 배포 후 항상 현재 상태 갱신
         queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getDeployedSystems._def });
         queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getDeployConfig._def });
         form.resetFields();
-        setRtResvKind('REALTIME');
+        setRtResvKind(APPLY_TIMING.REALTIME);
+
+        // RESERVED — 시스템별 결과 없음(svcResvId만 채워짐). 토스트로 안내.
+        if (result?.svcResvId) {
+          toast.success('예약 배포가 등록되었습니다.');
+          return;
+        }
+
+        // REALTIME — 시스템별 deploy/apply 결과를 모달로 표시 (부분 실패 포함).
+        if (result?.deployResults) {
+          resultModalRef.current?.open(result);
+          if (result.deployFailCount === 0 && result.applyFailCount === 0) {
+            toast.success('실시간 배포가 완료되었습니다.');
+          } else {
+            toast.error(`배포 일부 실패 — 파일전송 ${result.deployFailCount}건 · 적용 ${result.applyFailCount}건 실패`);
+          }
+          return;
+        }
+
+        // 방어적 폴백 — 응답 구조 예상과 다를 때
+        toast.success('배포 요청이 처리되었습니다.');
       },
     },
   });
 
-  const handleSubmit = (values: { rtResvKind: 'REALTIME' | 'RESERVED'; applyDatetime?: Dayjs }) => {
+  const handleSubmit = (values: { rtResvKind: ApplyTimingKind; applyDatetime?: Dayjs }) => {
     if (!selectedVersion) return;
     publishMutate({
       params: { serviceId, serviceVer: selectedVersion.serviceVer },
       data: {
         rtResvKind: values.rtResvKind,
-        applyDatetime: values.applyDatetime?.toISOString(),
+        // REALTIME 인 경우 사용자가 DatePicker 잔존 값 가지고 있어도 무시 (disabled 라 변경 못함 + 백엔드도 REALTIME 시 무시)
+        applyDatetime: values.rtResvKind === APPLY_TIMING.RESERVED ? values.applyDatetime?.toISOString() : undefined,
       },
     });
   };
 
   return (
-    <Drawer title="배포" placement="right" width={380} open={open} onClose={onClose}>
+    <Drawer title="배포" closable={{ placement: 'end' }} placement="right" width={480} open={open} onClose={onClose}>
       {!selectedVersion ? (
         <div className="flex flex-col items-center justify-center gap-3 text-gray-400" style={{ minHeight: 300 }}>
           <ServerOff className="size-12" />
@@ -120,16 +153,16 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
                     </div>
                     <Tag
                       color={
-                        s.applyStatus === 'APPLIED'
+                        s.applyStatus === APPLY_STATUS.APPLIED
                           ? 'green'
-                          : s.applyStatus === 'SEND_FAIL' || s.applyStatus === 'CMD_FAIL' || s.applyStatus === 'APPLY_FAIL'
+                          : s.applyStatus === APPLY_STATUS.SEND_FAIL || s.applyStatus === APPLY_STATUS.CMD_FAIL || s.applyStatus === APPLY_STATUS.APPLY_FAIL
                             ? 'red'
-                            : s.applyStatus === 'PENDING' || s.applyStatus === 'SEND_OK' || s.applyStatus === 'CMD_OK'
+                            : s.applyStatus === APPLY_STATUS.PENDING || s.applyStatus === APPLY_STATUS.SEND_OK || s.applyStatus === APPLY_STATUS.CMD_OK
                               ? 'blue'
                               : 'default'
                       }
                     >
-                      {APPLY_STATUS_LABELS[s.applyStatus] ?? s.applyStatus}
+                      {(s.applyStatus && APPLY_STATUS_LABELS[s.applyStatus]) ?? s.applyStatus ?? '-'}
                     </Tag>
                   </div>
                 ))}
@@ -140,38 +173,47 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
           <hr className="border-slate-100" />
 
           {/* 배포 실행 폼 */}
-          <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ rtResvKind: 'REALTIME' }}>
+          <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ rtResvKind: APPLY_TIMING.REALTIME }}>
             <div className="text-[12px] font-semibold text-slate-700 mb-2">배포 실행</div>
 
             {!selectedVersion.scenarioFile && (
               <Alert type="warning" showIcon message="시나리오 파일 미업로드" description="버전 추가 시 파일을 업로드해주세요." className="!mb-3" />
             )}
 
-            <Form.Item name="rtResvKind" label="배포 방식" rules={[{ required: true }]}>
-              <Radio.Group onChange={(e) => setRtResvKind(e.target.value)}>
-                <Radio value="REALTIME">즉시</Radio>
-                <Radio value="RESERVED">예약</Radio>
-              </Radio.Group>
-            </Form.Item>
-
-            {rtResvKind === 'RESERVED' && (
-              <Form.Item
-                name="applyDatetime"
-                label="예약 일시"
-                rules={[
-                  { required: true, message: '예약 일시는 필수입니다' },
-                  {
-                    validator: async (_r, value: Dayjs | undefined) => {
-                      if (value && !value.isAfter(dayjs())) {
-                        throw new Error('예약 일시는 현재 시각 이후여야 합니다');
-                      }
+            {/* 배포 방식 + 예약 시각 인라인. DatePicker 는 REALTIME 모드에서도 자리 점유 (disabled).
+                AS-IS SleeConfigList 패턴과 동일 — layout shift 방지. */}
+            <Form.Item label="배포 방식" required className="!mb-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Form.Item name="rtResvKind" noStyle rules={[{ required: true }]}>
+                  <Radio.Group onChange={(e) => setRtResvKind(e.target.value)}>
+                    <Radio value={APPLY_TIMING.REALTIME}>즉시</Radio>
+                    <Radio value={APPLY_TIMING.RESERVED}>예약</Radio>
+                  </Radio.Group>
+                </Form.Item>
+                <Form.Item
+                  name="applyDatetime"
+                  noStyle
+                  rules={[
+                    {
+                      validator: async (_r, value: Dayjs | undefined) => {
+                        if (rtResvKind !== APPLY_TIMING.RESERVED) return;
+                        if (!value) throw new Error('예약 일시는 필수입니다');
+                        if (!value.isAfter(dayjs())) throw new Error('예약 일시는 현재 시각 이후여야 합니다');
+                      },
                     },
-                  },
-                ]}
-              >
-                <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
-              </Form.Item>
-            )}
+                  ]}
+                >
+                  <DatePicker
+                    showTime={{ format: 'HH:mm', minuteStep: 5 }}
+                    format="YYYY-MM-DD HH:mm"
+                    disabled={rtResvKind !== APPLY_TIMING.RESERVED}
+                    disabledDate={(d) => d && d.isBefore(dayjs().startOf('day'))}
+                    placeholder="예약 시각"
+                    style={{ width: 200 }}
+                  />
+                </Form.Item>
+              </div>
+            </Form.Item>
 
             {/* 대상 시스템 — 읽기 전용 목록 (할당 + HA 백업) */}
             <div className="mb-4">
@@ -212,6 +254,7 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
           </Form>
         </div>
       )}
+      <ScenarioDeployResultModal ref={resultModalRef} />
     </Drawer>
   );
 }

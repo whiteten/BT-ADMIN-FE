@@ -25,7 +25,8 @@ export default function ReportWizard() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '보고서', path: '/insight/statistics/reports' },
+      { title: '통계', path: '/insight/statistics' },
+      { title: '보고서 관리', path: '/insight/statistics/reports' },
       { title: '새 보고서 생성', path: '/insight/statistics/reports/new' },
     ]);
     return () => clearBreadcrumb();

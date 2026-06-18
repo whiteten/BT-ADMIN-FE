@@ -1,51 +1,36 @@
-import type { HealthBoardData } from './types';
-
 /**
- * 데모 데이터 — URL 에 `?healthDemo=1` 이 포함되면 위젯이 실 데이터 대신 본 값을 사용한다.
+ * 종합 헬스보드 데모 데이터.
  *
- * 용도:
- *  - WebSocket / BE 집계 위젯 미구현 환경에서 시각 확인
- *  - 시안(01-healthboard.html)과 픽셀 비교
- *
- * 운영에는 영향 없음 — 쿼리 파라미터가 없으면 무시된다.
+ * URL 쿼리 `?healthBoardDemo=1` 로 켜면, 라이브 WS 데이터 대신 4개 응대 지표
+ * (응대율·SL·포기율·현재 대기)를 3초마다 지터시켜 게이지 애니메이션의 시각적 느낌을 확인할 수 있다.
+ * 임계 밴드(정상→주의→위험)를 모두 넘나들도록 범위를 넓게 잡는다.
  */
-export const DEMO_HEALTH: HealthBoardData = {
-  answerRate: 92.4,
-  serviceLevel: 88,
-  abandonRate: 4.2,
-  inboundCnt: 1284,
-  answeredCnt: 1186,
-  waitingCnt: 17,
-  alarm: { danger: 3, warn: 2 },
-  systems: [
-    { code: 'IE', name: 'IE 교환기', up: 8, total: 8 },
-    { code: 'IC', name: 'IC CTI', up: 4, total: 4 },
-    { code: 'IR', name: 'IR IVR', up: 7, total: 8 },
-  ],
-  queues: [
-    { id: 'vip', name: 'VIP 상담', waitCnt: 32, barPct: 100, sev: 'danger' },
-    { id: 'normal', name: '일반 상담', waitCnt: 18, barPct: 56, sev: 'warn' },
-    { id: 'team2', name: '상담2팀', serviceLevel: 84, barPct: 42, sev: 'warn' },
-  ],
-  normalQueueCnt: 5,
-  agents: { available: 42, talking: 23, wrapup: 8, aux: 7, offline: 5 },
-  quality: {
-    bad: 4,
-    warn: 7,
-    normal: 49,
-    dist: { good: 60, fair: 22, warn: 12, bad: 6 },
-    lowestMos: 3.1,
-    lowestAgentName: '홍길동',
-    lowestAgentDn: '1042',
-  },
-  serverTs: Date.now(),
-};
 
-export function isHealthDemoMode(): boolean {
+/** 데모 모드 활성화 여부. URL 쿼리에 `healthBoardDemo=1` 이 있으면 true. */
+export function isHealthBoardDemoMode(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    return new URLSearchParams(window.location.search).get('healthDemo') === '1';
+    return new URLSearchParams(window.location.search).get('healthBoardDemo') === '1';
   } catch {
     return false;
   }
+}
+
+const rand = (min: number, max: number): number => Math.round((min + Math.random() * (max - min)) * 10) / 10;
+
+/**
+ * toHealthData 가 정규화하는 raw(summary) 형태로 4개 지표만 지터한다.
+ * (나머지 영역 — 시스템/큐/상담사/품질 등 — 은 미지정이라 0/빈 값으로 표시된다.)
+ */
+export function genHealthBoardDemo(): unknown {
+  return {
+    summary: {
+      answerRate: rand(70, 99), // 정상≥90 / 주의≥80 / 위험<80
+      serviceLevel: rand(70, 99),
+      abandonRate: rand(0, 8), // 정상≤3 / 주의≤5 / 위험>5
+      waitingCnt: Math.round(rand(0, 40)), // 정상≤9 / 주의≤29 / 위험>29
+      inboundCnt: Math.round(rand(800, 1500)),
+      answeredCnt: Math.round(rand(700, 1400)),
+    },
+  };
 }

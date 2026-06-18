@@ -6,7 +6,6 @@ import type {
   PanelCreateDatas,
   PanelDetail,
   PanelLayoutUpdateItem,
-  PublishDatas,
   ReportCreateDatas,
   ReportDetail,
   ReportFullDetail,
@@ -56,6 +55,14 @@ export const reportApi = {
 
   deleteReport: async (reportId: number): Promise<void> => {
     await apiClient.delete('/insight-statistics-report-delete', { params: { reportId } });
+  },
+
+  /** 시스템 장표 승격/해제 — 시스템 관리자 전용. */
+  setReportSystemFlag: async (reportId: number, toSystem: boolean): Promise<ReportDetail> => {
+    const response = toSystem
+      ? await apiClient.post<ApiResponse<ReportDetail>>('/insight-statistics-report-promote', {}, { params: { reportId } })
+      : await apiClient.delete<ApiResponse<ReportDetail>>('/insight-statistics-report-demote', { params: { reportId } });
+    return response.data?.data;
   },
 
   getFieldDisplays: async (reportId: number): Promise<FieldDisplay[]> => {
@@ -157,15 +164,6 @@ export const reportApi = {
     // BE DTO(StatPanelLayoutRequest)는 layoutX/Y/W/H 필드 — createPanel 과 동일하게 매핑해서 전송
     const body = layouts.map((l) => ({ panelId: l.panelId, layoutX: l.x, layoutY: l.y, layoutW: l.w, layoutH: l.h }));
     await apiClient.put('/insight-statistics-panel-layout-update', body, { params: { reportId } });
-  },
-
-  publishReport: async (reportId: number, data: PublishDatas): Promise<{ menuId: number }> => {
-    const response = await apiClient.post<ApiResponse<{ menuId: number }>>('/insight-statistics-publish-on', data, { params: { reportId } });
-    return response.data?.data;
-  },
-
-  unpublishReport: async (reportId: number): Promise<void> => {
-    await apiClient.delete('/insight-statistics-publish-off', { params: { reportId } });
   },
 
   getUserFilter: async (reportId: number): Promise<Record<string, unknown> | null> => {

@@ -1484,6 +1484,7 @@ export default function DatasetWizard() {
             <span className="text-[13px] font-semibold">{calcEditing?.mode === 'add' ? '새 계산필드' : `편집: ${calcEditing?.initial?.fieldCode ?? ''}`}</span>
           </div>
         }
+        closable={{ placement: 'end' }}
         styles={{ body: { padding: 0 } }}
       >
         {calcEditing && (

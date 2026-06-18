@@ -3,13 +3,13 @@
  * — DN 패턴 차용. ADN 은 노드 개념 없어 viewMode/탭 제거, 카드 슬라이더만.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button, Empty, Input } from 'antd';
+import { Button, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { adnApi } from '../../features/adn/api/adnApi';
 import AdnCopyDrawer, { type AdnCopyFormValues } from '../../features/adn/components/AdnCopyDrawer';
+import AdnFormDrawer from '../../features/adn/components/AdnFormDrawer';
 import AdnImportDrawer from '../../features/adn/components/AdnImportDrawer';
 import AdnTable from '../../features/adn/components/AdnTable';
 import AdnTenantCard from '../../features/adn/components/AdnTenantCard';
@@ -17,11 +17,7 @@ import { useCopyAdn, useDeleteAdns, useGetAdnTenants, useGetAdns } from '../../f
 import type { AdnResponse } from '../../features/adn/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/adn' },
-  { title: 'DN관리', path: '/ipron/adn' },
-  { title: 'ADN 설정', path: '/ipron/adn' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ADN', path: '/ipron/adn' }];
 
 export default function AdnList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -31,20 +27,50 @@ export default function AdnList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const navigate = useNavigate();
   const modal = useModal();
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
+  /**
+   * ADN 상태 필터 — AS-IS SWAT IPR20S2023 srchAdnStatus 콤보 대응.
+   * TB_CC_COMMONCODE (CLASS_CD='DN_STATUS', ADDCOND1_VALUE='ADN'): '8'=로그인, '9'=로그아웃.
+   * null = 전체.
+   */
+  const [dnStatusFilter, setDnStatusFilter] = useState<string | null>(null);
   const [selectedRows, setSelectedRows] = useState<AdnResponse[]>([]);
   const [copyOpen, setCopyOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  // 등록/수정 드로어 (전체페이지 라우트 → Drawer 전환). 복사/가져오기 드로어와 중첩 방지를 위해 단일 상태로 관리.
+  const [formDrawer, setFormDrawer] = useState<{ open: boolean; mode: 'create' | 'edit'; dnId: number | null }>({
+    open: false,
+    mode: 'create',
+    dnId: null,
+  });
+  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
+  const [cardExpanded, setCardExpanded] = useState(false);
+
+  // ctx 비동기 로드 시 동기화
+  useEffect(() => {
+    if (ctxTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(ctxTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
-  const { data: adns = [], isLoading } = useGetAdns({});
+  // dnStatus 는 BE 서버 필터로 전달 (AS-IS SWAT AND A.DN_STATUS=#dnStatus# 대응).
+  // dnStatusFilter 변경 시 쿼리 캐시 키가 달라져 자동 재요청된다.
+  const { data: adns = [], isLoading } = useGetAdns({
+    params: dnStatusFilter ? { dnStatus: dnStatusFilter } : undefined,
+  });
   const { data: tenantStats = [] } = useGetAdnTenants();
 
   // ─── Mutations ──────────────────────────────────────────────────────────
@@ -81,6 +107,7 @@ export default function AdnList() {
     if (selectedTenantId !== null) {
       rows = rows.filter((r) => r.tenantId === selectedTenantId);
     }
+    // dnStatus 필터는 BE 서버에서 처리 (useGetAdns params로 전달). 클라이언트 재필터 불필요.
     const kw = searchText.trim().toLowerCase();
     if (kw) {
       rows = rows.filter((r) => {
@@ -104,14 +131,23 @@ export default function AdnList() {
   }, [tenantStats]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
+  // 등록/수정 드로어 오픈 시 복사·가져오기 드로어를 닫아 중첩을 방지한다.
   const handleCreate = useCallback(() => {
-    const params = new URLSearchParams();
-    if (selectedTenantId) params.set('tenantId', String(selectedTenantId));
-    const qs = params.toString();
-    navigate(`/ipron/adn/create${qs ? `?${qs}` : ''}`);
-  }, [navigate, selectedTenantId]);
+    setCopyOpen(false);
+    setImportOpen(false);
+    setFormDrawer({ open: true, mode: 'create', dnId: null });
+  }, []);
 
-  const handleEdit = useCallback((adn: AdnResponse) => navigate(`/ipron/adn/${adn.dnId}/edit`), [navigate]);
+  const handleEdit = useCallback((adn: AdnResponse) => {
+    setCopyOpen(false);
+    setImportOpen(false);
+    setFormDrawer({ open: true, mode: 'edit', dnId: adn.dnId });
+  }, []);
+
+  const handleFormSaved = useCallback(() => {
+    // 등록/수정 성공 후 드로어 닫기 (목록 캐시는 mutation onSuccess 에서 무효화됨).
+    setFormDrawer((prev) => ({ ...prev, open: false }));
+  }, []);
 
   const handleDelete = useCallback(
     (adn: AdnResponse) => {
@@ -140,6 +176,8 @@ export default function AdnList() {
       toast.warning('MD5 인증이 설정된 ADN 은 복사할 수 없습니다');
       return;
     }
+    // 등록/수정 드로어와 중첩 방지
+    setFormDrawer((prev) => ({ ...prev, open: false }));
     setCopyOpen(true);
   }, [selectedRows]);
 
@@ -154,7 +192,10 @@ export default function AdnList() {
 
   const handleExport = async () => {
     try {
-      const blob = await adnApi.exportExcel(selectedTenantId ? { tenantId: selectedTenantId } : undefined);
+      const exportParams: { tenantId?: number; dnStatus?: string } = {};
+      if (selectedTenantId) exportParams.tenantId = selectedTenantId;
+      if (dnStatusFilter) exportParams.dnStatus = dnStatusFilter;
+      const blob = await adnApi.exportExcel(Object.keys(exportParams).length ? exportParams : undefined);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -173,11 +214,28 @@ export default function AdnList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 카드 슬라이더 박스 ===== */}
+      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[44px] border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-700">테넌트별 ADN 현황</span>
+        <div className="flex items-center px-4 h-[56px]">
+          <span className="text-sm font-semibold text-gray-700">ADN 현황</span>
+          {selectedTenantId !== null && (
+            <span className="ml-3 text-xs text-gray-500">
+              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
+            {/* AS-IS srchAdnStatus 콤보 — TB_CC_COMMONCODE CLASS_CD='DN_STATUS' ADDCOND1_VALUE='ADN' */}
+            <Select
+              allowClear
+              placeholder="상태"
+              value={dnStatusFilter ?? undefined}
+              onChange={(val: string | undefined) => setDnStatusFilter(val ?? null)}
+              style={{ width: 110 }}
+              options={[
+                { value: '8', label: '로그인' },
+                { value: '9', label: '로그아웃' },
+              ]}
+            />
             <Input
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
@@ -189,12 +247,21 @@ export default function AdnList() {
             <Button icon={<Download className="size-3.5" />} onClick={handleExport}>
               엑셀
             </Button>
-            <Button icon={<Upload className="size-3.5" />} onClick={() => setImportOpen(true)}>
+            <Button
+              icon={<Upload className="size-3.5" />}
+              onClick={() => {
+                setFormDrawer((prev) => ({ ...prev, open: false }));
+                setImportOpen(true);
+              }}
+            >
               가져오기
             </Button>
           </div>
         </div>
+      </div>
 
+      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스, gap-4 로 분리) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         {cardExpanded ? (
           <div className="flex items-center h-[140px] px-4 py-3">
             <div className="relative flex items-center gap-2 w-full">
@@ -287,7 +354,7 @@ export default function AdnList() {
               disabled={selectedRows.length === 0}
               title={selectedRows.length === 0 ? '삭제할 ADN 을 선택하세요' : '선택한 ADN 삭제'}
             >
-              {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+              삭제
             </Button>
             <Button onClick={handleCopyOpen} disabled={selectedRows.length !== 1} title={selectedRows.length !== 1 ? 'ADN 1건을 선택하세요' : '선택한 ADN 복사 생성'}>
               복사 생성
@@ -302,7 +369,6 @@ export default function AdnList() {
             rowData={filteredAdns}
             isLoading={isLoading}
             onRowDoubleClicked={handleEdit}
-            onDelete={handleDelete}
             onSelectionChanged={setSelectedRows}
             onBulkDelete={handleBulkDelete}
             selectedCount={selectedRows.length}
@@ -310,6 +376,14 @@ export default function AdnList() {
         </div>
       </div>
 
+      <AdnFormDrawer
+        open={formDrawer.open}
+        mode={formDrawer.mode}
+        dnId={formDrawer.dnId}
+        defaultTenantId={selectedTenantId}
+        onClose={() => setFormDrawer((prev) => ({ ...prev, open: false }))}
+        onSaved={handleFormSaved}
+      />
       <AdnCopyDrawer open={copyOpen} source={selectedRows[0] ?? null} onCancel={() => setCopyOpen(false)} onSubmit={handleCopySubmit} />
       <AdnImportDrawer open={importOpen} onClose={() => setImportOpen(false)} />
     </div>

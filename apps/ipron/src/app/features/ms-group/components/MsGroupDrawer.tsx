@@ -11,7 +11,7 @@ import { useCreateMsGroup, useUpdateMsGroup } from '../hooks/useMsGroupQueries';
 import { type MsGroup, type MsGroupCreateRequest, ROUTE_TYPE_OPTIONS } from '../types';
 
 export interface MsGroupDrawerRef {
-  open: (data?: MsGroup, nodeId?: number) => void;
+  open: (data?: MsGroup, nodeId?: number, nodeName?: string) => void;
   close: () => void;
 }
 
@@ -24,19 +24,22 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<MsGroup | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
+  const [nodeName, setNodeName] = useState<string>('');
 
   const isEditMode = !!editData;
 
   useImperativeHandle(ref, () => ({
-    open: (data?: MsGroup, initNodeId?: number) => {
+    open: (data?: MsGroup, initNodeId?: number, initNodeName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
+      setNodeName(initNodeName ?? '');
       setVisible(true);
     },
     close: () => {
       setVisible(false);
       setEditData(null);
       setNodeId(null);
+      setNodeName('');
       form.resetFields();
     },
   }));
@@ -55,10 +58,11 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const { mutate: createMsGroup, isPending: isCreating } = useCreateMsGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('MS그룹이 등록되었습니다.');
+        toast.success('MS그룹이 등록되었습니다');
         setVisible(false);
         setEditData(null);
         setNodeId(null);
+        setNodeName('');
         form.resetFields();
         onSuccess();
       },
@@ -68,10 +72,11 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const { mutate: updateMsGroup, isPending: isUpdating } = useUpdateMsGroup({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('MS그룹이 수정되었습니다.');
+        toast.success('MS그룹이 수정되었습니다');
         setVisible(false);
         setEditData(null);
         setNodeId(null);
+        setNodeName('');
         form.resetFields();
         onSuccess();
       },
@@ -104,11 +109,13 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   return (
     <Drawer
       title={isEditMode ? 'MS그룹 수정' : 'MS그룹 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => {
         setVisible(false);
         setEditData(null);
         setNodeId(null);
+        setNodeName('');
         form.resetFields();
       }}
       styles={{ wrapper: { width: 420 } }}
@@ -119,20 +126,21 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
               setVisible(false);
               setEditData(null);
               setNodeId(null);
+              setNodeName('');
               form.resetFields();
             }}
           >
             취소
           </Button>
           <Button type="primary" onClick={handleSubmit} loading={isPending}>
-            {isEditMode ? '수정' : '등록'}
+            저장
           </Button>
         </div>
       }
     >
       <Form form={form} layout="vertical" initialValues={{ routeType: '2' }}>
         <Form.Item label="노드">
-          <Input value={nodeId ? `Node ${nodeId}` : ''} disabled />
+          <Input value={nodeName} disabled />
         </Form.Item>
 
         <Form.Item

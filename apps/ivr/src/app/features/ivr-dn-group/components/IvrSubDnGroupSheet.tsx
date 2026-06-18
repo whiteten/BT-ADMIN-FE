@@ -140,6 +140,7 @@ const IvrSubDnGroupSheet = forwardRef<IvrSubDnGroupSheetRef, Props>(({ dnGroupId
   return (
     <Drawer
       title={isEditMode ? 'Sub DN 수정' : 'Sub DN 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 480 } }}

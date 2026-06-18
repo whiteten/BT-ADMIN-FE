@@ -48,4 +48,14 @@ export const dictionaryApi = {
     const response = await apiClient.post<ApiResponse<ExcelImportResult>>('/keyword-boosting-excel-import', formData, { params: { engineCode } });
     return response.data?.data;
   },
+  exportSttDictionaryTemplate: async () => {
+    return await apiClient.get<Blob>('/stt-dictionary-excel-export', {
+      responseType: 'blob',
+    });
+  },
+  exportKeywordBoostingTemplate: async () => {
+    return await apiClient.get<Blob>('/keyword-boosting-excel-export', {
+      responseType: 'blob',
+    });
+  },
 };

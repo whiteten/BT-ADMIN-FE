@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Form, Input, Select } from 'antd';
+import { Server } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -20,7 +21,7 @@ interface FormValues {
 }
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'A2A', path: '/aoe/agent-config/a2a/list' },
   { title: '추가', path: '/aoe/agent-config/a2a/create' },
 ];
@@ -106,40 +107,53 @@ export default function A2ACreate() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex flex-row gap-5 w-full flex-1 min-h-0 bg-white bt-shadow p-5">
-        {/* 좌측 — 기본정보 폼 */}
-        <div className="w-[420px] shrink-0 overflow-y-auto overflow-x-hidden">
-          <Form form={form} layout="vertical">
-            <Form.Item name="agentId" label="배포 Agent" required rules={[{ required: true, message: 'Agent를 선택해 주세요.' }]}>
-              <Select
-                showSearch
-                placeholder="배포된 Agent를 선택하세요."
-                options={deployedAgents.map((a) => ({ label: a.agentName, value: a.agentId }))}
-                onChange={handleAgentChange}
-                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              />
-            </Form.Item>
-            <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
-              <Input placeholder="Agent 명을 입력하세요." />
-            </Form.Item>
-            <Form.Item name="agentDescription" label="설명">
-              <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
-            </Form.Item>
-          </Form>
+      <div className="flex flex-col gap-4 w-full flex-1 min-h-0 bg-white bt-shadow p-5">
+        <div className="flex flex-row gap-5 w-full flex-1 min-h-0">
+          {/* 좌측 — 기본정보 폼 (사이드 패널) */}
+          <div className="flex w-[380px] shrink-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+            <header className="flex items-center gap-2.5 border-b border-[#F1F3F5] px-4 py-3">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bt-primary-soft)]">
+                <Server className="size-[18px] text-[var(--color-bt-primary)]" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-[#495057]">기본 정보</h3>
+                <p className="text-xs text-[#888B9A]">A2A 서버로 배포할 Agent 정보</p>
+              </div>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4">
+              <Form form={form} layout="vertical">
+                <Form.Item name="agentId" label="배포 Agent" required rules={[{ required: true, message: 'Agent를 선택해 주세요.' }]}>
+                  <Select
+                    showSearch
+                    placeholder="배포된 Agent를 선택하세요."
+                    options={deployedAgents.map((a) => ({ label: a.agentName, value: a.agentId }))}
+                    onChange={handleAgentChange}
+                    filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                  />
+                </Form.Item>
+                <Form.Item name="agentName" label="Agent 명" required rules={[{ required: true, message: 'Agent 명을 입력해 주세요.' }]}>
+                  <Input placeholder="Agent 명을 입력하세요." />
+                </Form.Item>
+                <Form.Item name="agentDescription" label="설명">
+                  <Input.TextArea placeholder="설명을 입력하세요." autoSize={{ minRows: 3, maxRows: 6 }} />
+                </Form.Item>
+              </Form>
+            </div>
+          </div>
+          {/* 우측 — Skills 그리드 (controlled, 카드) */}
+          <div className="flex flex-1 min-w-0 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white p-4">
+            <A2ASkillsEditor skills={skills} onChange={setSkills} description="배포 Agent 선택 시 사용 도구가 자동으로 채워집니다." />
+          </div>
         </div>
-        {/* 우측 — Skills 그리드 (controlled) */}
-        <div className="flex-1 min-w-0">
-          <A2ASkillsEditor skills={skills} onChange={setSkills} />
+        {/* 카드 하단 — 저장/취소 */}
+        <div className="flex items-center justify-center gap-3 w-full">
+          <Button variant="solid" onClick={() => navigate('../list')}>
+            취소
+          </Button>
+          <Button color="primary" variant="solid" loading={isPending} onClick={handleSubmit}>
+            저장
+          </Button>
         </div>
-      </div>
-      {/* 페이지 하단 — 저장/취소 */}
-      <div className="flex items-center justify-center gap-3 w-full">
-        <Button variant="solid" onClick={() => navigate('../list')}>
-          취소
-        </Button>
-        <Button color="primary" variant="solid" loading={isPending} onClick={handleSubmit}>
-          저장
-        </Button>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 export interface ChannelStatusItem {
   channelId: number;
   prtYn: 'Y' | 'N';
-  channelStatus: string | null;
+  channelStatus: number | null;
   channelStatusNm: string | null;
   progressRate: string | null;
   ucidGkey: string | null;
@@ -43,6 +43,7 @@ export interface DnStatusItem {
   ucidGkey: string;
   agentName: string;
   progressRate: string;
+  analKind?: string | null;
   ty?: string;
   channelId?: number;
   channelStatusNm?: string;

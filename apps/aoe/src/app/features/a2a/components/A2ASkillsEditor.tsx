@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button } from 'antd';
+import { Boxes } from 'lucide-react';
 import A2ASkillDrawer, { type A2ASkillDrawerRef } from './A2ASkillDrawer';
 import type { A2ASkill } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
@@ -19,9 +20,11 @@ interface Props {
   skills: A2ASkill[];
   onChange: (next: A2ASkill[]) => void;
   loading?: boolean;
+  /** 헤더 하단 보조 설명 (예: 자동 채움 안내) */
+  description?: string;
 }
 
-export default function A2ASkillsEditor({ skills, onChange, loading }: Props) {
+export default function A2ASkillsEditor({ skills, onChange, loading, description }: Props) {
   const modal = useModal();
   const skillDrawerRef = useRef<A2ASkillDrawerRef>(null);
   const { gridOptions } = useAggridOptions();
@@ -92,9 +95,19 @@ export default function A2ASkillsEditor({ skills, onChange, loading }: Props) {
   return (
     <>
       <div className="flex flex-col w-full h-full">
-        {/* Ant Form label(vertical layout) 의 line-height + padding-bottom(약 8px) 과 동일한 hieght 로 좌측 첫 라벨과 baseline 정렬 */}
-        <header className="flex items-center justify-between w-full pb-2" style={{ height: 32 }}>
-          <label className="text-sm text-gray-800">Skills</label>
+        <header className="mb-4 flex items-center justify-between gap-2 border-b border-[#F1F3F5] pb-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bt-primary-soft)]">
+              <Boxes className="size-[18px] text-[var(--color-bt-primary)]" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-[#495057]">
+                Skills
+                <span className="ml-1.5 text-xs font-normal text-[#888B9A]">{skills.length}</span>
+              </h3>
+              <p className="truncate text-xs text-[#888B9A]">{description ?? 'Agent가 외부에 노출할 스킬 목록'}</p>
+            </div>
+          </div>
           <Button type="primary" onClick={() => skillDrawerRef.current?.open()}>
             추가
           </Button>

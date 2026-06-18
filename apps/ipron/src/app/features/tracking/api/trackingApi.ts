@@ -19,6 +19,7 @@ import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   AgentEvent,
   CallDetailHeader,
+  CallQuality,
   CallSearchResult,
   CallSegment,
   CtiRoutingHop,
@@ -96,10 +97,12 @@ interface BackendIvrStep {
   val5: string | null;
   val6: string | null;
   val7: string | null;
+  val8: string | null;
   startMs: number | null;
   durationMs: number | null;
   dtmfInput: string | null;
   mentName: string | null;
+  itemName: string | null;
   endReason: string | null;
   depth: number | null;
   parentId: string | null;
@@ -107,6 +110,7 @@ interface BackendIvrStep {
 
 interface BackendIvrStepNode {
   cdrPkey: number | null;
+  serviceId: number | null;
   serviceName: string | null;
   scenarioVersion: string | null;
   startMs: number | null;
@@ -115,48 +119,62 @@ interface BackendIvrStepNode {
   steps: BackendIvrStep[] | null;
 }
 
-// BE typeLabel(AS-IS getIvrTrackingTypeName) 그대로 매핑
+// BE IvrStepBuilder.typeLabel 과 1:1 — 알 수 없는 라벨은 'OTHER'
+const IVR_NODE_TYPES = new Set([
+  'Menu',
+  'GetDigit',
+  'Play',
+  'Packet',
+  'Cti',
+  'Query',
+  'Tracking',
+  'UserDef',
+  'HA',
+  'EndInfo',
+  'Disconnect',
+  'Record',
+  'Abort',
+  'Switch',
+  'Transfer',
+  'MakeCall',
+  'DisSwitch',
+  'GetChannel',
+  'VoiceRecogine',
+  'OpenVR',
+  'CloseVR',
+  'RequestVR',
+  'ResponseVR',
+  'PacketJson',
+  'RequestVARS',
+  'CollectDigit',
+  'NLU',
+  'NLURequest',
+  'IntentCall',
+  'EntityCall',
+  'RequestHTTP',
+  'Pause',
+  'Resume',
+  'ShowChat',
+  'GetChat',
+  'RequestPage',
+  'GetPageData',
+  'RequestPush',
+  'RegistServer',
+  'UnRegistServer',
+  'MenuCall',
+  'ChangeService',
+  'MenuChange',
+  'UserENV',
+  'SetEvent',
+  'WaitEvent',
+  'UserCode',
+] as const);
+
 function mapIvrNodeType(typeLabel: string | null): IvrScenarioGroup['steps'][number]['type'] {
-  switch (typeLabel) {
-    case 'Menu':
-      return 'Menu';
-    case 'GetDigit':
-      return 'GetDigit';
-    case 'Play':
-      return 'Play';
-    case 'Packet':
-      return 'Packet';
-    case 'Cti':
-      return 'Cti';
-    case 'Query':
-      return 'Query';
-    case 'Tracking':
-      return 'Tracking';
-    case 'UserDef':
-      return 'UserDef';
-    case 'HA':
-      return 'HA';
-    case 'EndInfo':
-      return 'EndInfo';
-    case 'PacketJson':
-      return 'PacketJson';
-    case 'RequestVARS':
-      return 'RequestVARS';
-    case 'CollectDigit':
-      return 'CollectDigit';
-    case 'RequestHTTP':
-      return 'RequestHTTP';
-    case 'Pause':
-      return 'Pause';
-    case 'Resume':
-      return 'Resume';
-    case 'ShowChat':
-      return 'ShowChat';
-    case 'GetChat':
-      return 'GetChat';
-    default:
-      return 'OTHER';
+  if (typeLabel && IVR_NODE_TYPES.has(typeLabel as never)) {
+    return typeLabel as IvrScenarioGroup['steps'][number]['type'];
   }
+  return 'OTHER';
 }
 
 function msToIso(ms: number | null): string {
@@ -182,7 +200,10 @@ function mapIvrScenarioGroup(node: BackendIvrStepNode): IvrScenarioGroup {
     enterTime: msToIso(s.startMs),
     durationSec: s.durationMs != null ? Math.round(s.durationMs / 1000) : null,
     mentName: s.mentName,
+    itemName: s.itemName,
     dtmfInput: s.dtmfInput,
+    val3: s.val3,
+    val8: s.val8,
     sttResult: null,
     queryResult: null,
     endReason: s.endReason,
@@ -191,7 +212,7 @@ function mapIvrScenarioGroup(node: BackendIvrStepNode): IvrScenarioGroup {
   return {
     cdrPkey: node.cdrPkey ?? 0,
     scenarioName: node.serviceName ?? '(시나리오)',
-    scenarioId: 0,
+    scenarioId: node.serviceId ?? 0,
     scenarioVersion: node.scenarioVersion,
     startTime: msToIso(startMs),
     endTime: endMs != null ? msToIso(endMs) : null,
@@ -221,6 +242,8 @@ function emptyHeader(ucid: string): CallDetailHeader {
     nodeName: null,
     transferCount: 0,
     unmaskAvailable: false,
+    mediaType: null,
+    mediaAlias: null,
   };
 }
 
@@ -377,6 +400,7 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
         _hop: s.hop,
         _segType: s.segmentType,
         _tType: s.tType ?? null,
+        _oType: s.oType ?? null,
         _ccEnd: s.ccEnd ?? null,
         _ccType: (s as { ccType?: number | null }).ccType ?? null,
         _ccPart: (s as { ccPart?: number | null }).ccPart ?? null,
@@ -410,6 +434,8 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
     nodeName: raw.segments?.[0]?.nodeName ?? null,
     transferCount: 0,
     unmaskAvailable: aniMasked,
+    mediaType: (raw as { mediaType?: number | null }).mediaType ?? null,
+    mediaAlias: (raw as { mediaAlias?: string | null }).mediaAlias ?? null,
   };
 
   return { header, segments };
@@ -445,6 +471,7 @@ function toSearchRequest(c: TrackingSearchCriteria) {
     abandoned: c.abandoned,
     reqAgent: c.reqAgent,
     ivrSelfServiced: c.ivrSelfServiced,
+    purposeOfInquiry: c.purposeOfInquiry,
     requestedMode: c.mode === 'PBX' ? 'PBX_FRONT' : c.mode === 'IVR' ? 'IVR_FRONT' : c.mode === 'CTI' ? 'CTI_FRONT' : c.mode,
     page: c.page,
     size: c.size,
@@ -566,6 +593,49 @@ export const trackingApi = {
   },
 
   // ─── Recording Redirect ───────────────────────────────────────────────────
+
+  /**
+   * Quality 탭 — UCID + HOP 기준 통화품질 데이터 조회.
+   * Backend: ApiResponse<Map<String,Object>> (Oracle 컬럼명 그대로) -> BFF: data:{...}
+   * @flow ipron-tracking-quality
+   *
+   * @param hop HOP 번호 (미지정 시 0)
+   */
+  getQuality: async (ucid: string, hop?: number): Promise<CallQuality> => {
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/ipron-tracking-quality', {
+      params: { ucid, hop: hop ?? 0 },
+    });
+    const raw = (response.data?.data ?? {}) as Record<string, unknown>;
+    // Oracle 컬럼명(대문자) → camelCase 매핑
+    const num = (k: string): number | null => {
+      const v = raw[k];
+      if (v == null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const str = (k: string): string | null => {
+      const v = raw[k];
+      return v != null ? String(v) : null;
+    };
+    return {
+      oType: num('O_TYPE'),
+      tType: num('T_TYPE'),
+      oRemoteAddr: str('O_REMOTE_ADDR'),
+      tRemoteAddr: str('T_REMOTE_ADDR'),
+      oNegoCodec: str('O_NEGO_CODEC'),
+      tNegoCodec: str('T_NEGO_CODEC'),
+      oMos: num('O_MOS'),
+      tMos: num('T_MOS'),
+      oJitterAvg: num('O_JITTER_AVG'),
+      tJitterAvg: num('T_JITTER_AVG'),
+      oRtpMsLost: num('O_RTP_MS_LOST'),
+      tRtpMsLost: num('T_RTP_MS_LOST'),
+      oRFactor: num('O_R_FACTOR'),
+      tRFactor: num('T_R_FACTOR'),
+      oIcmpRtt: num('O_ICMP_RTT'),
+      tIcmpRtt: num('T_ICMP_RTT'),
+    };
+  },
 
   /**
    * 녹취 재생 URL — 외부 미디어 플레이어(Range 헤더 지원) redirect.

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 const SearchList = React.lazy(() => import('./pages/stt-config/SearchList'));
@@ -14,6 +15,9 @@ const ChannelStatusList = React.lazy(() => import('./pages/monitoring/ChannelSta
 const DnStatusList = React.lazy(() => import('./pages/monitoring/DnStatusList'));
 const CallStatusList = React.lazy(() => import('./pages/monitoring/CallStatusList'));
 const SttDashboard = React.lazy(() => import('./pages/monitoring/SttDashboard'));
+
+// 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
+const pv = createPageVariantSocket('stt');
 
 export const routes = [
   {
@@ -34,7 +38,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <SearchList /> },
+              { path: 'list', element: pv('stt-config/search/list', SearchList) },
             ],
           },
           {
@@ -42,7 +46,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <TrainingList /> },
+              { path: 'list', element: pv('stt-config/training/list', TrainingList) },
             ],
           },
           {
@@ -50,7 +54,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <DictionaryList /> },
+              { path: 'list', element: pv('stt-config/dictionary/list', DictionaryList) },
             ],
           },
           {
@@ -58,7 +62,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <RecogList /> },
+              { path: 'list', element: pv('stt-config/recog/list', RecogList) },
             ],
           },
           {
@@ -66,7 +70,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ModelList /> },
+              { path: 'list', element: pv('stt-config/model/list', ModelList) },
             ],
           },
           {
@@ -74,7 +78,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <DnList /> },
+              { path: 'list', element: pv('stt-config/dn/list', DnList) },
             ],
           },
           {
@@ -82,7 +86,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <RetryReqList /> },
+              { path: 'list', element: pv('stt-config/retry-req/list', RetryReqList) },
             ],
           },
           {
@@ -90,7 +94,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <FileUploadList /> },
+              { path: 'list', element: pv('stt-config/file-upload/list', FileUploadList) },
             ],
           },
         ],
@@ -105,7 +109,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ChannelStatusList /> },
+              { path: 'list', element: pv('monitoring/channel/list', ChannelStatusList) },
             ],
           },
           {
@@ -113,7 +117,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <DnStatusList /> },
+              { path: 'list', element: pv('monitoring/dn/list', DnStatusList) },
             ],
           },
           {
@@ -121,7 +125,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <CallStatusList /> },
+              { path: 'list', element: pv('monitoring/call/list', CallStatusList) },
             ],
           },
           {
@@ -129,7 +133,7 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <SttDashboard /> },
+              { path: 'list', element: pv('monitoring/dashboard/list', SttDashboard) },
             ],
           },
         ],

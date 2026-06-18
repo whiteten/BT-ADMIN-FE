@@ -43,7 +43,7 @@ export default function DashboardList() {
       .filter((d) => {
         if (status !== 'ALL' && d.status !== status) return false;
         if (!kw) return true;
-        return d.dashboardName.toLowerCase().includes(kw) || d.dashboardCode.toLowerCase().includes(kw);
+        return d.dashboardName.toLowerCase().includes(kw);
       })
       .forEach((d) => {
         if (grouped[d.domainCode]) grouped[d.domainCode].push(d);
@@ -67,7 +67,7 @@ export default function DashboardList() {
               { value: 'DRAFT', label: '초안' },
             ]}
           />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="대시보드 이름·코드 검색" className="w-full max-w-[400px]" allowClear />
+          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="대시보드 이름 검색" className="w-full max-w-[400px]" allowClear />
         </div>
         <Button type="primary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => navigate('/insight/monitoring/dashboards/create')}>
           추가

@@ -8,6 +8,7 @@ export * from './lib/usePageVariantsStore';
 export * from './lib/usePageVariantManifestStore';
 export * from './lib/useQuerySelectorsStore';
 export * from './lib/useRemoteRoutesStore';
+export * from './lib/useSiteCustomStore';
 export * from './types/menu.types';
 export * from './types/pageVariant.types';
 export * from './types/pageVariantManifest.types';

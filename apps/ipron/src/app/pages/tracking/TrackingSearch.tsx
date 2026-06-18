@@ -11,9 +11,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, DatePicker, Input, InputNumber, TimePicker } from 'antd';
+import { Button, DatePicker, Input, InputNumber, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { ChevronDown, ChevronUp, Download, Search, Star } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallJourneySankey from '../../features/tracking/components/CallJourneySankey';
@@ -27,22 +27,19 @@ import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } 
 
 const MINUTE_STEP = 1;
 
-const breadcrumb = [
-  { title: '콜 분석', path: '/ipron/tracking' },
-  { title: '통합 콜트래킹', path: '/ipron/tracking' },
-];
+const breadcrumb = [{ title: '트래킹' }, { title: '통합콜트래킹', path: '/ipron/tracking' }];
 
 const RECENT_SEARCHES_KEY = 'ipron.tracking.recentSearches.v1';
 const MODE_KEY = 'ipron.tracking.mode.v1';
 const MAX_RECENT = 20;
 
-const PRESET_CHIPS: Array<{ label: string; preset: DateRangePreset; icon: string }> = [
-  { label: '최근 1시간', preset: 'LAST_1H', icon: '🕐' },
-  { label: '오늘', preset: 'TODAY', icon: '📅' },
-  { label: '어제', preset: 'YESTERDAY', icon: '📅' },
-  { label: '최근 24시간', preset: 'LAST_24H', icon: '🕘' },
-  { label: '이번주', preset: 'THIS_WEEK', icon: '📅' },
-  { label: '지난주', preset: 'LAST_WEEK', icon: '📅' },
+const PRESET_CHIPS: Array<{ label: string; preset: DateRangePreset }> = [
+  { label: '최근 1시간', preset: 'LAST_1H' },
+  { label: '오늘', preset: 'TODAY' },
+  { label: '어제', preset: 'YESTERDAY' },
+  { label: '최근 24시간', preset: 'LAST_24H' },
+  { label: '이번주', preset: 'THIS_WEEK' },
+  { label: '지난주', preset: 'LAST_WEEK' },
 ];
 
 export default function TrackingSearch() {
@@ -75,7 +72,7 @@ export default function TrackingSearch() {
       const useTime = time ?? base;
       const combined = useDate.hour(useTime.hour()).minute(useTime.minute()).second(0);
       if (combined.isAfter(end)) {
-        toast.warning('시작 일시는 종료 일시보다 이전이어야 합니다.');
+        toast.warning('시작 일시는 종료 일시보다 이전이어야 합니다');
         return;
       }
       setCustomRange([combined, end]);
@@ -91,7 +88,7 @@ export default function TrackingSearch() {
       const useTime = time ?? base;
       const combined = useDate.hour(useTime.hour()).minute(useTime.minute()).second(0);
       if (combined.isBefore(start)) {
-        toast.warning('종료 일시는 시작 일시보다 이후여야 합니다.');
+        toast.warning('종료 일시는 시작 일시보다 이후여야 합니다');
         return;
       }
       setCustomRange([start, combined]);
@@ -135,6 +132,9 @@ export default function TrackingSearch() {
   const [quickAbandoned, setQuickAbandoned] = useState(false);
   const [quickReqAgent, setQuickReqAgent] = useState(false);
   const [quickIvrSelf, setQuickIvrSelf] = useState(false);
+  // IVR 시나리오 유형 (IR_SERVICE_TYPE) — 비우면 기본 화이트리스트 (10/30/40/60/80/90).
+  // 값 주면 그 값 우선 — ACS(20)/정책(50)/ACS O/B(70) 등을 빠른 조회로 검색하고 싶을 때 사용.
+  const [quickServiceTypes, setQuickServiceTypes] = useState<number[]>([]);
 
   // ─── Mode 개인 기본값 (LocalStorage) ───────────────────────────────────────
   useEffect(() => {
@@ -227,6 +227,7 @@ export default function TrackingSearch() {
         abandoned: quickAbandoned || null,
         reqAgent: quickReqAgent || null,
         ivrSelfServiced: quickIvrSelf || null,
+        serviceTypes: quickServiceTypes.length > 0 ? quickServiceTypes : null,
         page: 0,
         size: 10000, // 한 번에 최대 1만건 받음 (그 이상은 기간을 좁혀야 함)
       };
@@ -235,7 +236,7 @@ export default function TrackingSearch() {
       if (err) return { error: err };
       return criteria;
     },
-    [activePreset, customRange, mode, quickAbandoned, quickReqAgent, quickIvrSelf],
+    [activePreset, customRange, mode, quickAbandoned, quickReqAgent, quickIvrSelf, quickServiceTypes],
   );
 
   const persistRecent = useCallback((rawInput: string, criteria: TrackingSearchCriteria, count: number) => {
@@ -354,6 +355,7 @@ export default function TrackingSearch() {
     setQuickAbandoned(false);
     setQuickReqAgent(false);
     setQuickIvrSelf(false);
+    setQuickServiceTypes([]);
     // 빠른조회 → rawQuery 동기화 useEffect 가 자동으로 모드 전용 토큰 제거함
     // 다음 tick 에서 cleaned rawQuery 로 자동 재검색 (이전 검색이 있을 때만)
     if (hasSearched) {
@@ -416,11 +418,11 @@ export default function TrackingSearch() {
   const modeLabel = useMemo(() => {
     switch (mode) {
       case 'PBX':
-        return '📞 PBX';
+        return 'PBX';
       case 'IVR':
-        return '🤖 IVR';
+        return 'IVR';
       case 'CTI':
-        return '🔀 CTI';
+        return 'CTI';
     }
   }, [mode]);
 
@@ -438,15 +440,13 @@ export default function TrackingSearch() {
               </div>
               <div className="flex items-center gap-2">
                 <ModeToggle current={mode} onChange={updateMode} />
-                <Button size="small" icon={<Star className="size-3" />} disabled title="Phase 2에서 활성화">
-                  즐겨찾기
-                </Button>
+                {/* TODO: 즐겨찾기 기능 미구현 */}
               </div>
             </div>
 
             {/* 기간 (위) */}
             <div className="flex items-center gap-2 flex-wrap mb-3">
-              <span className="text-[11px] text-gray-500 font-medium">📅 기간 *</span>
+              <span className="text-[11px] text-gray-500 font-medium">기간 *</span>
               {PRESET_CHIPS.map((p) => (
                 <button
                   key={p.preset}
@@ -456,7 +456,6 @@ export default function TrackingSearch() {
                     activePreset === p.preset ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-700'
                   }`}
                 >
-                  <span className="mr-1">{p.icon}</span>
                   {p.label}
                 </button>
               ))}
@@ -540,11 +539,11 @@ export default function TrackingSearch() {
 
           {/* ── 빠른 조회 (검색 박스 안에 통합) ── */}
           <button type="button" onClick={() => setQuickOpen((o) => !o)} className="w-full px-5 py-2.5 flex items-center gap-2 hover:bg-gray-50 transition border-t border-gray-100">
-            <h2 className="text-[13px] font-semibold text-gray-700">⚡ 빠른 조회</h2>
+            <h2 className="text-[13px] font-semibold text-gray-700">빠른 조회</h2>
             <span className="text-[11px] text-gray-400">조건을 조합해 한 번에 검색 (기간: 오늘)</span>
             <span className="ml-auto text-gray-400 flex items-center gap-1 text-[11px]">
               {quickOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-              {quickOpen ? '접기' : '펴기'}
+              {quickOpen ? '접기' : '펼치기'}
             </span>
           </button>
           {quickOpen && (
@@ -613,6 +612,27 @@ export default function TrackingSearch() {
                   >
                     IVR 셀프서비스
                   </button>
+                  <Select
+                    mode="multiple"
+                    size="small"
+                    allowClear
+                    placeholder="시나리오 유형 (기본: 기본/음성/콜백/영업점/AI/BOT)"
+                    value={quickServiceTypes}
+                    onChange={(v) => setQuickServiceTypes(v ?? [])}
+                    style={{ minWidth: 220, flex: 1 }}
+                    maxTagCount="responsive"
+                    options={[
+                      { value: 10, label: '기본 시나리오' },
+                      { value: 20, label: 'ACS 시나리오' },
+                      { value: 30, label: '음성 시나리오' },
+                      { value: 40, label: '콜백 시나리오' },
+                      { value: 50, label: '정책 시나리오' },
+                      { value: 60, label: '영업점 시나리오' },
+                      { value: 70, label: 'ACS O/B (2CH)' },
+                      { value: 80, label: 'AI 시나리오' },
+                      { value: 90, label: 'BOT 시나리오' },
+                    ]}
+                  />
                 </div>
               )}
               {/* 통화 구분 (다중) — IVR 모드는 내선 제외 */}
@@ -688,9 +708,8 @@ export default function TrackingSearch() {
                   </div>
                 </div>
               )}
-              {/* 초기화 (검색 버튼은 위 검색 박스 옆 「검색」 버튼 사용 — 토글 변경 시 검색 input 에 토큰 자동 추가됨) */}
+              {/* 초기화 */}
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-[10px] text-gray-400">↑ 위 검색창에 자동 반영. 「검색」 버튼으로 실행</span>
                 <button
                   type="button"
                   onClick={() => {
@@ -738,9 +757,7 @@ export default function TrackingSearch() {
                     콜 여정
                   </button>
                 </div>
-                <Button size="small" icon={<Download className="size-3" />} disabled title="Phase 2에서 활성화">
-                  엑셀
-                </Button>
+                {/* TODO: 엑셀 다운로드 기능 미구현 */}
               </div>
             </div>
             {resultTab === 'list' ? (
@@ -785,10 +802,10 @@ interface ModeToggleProps {
 }
 function ModeToggle({ current, onChange }: ModeToggleProps) {
   const [open, setOpen] = useState(false);
-  const labels: Record<TrackingMode, { icon: string; label: string; description: string }> = {
-    PBX: { icon: '📞', label: 'PBX 인입 기준', description: '교환기로 들어온 일반 음성 호' },
-    IVR: { icon: '🤖', label: 'IVR 인입 기준', description: 'IVR 직접 인입 호' },
-    CTI: { icon: '🔀', label: 'CTI 인입 기준', description: 'CTI 직접 인입 호' },
+  const labels: Record<TrackingMode, { label: string; description: string }> = {
+    PBX: { label: 'PBX 인입 기준', description: '교환기로 들어온 일반 음성 호' },
+    IVR: { label: 'IVR 인입 기준', description: 'IVR 직접 인입 호' },
+    CTI: { label: 'CTI 인입 기준', description: 'CTI 직접 인입 호' },
   };
 
   return (
@@ -799,10 +816,8 @@ function ModeToggle({ current, onChange }: ModeToggleProps) {
         className="text-[11px] px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50 text-gray-700 flex items-center gap-1.5"
       >
         <span className="text-[10px] text-gray-400">기준</span>
-        <span className="font-medium">
-          {labels[current].icon} {current}
-        </span>
-        <span className="text-[10px] text-gray-400">▾</span>
+        <span className="font-medium">{current}</span>
+        <ChevronDown className="size-3 text-gray-400" />
       </button>
       {open && (
         <>
@@ -819,12 +834,11 @@ function ModeToggle({ current, onChange }: ModeToggleProps) {
                 }}
                 className="w-full px-3 py-2 text-left hover:bg-gray-50 flex items-start gap-2 border-b border-gray-100 last:border-b-0"
               >
-                <span className="text-[14px] mt-0.5">{labels[m].icon}</span>
                 <div className="flex-1">
                   <div className="text-[12px] font-medium text-gray-900">{labels[m].label}</div>
                   <div className="text-[10px] text-gray-500">{labels[m].description}</div>
                 </div>
-                {current === m && <span className="text-emerald-600 text-[12px]">✓</span>}
+                {current === m && <span className="text-emerald-600 text-[12px] font-bold">●</span>}
               </button>
             ))}
           </div>

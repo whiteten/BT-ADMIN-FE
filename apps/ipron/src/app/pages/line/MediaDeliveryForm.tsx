@@ -93,7 +93,7 @@ export default function MediaDeliveryForm() {
   const { mutate: createMdItem, isPending: isCreating } = useCreateMdItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달이 등록되었습니다.');
+        toast.success('미디어전달이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: mediaDeliveryQueryKeys.getMdGrps().queryKey });
         navigateBack();
       },
@@ -103,7 +103,7 @@ export default function MediaDeliveryForm() {
   const { mutate: updateMdItem, isPending: isUpdating } = useUpdateMdItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달이 수정되었습니다.');
+        toast.success('미디어전달이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: mediaDeliveryQueryKeys.getMdGrps().queryKey });
         navigateBack();
       },
@@ -113,7 +113,7 @@ export default function MediaDeliveryForm() {
   const { mutate: deleteMdItem, isPending: isDeleting } = useDeleteMdItem({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('미디어전달이 삭제되었습니다.');
+        toast.success('미디어전달이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: mediaDeliveryQueryKeys.getMdGrps().queryKey });
         navigateBack();
       },
@@ -199,7 +199,7 @@ export default function MediaDeliveryForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '미디어 관리', path: '/ipron/line/media-delivery' },
       { title: '미디어전달관리', path: '/ipron/line/media-delivery' },
       { title: isEditMode ? '수정' : '등록', path: '/ipron/line/media-delivery/form' },
     ]);
@@ -232,12 +232,12 @@ export default function MediaDeliveryForm() {
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">2. 부가정보</div>
           <SummaryRow label="A 상태체크" value={displayValue(CHECK_TYPE_LABELS[v.checkType1] ?? v.checkType1)} />
           <SummaryRow label="A 체크주기" value={displayValue(v.chkInterval1 ? `${v.chkInterval1}초` : null)} />
-          <SummaryRow label="A 실패Count" value={displayValue(v.failCnt1)} />
-          <SummaryRow label="A Block" value={displayValue(v.blockYn1 === 1 ? 'ON' : 'OFF')} />
+          <SummaryRow label="A 최대 실패 횟수" value={displayValue(v.failCnt1)} />
+          <SummaryRow label="A 차단 여부" value={displayValue(v.blockYn1 === 1 ? '사용' : '미사용')} />
           <SummaryRow label="B 상태체크" value={displayValue(CHECK_TYPE_LABELS[v.checkType2] ?? v.checkType2)} />
           <SummaryRow label="B 체크주기" value={displayValue(v.chkInterval2 ? `${v.chkInterval2}초` : null)} />
-          <SummaryRow label="B 실패Count" value={displayValue(v.failCnt2)} />
-          <SummaryRow label="B Block" value={displayValue(v.blockYn2 === 1 ? 'ON' : 'OFF')} />
+          <SummaryRow label="B 최대 실패 횟수" value={displayValue(v.failCnt2)} />
+          <SummaryRow label="B 차단 여부" value={displayValue(v.blockYn2 === 1 ? '사용' : '미사용')} />
         </div>
       </div>
     );
@@ -368,7 +368,19 @@ export default function MediaDeliveryForm() {
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-4">장비 IP / 포트</h4>
                     <Row gutter={20}>
                       <Col span={8}>
-                        <Form.Item name="ipAddr1" label="A장비 IP" required hasFeedback rules={[{ required: true, message: 'A장비 IP는 필수입니다' }]}>
+                        <Form.Item
+                          name="ipAddr1"
+                          label="A장비 IP"
+                          required
+                          hasFeedback
+                          rules={[
+                            { required: true, message: 'A장비 IP는 필수입니다' },
+                            {
+                              pattern: /^((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$/,
+                              message: 'IPv4 형식이 올바르지 않습니다 (예: 192.168.1.100)',
+                            },
+                          ]}
+                        >
                           <Input placeholder="192.168.1.100" />
                         </Form.Item>
                       </Col>
@@ -378,7 +390,7 @@ export default function MediaDeliveryForm() {
                           label="A포트"
                           required
                           rules={[
-                            { required: true, message: '필수' },
+                            { required: true, message: 'A포트는 필수입니다' },
                             { type: 'number', min: 1, max: 65535, message: '1~65535' },
                           ]}
                         >
@@ -386,7 +398,19 @@ export default function MediaDeliveryForm() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item name="ipAddr2" label="B장비 IP">
+                        <Form.Item
+                          name="ipAddr2"
+                          label="B장비 IP"
+                          rules={[
+                            {
+                              validator: (_, value) => {
+                                if (!value) return Promise.resolve();
+                                const ipv4Pattern = /^((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$/;
+                                return ipv4Pattern.test(value) ? Promise.resolve() : Promise.reject(new Error('IPv4 형식이 올바르지 않습니다 (예: 192.168.1.101)'));
+                              },
+                            },
+                          ]}
+                        >
                           <Input placeholder="192.168.1.101 (HA시)" />
                         </Form.Item>
                       </Col>
@@ -425,12 +449,12 @@ export default function MediaDeliveryForm() {
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name="failCnt1" label="최대 실패 Count" rules={[{ type: 'number', min: 0, max: 999, message: '0~999' }]}>
+                        <Form.Item name="failCnt1" label="최대 실패 횟수" rules={[{ type: 'number', min: 0, max: 999, message: '0~999' }]}>
                           <InputNumber className="!w-full" min={0} max={999} />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name="blockYn1" label="Block 여부">
+                        <Form.Item name="blockYn1" label="차단 여부">
                           <Radio.Group>
                             {BLOCK_YN_OPTIONS.map((o) => (
                               <Radio key={o.value} value={o.value}>
@@ -462,12 +486,12 @@ export default function MediaDeliveryForm() {
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name="failCnt2" label="최대 실패 Count" rules={[{ type: 'number', min: 0, max: 999, message: '0~999' }]}>
+                        <Form.Item name="failCnt2" label="최대 실패 횟수" rules={[{ type: 'number', min: 0, max: 999, message: '0~999' }]}>
                           <InputNumber className="!w-full" min={0} max={999} />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name="blockYn2" label="Block 여부">
+                        <Form.Item name="blockYn2" label="차단 여부">
                           <Radio.Group>
                             {BLOCK_YN_OPTIONS.map((o) => (
                               <Radio key={o.value} value={o.value}>

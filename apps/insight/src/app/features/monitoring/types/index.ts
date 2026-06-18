@@ -7,6 +7,9 @@
 
 export type DomainCode = 'IE' | 'IC' | 'IR';
 
+/** 대시보드 카드 아이콘 — 보고서(ReportIconType)와 동일 세트. */
+export type DashboardIconType = 'agent' | 'cti' | 'ivr' | 'channel' | 'system';
+
 export type DashboardStatus = 'DRAFT' | 'PUBLISHED';
 
 export type VizType = 'GRID' | 'BAR' | 'LINE' | 'CARD';
@@ -24,10 +27,11 @@ export type DatasetBaseType = 'XML' | 'SQL';
 
 export interface DashboardListItem {
   dashboardId: number;
-  dashboardCode: string;
   dashboardName: string;
   domainCode: DomainCode;
   description?: string;
+  /** 목록 카드 아이콘 (보고서와 동일 세트). */
+  iconType?: DashboardIconType;
   status: DashboardStatus;
   menuRegistered: boolean;
   templateWidgetCount: number;
@@ -43,12 +47,14 @@ export interface DashboardCreateDatas {
   dashboardName: string;
   domainCode: DomainCode;
   description?: string;
+  iconType?: DashboardIconType;
 }
 
 export interface DashboardUpdateDatas {
   dashboardName?: string;
   description?: string;
   status?: DashboardStatus;
+  iconType?: DashboardIconType;
 }
 
 export interface DashboardDetail extends DashboardListItem {
@@ -143,16 +149,73 @@ export interface CustomWidgetCatalogItem {
   domainCode: DomainCode;
   description?: string;
   defaultOptions?: Record<string, unknown>;
+  /** 기본 settings(JSON) — 사용자 미저장 시 위젯 설정 기본값으로 바인딩됨. */
+  defaultSettings?: Record<string, unknown>;
   minW: number;
   minH: number;
-  /** 위젯 추가 시 권장 폭(12-col 기준). null/undefined 면 카테고리/minW 기반 폴백. */
-  defaultW?: number;
-  /** 위젯 추가 시 권장 높이. null/undefined 면 카테고리/minH 기반 폴백. */
-  defaultH?: number;
   /** 카테고리 분류. */
   widgetCategory: WidgetCategory;
   /** 위젯 종류 (CUSTOM=커스텀, TEMPLATE=템플릿) */
   kind: 'CUSTOM' | 'TEMPLATE';
+  /** 관리 화면 읽기전용 — Spring Bean 이름. */
+  beBeanName?: string;
+  /** 관리 화면 읽기전용 — FE 컴포넌트 식별자. */
+  feComponent?: string;
+  /** 관리 화면 읽기전용 — 등록 시각(ISO). */
+  createdAt?: string;
+}
+
+/** 위젯 카탈로그 수정 요청 — 변경 허용 컬럼만(BE 화이트리스트와 일치). */
+export interface CustomWidgetCatalogUpdateDatas {
+  widgetName: string;
+  description?: string;
+  domainCode: DomainCode;
+  widgetCategory: WidgetCategory;
+  minW: number;
+  minH: number;
+  /** 위젯 타입별 구조화 폼이 만든 settings 객체. */
+  defaultSettings: Record<string, unknown>;
+}
+
+// ─── 재사용 템플릿 위젯 정의 (라이브러리) ─────────────────────────────────────
+// 대시보드 인스턴스(Widget)와 달리 dashboardId·position 이 없는 "원본 정의".
+
+export interface TemplateWidgetDefinitionListItem {
+  templateWidgetId: number;
+  widgetName: string;
+  description?: string;
+  domainCode: DomainCode;
+  datasetId: number;
+  datasetName?: string;
+  visualizations: VizType[];
+  defaultViz: VizType;
+  refreshInterval?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateWidgetDefinitionDetail extends TemplateWidgetDefinitionListItem {
+  mapping: TemplateWidgetMapping;
+  /** Step2 위젯 단 필드 override (표시명·노출·서식). */
+  fieldOverrides: Record<string, unknown>;
+  cardKpiDirection?: KpiDirection;
+  layoutW?: number;
+  layoutH?: number;
+}
+
+export interface TemplateWidgetDefinitionCreateDatas {
+  widgetName: string;
+  description?: string;
+  domainCode: DomainCode;
+  datasetId: number;
+  visualizations: VizType[];
+  defaultViz: VizType;
+  mapping: TemplateWidgetMapping;
+  fieldOverrides?: Record<string, unknown>;
+  refreshInterval?: number;
+  cardKpiDirection?: KpiDirection;
+  layoutW?: number;
+  layoutH?: number;
 }
 
 // ─── 데이터셋 (XML 기반) (§1, §1-A) ─────────────────────────────────────────

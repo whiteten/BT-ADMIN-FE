@@ -5,6 +5,25 @@
  * 번호 패턴 목록 + CRUD + 선택 기능
  * DID 번호변환 등록/수정 시 원본패턴 필드에서 패턴을 선택할 수 있도록 지원
  */
+// SWAT SwatPattern.testPatternExtended 이식
+function validateNumPatternExtended(patterns: string): boolean {
+  const TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d|[@+]/g;
+  const patternList = patterns.toUpperCase().split('|');
+  for (const segment of patternList) {
+    if (/[()]/g.test(segment) && !/^\(|\)$/.test(segment)) {
+      return false;
+    }
+    const trimmed = segment.replace(/[()]/g, '');
+    if (trimmed === '') return false;
+    try {
+      const matched = trimmed.match(TOKEN_RE);
+      if (!matched || matched.join('') !== trimmed) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Empty, Form, Input, List, Popconfirm, Space, Tooltip, Typography } from 'antd';
 import { Check, Pencil, Plus, Search, Trash2, X } from 'lucide-react';
@@ -43,7 +62,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: createPattern, isPending: isCreating } = useCreateNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 등록되었습니다.');
+        toast.success('번호 패턴이 등록되었습니다');
         setEditing(null);
         form.resetFields();
         refetch();
@@ -57,7 +76,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: updatePattern, isPending: isUpdating } = useUpdateNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 수정되었습니다.');
+        toast.success('번호 패턴이 수정되었습니다');
         setEditing(null);
         form.resetFields();
         refetch();
@@ -71,7 +90,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: deletePattern } = useDeleteNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 삭제되었습니다.');
+        toast.success('번호 패턴이 삭제되었습니다');
         refetch();
       },
       onError: (error: Error) => {
@@ -173,20 +192,21 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
 
   return (
     <Drawer
-      title={
-        <div className="flex items-center justify-between">
-          <span>번호 패턴 관리</span>
-          <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleStartCreate} disabled={editing !== null}>
-            추가
-          </Button>
-        </div>
-      }
+      title="번호 패턴 관리"
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 560 } }}
       afterOpenChange={(open) => {
         if (open) refetch();
       }}
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleStartCreate} disabled={editing !== null}>
+            추가
+          </Button>
+        </div>
+      }
     >
       {/* Search */}
       <Input
@@ -222,6 +242,12 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
               rules={[
                 { required: true, message: '번호 패턴은 필수입니다' },
                 { max: 256, message: '번호 패턴은 256자 이내여야 합니다' },
+                {
+                  validator: (_, value: string) => {
+                    if (!value) return Promise.resolve();
+                    return validateNumPatternExtended(value) ? Promise.resolve() : Promise.reject(new Error('번호패턴 형식이 올바르지 않습니다'));
+                  },
+                },
               ]}
               className="mb-2"
             >

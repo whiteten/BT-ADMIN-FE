@@ -29,6 +29,8 @@ const EmergProfileCopyDialog = forwardRef<EmergProfileCopyDialogRef, EmergProfil
       setSourceProfile(profile);
       form.setFieldsValue({
         sourceName: profile.emergencyCodeProfileName,
+        // SWAT JSP:716-717 — 현재 노드명 표시(disabled)
+        sourceNodeName: profile.nodeName || `Node ${profile.nodeId}`,
       });
       setIsOpen(true);
     },
@@ -62,6 +64,11 @@ const EmergProfileCopyDialog = forwardRef<EmergProfileCopyDialogRef, EmergProfil
     <Modal open={isOpen} onCancel={handleClose} onOk={handleOk} title="프로파일 복사" okText="복사" cancelText="취소" confirmLoading={isLoading} centered destroyOnHidden>
       <Form form={form} layout="vertical" className="pt-4">
         <Form.Item label="원본 프로파일" name="sourceName">
+          <Input disabled />
+        </Form.Item>
+
+        {/* SWAT JSP:716-717 — 현재 노드 표시(disabled), 대상 노드 선택 */}
+        <Form.Item label="현재 노드" name="sourceNodeName">
           <Input disabled />
         </Form.Item>
 

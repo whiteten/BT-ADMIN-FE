@@ -7,6 +7,7 @@ import PanelMega from './PanelMega';
 import { hasActiveDescendant } from './PanelMenuPrimitives';
 import PanelSidebar from './PanelSidebar';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
+import { PANEL_WIDTH } from '../constants/layoutConstants';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -20,17 +21,19 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const location = useLocation();
   const selectedRemote = useCurrentRemote();
   const { menuConfigs } = useMenuStore();
-  const { open, mode, view, displayedAppId, activeMenuKey, setOpen, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
+  const { open, mode, view, displayedAppId, activeMenuKey, setOpen, setMode, setView, setDisplayedAppId, setActiveMenuKey } = useMenuPanelStore();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // 패널이 닫힐 때 displayedAppId·activeMenuKey·view를 모두 default로 리셋.
+  // 패널이 닫힐 때 mode·displayedAppId·activeMenuKey·view를 모두 default로 리셋.
   // 배경 클릭 / Esc / MenuButton 토글 / 라우트 이동 등 모든 close 경로가 setOpen(false)로 수렴하므로 이 한 곳에서 잔여 상태 정리.
+  // mode를 'compact'로 되돌려 크게보기 후 닫았다 다시 열어도 항상 작게보기로 시작하게 한다.
   useEffect(() => {
     if (open) return;
+    setMode('compact');
     setDisplayedAppId(null);
     setActiveMenuKey(null);
     setView('menu');
-  }, [open, setDisplayedAppId, setActiveMenuKey, setView]);
+  }, [open, setMode, setDisplayedAppId, setActiveMenuKey, setView]);
 
   // 라우트 이동 시 패널 자동 close (위 close-reset useEffect가 나머지 상태 정리)
   useEffect(() => {
@@ -105,14 +108,14 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
   const hasFolderDetail = !!activeMenu?.children?.length;
   const showDetailArea = isMega || isFavoriteView || hasFolderDetail;
 
-  // panel 폭: mega→viewport / favorite→560(strip+500) / 폴더 detail→820(strip+sidebar+500) / 그 외→320(strip+sidebar)
-  const panelWidth = isMega ? 'w-screen' : isFavoriteView ? 'w-[560px]' : hasFolderDetail ? 'w-[820px]' : 'w-[320px]';
+  // panel 폭 — strip 포함. 폭 상수는 layoutConstants의 PANEL_WIDTH(SoT)에서 파생. mega는 viewport 전체.
+  const panelWidthPx = isFavoriteView ? PANEL_WIDTH.favorite : hasFolderDetail ? PANEL_WIDTH.folderDetail : PANEL_WIDTH.default;
 
   return (
     <>
       {/* Backdrop — 시각 dim 전용. 클릭은 document-level outside-click 리스너에서 처리 */}
       <div
-        className={cn('fixed inset-x-0 bottom-0 z-40 bg-black/30 transition-opacity duration-200', open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
+        className={cn('fixed inset-x-0 bottom-0 z-[900] bg-black/30 transition-opacity duration-200', open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')}
         style={{ top: topOffset }}
         aria-hidden
       />
@@ -120,8 +123,12 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={cn('fixed left-0 z-40 bg-white shadow-2xl flex transition-[transform,width] duration-200', panelWidth, open ? 'translate-x-0' : '-translate-x-full')}
-        style={{ top: topOffset, height: `calc(100vh - ${topOffset}px)` }}
+        className={cn(
+          'fixed left-0 z-[900] bg-white shadow-2xl flex transition-[transform,width] duration-200',
+          isMega && 'w-screen',
+          open ? 'translate-x-0' : '-translate-x-full',
+        )}
+        style={{ top: topOffset, height: `calc(100vh - ${topOffset}px)`, ...(isMega ? {} : { width: panelWidthPx }) }}
         role="dialog"
         aria-modal="true"
         aria-hidden={!open}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Segmented, Select, Tag } from 'antd';
-import { useBreadcrumbStore } from '@/shared-store';
+import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
 import ReportCard from '../../features/report/components/ReportCard';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useGetReports } from '../../features/report/hooks/useReportQueries';
@@ -11,9 +11,32 @@ import NoData from '@/components/custom/NoData';
 
 type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '보고서', path: '/insight/statistics/reports' }];
+const breadcrumb: BreadcrumbProps['items'] = [
+  { title: '통계', path: '/insight/statistics' },
+  { title: '보고서 관리', path: '/insight/statistics/reports' },
+];
 
 const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
+
+/**
+ * 메뉴로 등록된 보고서 reportId 집합 추출.
+ * 보고서는 QuerySelector 패턴으로 `reports/view?reportId={id}` 형태로 메뉴 path 에 합성 저장된다
+ * (화면커스터마이징_queryString메뉴분기 가이드). host 가 부팅 시 적재한 메뉴 store 를 그대로 활용.
+ */
+function collectRegisteredReportIds(configs: MenuConfig[]): Set<number> {
+  const ids = new Set<number>();
+  const walk = (items: MenuItem[]) => {
+    for (const m of items) {
+      if (m.path) {
+        const match = /reports\/view[^#]*[?&]reportId=(\d+)/.exec(m.path);
+        if (match) ids.add(Number(match[1]));
+      }
+      if (m.children?.length) walk(m.children);
+    }
+  };
+  configs.forEach((c) => walk(c.menus ?? []));
+  return ids;
+}
 
 export default function ReportList() {
   const navigate = useNavigate();
@@ -29,26 +52,35 @@ export default function ReportList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { data: reports = [], isFetching } = useGetReports({
-    params: {
-      ownership: ownership !== 'ALL' ? ownership : undefined,
-      domain: domain || undefined,
-    },
-  });
+  const { data: reports = [], isFetching } = useGetReports();
+
+  // 메뉴 등록 여부 판정 — host 가 적재한 메뉴 store 기준 (메뉴 path 의 ?reportId)
+  const menuConfigs = useMenuStore((s) => s.menuConfigs);
+  const registeredReportIds = useMemo(() => collectRegisteredReportIds(menuConfigs), [menuConfigs]);
+
+  // 내 userId — 소유 판정 기준
+  const myUserId = useAuthStore((s) => s.userInfo?.userId);
 
   const byDomain = useMemo<Record<DomainCode, ReportListItem[]>>(() => {
     const kw = searchValue.trim().toLowerCase();
     const grouped: Record<DomainCode, ReportListItem[]> = { IE: [], IC: [], IR: [] };
     reports
       .filter((r) => {
+        const isMine = myUserId != null && String(r.ownerUserId) === String(myUserId);
+        const isRegistered = registeredReportIds.has(r.reportId);
+        // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표(전체 공개 readonly)만 노출
+        if (!isMine && !isRegistered && !r.isSystem) return false;
+        // 조회 조건: 내 보고서(MINE) / 메뉴 등록(PUBLISHED) / 전체(ALL)
+        if (ownership === 'PUBLISHED' && !isRegistered) return false;
+        if (ownership === 'MINE' && !isMine) return false;
         if (!kw) return true;
-        return r.title.toLowerCase().includes(kw) || String(r.datasetId).includes(kw);
+        return r.title.toLowerCase().includes(kw) || (r.datasetNames ?? []).some((n) => n.toLowerCase().includes(kw));
       })
       .forEach((r) => {
         if (grouped[r.domain]) grouped[r.domain].push(r);
       });
     return grouped;
-  }, [reports, searchValue]);
+  }, [reports, searchValue, ownership, registeredReportIds, myUserId]);
 
   const activeSections = domain ? [domain as DomainCode] : DOMAIN_SECTIONS;
   const hasAnyMatch = activeSections.some((d) => byDomain[d].length > 0);

@@ -30,7 +30,7 @@ import {
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const initialValues = {
-  ssRefreshType: 0,
+  ssRefreshType: 1,
   ssRefreshInterval: 1800,
   sipOption: { ...DEFAULT_SIP_OPTION },
   sipHeaderOption: { ...DEFAULT_SIP_HEADER_OPTION },
@@ -73,7 +73,7 @@ export default function SipProfileForm() {
   const { mutate: createProfile, isPending: isCreating } = useCreateSipProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 등록되었습니다.');
+        toast.success('프로파일이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: sipProfileQueryKeys.getProfiles().queryKey });
         navigate('/ipron/profile/sip-profile');
       },
@@ -83,7 +83,7 @@ export default function SipProfileForm() {
   const { mutate: updateProfile, isPending: isUpdating } = useUpdateSipProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('프로파일이 수정되었습니다.');
+        toast.success('프로파일이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: sipProfileQueryKeys.getProfiles().queryKey });
         navigate('/ipron/profile/sip-profile');
       },
@@ -135,7 +135,8 @@ export default function SipProfileForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '프로파일 관리', path: '/ipron/profile' },
+      { title: '번호자원관리' },
+      { title: '프로파일', path: '/ipron/profile' },
       { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
       {
         title: isEditMode ? '수정' : '등록',

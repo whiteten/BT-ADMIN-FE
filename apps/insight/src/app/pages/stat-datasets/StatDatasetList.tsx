@@ -1,53 +1,125 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Input, Tag } from 'antd';
-import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
-import { datasetKeys, useDeleteDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
-import type { DatasetListItem } from '../../features/dataset/types';
-import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
+import type { ColDef } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { Button, Input, Popover, Tag, Tooltip } from 'antd';
+import dayjs from 'dayjs';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Database, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { fuzzyScore, toast } from '@/shared-util';
+import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag } from '../../features/dataset/hooks/useDatasetQueries';
+import type { DatasetListItem, FieldMetaItem } from '../../features/dataset/types';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { Highlight } from '@/components/custom/Highlight';
+import { TreeCaret, TreeRow } from '@/components/custom/TreeView';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
 
-// ─── 대분류 그룹 설정 ──────────────────────────────────────────────────────────
-// productCodes: 컬럼 표시 순서 (명시된 것 우선, 미등록 코드는 뒤에 자동 추가)
-const GROUP_DEFS: { key: string; label: string; productCodes: string[] }[] = [
-  { key: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] },
-  // { key: 'ETC', label: '기타 통계', productCodes: [] },
-  // { key: 'UNIFIED', label: '통합 통계', productCodes: [] },
-];
+// ─── 대분류(상위 그룹) 정의 ─────────────────────────────────────────────────────
+// 현재는 프론트 상수. 향후 API 제공 시 이 두 매핑만 동적 로드로 교체.
+const MAJOR_DEFS: { code: string; label: string; productCodes: string[] }[] = [{ code: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] }];
+const PRODUCT_CODE_MAJOR: Record<string, string> = { IE: 'IPRON', IC: 'IPRON', IR: 'IPRON' };
+// 소분류(productCode) 표시 순서 — 미등록 코드는 뒤에 자동 추가
+const MINOR_ORDER = ['IE', 'IC', 'IR'];
 
-// 대분류 → 소분류 소속 매핑 (productCode 기준)
-// productCodes에 없는 코드는 자동으로 해당 그룹의 마지막 컬럼으로 추가됨
-const PRODUCT_CODE_GROUP: Record<string, string> = {
-  IE: 'IPRON',
-  IC: 'IPRON',
-  IR: 'IPRON',
-};
-
-// ─── 컬럼 상단 액센트 색상 (제품군 구분용 — 얇은 상단 보더에만 사용) ───────────
-// antd Tag(DOMAIN_TAG_COLOR)와 톤을 맞춘 hex. 미등록 코드는 primary로 폴백.
-const ACCENT_HEX: Record<string, string> = {
-  IE: '#1677ff',
-  IC: '#52c41a',
-  IR: '#fa8c16',
-};
+// 소분류 액센트 색상 (트리 leaf 점) — antd Tag(DOMAIN_TAG_COLOR)와 톤 일치, 미등록은 primary 폴백
+const ACCENT_HEX: Record<string, string> = { IE: '#1677ff', IC: '#52c41a', IR: '#fa8c16' };
 const DEFAULT_ACCENT = 'var(--color-bt-primary)';
 
 const UNIT_LABEL: Record<string, string> = { MI: '10분', HH: '시간', DD: '일', MM: '월', YY: '연' };
+
+const majorOfCode = (code: string) => PRODUCT_CODE_MAJOR[code] ?? 'ETC';
+
+// 상세 패널 — 역할/타입(서식) 뱃지 명칭은 편집화면(WizardStepB) 기준
+const FIELD_ROLE_META: Record<string, { label: string; color: string }> = {
+  DIMENSION: { label: '디멘션', color: 'purple' },
+  TIMESTAMP: { label: '디멘션', color: 'purple' },
+  MEASURE: { label: '측정값', color: 'volcano' },
+  CALC: { label: '계산필드', color: 'green' },
+};
+// formatterType → 편집화면 서식 명칭 (역할 색상과 겹치지 않게 분리)
+const FIELD_FORMAT_META: Record<string, { label: string; color: string }> = {
+  NUMBER: { label: 'Number', color: 'blue' },
+  DECIMAL: { label: 'Decimal', color: 'lime' },
+  PERCENT: { label: 'Rate', color: 'gold' },
+  DATETIME: { label: 'Date', color: 'cyan' },
+  DURATION: { label: 'Time', color: 'geekblue' },
+  NONE: { label: 'String', color: 'default' },
+};
+
+// 상세 패널 — 필드 구성 그리드 컬럼 (필드명·역할·타입 좁게, 표시명이 남은 폭 채움)
+const FIELD_COLUMN_DEFS: ColDef<FieldMetaItem>[] = [
+  { field: 'fieldName', headerName: '필드명', maxWidth: 300, cellClass: 'font-mono' },
+  { field: 'displayName', headerName: '표시명', flex: 1 },
+  {
+    field: 'fieldRole',
+    headerName: '역할',
+    maxWidth: 150,
+    cellStyle: { display: 'flex', alignItems: 'center' },
+    cellRenderer: (p: { value?: string }) => {
+      const m = FIELD_ROLE_META[p.value ?? ''] ?? { label: p.value ?? '-', color: 'default' };
+      return (
+        <Tag color={m.color} className="!mr-0">
+          {m.label}
+        </Tag>
+      );
+    },
+  },
+  {
+    field: 'formatterType',
+    headerName: '타입',
+    maxWidth: 150,
+    cellStyle: { display: 'flex', alignItems: 'center' },
+    cellRenderer: (p: { value?: string | null }) => {
+      const m = FIELD_FORMAT_META[p.value ?? 'NONE'] ?? FIELD_FORMAT_META.NONE;
+      return (
+        <Tag color={m.color} className="!mr-0">
+          {m.label}
+        </Tag>
+      );
+    },
+  },
+];
+
+// 트리 액션 버튼 툴팁 — 공통 컴팩트 규격 (add-tree 스킬 / AgentGroupTree 참조)
+const TOOLTIP_PROPS = {
+  mouseEnterDelay: 0.5,
+  styles: { container: { minHeight: 'auto', fontSize: 12, lineHeight: '16px', padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+} as const;
+
+// 트리 노드 — key 는 grp:/ds: prefix 로 그룹/데이터셋을 구분
+interface DsTreeNode {
+  key: string;
+  label: string;
+  code?: string; // 그룹 노드의 productCode
+  data?: DatasetListItem; // leaf 데이터셋
+  children: DsTreeNode[];
+}
 
 export default function StatDatasetList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
+  // 시스템 데이터셋은 시스템 관리자만 삭제 가능
+  const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+
   const [search, setSearch] = useState('');
-  const [activeGroup, setActiveGroup] = useState(GROUP_DEFS[0].key);
+  const [majorSel, setMajorSel] = useState<string | null>(null); // null = 전체
+  const [minorSel, setMinorSel] = useState<string | null>(null);
+  const [majorPopOpen, setMajorPopOpen] = useState(false);
+  const [minorPopOpen, setMinorPopOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
-    setBreadcrumb([{ title: '데이터셋', path: '/insight/statistics/datasets' }]);
+    setBreadcrumb([
+      { title: '통계', path: '/insight/statistics' },
+      { title: '데이터셋', path: '/insight/statistics/datasets' },
+    ]);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
@@ -55,202 +127,525 @@ export default function StatDatasetList() {
 
   const { mutate: deleteDataset } = useDeleteDataset({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: (_, deletedId) => {
         queryClient.invalidateQueries({ queryKey: datasetKeys.list._def });
+        if (selectedId === deletedId) setSelectedId(null);
         toast.success('데이터셋이 삭제되었습니다.');
       },
       onError: () => toast.error('삭제 중 오류가 발생했습니다.'),
     },
   });
 
-  const handleDelete = (data: DatasetListItem) => {
-    modal.confirm.delete({ onOk: () => deleteDataset(data.datasetId) });
+  // 데이터에 존재하는 소분류 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
+  const presentCodes = [...new Set(datasets.map((d) => d.productCode ?? '').filter(Boolean))];
+  const allCodes = [...MINOR_ORDER.filter((c) => presentCodes.includes(c)), ...presentCodes.filter((c) => !MINOR_ORDER.includes(c))];
+
+  // 대분류/소분류 셀렉트로 노출할 소분류 코드
+  const visibleCodes = allCodes.filter((code) => (!majorSel || majorOfCode(code) === majorSel) && (!minorSel || code === minorSel));
+
+  // 트리 데이터 — 소분류 그룹 > 데이터셋
+  const treeData: DsTreeNode[] = visibleCodes.map((code) => ({
+    key: `grp:${code}`,
+    label: DOMAIN_LABELS[code] ?? code,
+    code,
+    children: datasets.filter((d) => d.productCode === code).map((d) => ({ key: `ds:${d.datasetId}`, label: d.datasourceName, data: d, children: [] })),
+  }));
+
+  const { items, rootProps, allExpanded, toggleAll } = useTreeView<DsTreeNode>({
+    data: treeData,
+    getId: (n) => n.key,
+    getChildren: (n) => n.children,
+    getName: (n) => n.label,
+    searchText: search,
+    matchesSearch: (n, kw) => {
+      if (n.data) return fuzzyScore(kw, n.data.datasourceName) >= 0 || fuzzyScore(kw, n.data.dbViewPrefix ?? '') >= 0;
+      return fuzzyScore(kw, n.label) >= 0;
+    },
+    defaultExpandAll: true,
+    ariaLabel: '데이터셋 트리',
+  });
+
+  const selectedKey = selectedId != null ? `ds:${selectedId}` : null;
+  const selected = selectedId != null ? (datasets.find((d) => d.datasetId === selectedId) ?? null) : null;
+
+  const handleSelectNode = (node: DsTreeNode) => {
+    if (!node.data) return;
+    // 화면지정 페이지처럼 토글 — 선택된 데이터셋 재클릭 시 해제하여 현황 전광판으로 복귀
+    const id = node.data.datasetId;
+    setSelectedId((prev) => (prev === id ? null : id));
   };
 
-  // 검색 필터
-  const filtered = useMemo(() => {
-    if (!search.trim()) return datasets;
-    const kw = search.toLowerCase();
-    return datasets.filter((d) => d.datasourceName.toLowerCase().includes(kw) || (d.dbViewPrefix ?? '').toLowerCase().includes(kw) || String(d.datasetId).includes(kw));
-  }, [datasets, search]);
+  const handleCreate = () => navigate('/insight/statistics/datasets/new');
+  const handleEditDataset = (d: DatasetListItem) => navigate(`/insight/statistics/datasets/${d.datasetId}/edit`);
+  const handleDeleteDataset = (d: DatasetListItem) => modal.confirm.delete({ onOk: () => deleteDataset(d.datasetId) });
 
-  // 현재 그룹의 데이터셋
-  const groupDatasets = useMemo(() => filtered.filter((d) => (PRODUCT_CODE_GROUP[d.productCode ?? ''] ?? 'ETC') === activeGroup), [filtered, activeGroup]);
+  const handlePickMajor = (code: string | null) => {
+    setMajorSel(code);
+    // 선택한 소분류가 새 대분류에 속하지 않으면 해제
+    if (minorSel && code && majorOfCode(minorSel) !== code) setMinorSel(null);
+    setMajorPopOpen(false);
+  };
+  const handlePickMinor = (code: string | null) => {
+    setMinorSel(code);
+    setMinorPopOpen(false);
+  };
 
-  // 현재 그룹의 컬럼 목록 (설정 순서 우선 + 미등록 코드 자동 추가)
-  const columns = useMemo(() => {
-    const groupDef = GROUP_DEFS.find((g) => g.key === activeGroup);
-    const ordered = groupDef?.productCodes ?? [];
-    const extra = [...new Set(groupDatasets.map((d) => d.productCode ?? '').filter((c) => c && !ordered.includes(c)))];
-    return [...ordered, ...extra];
-  }, [groupDatasets, activeGroup]);
+  const majorLabel = majorSel ? (MAJOR_DEFS.find((m) => m.code === majorSel)?.label ?? majorSel) : '전체';
+  const minorLabel = minorSel ? `${minorSel} · ${DOMAIN_LABELS[minorSel] ?? minorSel}` : '전체';
 
-  // 그룹별 카운트 (탭 배지용)
-  const groupCounts = useMemo(
-    () =>
-      GROUP_DEFS.reduce<Record<string, number>>((acc, g) => {
-        acc[g.key] = filtered.filter((d) => (PRODUCT_CODE_GROUP[d.productCode ?? ''] ?? 'ETC') === g.key).length;
-        return acc;
-      }, {}),
-    [filtered],
-  );
+  const renderRow = (item: TreeViewItem<DsTreeNode>) => {
+    const node = item.node;
+    const isGroup = !!node.code;
+    const isSelected = node.key === selectedKey;
+    const count = isGroup ? datasets.filter((d) => d.productCode === node.code).length : 0;
+    // prefix 보조 표기 — 검색 중이고 이름은 안 걸렸는데 DB 뷰 Prefix 로 매칭된 leaf 만
+    const kw = search.trim();
+    const prefix = node.data?.dbViewPrefix ?? '';
+    const prefixMatched = !isGroup && !!kw && !!prefix && fuzzyScore(kw, prefix) >= 0 && fuzzyScore(kw, node.label) < 0;
+    return (
+      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)} className={isGroup ? 'cursor-default' : undefined}>
+        <TreeCaret item={item} />
+        {isGroup ? (
+          // 그룹(도메인) — 보고서 관리와 동일하게 "코드 · 라벨"을 단일 뱃지로 표기 (IE · 교환기)
+          <span className="flex-1 min-w-0">
+            <Tag color={DOMAIN_TAG_COLOR[node.code!]} className="!mb-0 !mr-0 font-bold">
+              {node.code} · {DOMAIN_LABELS[node.code!] ?? node.code}
+            </Tag>
+          </span>
+        ) : (
+          <>
+            <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
+            <span className="flex-1 min-w-0 flex flex-col">
+              {/* leaf 데이터셋명 — 그룹 뱃지보다 작고 일반 굵기(13px·normal)로 낮춰 위계 구분 */}
+              <span className={`truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
+                <Highlight text={node.label} query={search} />
+              </span>
+              {/* DB 뷰 Prefix 보조 표기 — 이름이 아닌 prefix 로 검색 매칭됐을 때만 노출 + 하이라이트 */}
+              {prefixMatched && (
+                <span className="flex items-center gap-1 text-[11px] font-mono text-gray-400 leading-tight">
+                  <Database className="size-3 flex-shrink-0" />
+                  <span className="truncate">
+                    <Highlight text={node.data!.dbViewPrefix ?? ''} query={search} />
+                  </span>
+                </span>
+              )}
+            </span>
+          </>
+        )}
+        {isGroup ? (
+          <span className="ml-auto h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{count}</span>
+        ) : (
+          <span className="ml-auto flex items-center h-5 flex-shrink-0">
+            {/* 뱃지 — hover 시 숨김 (카드와 동일 명칭) */}
+            <span className="h-5 inline-flex items-center gap-1 group-hover:hidden">
+              {node.data!.isSystem && (
+                <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
+                  시스템
+                </Tag>
+              )}
+              {!node.data!.isActive && (
+                <Tag color="default" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
+                  비활성
+                </Tag>
+              )}
+            </span>
+            {/* 액션 — hover 시 노출 (카드 아이콘 기능 그대로) */}
+            <span className="hidden group-hover:flex items-center gap-0.5">
+              <Tooltip title="편집" {...TOOLTIP_PROPS}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditDataset(node.data!);
+                  }}
+                  className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              </Tooltip>
+              {(!node.data!.isSystem || isSystemAdmin) && (
+                <Tooltip title="삭제" {...TOOLTIP_PROPS}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDataset(node.data!);
+                    }}
+                    className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </Tooltip>
+              )}
+            </span>
+          </span>
+        )}
+      </TreeRow>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* 툴바 */}
-      <div className="flex items-center justify-between gap-4 bg-white bt-shadow px-7 py-4">
-        <div className="flex items-center gap-3">
-          {/* 대분류 탭 */}
-          <div className="flex items-center gap-1 rounded-lg border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)] p-1">
-            {GROUP_DEFS.map((g) => (
-              <button
-                key={g.key}
-                type="button"
-                onClick={() => setActiveGroup(g.key)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all ${
-                  activeGroup === g.key ? 'bg-white shadow-sm text-[var(--color-bt-fg)]' : 'text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-fg)]'
-                }`}
-              >
-                {g.label}
-                {!isLoading && (
-                  <span className={`ml-1.5 text-xs ${activeGroup === g.key ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]'}`}>
-                    {groupCounts[g.key] ?? 0}
-                  </span>
-                )}
-              </button>
-            ))}
+      <div className="flex gap-4 flex-1 min-h-0">
+        {/* 좌측: 검색 + 대분류/소분류 셀렉트 + 트리 */}
+        <div className="w-[340px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 min-h-0">
+          <div className="flex items-center gap-2">
+            <Input
+              allowClear
+              prefix={<Search className="size-4 text-gray-400" />}
+              placeholder="데이터셋 이름·뷰 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="primary" icon={<Plus className="size-4" />} onClick={handleCreate}>
+              추가
+            </Button>
           </div>
 
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="데이터셋 이름·뷰 검색…" className="w-full max-w-[280px]" allowClear />
-        </div>
-        <Button type="primary" icon={<Plus className="size-4" />} onClick={() => navigate('/insight/statistics/datasets/new')}>
-          새 데이터셋
-        </Button>
-      </div>
+          {/* 대분류·소분류 칩 셀렉트 (메뉴 설정 화면과 동일 패턴) */}
+          <div className="flex flex-wrap gap-2">
+            <ChipSelect
+              open={majorPopOpen}
+              onOpenChange={setMajorPopOpen}
+              label="대분류"
+              valueLabel={majorLabel}
+              active={majorSel !== null}
+              content={
+                <>
+                  <ChipOption active={majorSel === null} onClick={() => handlePickMajor(null)}>
+                    전체 <span className="opacity-70">{datasets.length}</span>
+                  </ChipOption>
+                  {MAJOR_DEFS.map((m) => {
+                    const cnt = datasets.filter((d) => majorOfCode(d.productCode ?? '') === m.code).length;
+                    return (
+                      <ChipOption key={m.code} active={majorSel === m.code} onClick={() => handlePickMajor(m.code)}>
+                        {m.label} <span className="opacity-70">{cnt}</span>
+                      </ChipOption>
+                    );
+                  })}
+                </>
+              }
+            />
+            <ChipSelect
+              open={minorPopOpen}
+              onOpenChange={setMinorPopOpen}
+              label="소분류"
+              valueLabel={minorLabel}
+              active={minorSel !== null}
+              content={
+                <>
+                  <ChipOption active={minorSel === null} onClick={() => handlePickMinor(null)}>
+                    전체
+                  </ChipOption>
+                  {allCodes
+                    .filter((code) => !majorSel || majorOfCode(code) === majorSel)
+                    .map((code) => (
+                      <ChipOption key={code} active={minorSel === code} onClick={() => handlePickMinor(code)}>
+                        <span className="size-1.5 rounded-full" style={{ background: ACCENT_HEX[code] ?? DEFAULT_ACCENT }} />
+                        {code} · {DOMAIN_LABELS[code] ?? code} <span className="opacity-70">{datasets.filter((d) => d.productCode === code).length}</span>
+                      </ChipOption>
+                    ))}
+                </>
+              }
+            />
+          </div>
 
-      {/* 칸반 — 컬럼 수 동적 */}
-      <div className="flex-1 grid gap-4 px-5 pb-5 min-h-0" style={{ gridTemplateColumns: `repeat(${Math.max(columns.length, 1)}, minmax(0, 1fr))` }}>
-        {columns.map((code) => {
-          const accent = ACCENT_HEX[code] ?? DEFAULT_ACCENT;
-          const items = groupDatasets.filter((d) => d.productCode === code);
-          const label = DOMAIN_LABELS[code] ?? code;
-          const desc = DOMAIN_DESCRIPTIONS[code];
+          <div className="border-t border-gray-200" />
 
-          return (
-            <div
-              key={code}
-              className="flex flex-col rounded-xl border border-black/[0.06] bg-white bt-shadow overflow-hidden"
-              style={{ borderTopWidth: 3, borderTopColor: accent }}
-            >
-              {/* 컬럼 헤더 */}
-              <div className="px-4 py-3 flex items-center justify-between border-b border-black/[0.05]">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
-                    {code}
-                  </Tag>
-                  <span className="text-sm font-semibold text-[var(--color-bt-fg)]">{label}</span>
-                  {desc && <span className="text-xs text-[var(--color-bt-fg-muted)] truncate hidden xl:block">{desc}</span>}
+          <div className="flex-1 overflow-auto -mx-1">
+            {isLoading ? (
+              <FallbackSpinner />
+            ) : (
+              <>
+                {/* 트리 최상단 루트 행 — 데이터셋 라벨 + 총 갯수 + 모두 펼치기/접기 (메뉴 트리 패턴) */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 select-none border-l-[3px] border-transparent cursor-default hover:bg-gray-50 transition">
+                  <span className="text-[12.5px] truncate text-gray-700 font-semibold">데이터셋</span>
+                  <span className="text-[11px] text-gray-400">{treeData.reduce((sum, g) => sum + g.children.length, 0)}</span>
+                  <Tooltip title={allExpanded ? '모두 접기' : '모두 펼치기'} {...TOOLTIP_PROPS}>
+                    <button
+                      type="button"
+                      onClick={() => toggleAll()}
+                      className="ml-auto w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition flex-shrink-0"
+                    >
+                      {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
+                    </button>
+                  </Tooltip>
                 </div>
-                <span className="rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 bg-[var(--color-bt-bg-muted)] text-[var(--color-bt-fg-muted)]">
-                  {isLoading ? '…' : items.length}
-                </span>
-              </div>
 
-              {/* 카드 목록 */}
-              <div className="flex-1 overflow-y-auto bg-[var(--color-bt-bg-muted)]/30 p-3 flex flex-col gap-2">
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-10 text-sm text-[var(--color-bt-fg-muted)]">불러오는 중…</div>
-                ) : items.length === 0 ? (
-                  <div className="flex items-center justify-center py-10 text-sm text-[var(--color-bt-fg-muted)]">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
+                {treeData.length > 0 ? (
+                  <div {...rootProps}>{items.map(renderRow)}</div>
                 ) : (
-                  items.map((ds) => (
-                    <DatasetCard key={ds.datasetId} ds={ds} onOpen={() => navigate(`/insight/statistics/datasets/${ds.datasetId}/edit`)} onDelete={() => handleDelete(ds)} />
-                  ))
+                  <div className="px-3 py-6 text-center text-[11px] text-gray-400">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
                 )}
-              </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 우측: 상세 */}
+        <div className="flex-1 min-h-0 bg-white bt-shadow flex flex-col">
+          {selected ? (
+            <DatasetDetailPanel
+              key={selected.datasetId}
+              listItem={selected}
+              onEdit={() => navigate(`/insight/statistics/datasets/${selected.datasetId}/edit`)}
+              onDelete={() => modal.confirm.delete({ onOk: () => deleteDataset(selected.datasetId) })}
+            />
+          ) : (
+            // 경로 미선택 — 도메인별 데이터셋 건수 전광판 (화면지정 페이지 현황 카드 패턴)
+            <div className="h-full flex flex-col items-center justify-center gap-8 p-6">
+              <div className="text-[18px] font-bold">데이터셋 현황</div>
+              {allCodes.length > 0 && (
+                <div className="flex flex-wrap gap-4 justify-center">
+                  {allCodes.map((code) => (
+                    <div key={code} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 px-10 py-5 min-w-[140px]">
+                      <span className="text-[26px] font-bold" style={{ color: ACCENT_HEX[code] ?? DEFAULT_ACCENT }}>
+                        {datasets.filter((d) => d.productCode === code).length}
+                        <span className="text-sm font-normal text-gray-500 ml-1">건</span>
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {code} · {DOMAIN_LABELS[code] ?? code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="text-sm text-gray-400">좌측 트리에서 데이터셋을 선택해주세요</div>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── 카드 컴포넌트 ─────────────────────────────────────────────────────────────
+// ─── 칩 셀렉트 (메뉴 설정 화면 패턴: 트리거 칩 + 팝오버 내부 칩) ──────────────────
 
-function DatasetCard({ ds, onOpen, onDelete }: { ds: DatasetListItem; onOpen: () => void; onDelete: () => void }) {
-  const units: string[] = Array.isArray(ds.availableUnits) ? ds.availableUnits : [];
+function ChipSelect({
+  open,
+  onOpenChange,
+  label,
+  valueLabel,
+  active,
+  content,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  label: string;
+  valueLabel: string;
+  active: boolean;
+  content: ReactNode;
+}) {
+  return (
+    <Popover
+      open={open}
+      onOpenChange={onOpenChange}
+      trigger="click"
+      placement="bottomLeft"
+      content={<div className="flex w-[220px] flex-wrap gap-1.5 max-h-[220px] overflow-auto">{content}</div>}
+    >
+      <button
+        type="button"
+        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition ${
+          active
+            ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]'
+        }`}
+      >
+        <span>
+          {label}: {valueLabel}
+        </span>
+        <ChevronDown className="size-3.5" />
+      </button>
+    </Popover>
+  );
+}
 
-  // 액션 버튼은 카드 클릭(상세 이동)으로 전파되지 않도록 막는다.
-  const stop = (handler: () => void) => (e: React.MouseEvent) => {
-    e.stopPropagation();
-    handler();
+function ChipOption({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[11px] transition ${
+        active
+          ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white'
+          : 'border-gray-200 bg-white text-gray-600 hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── 상세 패널 (선택 데이터셋 1건 — datasetId 로 remount) ─────────────────────────
+
+function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetListItem; onEdit: () => void; onDelete: () => void }) {
+  const modal = useModal();
+  const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
+  const canDelete = !listItem.isSystem || isSystemAdmin;
+  const { gridOptions } = useAggridOptions();
+
+  const { data: detail, isLoading } = useGetDataset({ params: { datasetId: listItem.datasetId } });
+
+  // 시스템 데이터셋 승격/해제 — 시스템 관리자 전용 (편집 화면에서 이관)
+  const { mutate: setSystemFlag, isPending: isFlagPending } = useSetDatasetSystemFlag({
+    mutationOptions: {
+      onSuccess: (_, { toSystem }) => toast.success(toSystem ? '시스템 데이터셋으로 승격되었습니다.' : '시스템 데이터셋 승격이 해제되었습니다.'),
+      onError: () => toast.error('처리 중 오류가 발생했습니다.'),
+    },
+  });
+
+  const handleToggleSystem = () => {
+    const toSystem = !listItem.isSystem;
+    modal.confirm.execute({
+      onOk: () => setSystemFlag({ datasetId: listItem.datasetId, toSystem }),
+      options: {
+        title: toSystem ? '시스템 데이터셋 승격' : '시스템 데이터셋 승격 해제',
+        content: toSystem
+          ? '시스템 데이터셋으로 승격하면 모든 사용자에게 노출되며, 수정/삭제는 관리자만 가능합니다. 계속하시겠습니까?'
+          : '승격을 해제하면 등록 테넌트 소유의 일반 데이터셋으로 복귀합니다. 계속하시겠습니까?',
+        okText: '확인',
+        cancelText: '취소',
+      },
+    });
   };
 
+  const code = listItem.productCode;
+  const units: string[] = Array.isArray(listItem.availableUnits) ? listItem.availableUnits : [];
+  const fields = detail?.fields ?? [];
+
+  // 필드 카운트 (CALC / MEASURE / 나머지=차원)
+  const calcCount = fields.filter((f) => f.fieldRole === 'CALC').length;
+  const msrCount = fields.filter((f) => f.fieldRole === 'MEASURE').length;
+  const dimCount = fields.length - calcCount - msrCount;
+
+  const createdBy = detail?.createdByName || detail?.createdBy || (listItem.isSystem ? '시스템' : '-');
+  const fmtDate = (v?: string) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-');
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen();
-        }
-      }}
-      className="group rounded-lg border border-black/[0.08] bg-white px-4 py-3 shadow-[0px_1px_2px_0px_#38414A1f] hover:border-[var(--color-bt-primary)] hover:shadow-[0px_2px_6px_0px_#38414A2e] transition-all cursor-pointer"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-sm text-[var(--color-bt-fg)] truncate group-hover:text-[var(--color-bt-primary)] transition-colors">{ds.datasourceName}</span>
-            {ds.isSystem && (
-              <Tag color="blue" className="!mb-0 !text-[10px] !px-1 !py-0 !leading-4">
-                시스템
-              </Tag>
-            )}
-            {!ds.isActive && (
-              <Tag color="default" className="!mb-0 !text-[10px] !px-1 !py-0 !leading-4">
-                비활성
-              </Tag>
-            )}
-          </div>
-          {ds.description && <p className="mt-0.5 text-xs text-[var(--color-bt-fg-muted)] truncate">{ds.description}</p>}
+    <div className="flex flex-col h-full min-h-0">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-bt-border">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* 데이터셋 명칭 — 타이틀 (카테고리·유형은 본문 요약 그리드에 표기) */}
+          <span className="text-lg font-semibold text-bt-fg truncate">{listItem.datasourceName}</span>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button
-            type="button"
-            onClick={stop(onOpen)}
-            className="rounded p-1 text-[var(--color-bt-fg-muted)] hover:bg-[var(--color-bt-bg-muted)] hover:text-[var(--color-bt-primary)] transition-colors"
-            title="편집"
-          >
-            <Edit2 className="size-3.5" />
-          </button>
-          {!ds.isSystem && (
-            <button type="button" onClick={stop(onDelete)} className="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="삭제">
-              <Trash2 className="size-3.5" />
-            </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {isSystemAdmin && (
+            <Button loading={isFlagPending} onClick={handleToggleSystem}>
+              {listItem.isSystem ? '시스템 승격 해제' : '시스템 데이터셋으로 승격'}
+            </Button>
+          )}
+          <Button icon={<Pencil className="size-3.5" />} onClick={onEdit}>
+            편집
+          </Button>
+          {canDelete && (
+            <Button danger icon={<Trash2 className="size-3.5" />} onClick={onDelete}>
+              삭제
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-bt-fg-muted)]">VIEW</span>
-        <span className="font-mono text-xs text-[var(--color-bt-fg-muted)] truncate">{ds.dbViewPrefix || '-'}</span>
-      </div>
-
-      {units.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {units.map((u) => (
-            <span
-              key={u}
-              className="rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 text-[10px] font-mono text-[var(--color-bt-fg-muted)]"
-            >
-              {UNIT_LABEL[u] ?? u}
-            </span>
-          ))}
+      {/* 본문 */}
+      <div className="flex-1 min-h-0 flex flex-col px-6 py-5">
+        {/* 데이터셋 요약 — 필드 구성 표 윗쪽 */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+          {/* 설명 — 맨 윗줄 전체 폭 */}
+          <DetailField className="col-span-2 md:col-span-3" label="설명" value={listItem.description || '-'} />
+          <DetailField label="데이터셋 ID" value={<span className="font-mono">{listItem.datasetId}</span>} />
+          <DetailField
+            label="카테고리"
+            value={
+              <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
+                {code} · {DOMAIN_LABELS[code] ?? code}
+              </Tag>
+            }
+          />
+          <DetailField
+            label="상태"
+            value={
+              listItem.isActive ? (
+                <Tag color="success" className="!mb-0 !mr-0">
+                  활성
+                </Tag>
+              ) : (
+                <Tag color="default" className="!mb-0 !mr-0">
+                  비활성
+                </Tag>
+              )
+            }
+          />
+          <DetailField
+            label="유형"
+            value={
+              listItem.isSystem ? (
+                <Tag color="purple" className="!mb-0 !mr-0">
+                  시스템
+                </Tag>
+              ) : (
+                <Tag color="default" className="!mb-0 !mr-0">
+                  사용자
+                </Tag>
+              )
+            }
+          />
+          <DetailField label="DB 뷰 Prefix" value={<span className="font-mono">{listItem.dbViewPrefix || '-'}</span>} />
+          <DetailField
+            label="지원 단위"
+            value={
+              units.length ? (
+                <span className="flex flex-wrap gap-1">
+                  {units.map((u) => (
+                    <span key={u} className="rounded border border-bt-border bg-bt-bg-muted px-2 py-0.5 text-xs font-mono text-bt-fg-muted">
+                      {UNIT_LABEL[u] ?? u}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                '-'
+              )
+            }
+          />
+          <DetailField label="생성자" value={createdBy} />
+          <DetailField label="생성일" value={fmtDate(detail?.createdAt)} />
+          <DetailField label="수정일" value={fmtDate(detail?.updatedAt)} />
         </div>
-      )}
+
+        {/* 필드 메타 */}
+        <div className="mt-7 flex-1 min-h-0 flex flex-col">
+          <div className="flex items-baseline gap-2 mb-2 shrink-0">
+            <h3 className="text-sm font-semibold text-bt-fg">필드 구성</h3>
+            {fields.length > 0 && (
+              <span className="text-xs text-bt-fg-muted">
+                총 {fields.length} · 차원 {dimCount} · 측정값 {msrCount} · 계산 {calcCount}
+              </span>
+            )}
+          </div>
+          <div className="flex-1 min-h-0 bg-white bt-shadow">
+            <AgGridReact<FieldMetaItem>
+              {...gridOptions}
+              rowData={fields}
+              columnDefs={FIELD_COLUMN_DEFS}
+              getRowId={(p) => String(p.data.id ?? p.data.fieldName)}
+              loading={isLoading}
+              pagination={false}
+              statusBar={undefined}
+              sideBar={false}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
+  return (
+    <div className={className}>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-bt-fg-muted mb-1">{label}</div>
+      <div className="text-sm text-bt-fg">{value}</div>
     </div>
   );
 }

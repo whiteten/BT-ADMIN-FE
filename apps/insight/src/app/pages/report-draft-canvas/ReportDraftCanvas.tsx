@@ -25,14 +25,15 @@ export default function ReportDraftCanvas() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { panels, reset } = useReportEditorStore();
   const [isSaving, setIsSaving] = useState(false);
+  const [panelEditing, setPanelEditing] = useState(false);
   const canvasRef = useRef<CanvasLayoutRef>(null);
 
   useEffect(() => {
     reset();
     setBreadcrumb([
-      { title: '인사이트' },
-      { title: '보고서', path: '/insight/statistics/reports' },
-      { title: '새 보고서', path: '/insight/statistics/reports/new' },
+      { title: '통계', path: '/insight/statistics' },
+      { title: '보고서 관리', path: '/insight/statistics/reports' },
+      { title: '새 보고서 생성', path: '/insight/statistics/reports/new' },
       { title: '캔버스', path: '/insight/statistics/reports/new/canvas' },
     ]);
     return () => {
@@ -77,31 +78,33 @@ export default function ReportDraftCanvas() {
 
   return (
     <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
-      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base font-semibold truncate">{state.title}</span>
-          <Tag color={DOMAIN_TAG_COLOR[state.domain]} className="!mb-0 shrink-0">
-            {state.domain} · {DOMAIN_LABELS[state.domain] ?? state.domain}
-          </Tag>
-          <Tag color="warning" className="!mb-0 shrink-0">
-            초안
-          </Tag>
+      {!panelEditing && (
+        <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base font-semibold truncate">{state.title}</span>
+            <Tag color={DOMAIN_TAG_COLOR[state.domain]} className="!mb-0 shrink-0">
+              {state.domain} · {DOMAIN_LABELS[state.domain] ?? state.domain}
+            </Tag>
+            <Tag color="warning" className="!mb-0 shrink-0">
+              초안
+            </Tag>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button onClick={handleCancel} disabled={isSaving}>
+              취소
+            </Button>
+            <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => canvasRef.current?.openAddArea()}>
+              영역 추가
+            </Button>
+            <Button type="primary" onClick={handleSave} loading={isSaving}>
+              저장
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button onClick={handleCancel} disabled={isSaving}>
-            취소
-          </Button>
-          <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => canvasRef.current?.openAddArea()}>
-            영역 추가
-          </Button>
-          <Button type="primary" onClick={handleSave} loading={isSaving}>
-            저장
-          </Button>
-        </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout ref={canvasRef} reportId={0} mode="edit" isDraft datasetId={0} />
+        <CanvasLayout ref={canvasRef} reportId={0} mode="edit" isDraft datasetId={0} onEditorOpenChange={setPanelEditing} />
       </div>
     </div>
   );

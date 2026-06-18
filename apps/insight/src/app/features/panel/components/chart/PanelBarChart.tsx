@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import PanelEChart from './PanelEChart';
+import { PANEL_PALETTE, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, paletteAt, splitLineStyle, verticalGradient } from './echartsPanelTheme';
+import { formatCell } from '../../../../utils/columnFormat';
+import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { BarChartOptions, PanelDetail } from '../../../report/types';
@@ -10,8 +13,6 @@ interface PanelBarChartProps {
   reportId: number;
 }
 
-const CHART_COLORS = ['#085fb5', '#0a8a4a', '#b76e00', '#7a4e9e', '#c92a2a'];
-
 export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
   const { committedFilter, queryTrigger } = useReportViewStore();
 
@@ -21,7 +22,6 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     queryOptions: { enabled: !!panel.datasetId },
   });
   const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
-  const dn = (name: string) => displayNameMap.get(name) ?? name;
 
   const xField = panel.fieldMap.find((f) => f.slotType === 'X_AXIS');
   const yFields = panel.fieldMap.filter((f) => f.slotType === 'Y_AXIS');
@@ -43,8 +43,99 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
 
   const options = (panel.chartOptions ?? {}) as BarChartOptions;
   const isHorizontal = options.direction === 'horizontal';
+  const isStacked = options.style === 'stacked';
   const showLegend = options.legend ?? yFields.length > 1;
   const showDataLabel = options.dataLabel ?? false;
+  const goalLine = options.goalLine;
+
+  const option = useMemo(() => {
+    if (!xField) return {};
+    const dn = (name: string) => displayNameMap.get(name) ?? name;
+    const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
+    const fmtMap = new Map((queryResult?.columns ?? []).map((c) => [c.name, c.format]));
+    const xName = xField.fieldName;
+    const rawOf = (row: Record<string, unknown>) => String(row[xName] ?? '');
+    const single = yFields.length === 1;
+
+    // ── 카테고리축(원본 키): 조회 기간 전체를 빈 구간 없이 채운다 ──
+    // BE 는 데이터 있는 구간만 row 로 내려주므로, 시간축이면 기간 기준으로 축을 열거하고
+    // 데이터 distinct 키를 병합(안전망)한다. 비시간축은 등장 순서로 중복만 제거.
+    const timeAxis = data.length > 0 && data.every((r) => isTimeKey(rawOf(r)));
+    let catKeys: string[];
+    const enumerated = timeAxis ? enumerateTimeKeys(committedFilter.period.from, committedFilter.period.to, committedFilter.timeUnit, committedFilter.conditions) : null;
+    if (enumerated) {
+      const set = new Set(enumerated);
+      for (const r of data) {
+        const k = rawOf(r);
+        if (k) set.add(k);
+      }
+      catKeys = [...set].sort();
+    } else if (timeAxis) {
+      catKeys = [...new Set(data.map(rawOf))].sort();
+    } else {
+      catKeys = [...new Set(data.map(rawOf))];
+    }
+    const categories = catKeys.map((k) => formatTimeKey(k));
+
+    // 동일 키 중복 행은 측정값 합산
+    const byKey = new Map<string, Record<string, number>>();
+    for (const row of data) {
+      const k = rawOf(row);
+      const cur = byKey.get(k) ?? {};
+      for (const f of yFields) cur[f.fieldName] = (cur[f.fieldName] ?? 0) + Number(row[f.fieldName] ?? 0);
+      byKey.set(k, cur);
+    }
+
+    const series = yFields.map((f, i) => {
+      const color = paletteAt(i);
+      // 둥근 막대 — 누적이면 첫 시리즈만 시작 모서리, 마지막만 끝 모서리. 그 외엔 양끝 둥글게.
+      const radius = isStacked ? (i === 0 ? 4 : 0) : 4;
+      const borderRadius = isHorizontal ? [0, radius, radius, 0] : [radius, radius, 0, 0];
+      return {
+        type: 'bar',
+        name: dn(f.fieldName),
+        stack: isStacked ? 'total' : undefined,
+        barMaxWidth: 36,
+        barGap: '12%',
+        itemStyle: { color: single ? verticalGradient(color) : color, borderRadius },
+        emphasis: { focus: 'series', itemStyle: { shadowBlur: 10, shadowColor: `${color}66` } },
+        label: showDataLabel
+          ? {
+              show: true,
+              position: isHorizontal ? 'right' : 'top',
+              fontSize: 10,
+              color: '#475467',
+              formatter: (p: { value: number }) => formatCell(Number(p.value ?? 0), fmtMap.get(f.fieldName), f.columnFormat),
+            }
+          : { show: false },
+        // 툴팁 값도 컬럼 서식(Rate %, Time hh:mm:ss 등) 적용
+        tooltip: { valueFormatter: (v: unknown) => formatCell(v, fmtMap.get(f.fieldName), f.columnFormat) },
+        markLine: goalLine?.enabled && goalLine.value != null && !isHorizontal ? goalMarkLine(goalLine.value) : undefined,
+        data: catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
+      };
+    });
+
+    const catAxis = {
+      type: 'category' as const,
+      data: categories,
+      axisLabel: axisLabelStyle,
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: '#e4e7ec' } },
+    };
+    const valAxis = { type: 'value' as const, axisLabel: axisLabelStyle, splitLine: splitLineStyle };
+
+    return {
+      animationDuration: 600,
+      animationEasing: 'cubicOut',
+      color: [...PANEL_PALETTE],
+      grid: baseGrid(showLegend),
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...baseTooltip },
+      legend: baseLegend(showLegend),
+      xAxis: isHorizontal ? valAxis : catAxis,
+      yAxis: isHorizontal ? catAxis : valAxis,
+      series,
+    };
+  }, [xField, yFields, isDraft, queryResult, committedFilter, isHorizontal, isStacked, showLegend, showDataLabel, goalLine, displayNameMap]);
 
   if (!hasMapping) {
     return (
@@ -62,41 +153,5 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     );
   }
 
-  const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
-
-  const ChartComponent = isHorizontal ? (
-    <BarChart layout="vertical" data={data} margin={{ top: 4, right: 16, bottom: 4, left: 60 }}>
-      <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
-      <XAxis type="number" tick={{ fontSize: 10 }} />
-      <YAxis dataKey={xField.fieldName} type="category" tick={{ fontSize: 10 }} width={56} />
-      <Tooltip contentStyle={{ fontSize: 12 }} />
-      {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
-      {yFields.map((f, i) => (
-        <Bar key={f.fieldName} dataKey={f.fieldName} name={dn(f.fieldName)} fill={CHART_COLORS[i % CHART_COLORS.length]} label={showDataLabel ? { fontSize: 10 } : false} />
-      ))}
-    </BarChart>
-  ) : (
-    <BarChart data={data} margin={{ top: 4, right: 16, bottom: 4, left: 8 }}>
-      <CartesianGrid strokeDasharray="3 3" stroke="#e4e7ec" />
-      <XAxis dataKey={xField.fieldName} tick={{ fontSize: 10 }} />
-      <YAxis tick={{ fontSize: 10 }} />
-      <Tooltip contentStyle={{ fontSize: 12 }} />
-      {showLegend && <Legend wrapperStyle={{ fontSize: 11 }} />}
-      {yFields.map((f, i) => (
-        <Bar
-          key={f.fieldName}
-          dataKey={f.fieldName}
-          name={dn(f.fieldName)}
-          fill={CHART_COLORS[i % CHART_COLORS.length]}
-          label={showDataLabel ? { fontSize: 10, position: 'top' } : false}
-        />
-      ))}
-    </BarChart>
-  );
-
-  return (
-    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
-      {ChartComponent}
-    </ResponsiveContainer>
-  );
+  return <PanelEChart option={option} />;
 }

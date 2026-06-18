@@ -1,6 +1,10 @@
-import { Legend, PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { useMemo } from 'react';
+import PanelEChart from './PanelEChart';
+import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip, paletteAt } from './echartsPanelTheme';
+import { formatColumnValue } from '../../../../utils/columnFormat';
+import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
-import type { PanelDetail } from '../../../report/types';
+import type { PanelDetail, RadarChartOptions } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
 
 interface PanelRadarChartProps {
@@ -8,10 +12,14 @@ interface PanelRadarChartProps {
   reportId: number;
 }
 
-const CHART_COLORS = ['#085fb5', '#0a8a4a', '#b76e00'];
-
 export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProps) {
   const { committedFilter, queryTrigger } = useReportViewStore();
+
+  const { data: fields = [] } = useGetDataSourceFields({
+    params: { datasetId: panel.datasetId ?? 0 },
+    queryOptions: { enabled: !!panel.datasetId },
+  });
+  const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
   const axisField = panel.fieldMap.find((f) => f.slotType === 'AXIS' || f.slotType === 'X_AXIS');
   const valueFields = panel.fieldMap.filter((f) => f.slotType === 'Y_AXIS' || f.slotType === 'VALUE');
@@ -31,6 +39,62 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
+  const options = (panel.chartOptions ?? {}) as RadarChartOptions;
+  const showLegend = options.legend ?? valueFields.length > 1;
+  const showDataLabel = options.dataLabel ?? false;
+
+  const option = useMemo(() => {
+    if (!axisField) return {};
+    const dn = (name: string) => displayNameMap.get(name) ?? name;
+    const rows = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
+
+    // 각 row = 레이더 축(indicator). 축별 max = 모든 값 필드 중 최댓값 + 15% 여유.
+    const indicator = rows.map((row) => {
+      const max = Math.max(1, ...valueFields.map((f) => Number(row[f.fieldName] ?? 0)));
+      return { name: String(row[axisField.fieldName] ?? ''), max: Math.ceil(max * 1.15) };
+    });
+
+    // 레이더 라벨/툴팁 서식 — 값 필드가 동질 단위라는 전제로 첫 필드 서식 사용
+    const valueFormat = valueFields[0]?.columnFormat;
+    const series = {
+      type: 'radar',
+      symbolSize: 4,
+      emphasis: { focus: 'series', lineStyle: { width: 3 } },
+      label: showDataLabel
+        ? { show: true, fontSize: 9, color: '#475467', formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), valueFormat) }
+        : { show: false },
+      data: valueFields.map((f, i) => {
+        const color = paletteAt(i);
+        return {
+          name: dn(f.fieldName),
+          value: rows.map((row) => Number(row[f.fieldName] ?? 0)),
+          lineStyle: { color, width: 2 },
+          itemStyle: { color },
+          areaStyle: { color: `${color}26` },
+        };
+      }),
+    };
+
+    return {
+      animationDuration: 700,
+      animationEasing: 'cubicOut',
+      color: [...PANEL_PALETTE],
+      tooltip: { trigger: 'item', ...baseTooltip },
+      legend: baseLegend(showLegend),
+      radar: {
+        indicator: indicator.length > 0 ? indicator : [{ name: '', max: 1 }],
+        center: ['50%', showLegend ? '48%' : '52%'],
+        radius: '66%',
+        splitNumber: 4,
+        axisName: { color: '#475467', fontSize: 11, fontFamily: FONT_FAMILY },
+        splitLine: { lineStyle: { color: '#e5e7eb' } },
+        splitArea: { areaStyle: { color: ['rgba(248,250,252,0.6)', 'rgba(255,255,255,0)'] } },
+        axisLine: { lineStyle: { color: '#d1d5db' } },
+      },
+      series: [series],
+    };
+  }, [axisField, valueFields, isDraft, queryResult, showLegend, showDataLabel, displayNameMap]);
+
   if (!hasMapping) {
     return (
       <div className="flex min-h-[160px] items-center justify-center">
@@ -47,26 +111,5 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
     );
   }
 
-  const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
-
-  return (
-    <ResponsiveContainer width="100%" height="100%" minHeight={160}>
-      <RadarChart data={data}>
-        <PolarGrid stroke="#e4e7ec" />
-        <PolarAngleAxis dataKey={axisField.fieldName} tick={{ fontSize: 10 }} />
-        <Tooltip contentStyle={{ fontSize: 12 }} />
-        <Legend wrapperStyle={{ fontSize: 11 }} />
-        {valueFields.map((f, i) => (
-          <Radar
-            key={f.fieldName}
-            name={f.fieldName}
-            dataKey={f.fieldName}
-            stroke={CHART_COLORS[i % CHART_COLORS.length]}
-            fill={CHART_COLORS[i % CHART_COLORS.length]}
-            fillOpacity={0.2}
-          />
-        ))}
-      </RadarChart>
-    </ResponsiveContainer>
-  );
+  return <PanelEChart option={option} />;
 }

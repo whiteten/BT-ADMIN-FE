@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { ColDef, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Tag } from 'antd';
-import { toNum, toStr } from '../helpers';
+import { abandonRateOf, answerRateOf, serviceLevelOf, toNum, toStr } from '../helpers';
 import { SEVERITY_META } from '../statusMap';
 import type { CtiqRow, CtiqSeverity } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -89,9 +89,9 @@ export default function CtiqStatusGrid({ classified }: CtiqStatusGridProps) {
           conn: toNum(row.SUM_CONN_CNT) ?? 0,
           answered: toNum(row.SUM_ANSWER_CNT_TOT) ?? toNum(row.SUM_ANSWER_CNT) ?? 0,
           abdn: toNum(row.SUM_ABDN_CNT) ?? 0,
-          abdnRatio: toNum(row.KPI_ABANDON_RATIO),
-          sla: toNum(row.KPI_SVCLEVEL),
-          answerRate: toNum(row.KPI_ANSWER_RATE),
+          abdnRatio: abandonRateOf(row),
+          sla: serviceLevelOf(row),
+          answerRate: answerRateOf(row),
           avgTalk: toNum(row.AVG_ANSTALK_TIME) ?? 0,
           avgWait: toNum(row.AVG_ANSWAIT_TIME) ?? 0,
           loginAgt: toNum(row.RTS_EXP_LOGIN_AGT) ?? 0,

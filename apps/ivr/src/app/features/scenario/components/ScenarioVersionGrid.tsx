@@ -4,20 +4,23 @@
  * <p>컬럼: 버전 / 버전명 / 시나리오파일(다운로드 아이콘) / 변경내용 / 배포상태 / 작업자 / 작업일시 / 삭제</p>
  * <p>액션: 버전추가 / 대화편집(IFE) / 배포 / 다운로드</p>
  */
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, SideBarDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input } from 'antd';
 import dayjs from 'dayjs';
-import { Download, Plus, Search, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
+import { Activity, Download, Plus, Search, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
+import AggridVersionDetailSidebar from './AggridVersionDetailSidebar';
 import ScenarioDeployConfigDrawer, { type ScenarioDeployConfigDrawerRef } from './ScenarioDeployConfigDrawer';
+import ScenarioDeployStatusDrawer, { type ScenarioDeployStatusDrawerRef } from './ScenarioDeployStatusDrawer';
 import ScenarioVersionSheet, { type ScenarioVersionSheetRef } from './ScenarioVersionSheet';
 import {
   scenarioQueryKeys,
   useDeleteVersion,
   useDownloadScenario,
+  useDownloadScenarioDocument,
   /* useGetIfeInfo, // [DEACTIVATED] IFE 비활성 */
   useGetVersions,
 } from '../hooks/useScenarioQueries';
@@ -39,9 +42,30 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
+  const customGridOptions = useMemo(
+    () => ({
+      ...gridOptions,
+      statusBar: undefined,
+      pagination: false,
+      sideBar: {
+        toolPanels: [
+          {
+            id: 'versionDetail',
+            labelDefault: '상세정보',
+            labelKey: 'versionDetail',
+            iconKey: 'eye',
+            toolPanel: AggridVersionDetailSidebar,
+            toolPanelParams: { serviceId },
+          },
+        ],
+      } as SideBarDef,
+    }),
+    [gridOptions, serviceId],
+  );
   const [searchText, setSearchText] = useState('');
   const versionSheetRef = useRef<ScenarioVersionSheetRef>(null);
   const deployConfigDrawerRef = useRef<ScenarioDeployConfigDrawerRef>(null);
+  const deployStatusDrawerRef = useRef<ScenarioDeployStatusDrawerRef>(null);
   const [selectedVer, setSelectedVer] = useState<string | null>(null);
 
   const { data: versions = [], isLoading } = useGetVersions({
@@ -64,18 +88,17 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
     },
   });
 
+  // 다운로드 처리(Blob 추출 + Content-Disposition 파싱 + download trigger)는 hook 의 mutationFn 내부에서 일괄 처리.
+  // 이 컴포넌트는 에러 토스트만 담당. (FCA useDownloadScenario 패턴과 동일)
   const { mutate: downloadMutate } = useDownloadScenario({
     mutationOptions: {
-      onSuccess: (blob, variables) => {
-        const fileName = `scenario_v${(variables as Record<string, unknown>).serviceVer}.sxml`;
-        const url = window.URL.createObjectURL(blob as Blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        window.URL.revokeObjectURL(url);
-      },
       onError: () => toast.error('시나리오 파일 다운로드에 실패했습니다.'),
+    },
+  });
+
+  const { mutate: downloadDocMutate } = useDownloadScenarioDocument({
+    mutationOptions: {
+      onError: () => toast.error('시나리오 문서 다운로드에 실패했습니다.'),
     },
   });
 
@@ -124,6 +147,21 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
     onSelectionChange?.(next);
   };
 
+  // versions가 refetch 등으로 갱신되면 선택된 row의 객체 reference 도 새 데이터로 바뀌어야 함.
+  // ag-Grid는 getRowId 기반으로 선택 상태만 유지할 뿐 onSelectionChanged 를 자동 fire 하지 않으므로,
+  // 부모(selectedVersion)가 옛 reference 를 들고 있게 됨. — 여기서 versions/selectedVer 기준 lookup 해서 부모와 동기화.
+  // (예: 버전 수정으로 SXML 업로드 후 배포 사이드바가 옛 scenarioFile=null 을 보는 버그 방지)
+  useEffect(() => {
+    if (!selectedVer) {
+      onSelectionChange?.(null);
+      return;
+    }
+    const updated = versions.find((v) => v.serviceVer === selectedVer) ?? null;
+    onSelectionChange?.(updated);
+    // 해당 버전이 삭제된 경우(updated=null) selectedVer 도 정리
+    if (!updated) setSelectedVer(null);
+  }, [versions, selectedVer, onSelectionChange]);
+
   const columnDefs: ColDef<ScenarioVersion>[] = useMemo(
     () => [
       { headerName: 'ID', field: 'serviceId', hide: true },
@@ -166,6 +204,33 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
           );
         },
       },
+      {
+        headerName: '시나리오문서',
+        field: 'scenarioDocument',
+        flex: 1,
+        cellStyle: { display: 'flex', alignItems: 'center', gap: '6px' } as CellStyle,
+        cellRenderer: (params: ICellRendererParams<ScenarioVersion>) => {
+          const data = params.data;
+          if (!data) return null;
+          return (
+            <>
+              <span className="truncate">{data.scenarioDocument ?? '-'}</span>
+              {data.scenarioDocument && (
+                <button
+                  type="button"
+                  title="시나리오 문서 다운로드"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadDocMutate({ serviceId, serviceVer: data.serviceVer });
+                  }}
+                >
+                  <Download className="size-4 text-blue-500 hover:text-blue-700 shrink-0" />
+                </button>
+              )}
+            </>
+          );
+        },
+      },
       { headerName: '변경내용', field: 'versionDesc', flex: 1.5 },
       { headerName: '작업자', field: 'workUserName', maxWidth: 120 },
       {
@@ -187,6 +252,7 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
           return (
             <button
               type="button"
+              title="버전 삭제"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDelete(params.data!);
@@ -199,7 +265,7 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [serviceId, downloadMutate],
+    [serviceId, downloadMutate, downloadDocMutate],
   );
 
   return (
@@ -237,11 +303,14 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
             대화편집
           </Button>
           */}
-          <Button type="primary" icon={<UploadIcon className="size-3.5" />} disabled={!selectedVer} onClick={onOpenDeploySidebar}>
+          <Button variant="solid" color="primary" icon={<UploadIcon className="size-3.5" />} disabled={!selectedVer} onClick={onOpenDeploySidebar}>
             배포
           </Button>
-          <Button icon={<Settings className="size-3.5" />} onClick={() => deployConfigDrawerRef.current?.open({ serviceId })}>
+          <Button variant="solid" color="cyan" icon={<Settings className="size-3.5" />} onClick={() => deployConfigDrawerRef.current?.open({ serviceId })}>
             배포 설정
+          </Button>
+          <Button variant="solid" color="geekblue" icon={<Activity className="size-3.5" />} onClick={() => deployStatusDrawerRef.current?.open({ serviceId, serviceName })}>
+            배포 현황
           </Button>
         </div>
       </div>
@@ -251,17 +320,19 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
         <AgGridReact<ScenarioVersion>
           rowData={filtered}
           columnDefs={columnDefs}
-          gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+          gridOptions={customGridOptions}
           loading={isLoading}
           getRowId={(params) => `${params.data.serviceId}-${params.data.serviceVer}`}
           defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-          rowSelection="single"
+          rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
           onSelectionChanged={handleSelectionChanged}
+          onRowDoubleClicked={(e) => e.data && versionSheetRef.current?.openEdit(e.data)}
         />
       </div>
 
       <ScenarioVersionSheet ref={versionSheetRef} serviceId={serviceId} serviceName={serviceName} />
       <ScenarioDeployConfigDrawer ref={deployConfigDrawerRef} />
+      <ScenarioDeployStatusDrawer ref={deployStatusDrawerRef} />
     </div>
   );
 }

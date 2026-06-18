@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 import type { QuerySelectorComponent } from '@/shared-store';
 
 /**
@@ -14,7 +15,9 @@ import type { QuerySelectorComponent } from '@/shared-store';
  */
 const APP_ID = 'insight';
 
-const _selectors = {} satisfies Record<string, QuerySelectorComponent>;
+const _selectors = {
+  ReportSelector: lazy(() => import('./selectors/ReportSelector')),
+} satisfies Record<string, QuerySelectorComponent>;
 
 export const querySelectors = _selectors;
 

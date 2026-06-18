@@ -41,8 +41,10 @@ export interface DatasetListItem {
 export interface DatasetDetail extends DatasetListItem {
   tenantId: string;
   createdBy?: string;
+  createdByName?: string;
   createdAt: string;
   updatedBy?: string;
+  updatedByName?: string;
   updatedAt?: string;
   fields: FieldMetaItem[];
 }
@@ -64,6 +66,8 @@ export interface DatasetUpdateRequest {
   tenantColumn?: string;
   description?: string;
   fields?: DataSourceFieldRequest[];
+  /** true면 이 데이터셋을 사용하는 기존 보고서들의 계산필드도 함께 동기화 (opt-in). */
+  applyToReports?: boolean;
 }
 
 export interface PrefixCandidate {

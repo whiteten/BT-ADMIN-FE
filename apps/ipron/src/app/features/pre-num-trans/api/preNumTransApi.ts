@@ -77,6 +77,14 @@ export const preNumTransApi = {
     return await apiClient.delete('/ipron-pre-num-trans-delete', { params });
   },
 
+  /**
+   * 사전변환 일괄 삭제
+   * @flow ipron-pre-num-trans-delete-batch (POST /api/ipron/pre-num-trans/delete-batch, body: { preTransIds })
+   */
+  deleteBatch: async (preTransIds: number[]): Promise<void> => {
+    await apiClient.post('/ipron-pre-num-trans-delete-batch', { preTransIds });
+  },
+
   // ─── 공통 ─────────────────────────────────────────────────────────────────
 
   /**

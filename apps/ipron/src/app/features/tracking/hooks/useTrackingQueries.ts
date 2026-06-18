@@ -9,6 +9,7 @@ import { trackingApi } from '../api/trackingApi';
 import type {
   AgentEvent,
   CallDetailHeader,
+  CallQuality,
   CallSearchResult,
   CallSegment,
   CtiRoutingHop,
@@ -26,6 +27,7 @@ export const trackingQueryKeys = createQueryKeys('tracking', {
   ctiRoute: (ucid?: string, nexthop?: string) => [ucid, nexthop],
   agentEvent: (ucid?: string) => [ucid],
   dialog: (ucid?: string) => [ucid],
+  quality: (ucid?: string, hop?: number) => [ucid, hop],
 });
 
 // ─── Search (mutation 형태로 운영 — criteria 변경에 즉시 반응) ──────────────
@@ -103,6 +105,15 @@ export const useGetDialogs = (ucid: string | null | undefined, { queryOptions }:
   return useQuery({
     queryKey: trackingQueryKeys.dialog(ucid ?? undefined).queryKey,
     queryFn: () => trackingApi.getDialogs(ucid!),
+    enabled: !!ucid,
+    ...queryOptions,
+  });
+};
+
+export const useGetQuality = (ucid: string | null | undefined, hop?: number, { queryOptions }: QueryHookOptions<CallQuality> = {}) => {
+  return useQuery({
+    queryKey: trackingQueryKeys.quality(ucid ?? undefined, hop).queryKey,
+    queryFn: () => trackingApi.getQuality(ucid!, hop),
     enabled: !!ucid,
     ...queryOptions,
   });

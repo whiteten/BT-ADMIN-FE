@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
@@ -12,7 +12,7 @@ import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'MCP', path: '/aoe/agent-config/mcp/list' },
 ];
 
@@ -45,15 +45,13 @@ export default function McpList() {
     },
   });
 
-  const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return mcpList;
-    const keyword = searchValue.toLowerCase();
-    return mcpList.filter((mcp) => {
-      const value = mcp[filterColumn as keyof typeof mcp];
-      if (value == null) return false;
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [mcpList, filterColumn, searchValue]);
+  const filteredList = searchValue.trim()
+    ? mcpList.filter((mcp) => {
+        const value = mcp[filterColumn as keyof typeof mcp];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue.toLowerCase());
+      })
+    : mcpList;
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);

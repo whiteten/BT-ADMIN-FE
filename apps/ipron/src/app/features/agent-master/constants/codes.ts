@@ -55,11 +55,15 @@ function toMap(opts: CodeOption[]): Record<string, string> {
 /**
  * 상담사 로그인 상태 — CLASS_CD = 'LOGIN_STATUS'.
  * SWAT IPR20S4010 SQL: `LEFT OUTER JOIN ... CLASS_CD = 'LOGIN_STATUS' AND CODE_CD = A.AGENT_STATUS`.
+ *
+ * BE enum 동기화: BT-ADMIN-SERVICE-IPRON
+ *   com.bridgetec.btadmin.ipron.agentmaster.domain.enums.LoginStatus
+ *   코드값 변경 시 BE enum 과 함께 수정할 것.
  */
 export const LOGIN_STATUS_OPTIONS: CodeOption[] = [
-  { value: '1', label: 'Login' },
-  { value: '9', label: 'Logout' },
-  { value: '2', label: 'Fail' },
+  { value: '1', label: '로그인' },
+  { value: '9', label: '로그아웃' },
+  { value: '2', label: '실패' },
 ];
 
 export const AGENT_GRADE_MAP = toMap(AGENT_GRADE_OPTIONS);
@@ -124,3 +128,50 @@ export const USE_GRP_SKILL_OPTIONS = [
   { value: 0, label: '개별 스킬 배정' },
   { value: 1, label: '그룹 스킬 배정' },
 ];
+
+/**
+ * 미디어 옵션 수치 입력 범위 (SWAT IPR20S4060 정합).
+ *
+ * - util(가중치) 0~100, max(동시 최대) 0~16,
+ *   afctime(후처리) 0~999, autoanswerTime(자동응답 시간) 0~999.
+ *
+ * 매트릭스/카드/현황표 세 컴포넌트가 동일 범위를 공유한다.
+ */
+export const MEDIA_OPTION_BOUNDS = {
+  util: { min: 0, max: 100 },
+  max: { min: 0, max: 16 },
+  afctime: { min: 0, max: 999 },
+  autoanswerTime: { min: 0, max: 999 },
+} as const;
+
+// ── 서버 미디어 숫자코드 ↔ FE mediaKey 매핑 ─────────────────────────────────
+
+/**
+ * TB_IC_MEDIA_USAGE.MEDIA_TYPE(숫자) → FE mediaMatrix 키(camelCase).
+ *
+ * 코드값은 SWAT /combo.do?type=mediaType (TB_CC_COMMONCODE CLASS_CD='IC_MEDIA_TYPE') 정합.
+ *   0  = VOIP,  10 = Chat,   20 = Video Voice, 30 = Video Chat,
+ *   40 = Email, 50 = Fax,    61 = Mobile VOIP, 80 = SMS/WEB.
+ */
+export const MEDIA_TYPE_CODE_TO_KEY: Record<number, string> = {
+  0: 'voip',
+  10: 'chat',
+  20: 'videoVoice',
+  30: 'videoChat',
+  40: 'email',
+  50: 'fax',
+  61: 'mvoip',
+  80: 'sms',
+};
+
+/** FE mediaKey → 표시 레이블 (SWAT 정합 순서). */
+export const MEDIA_KEY_LABELS: Record<string, string> = {
+  voip: 'VOIP',
+  chat: 'Chat',
+  videoVoice: 'Video Voice',
+  videoChat: 'Video Chat',
+  email: 'Email',
+  fax: 'Fax',
+  mvoip: 'MVOIP',
+  sms: 'SMS / WEB',
+};

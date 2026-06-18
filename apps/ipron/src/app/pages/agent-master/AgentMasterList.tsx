@@ -10,31 +10,37 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Empty, Input, Modal, Select } from 'antd';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { GridRowColorLegend } from '../../components/GridRowColorLegend';
+import { agentMasterApi } from '../../features/agent-master/api/agentMasterApi';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
+import AgentImportDrawer from '../../features/agent-master/components/AgentImportDrawer';
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
 import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
+import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey, type MediaOption } from '../../features/agent-master/components/AgentMediaStatusTable';
+import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
+  agentMasterQueryKeys,
+  useBulkGroupAgents,
+  useBulkMediaAgents,
   useDeleteAgentGroup,
   useDeleteAgents,
   useGetAgentGroupTree,
   useGetAgentTenants,
   useGetAgents,
-  useMoveAgent,
   useReorderAgentGroup,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
-import type { AgentGroupNode, AgentGroupReorderPosition, AgentResponse } from '../../features/agent-master/types';
+import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
+import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '상담사' }, { title: '상담사 설정', path: '/ipron/agent-master' }];
 
 export default function AgentMasterList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -46,14 +52,47 @@ export default function AgentMasterList() {
 
   const navigate = useNavigate();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
+  const invalidateAgents = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getList._def });
+    queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getTenants.queryKey });
+  }, [queryClient]);
+
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<AgentResponse[]>([]);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
+  const [cardExpanded, setCardExpanded] = useState(false);
+  // 우측 그리드 박스 탭: 'agent'(상담사 목록) / 'media'(미디어 관리 현황 매트릭스)
+  const [gridTab, setGridTab] = useState<'agent' | 'media'>('agent');
+  // 미디어 탭 선택 미디어 종류 — 탭 헤더 인라인 Select 로 제어 (동적 첫 번째로 자동 초기화)
+  const [mediaKey, setMediaKey] = useState<MediaKey>('voip');
+  // 미디어 탭 — 상단 액션바에서 저장 버튼 트리거를 위한 ref + dirty 카운트
+  const mediaTableRef = useRef<AgentMediaStatusTableHandle>(null);
+  const [mediaDirtyCount, setMediaDirtyCount] = useState(0);
+
+  // 그룹배정 모달 — 선택 상담사를 다른 그룹으로 일괄 이동
+  const [groupDeployOpen, setGroupDeployOpen] = useState(false);
+  const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
+
+  // ctx 비동기 로드 시 동기화
+  useEffect(() => {
+    if (ctxTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(ctxTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxTenantId]);
+
   const [treeWidth, setTreeWidth] = useState(260);
   const splitRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +106,9 @@ export default function AgentMasterList() {
     { open: false } | { open: true; mode: 'create'; tenantId?: number; groupId?: number } | { open: true; mode: 'edit'; agentId: number }
   >({ open: false });
 
+  // 엑셀 가져오기 Drawer
+  const [importDrawerOpen, setImportDrawerOpen] = useState(false);
+
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: agents = [], isLoading } = useGetAgents({
     params: { tenantId: selectedTenantId ?? undefined, groupId: selectedGroupId ?? undefined },
@@ -75,6 +117,43 @@ export default function AgentMasterList() {
   const { data: groupTree = [] } = useGetAgentGroupTree({
     params: { tenantId: selectedTenantId ?? undefined },
   });
+
+  // TB_IC_MEDIA_USAGE 등록·활성 미디어 목록 (동적 노출)
+  const { data: mediaTypeList = [] } = useGetMediaTypes();
+
+  /** 서버 미디어 목록 → FE MediaOption 배열 (SWAT 정합 순서 유지). */
+  const availableMediaOptions = useMemo<MediaOption[]>(() => {
+    if (!mediaTypeList.length) return [];
+    // 정렬 기준: MEDIA_TYPE_CODE_TO_KEY 키 순서(voip=0, chat=10 ...)
+    const ORDER: Record<string, number> = {
+      voip: 0,
+      chat: 10,
+      videoVoice: 20,
+      videoChat: 30,
+      email: 40,
+      fax: 50,
+      mvoip: 61,
+      sms: 80,
+    };
+    return mediaTypeList
+      .map((mt) => {
+        const key = MEDIA_TYPE_CODE_TO_KEY[mt.mediaType] as MediaKey | undefined;
+        if (!key) return null;
+        const label = MEDIA_KEY_LABELS[key] ?? (mt.mediaAlias || key);
+        return { key, label };
+      })
+      .filter((x): x is MediaOption => x !== null)
+      .sort((a, b) => (ORDER[a.key] ?? 999) - (ORDER[b.key] ?? 999));
+  }, [mediaTypeList]);
+
+  // availableMediaOptions 로드 시: 현재 mediaKey 가 목록에 없으면 첫 번째 키로 리셋
+  useEffect(() => {
+    if (!availableMediaOptions.length) return;
+    if (!availableMediaOptions.some((o) => o.key === mediaKey)) {
+      setMediaKey(availableMediaOptions[0].key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableMediaOptions]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const { mutate: deleteAgents, isPending: isDeleting } = useDeleteAgents({
@@ -90,10 +169,16 @@ export default function AgentMasterList() {
     },
   });
 
-  const { mutate: moveAgent } = useMoveAgent({
+  // 그룹 일괄 변경 — 선택/드롭 상담사를 대상 그룹으로 1콜 이동 (207 best-effort)
+  const { mutate: bulkGroupAgents } = useBulkGroupAgents({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('상담사 그룹이 변경되었습니다');
+      onSuccess: (result) => {
+        if (result && result.failCount > 0) {
+          toast.warning(`${result.successCount + result.failCount}명 중 ${result.failCount}명 그룹 변경 실패`);
+        } else {
+          toast.success('상담사 그룹이 변경되었습니다');
+        }
+        setSelectedRows([]);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '그룹 이동 실패';
@@ -127,6 +212,40 @@ export default function AgentMasterList() {
     },
   });
 
+  // 미디어 관리 탭 저장 — dirty 행을 1콜 벌크 PUT (미디어 필드만, 단일 트랜잭션 전체 롤백)
+  const { mutate: bulkMediaAgents, isPending: isSavingMedia } = useBulkMediaAgents({
+    mutationOptions: {
+      onError: (err: unknown) => {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '미디어 옵션 저장 실패';
+        toast.error(msg);
+      },
+    },
+  });
+
+  const handleSaveDirty = useCallback(
+    (entries: { agentId: number; body: AgentUpdateRequest }[], clearDirty: () => void) => {
+      if (entries.length === 0) return;
+      const total = entries.length;
+      // 미디어 필드(useGrpMdaOpt + mediaMatrix)만 1콜 벌크로 — 비미디어 필드 미전송.
+      const items = entries.map(({ agentId, body }) => ({
+        agentId,
+        useGrpMdaOpt: body.useGrpMdaOpt,
+        mediaMatrix: body.mediaMatrix,
+      }));
+      bulkMediaAgents(
+        { items },
+        {
+          onSuccess: () => {
+            toast.success(`미디어 옵션 ${total}행이 저장되었습니다`);
+            clearDirty();
+          },
+          // 전체 롤백 — 실패 시 dirty 유지(clearDirty 미호출), 토스트는 훅 onError 처리.
+        },
+      );
+    },
+    [bulkMediaAgents],
+  );
+
   // ─── Derived ────────────────────────────────────────────────────────────
   const filteredAgents = useMemo(() => {
     const kw = searchText.trim().toLowerCase();
@@ -150,6 +269,34 @@ export default function AgentMasterList() {
   }, [tenantStats]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
+
+  const handleExcelExport = useCallback(async () => {
+    try {
+      const blob = await agentMasterApi.exportExcel({
+        tenantId: selectedTenantId ?? undefined,
+        groupId: selectedGroupId ?? undefined,
+        keyword: searchText.trim() || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'agents.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message ?? '엑셀 내보내기 실패');
+    }
+  }, [selectedTenantId, selectedGroupId, searchText]);
+
+  const handleImportOpen = useCallback(() => {
+    if (!selectedGroupId) {
+      toast.error('좌측 상담그룹을 먼저 선택하세요');
+      return;
+    }
+    setImportDrawerOpen(true);
+  }, [selectedGroupId]);
+
   const handleCreate = useCallback(() => {
     setAgentDrawer({
       open: true,
@@ -182,6 +329,27 @@ export default function AgentMasterList() {
     });
   }, [selectedRows, modal, deleteAgents]);
 
+  // 그룹배정 — 선택 상담사를 대상 그룹으로 일괄 이동
+  const handleGroupDeploy = useCallback(() => {
+    if (selectedRows.length === 0) {
+      toast.error('배정할 상담사를 선택하세요');
+      return;
+    }
+    setDeployTargetGroupId(undefined);
+    setGroupDeployOpen(true);
+  }, [selectedRows]);
+
+  const handleGroupDeployOk = useCallback(() => {
+    if (!deployTargetGroupId) {
+      toast.error('배정할 상담그룹을 선택하세요');
+      return;
+    }
+    if (selectedRows.length === 0) return;
+    bulkGroupAgents({ agentIds: selectedRows.map((a) => a.agentId), groupId: deployTargetGroupId });
+    setGroupDeployOpen(false);
+    setDeployTargetGroupId(undefined);
+  }, [selectedRows, deployTargetGroupId, bulkGroupAgents]);
+
   const handleSelectTenant = useCallback((tenantId: number | null) => {
     setSelectedTenantId(tenantId);
     setSelectedGroupId(null); // 테넌트 바뀌면 그룹 선택 해제
@@ -209,26 +377,25 @@ export default function AgentMasterList() {
       }
       const crossTenant = target && (sourceTenantIds.size > 1 || !sourceTenantIds.has(target.tenantId));
 
-      const move = (allowTenantChange: boolean) => {
-        for (const r of dragged) {
-          moveAgent({ id: r.agentId, body: { targetGroupId, allowTenantChange } });
-        }
-        setSelectedRows([]);
+      // 드롭 그룹(target)으로 dragged 상담사 전원을 1콜 벌크 이동.
+      // crossTenant 면 확인 다이얼로그를 거친 뒤 실행(테넌트 이동 안전장치 보존).
+      const move = () => {
+        bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
       };
 
       if (crossTenant) {
         modal.confirm.execute({
-          onOk: () => move(true),
+          onOk: () => move(),
           options: {
             title: '다른 테넌트로 이동',
             content: `대상 그룹의 테넌트가 다릅니다. ${dragged.length}명의 상담사를 ${target?.tenantName ?? '대상 테넌트'} 로 이동하시겠습니까?`,
           },
         });
       } else {
-        move(false);
+        move();
       }
     },
-    [agents, groupTree, modal, moveAgent],
+    [agents, groupTree, modal, bulkGroupAgents],
   );
 
   // ─── Splitter (트리 ↔ 그리드 리사이즈) ──────────────────────────────────
@@ -255,10 +422,15 @@ export default function AgentMasterList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 헤더 박스 (DN/ADN 패턴: 타이틀 + 검색 + Import/Export 후속) ===== */}
+      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">테넌트별 상담사 현황</span>
+          <span className="text-sm font-semibold text-gray-700">상담사 설정</span>
+          {selectedTenantId !== null && (
+            <span className="ml-3 text-xs text-gray-500">
+              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -266,13 +438,19 @@ export default function AgentMasterList() {
               placeholder="상담사 검색 (로그인ID/이름/별명/직급)"
               value={searchText}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
-              style={{ width: 260 }}
+              style={{ width: 220 }}
             />
+            <Button icon={<Download className="size-3.5" />} onClick={handleExcelExport}>
+              엑셀
+            </Button>
+            <Button icon={<Upload className="size-3.5" />} onClick={handleImportOpen}>
+              가져오기
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* ===== 카드 슬라이더 박스 ===== */}
+      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         {cardExpanded ? (
           <div className="flex items-center h-[140px] px-4 py-3">
@@ -385,10 +563,23 @@ export default function AgentMasterList() {
                 })
               }
               onEditGroup={(g) => setGroupDrawer({ open: true, mode: 'edit', groupId: g.groupId })}
-              onDeleteGroup={(g) => {
+              onDeleteGroup={async (g) => {
+                // SWAT식 사전 체크: 하위그룹/소속상담사 있으면 confirm 없이 toast.error
+                let count = 0;
+                try {
+                  count = await agentMasterApi.getGroupChildrenCount(g.groupId);
+                } catch {
+                  toast.error('그룹 정보를 확인할 수 없습니다');
+                  return;
+                }
+                if (count > 0) {
+                  // BE가 하위그룹과 상담사 수를 합산해 반환 — 두 케이스 구분 불가 시 통합 메시지
+                  toast.error(`소속 상담사 또는 하위 그룹이 ${count}개 있어 삭제할 수 없습니다`);
+                  return;
+                }
                 modal.confirm.execute({
                   onOk: () => deleteGroup(g.groupId),
-                  options: { title: '그룹 삭제', content: `"${g.groupName}" 그룹을 삭제하시겠습니까? (하위 그룹/소속 상담사 있으면 차단됩니다)` },
+                  options: { title: '그룹 삭제', content: `"${g.groupName}" 그룹을 삭제하시겠습니까?` },
                 });
               }}
               onAgentDrop={handleAgentDrop}
@@ -407,47 +598,116 @@ export default function AgentMasterList() {
           <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-px h-9 bg-gray-300 rounded group-hover:bg-[#405189] transition-colors" />
         </div>
 
-        {/* 우측 그리드 — DN/ADN 패턴 정합으로 별도 박스 */}
+        {/* 우측 그리드 — DN/ADN 패턴 정합으로 별도 박스 (탭: 상담사 / 미디어 관리) */}
         <div className="bg-white bt-shadow flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">상담사 목록 ({filteredAgents.length.toLocaleString()}건)</span>
-            {selectedRows.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {filteredAgents.length.toLocaleString()}건 중 {selectedRows.length}건 선택
-              </span>
-            )}
-            <div className="ml-auto flex items-center gap-2">
-              <Button
-                danger
-                icon={<Trash2 className="size-3.5" />}
-                onClick={handleBulkDelete}
-                loading={isDeleting}
-                disabled={selectedRows.length === 0}
-                title={selectedRows.length === 0 ? '삭제할 상담사를 선택하세요' : '선택한 상담사 삭제'}
-              >
-                {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
-              </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                등록
-              </Button>
+          {/* 탭 헤더 + 컨텍스트 툴바 */}
+          <div className="border-b border-gray-100 flex items-center gap-2 h-[44px] pr-5 flex-shrink-0">
+            <div className="flex items-stretch h-full">
+              <GridTab label="상담사" active={gridTab === 'agent'} onClick={() => setGridTab('agent')} />
+              <GridTab
+                label="미디어 관리"
+                active={gridTab === 'media'}
+                onClick={() => {
+                  setGridTab('media');
+                  // 미디어 탭 활성 시 카드 compact 고정 — 세로 공간 확보
+                  setCardExpanded(false);
+                }}
+              />
             </div>
+            {/* 미디어 탭 활성 시: 미디어 종류 Select 탭 헤더 인라인 배치 (별도 40px 툴바 행 제거) */}
+            {gridTab === 'media' && (
+              <div className="flex items-center gap-1.5 pl-3 border-l border-gray-100">
+                <span className="text-[11px] font-semibold text-gray-500 whitespace-nowrap">미디어</span>
+                <Select
+                  size="small"
+                  style={{ width: 130 }}
+                  value={mediaKey}
+                  onChange={(v: MediaKey) => setMediaKey(v)}
+                  options={availableMediaOptions.map((o) => ({ value: o.key, label: o.label }))}
+                />
+              </div>
+            )}
+            <span className="text-xs text-gray-500">
+              {filteredAgents.length.toLocaleString()}건
+              {gridTab === 'agent' && <span className={selectedRows.length > 0 ? '' : 'invisible'}> 중 {selectedRows.length}건 선택</span>}
+            </span>
+            {gridTab === 'agent' && (
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  icon={<Users className="size-3.5" />}
+                  onClick={handleGroupDeploy}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '배정할 상담사를 선택하세요' : `${selectedRows.length}명 그룹배정`}
+                >
+                  그룹배정
+                </Button>
+                <Button
+                  danger
+                  icon={<Trash2 className="size-3.5" />}
+                  onClick={handleBulkDelete}
+                  loading={isDeleting}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '삭제할 상담사를 선택하세요' : '선택한 상담사 삭제'}
+                >
+                  삭제
+                </Button>
+                <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                  등록
+                </Button>
+              </div>
+            )}
+            {gridTab === 'media' && (
+              <div className="ml-auto flex items-center gap-2">
+                <GridRowColorLegend items={['dirty']} />
+                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<Save className="size-3.5" />}
+                  onClick={() => {
+                    if (mediaDirtyCount === 0) {
+                      toast.info('변경할 데이터가 존재하지 않습니다');
+                      return;
+                    }
+                    mediaTableRef.current?.save();
+                  }}
+                  loading={isSavingMedia}
+                >
+                  저장
+                </Button>
+              </div>
+            )}
           </div>
           <div className="flex-1 min-h-0">
-            <AgentMasterTable
-              rowData={filteredAgents}
-              isLoading={isLoading}
-              onRowDoubleClicked={handleEdit}
-              onDelete={handleDelete}
-              onSelectionChanged={setSelectedRows}
-              onBulkDelete={handleBulkDelete}
-              selectedCount={selectedRows.length}
-              getDragAgentIds={(dragRow) => {
-                if (selectedRows.some((r) => r.agentId === dragRow.agentId)) {
-                  return selectedRows.map((r) => r.agentId);
-                }
-                return [dragRow.agentId];
-              }}
-            />
+            {gridTab === 'agent' ? (
+              <AgentMasterTable
+                rowData={filteredAgents}
+                isLoading={isLoading}
+                onRowDoubleClicked={handleEdit}
+                onDelete={handleDelete}
+                onSelectionChanged={setSelectedRows}
+                onBulkDelete={handleBulkDelete}
+                selectedCount={selectedRows.length}
+                getDragAgentIds={(dragRow) => {
+                  if (selectedRows.some((r) => r.agentId === dragRow.agentId)) {
+                    return selectedRows.map((r) => r.agentId);
+                  }
+                  return [dragRow.agentId];
+                }}
+              />
+            ) : (
+              <AgentMediaStatusTable
+                ref={mediaTableRef}
+                rowData={filteredAgents}
+                isLoading={isLoading}
+                onRowDoubleClicked={handleEdit}
+                onSaveDirty={handleSaveDirty}
+                saving={isSavingMedia}
+                mediaKey={mediaKey}
+                onDirtyChange={setMediaDirtyCount}
+                availableMediaOptions={availableMediaOptions}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -469,6 +729,83 @@ export default function AgentMasterList() {
         initialGroupId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.groupId : undefined}
         onClose={() => setAgentDrawer({ open: false })}
       />
+
+      <AgentImportDrawer
+        open={importDrawerOpen}
+        tenantId={selectedTenantId}
+        groupId={selectedGroupId}
+        tenantName={tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null}
+        groupName={(() => {
+          if (!selectedGroupId) return null;
+          const findName = (nodes: AgentGroupNode[]): string | null => {
+            for (const n of nodes) {
+              if (n.groupId === selectedGroupId) return n.groupName;
+              if (n.children?.length) {
+                const found = findName(n.children);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          return findName(groupTree);
+        })()}
+        onClose={() => setImportDrawerOpen(false)}
+        onSuccess={() => {
+          invalidateAgents();
+          // DN 정본 패턴: 드로어는 닫지 않음 — 사용자가 성공/실패 집계·실패행 확인 후 직접 닫기
+        }}
+      />
+
+      {/* ===== 그룹배정 모달 (SWAT IPR20S4010 poAgentDeploy 대응) ===== */}
+      <Modal
+        title={`그룹배정 — ${selectedRows.length}명`}
+        open={groupDeployOpen}
+        onOk={handleGroupDeployOk}
+        onCancel={() => {
+          setGroupDeployOpen(false);
+          setDeployTargetGroupId(undefined);
+        }}
+        okText="배정"
+        cancelText="취소"
+        width={480}
+      >
+        <div className="mb-4 text-sm text-gray-600">선택한 상담사를 다른 상담그룹으로 일괄 이동합니다.</div>
+        <div className="mb-2">
+          <div className="max-h-48 overflow-y-auto border border-gray-100 rounded text-sm">
+            {selectedRows.map((r) => (
+              <div key={r.agentId} className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-50 last:border-0">
+                <span className="font-medium text-gray-800">{r.agentName}</span>
+                <span className="text-gray-400 text-xs">({r.agentLoginId})</span>
+                <span className="ml-auto text-xs text-gray-500">{r.groupName ?? '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="text-sm font-medium text-gray-700 mb-1 block">
+            배정할 상담그룹 <span className="text-red-500">*</span>
+          </label>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="상담그룹을 선택하세요"
+            value={deployTargetGroupId}
+            onChange={(v) => setDeployTargetGroupId(v)}
+            showSearch
+            optionFilterProp="label"
+            options={(() => {
+              const flat: { value: number; label: string }[] = [];
+              const walk = (nodes: AgentGroupNode[]) => {
+                for (const n of nodes) {
+                  flat.push({ value: n.groupId, label: `${'  '.repeat(Math.max(0, n.grpDepth - 1))}${n.groupName}` });
+                  if (n.children?.length) walk(n.children);
+                }
+              };
+              walk(groupTree);
+              return flat;
+            })()}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -482,6 +819,25 @@ function findGroup(tree: AgentGroupNode[], id: number): AgentGroupNode | null {
     }
   }
   return null;
+}
+
+interface GridTabProps {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}
+
+function GridTab({ label, active, onClick }: GridTabProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative px-5 h-full text-sm font-semibold transition-colors ${active ? 'text-[#405189]' : 'text-gray-400 hover:text-gray-600'}`}
+    >
+      {label}
+      {active && <span className="absolute left-0 bottom-0 w-full h-0.5 bg-[#405189]" />}
+    </button>
+  );
 }
 
 interface CompactTenantPillProps {

@@ -29,7 +29,7 @@ export function Layout() {
         )}
         <App className="flex-1 min-h-0 w-full overflow-hidden">
           <div className="flex w-full h-full">
-            {/* pinned=true면 strip을 메인 레이아웃에 합쳐 main 콘텐츠 폭이 자동으로 60px 줄어든다(오버레이 아님).
+            {/* pinned=true면 strip을 메인 레이아웃에 합쳐 main 콘텐츠 폭이 자동으로 strip 폭(APP_BADGE_STRIP_WIDTH)만큼 줄어든다(오버레이 아님).
                 패널이 열리면 panel 안의 strip이 동일 위치 fixed로 올라와 layout strip을 자연스럽게 덮는다. */}
             {pinned && <PanelAppBadgeStrip />}
             <main className="flex-1 min-w-0 h-full p-4 overflow-y-auto bg-[#f3f3f9]" style={{ scrollbarGutter: 'stable' }}>

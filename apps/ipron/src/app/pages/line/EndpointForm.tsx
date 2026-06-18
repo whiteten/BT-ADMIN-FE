@@ -12,7 +12,15 @@ import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch } fro
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
-import { endpointQueryKeys, useCreateEndpoint, useGetEndpointDetail, useGetNodes, useUpdateEndpoint } from '../../features/endpoint/hooks/useEndpointQueries';
+import {
+  endpointQueryKeys,
+  useCreateEndpoint,
+  useGetCountries,
+  useGetEndpointDetail,
+  useGetNodes,
+  useGetRegnums,
+  useUpdateEndpoint,
+} from '../../features/endpoint/hooks/useEndpointQueries';
 import {
   ENDPOINT_FORM_STEPS,
   ENDPOINT_INITIAL_VALUES,
@@ -21,6 +29,8 @@ import {
   SSW_VENDOR_OPTIONS,
   TRANSPORT_OPTIONS,
 } from '../../features/endpoint/types';
+import { msGroupApi } from '../../features/ms-group/api/msGroupApi';
+import { type MentOption, type WorktimeOption, routeApi } from '../../features/route/api/routeApi';
 import { useGetSipProfiles } from '../../features/sip-profile/hooks/useSipProfileQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -93,14 +103,24 @@ export default function EndpointForm() {
   const natOption = Form.useWatch('natOption', form);
   const drnatOption = Form.useWatch('drnatOption', form);
   const endptType = Form.useWatch('endptType', form);
+  const watchedDrnodeId = Form.useWatch('drnodeId', form);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
   const { data: sipProfiles = [] } = useGetSipProfiles();
+  const { data: countries = [] } = useGetCountries();
   const { data: endpointDetail, isFetching } = useGetEndpointDetail({
     params: endptId ? { id: endptId } : undefined,
     queryOptions: { enabled: !!endptId },
   });
+
+  // 수정 모드에서 인증번호 존재 여부 확인 (SSW벤더 disabled 판정용)
+  // SWAT IPR20S1010.jsp doUpdate() line 911-916: regnumCount>0 → sswVendor disabled
+  const { data: editRegnums = [] } = useGetRegnums({
+    params: endptId ? { id: endptId } : undefined,
+    queryOptions: { enabled: isEditMode && !!endptId },
+  });
+  const sswVendorDisabled = isEditMode && editRegnums.length > 0;
 
   // ─── Populate form on edit ────────────────────────────────────────────────
   useEffect(() => {
@@ -161,7 +181,7 @@ export default function EndpointForm() {
   const { mutate: createEndpoint, isPending: isCreating } = useCreateEndpoint({
     mutationOptions: {
       onSuccess: (data: any) => {
-        toast.success('국선이 등록되었습니다.');
+        toast.success('국선이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: endpointQueryKeys.getEndpoints().queryKey });
         const nodeId = data?.nodeId || form.getFieldValue('nodeId');
         const epId = data?.endptId;
@@ -173,7 +193,7 @@ export default function EndpointForm() {
   const { mutate: updateEndpoint, isPending: isUpdating } = useUpdateEndpoint({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('국선이 수정되었습니다.');
+        toast.success('국선이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: endpointQueryKeys.getEndpoints().queryKey });
         const nodeId = form.getFieldValue('nodeId');
         navigate(`/ipron/line/endpoint?nodeId=${nodeId}${endptId ? `&endptId=${endptId}` : ''}`);
@@ -186,9 +206,62 @@ export default function EndpointForm() {
   // ─── Options ────────────────────────────────────────────────────────────────
   const nodeOptions = nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }));
   const sipProfileOptions = sipProfiles.map((p) => ({ label: p.sipProfileName, value: p.sipProfileId }));
+  // 국가코드: TB_CC_COUNTRY — "+IDD 국가명" 형식 (SWAT IE_EndPoint.comboCountryId 정합)
+  const countryOptions = countries.map((c) => ({ label: c.label, value: c.value }));
   // DR 노드: 선택된 nodeId 기준 같은 클러스터의 다른 노드만 표시
   const [drNodeOptions, setDrNodeOptions] = useState<Array<{ label: string; value: number }>>([{ label: '없음', value: 0 }]);
   const selectedNodeIdForDr = Form.useWatch('nodeId', form);
+
+  // MS그룹(주 노드): nodeId 변경 시 재조회
+  // SWAT IPR20S1010.jsp line 787/1008: cbCreate('#poMsGroupId', 'msGroup', 'nodeId='+nodeId)
+  const [msGroupOptions, setMsGroupOptions] = useState<Array<{ label: string; value: number }>>([{ label: '미지정', value: 0 }]);
+  useEffect(() => {
+    const nodeIdVal = selectedNodeIdForDr;
+    if (nodeIdVal) {
+      msGroupApi
+        .getMsGroups({ nodeId: nodeIdVal })
+        .then((list) => {
+          setMsGroupOptions([{ label: '미지정', value: 0 }, ...list.map((g) => ({ label: g.msGroupName, value: g.msGroupId }))]);
+        })
+        .catch(() => setMsGroupOptions([{ label: '미지정', value: 0 }]));
+    } else {
+      setMsGroupOptions([{ label: '미지정', value: 0 }]);
+    }
+  }, [selectedNodeIdForDr]);
+
+  // 업무시간 콤보: nodeId 변경 시 재조회
+  // SWAT IPR20S1010.jsp line 959: cbCreate('#poIeWorktimeId', 'worktime', 'tenantId=0', {text:'사용안함', value:'0'})
+  const [worktimeOptions, setWorktimeOptions] = useState<Array<{ label: string; value: number }>>([{ label: '사용안함', value: 0 }]);
+  useEffect(() => {
+    const nodeIdVal = selectedNodeIdForDr;
+    if (nodeIdVal) {
+      routeApi
+        .getWorktimeOptions(nodeIdVal)
+        .then((list: WorktimeOption[]) => {
+          setWorktimeOptions([{ label: '사용안함', value: 0 }, ...list.map((w) => ({ label: w.worktimeName, value: w.worktimeId }))]);
+        })
+        .catch(() => setWorktimeOptions([{ label: '사용안함', value: 0 }]));
+    } else {
+      setWorktimeOptions([{ label: '사용안함', value: 0 }]);
+    }
+  }, [selectedNodeIdForDr]);
+
+  // 안내멘트 콤보: nodeId 변경 시 재조회
+  // SWAT IPR20S1010.jsp line 961: cbCreate('#poGuideMentId', 'ment', 'tenantId=0&nodeId='+nodeId, {text:'없음', value:'0'})
+  const [mentOptions, setMentOptions] = useState<Array<{ label: string; value: number }>>([{ label: '없음', value: 0 }]);
+  useEffect(() => {
+    const nodeIdVal = selectedNodeIdForDr;
+    if (nodeIdVal) {
+      routeApi
+        .getMentOptions(nodeIdVal)
+        .then((list: MentOption[]) => {
+          setMentOptions([{ label: '없음', value: 0 }, ...list.map((m) => ({ label: m.name, value: m.id }))]);
+        })
+        .catch(() => setMentOptions([{ label: '없음', value: 0 }]));
+    } else {
+      setMentOptions([{ label: '없음', value: 0 }]);
+    }
+  }, [selectedNodeIdForDr]);
   useEffect(() => {
     if (selectedNodeIdForDr) {
       endpointApi
@@ -201,6 +274,25 @@ export default function EndpointForm() {
       setDrNodeOptions([{ label: '없음', value: 0 }]);
     }
   }, [selectedNodeIdForDr]);
+
+  // MS그룹(DR): DR 노드 변경 시 해당 노드 기준 MS그룹 목록 재조회
+  // AS-IS: SWAT IPR20S1010.jsp onChangedDrNode() — cbCreate2("#poMsDrgroupId", url, "nodeId=" + drNodeId + "&type=msDrGroup")
+  const [drMsGroupOptions, setDrMsGroupOptions] = useState<Array<{ label: string; value: number }>>([{ label: '미지정', value: 0 }]);
+  useEffect(() => {
+    const drNodeId = watchedDrnodeId;
+    if (drNodeId && drNodeId !== 0) {
+      msGroupApi
+        .getMsGroups({ nodeId: drNodeId })
+        .then((list) => {
+          setDrMsGroupOptions([{ label: '미지정', value: 0 }, ...list.map((g) => ({ label: g.msGroupName, value: g.msGroupId }))]);
+        })
+        .catch(() => setDrMsGroupOptions([{ label: '미지정', value: 0 }]));
+    } else {
+      // DR 노드 없음(0 또는 null) → MS그룹(DR) 목록 초기화, 값 리셋
+      setDrMsGroupOptions([{ label: '미지정', value: 0 }]);
+      form.setFieldValue('msDrgroupId', null);
+    }
+  }, [watchedDrnodeId, form]);
 
   // ─── Steps ──────────────────────────────────────────────────────────────────
   const steps = [...ENDPOINT_FORM_STEPS];
@@ -217,6 +309,23 @@ export default function EndpointForm() {
           fieldsToValidate.push('snmpOid');
         }
         await form.validateFields(fieldsToValidate);
+
+        // SWAT IPR20S1010.jsp callProcess() line 1137-1145: WebRTC(4) 제외 채널 교차 검증
+        const currentEndptType = form.getFieldValue('endptType');
+        const currentMaxchnl = form.getFieldValue('endptMaxchnl') ?? 0;
+        const currentDodchnl = form.getFieldValue('endptDodchnl') ?? 0;
+        if (String(currentEndptType) !== '4') {
+          // 인/아웃 최대채널 min=1 검증 (SWAT line 1142-1145)
+          if (currentMaxchnl < 1) {
+            toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다');
+            return;
+          }
+          // OB할당채널 > 최대채널 교차 검증 (SWAT line 1137-1140)
+          if (currentDodchnl > currentMaxchnl) {
+            toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다');
+            return;
+          }
+        }
       } else if (currentStep === 1) {
         const fieldsToValidate = ['delCount', 'editOpt'];
         if (ieWorktimeId && (worktimeOpt === 2 || worktimeOpt === 4)) {
@@ -311,7 +420,8 @@ export default function EndpointForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: '국선관리', path: '/ipron/line/endpoint' },
       {
         title: isEditMode ? '수정' : '등록',
@@ -387,7 +497,7 @@ export default function EndpointForm() {
           <SummaryRow label="DNIS 편집 Digit수" value={displayValue(values.delCount)} />
           <SummaryRow label="DNIS 추가 Digit" value={displayValue(values.addDigit)} />
           <SummaryRow label="편집 옵션" value={displayValue(getLabelByValue(EDIT_OPT_OPTIONS, values.editOpt))} />
-          <SummaryRow label="업무시간 설정" value={displayValue(values.ieWorktimeId)} />
+          <SummaryRow label="업무시간 설정" value={displayValue(worktimeOptions.find((w) => w.value === values.ieWorktimeId)?.label ?? values.ieWorktimeId)} />
           {values.ieWorktimeId && <SummaryRow label="  업무시간 외" value={displayValue(getLabelByValue(WORKTIME_OPT_OPTIONS, values.worktimeOpt))} />}
           <SummaryRow label="국가번호" value={values.countryCodeUseYn === 1 ? '사용' : '미사용'} />
         </div>
@@ -399,8 +509,10 @@ export default function EndpointForm() {
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">3. 중개NAT</div>
           <SummaryRow label="중개 옵션" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.natOption))} />
           <SummaryRow label="중개 옵션(DR)" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.drnatOption))} />
-          {values.natOption !== 0 && <SummaryRow label="MS그룹" value={displayValue(values.msGroupId)} />}
-          {values.drnatOption !== 0 && <SummaryRow label="MS그룹(DR)" value={displayValue(values.msDrgroupId)} />}
+          {values.natOption !== 0 && <SummaryRow label="MS그룹" value={displayValue(msGroupOptions.find((g) => g.value === values.msGroupId)?.label ?? values.msGroupId)} />}
+          {values.drnatOption !== 0 && (
+            <SummaryRow label="MS그룹(DR)" value={displayValue(drMsGroupOptions.find((g) => g.value === values.msDrgroupId)?.label ?? values.msDrgroupId)} />
+          )}
           <SummaryRow label="NAT 동작옵션" value={displayValue(getLabelByValue(ENAT_OPTION_OPTIONS, values.enatOption))} />
           <SummaryRow label="NAT IP 주소" value={displayValue(values.natIpAddress)} />
         </div>
@@ -538,8 +650,9 @@ export default function EndpointForm() {
 
                     <Row gutter={20}>
                       <Col span={6}>
+                        {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
                         <Form.Item name="sswVendor" label="SSW 벤더">
-                          <Select options={[...SSW_VENDOR_OPTIONS]} />
+                          <Select options={[...SSW_VENDOR_OPTIONS]} disabled={sswVendorDisabled} />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
@@ -566,6 +679,8 @@ export default function EndpointForm() {
                               ? [
                                   { required: true, message: '등록번호는 필수입니다' },
                                   { max: 50, message: '50자 이내여야 합니다' },
+                                  // SWAT IPR20S1010.jsp callProcess() line 1157-1161: 숫자+특수문자 패턴
+                                  { pattern: /^[0-9~!@#$%^&*()_+|<>?:{}]+$/, message: '숫자와 특수문자만 입력 가능합니다' },
                                 ]
                               : []
                           }
@@ -582,6 +697,8 @@ export default function EndpointForm() {
                               ? [
                                   { required: true, message: '등록 아이디는 필수입니다' },
                                   { max: 20, message: '20자 이내여야 합니다' },
+                                  // SWAT IPR20S1010.jsp iValidator line 1102: pattern ^[0-9a-zA-Z_]+$ 한글/특수문자 금지
+                                  { pattern: /^[0-9a-zA-Z_]+$/, message: '영문자·숫자·_만 입력 가능합니다' },
                                 ]
                               : []
                           }
@@ -669,8 +786,9 @@ export default function EndpointForm() {
                         </Form.Item>
                       </Col>
                       <Col span={5}>
+                        {/* SWAT IPR20S1010.jsp callProcess() line 1191-1195: 감시주기 1초 이상 */}
                         <Form.Item name="watchInterval" label="감시 주기(초)">
-                          <InputNumber min={0} className="!w-full" />
+                          <InputNumber min={1} className="!w-full" />
                         </Form.Item>
                       </Col>
                       <Col span={5}>
@@ -736,22 +854,38 @@ export default function EndpointForm() {
 
                     <Row gutter={20}>
                       <Col span={6}>
+                        {/* SWAT IPR20S1010.jsp line 959: cbCreate('#poIeWorktimeId', 'worktime', 'tenantId=0', {text:'사용안함', value:'0'}) */}
                         <Form.Item name="ieWorktimeId" label="업무시간 설정">
-                          <InputNumber min={0} className="!w-full" placeholder="업무시간 ID" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="worktimeOpt" label="업무시간 외 제어" rules={ieWorktimeId ? [{ required: true, message: '업무시간 외 제어는 필수입니다' }] : []}>
-                          <Select options={[...WORKTIME_OPT_OPTIONS]} disabled={!ieWorktimeId} />
+                          <Select
+                            options={worktimeOptions}
+                            placeholder="사용안함"
+                            allowClear
+                            onChange={(val) => {
+                              // 업무시간 해제 시 하위 필드 초기화
+                              if (!val || val === 0) {
+                                form.setFieldsValue({ worktimeOpt: 0, guideMentId: null });
+                              }
+                            }}
+                          />
                         </Form.Item>
                       </Col>
                       <Col span={6}>
                         <Form.Item
+                          name="worktimeOpt"
+                          label="업무시간 외 제어"
+                          rules={ieWorktimeId && ieWorktimeId !== 0 ? [{ required: true, message: '업무시간 외 제어는 필수입니다' }] : []}
+                        >
+                          <Select options={[...WORKTIME_OPT_OPTIONS]} disabled={!ieWorktimeId || ieWorktimeId === 0} />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
+                        {/* SWAT IPR20S1010.jsp line 961: cbCreate('#poGuideMentId', 'ment', 'tenantId=0&nodeId='+nodeId, {text:'없음', value:'0'}) */}
+                        <Form.Item
                           name="guideMentId"
                           label="업무시간 외 안내멘트"
-                          rules={ieWorktimeId && (worktimeOpt === 2 || worktimeOpt === 4) ? [{ required: true, message: '안내멘트는 필수입니다' }] : []}
+                          rules={ieWorktimeId && ieWorktimeId !== 0 && (worktimeOpt === 2 || worktimeOpt === 4) ? [{ required: true, message: '안내멘트는 필수입니다' }] : []}
                         >
-                          <InputNumber min={0} className="!w-full" placeholder="멘트 ID" disabled={!ieWorktimeId || (worktimeOpt !== 2 && worktimeOpt !== 4)} />
+                          <Select options={mentOptions} placeholder="없음" allowClear disabled={!ieWorktimeId || ieWorktimeId === 0 || (worktimeOpt !== 2 && worktimeOpt !== 4)} />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -767,7 +901,7 @@ export default function EndpointForm() {
                       <Col span={6}>
                         {countryCodeUseYn === 1 && (
                           <Form.Item name="countryId" label="국가번호">
-                            <InputNumber min={0} className="!w-full" placeholder="국가번호 ID" />
+                            <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
                           </Form.Item>
                         )}
                       </Col>
@@ -787,8 +921,9 @@ export default function EndpointForm() {
                         </Form.Item>
                       </Col>
                       <Col span={6}>
+                        {/* SWAT IPR20S1010.jsp line 787/1008: cbCreate('#poMsGroupId', 'msGroup', 'nodeId='+nodeId) */}
                         <Form.Item name="msGroupId" label="MS그룹" rules={natOption !== 0 && natOption !== undefined ? [{ required: true, message: 'MS그룹은 필수입니다' }] : []}>
-                          <InputNumber min={0} className="!w-full" placeholder="MS그룹 ID" disabled={!natOption || natOption === 0} />
+                          <Select options={msGroupOptions} placeholder="미지정" disabled={!natOption || natOption === 0} allowClear />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -805,7 +940,13 @@ export default function EndpointForm() {
                           label="MS그룹(DR)"
                           rules={drnatOption !== 0 && drnatOption !== undefined ? [{ required: true, message: 'MS그룹(DR)은 필수입니다' }] : []}
                         >
-                          <InputNumber min={0} className="!w-full" placeholder="MS그룹(DR) ID" disabled={!drnatOption || drnatOption === 0} />
+                          {/* AS-IS: SWAT onChangedDrNode() — DR 노드 변경 시 해당 노드의 MS그룹 목록 재조회 */}
+                          <Select
+                            options={drMsGroupOptions}
+                            placeholder="미지정"
+                            disabled={!drnatOption || drnatOption === 0 || !watchedDrnodeId || watchedDrnodeId === 0}
+                            allowClear
+                          />
                         </Form.Item>
                       </Col>
                     </Row>

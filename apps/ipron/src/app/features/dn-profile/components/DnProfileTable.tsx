@@ -4,29 +4,43 @@
  *
  * 컬럼: 내선프로파일ID | 내선프로파일 | 내선프로파일유형 | DR노드 | 글로벌여부 |
  *      긴급코드 | 기능코드 | 접근코드 | SIP 프로파일 | 로컬라우트 |
- *      미디어 전달 그룹 | RTP 중개 | MS 그룹 | NAT
+ *      미디어 전달 그룹 | RTP 중개 | MS 그룹 | NAT | [DN 배정]
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { ListPlus } from 'lucide-react';
+import { BOOL_OX_LABEL } from '../../dn/utils/dnEnums';
 import type { DnProfile } from '../types';
 import { DN_PROFILE_TYPE_LABELS, NAT_OPTION_LABELS, getRtpLabel } from '../utils/dnProfileEnums';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface DnProfileTableProps {
   rowData: DnProfile[];
   isLoading?: boolean;
   onRowDoubleClicked: (profile: DnProfile) => void;
-  onDelete: (profile: DnProfile) => void;
+  onSelectionChanged?: (selectedProfiles: DnProfile[]) => void;
   onAssignDns?: (profile: DnProfile) => void;
 }
 
-export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked, onDelete, onAssignDns }: DnProfileTableProps) {
+export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onAssignDns }: DnProfileTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({
+      mode: 'multiRow',
+      checkboxes: true,
+      headerCheckbox: true,
+      enableClickSelection: true,
+      enableSelectionWithoutKeys: true,
+    }),
+    [],
+  );
 
   const columnDefs: ColDef<DnProfile>[] = useMemo(
     () => [
@@ -43,6 +57,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'dnProfileName',
         minWidth: 160,
         flex: 1.2,
+        tooltipField: 'dnProfileName',
         cellRenderer: (params: ICellRendererParams<DnProfile>) => {
           if (!params.data) return null;
           return <span className="font-semibold text-gray-800">{params.data.dnProfileName}</span>;
@@ -53,12 +68,11 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'dnProfileType',
         minWidth: 130,
         maxWidth: 150,
-        // 라벨 기준으로 필터/정렬 되도록 valueGetter 사용
+        // 라벨 기준으로 정렬 되도록 valueGetter 사용
         valueGetter: (params) => {
           const v = params.data?.dnProfileType;
           return v ? DN_PROFILE_TYPE_LABELS[v as '0' | '1'] : '-';
         },
-        filter: 'agSetColumnFilter',
       },
       {
         headerName: 'DR노드',
@@ -73,13 +87,15 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         minWidth: 90,
         maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (params) => (params.value ? 'O' : 'X'),
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.globalDnYn == null ? params.data?.globalDnYn : params.data.globalDnYn ? 1 : 0),
+        valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
         headerName: '긴급코드',
         field: 'emergencyCodeProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'emergencyCodeProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -87,6 +103,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'devfuncCodeProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'devfuncCodeProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -94,6 +111,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'accessCodeProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'accessCodeProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -101,6 +119,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'sipProfileName',
         minWidth: 120,
         flex: 1,
+        tooltipField: 'sipProfileName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -108,6 +127,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'localRouteName',
         minWidth: 110,
         flex: 1,
+        tooltipField: 'localRouteName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -115,6 +135,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'mediaDeliveryName',
         minWidth: 130,
         flex: 1,
+        tooltipField: 'mediaDeliveryName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -131,6 +152,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         headerName: 'MS 그룹',
         field: 'msGroupName',
         minWidth: 110,
+        tooltipField: 'msGroupName',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -138,6 +160,7 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         field: 'natOption',
         minWidth: 100,
         maxWidth: 140,
+        filterValueGetter: (params) => (params.data?.natOption ? NAT_OPTION_LABELS[params.data.natOption as '0' | '1' | '2' | '3' | '4'] : '-'),
         valueFormatter: (params) => (params.value ? NAT_OPTION_LABELS[params.value as '0' | '1' | '2' | '3' | '4'] : '-'),
       },
       {
@@ -146,13 +169,12 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
         sortable: false,
         filter: false,
         suppressHeaderMenuButton: true,
+        pinned: 'right',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         hide: !onAssignDns,
         cellRenderer: (params: ICellRendererParams<DnProfile>) => {
           const { data } = params;
           if (!data) return null;
-          // TRUNK 프로파일 배정은 SIP 트렁크 화면 마이그레이션 이후 지원 예정 (TODO)
-          if (data.dnProfileType === '1') return <span className="text-xs text-gray-300">-</span>;
           return (
             <button
               type="button"
@@ -168,31 +190,8 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
           );
         },
       },
-      {
-        headerName: '',
-        maxWidth: 60,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (params: ICellRendererParams<DnProfile>) => {
-          const { data } = params;
-          if (!data) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(data);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [onDelete, onAssignDns],
+    [onAssignDns],
   );
 
   return (
@@ -201,9 +200,14 @@ export default function DnProfileTable({ rowData, isLoading, onRowDoubleClicked,
       columnDefs={columnDefs}
       defaultColDef={defaultColDef}
       gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onRowDoubleClicked={(e) => {
         if (e.data) onRowDoubleClicked(e.data);
+      }}
+      onSelectionChanged={(e) => {
+        const selected = e.api.getSelectedRows();
+        onSelectionChanged?.(selected);
       }}
     />
   );

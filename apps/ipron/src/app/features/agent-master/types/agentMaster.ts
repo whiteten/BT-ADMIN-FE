@@ -49,6 +49,7 @@ export interface AgentResponse {
   agentGrade: string | null;
   jikgup: string | null;
   oscomId: number | null;
+  oscomName: string | null;
   activateYn: number; // 0/1
   retireYn: number; // 0/1
   agentStatus: string | null;
@@ -59,6 +60,7 @@ export interface AgentResponse {
   coachingSvc: number | null;
   mediaMatrix: AgentMediaMatrix | null;
   workUser: number | null;
+  workUserName: string | null;
   workTime: string | null;
 }
 
@@ -68,7 +70,8 @@ export interface AgentCreateRequest {
   agentLoginId: string;
   agentName: string;
   agentAlias: string;
-  password: string;
+  /** password-validation-required=false 시 미입력 허용 (undefined). BE 에서 encryptPwd 미설정. */
+  password?: string;
   agentGrade?: string;
   jikgup?: string;
   oscomId?: number;
@@ -105,6 +108,38 @@ export interface AgentMoveRequest {
   allowTenantChange?: boolean;
 }
 
+/**
+ * 상담사 다건 그룹 일괄 변경 요청 (BE BulkGroupChangeRequest 정합).
+ * BE: PUT /api/ipron/agents/bulk-group — body: { agentIds, groupId }.
+ * 단건 move 의 allowTenantChange 게이트는 없음(벌크는 그룹 이동을 무조건 적용).
+ */
+export interface BulkGroupChangeRequest {
+  agentIds: number[];
+  groupId: number;
+}
+
+/** 벌크 변경 결과 (BE BulkChangeResult 정합, 207 best-effort). */
+export interface BulkChangeResult {
+  successCount: number;
+  failCount: number;
+  failures: { agentId: number; reason: string }[];
+}
+
+/**
+ * 상담사 미디어 벌크 변경 요청 (BE AgentBulkMediaRequest 정합).
+ * BE: PUT /api/ipron/agents/bulk-media — body: { items: [{agentId, useGrpMdaOpt, mediaMatrix}] }.
+ * 미디어 필드(useGrpMdaOpt + mediaMatrix)만 행별 부분갱신. 단일 트랜잭션 전체 롤백.
+ */
+export interface AgentBulkMediaItem {
+  agentId: number;
+  useGrpMdaOpt?: number;
+  mediaMatrix?: AgentMediaMatrix | null;
+}
+
+export interface AgentBulkMediaRequest {
+  items: AgentBulkMediaItem[];
+}
+
 export interface AgentTenantStat {
   tenantId: number;
   tenantName: string | null;
@@ -119,6 +154,14 @@ export interface AgentDuplicateCheckParams {
   excludeAgentId?: number;
 }
 
+/** 상담사 비밀번호 정책 설정 (BE ipron.agent.* 대응). */
+export interface AgentConfig {
+  /** 등록 시 비밀번호 필수 여부. SWAT Globals.AgentPasswordValidation */
+  passwordValidationRequired: boolean;
+  /** 비밀번호 복잡도/길이 정책 사용 여부. SWAT Globals.AgentPasswordPolicyUse */
+  passwordPolicyUse: boolean;
+}
+
 // ─── 상담그룹 ─────────────────────────────────────────────────────────────
 
 export interface AgentGroupNode {
@@ -128,6 +171,7 @@ export interface AgentGroupNode {
   priorGrpId: number | null;
   grpDepth: number;
   groupName: string;
+  oscomId: number | null;
   activateYn: number;
   agentCount: number;
   children: AgentGroupNode[];
@@ -169,6 +213,18 @@ export interface AgentGroupUpdateRequest {
   oscomId?: number;
   activateYn?: number;
   mediaMatrix?: AgentMediaMatrix | null;
+}
+
+// ─── 아웃소싱업체(oscom) 마스터 ─────────────────────────────────────────────
+
+/**
+ * 아웃소싱업체 콤보 옵션. SWAT 정합: cbCreate("#poOscomId","oscom",...) — 업체 마스터 콤보.
+ * BE: GET /api/ipron/oscoms (현재 테넌트 필터는 BE 처리, FE 는 호출만) → ApiResponse<List<Oscom>>.
+ */
+export interface Oscom {
+  oscomId: number;
+  oscomName: string;
+  oscomAlias: string;
 }
 
 /** 그룹 트리 D&D 재배치 (BEFORE/AFTER/INSIDE). */

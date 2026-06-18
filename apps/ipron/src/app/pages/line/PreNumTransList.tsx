@@ -14,22 +14,19 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
+import { toast } from '@/shared-util';
 import PreNumTransDrawer, { type PreNumTransDrawerRef } from '../../features/pre-num-trans/components/PreNumTransDrawer';
-import { preNumTransQueryKeys, useDeletePreNumTrans, useGetNodes, useGetPreNumTransList } from '../../features/pre-num-trans/hooks/usePreNumTransQueries';
+import { preNumTransQueryKeys, useDeletePreNumTransBatch, useGetNodes, useGetPreNumTransList } from '../../features/pre-num-trans/hooks/usePreNumTransQueries';
 import { EDIT_OPT_LABELS, type PreNumTrans, TRANS_ACTION_LABELS } from '../../features/pre-num-trans/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/pre-num-trans' },
-  { title: '발신DNIS사전변환', path: '/ipron/line/pre-num-trans' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: '발신DNIS사전변환', path: '/ipron/line/pre-num-trans' }];
 
 export default function PreNumTransList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -47,6 +44,7 @@ export default function PreNumTransList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [selectedRows, setSelectedRows] = useState<PreNumTrans[]>([]);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const drawerRef = useRef<PreNumTransDrawerRef>(null);
@@ -55,34 +53,34 @@ export default function PreNumTransList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
 
-  // 노드별 카운트용으로 전체 목록을 한 번 가져와서 클라이언트에서 필터링
-  const listParams = useMemo(() => undefined, []);
+  // 서버사이드 검색 파라미터 — dnisPattern LIKE 검색은 BE로 위임 (SWAT IPR20S1045 기준)
+  // 검색어가 있으면 dnisPattern 파라미터를 전달, 노드 선택과 함께 전달 가능
+  const isSearching = searchText.trim().length > 0;
+  const listParams = useMemo(
+    () => ({
+      ...(selectedNodeId && !isSearching ? { nodeId: selectedNodeId } : {}),
+      ...(isSearching ? { dnisPattern: searchText.trim() } : {}),
+    }),
+    [selectedNodeId, isSearching, searchText],
+  );
   const { data: allTransList = [], isLoading } = useGetPreNumTransList({
     params: listParams,
   });
 
-  // 검색어로 필터링 (검색 필드: DNIS패턴, 추가Digit, 비고, 노드명)
-  const isSearching = searchText.trim().length > 0;
-  const searchFilteredTrans = useMemo(() => {
-    if (!isSearching) return allTransList;
-    const kw = searchText.trim().toLowerCase();
-    return allTransList.filter((t) => [t.dnisPattern, t.addDigit, t.transDesc, t.nodeName].some((v) => v?.toString().toLowerCase().includes(kw)));
-  }, [allTransList, isSearching, searchText]);
-
-  // 검색 중이면 노드 선택 무시 (전체 표시)
+  // 검색 중이거나 노드 미선택 시 전체 목록, 노드 선택 시 BE가 이미 필터링해서 반환
   const transList = useMemo(
-    () => (isSearching || !selectedNodeId ? searchFilteredTrans : searchFilteredTrans.filter((t) => t.nodeId === selectedNodeId)),
-    [searchFilteredTrans, selectedNodeId, isSearching],
+    () => (isSearching || !selectedNodeId ? allTransList : allTransList.filter((t) => t.nodeId === selectedNodeId)),
+    [allTransList, selectedNodeId, isSearching],
   );
 
-  // 노드별 사전변환 개수 (검색 결과 기준)
+  // 노드별 사전변환 개수 (현재 목록 기준)
   const transCountByNode = useMemo(() => {
     const map = new Map<number, number>();
-    for (const t of searchFilteredTrans) {
+    for (const t of allTransList) {
       map.set(t.nodeId, (map.get(t.nodeId) ?? 0) + 1);
     }
     return map;
-  }, [searchFilteredTrans]);
+  }, [allTransList]);
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -103,9 +101,10 @@ export default function PreNumTransList() {
   }, [selectedNodeName, transList.length]);
 
   // ─── Invalidation helpers ──────────────────────────────────────────────────
+  // 파라미터가 동적이므로 preNumTrans getList 전체를 무효화 (특정 params 키에 한정하지 않음)
   const invalidateList = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: preNumTransQueryKeys.getList(listParams).queryKey });
-  }, [queryClient, listParams]);
+    queryClient.invalidateQueries({ queryKey: preNumTransQueryKeys.getList._def });
+  }, [queryClient]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeSelect = (nodeId: number) => {
@@ -120,22 +119,29 @@ export default function PreNumTransList() {
     drawerRef.current?.open(trans);
   }, []);
 
-  const { mutate: deletePreNumTrans } = useDeletePreNumTrans({
-    mutationOptions: { onSuccess: () => invalidateList() },
+  const { mutate: deletePreNumTransBatch } = useDeletePreNumTransBatch({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('사전변환이 삭제되었습니다');
+        invalidateList();
+      },
+    },
   });
 
-  const handleDelete = useCallback(
-    (trans: PreNumTrans) => {
-      modal.confirm.execute({
-        onOk: () => deletePreNumTrans({ id: trans.preTransId }),
-        options: {
-          title: '발신 DNIS 사전변환 삭제',
-          content: `DNIS 패턴 "${trans.dnisPattern}" 사전변환을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deletePreNumTrans],
-  );
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRows.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => {
+        deletePreNumTransBatch(selectedRows.map((trans) => trans.preTransId));
+        setSelectedRows([]);
+      },
+      options: {
+        title: '발신 DNIS 사전변환 삭제',
+        content:
+          selectedRows.length === 1 ? `DNIS 패턴 "${selectedRows[0].dnisPattern}" 사전변환을 삭제하시겠습니까?` : `선택한 사전변환 ${selectedRows.length}건을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deletePreNumTransBatch, selectedRows]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateList();
@@ -144,33 +150,41 @@ export default function PreNumTransList() {
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<PreNumTrans>[] = useMemo(
     () => [
-      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
-      { headerName: 'DNIS패턴', field: 'dnisPattern', flex: 2, minWidth: 140 },
+      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100, tooltipField: 'nodeName' },
+      { headerName: 'DNIS패턴', field: 'dnisPattern', flex: 2, minWidth: 140, tooltipField: 'dnisPattern' },
       {
         headerName: '편집옵션',
         field: 'editOpt',
         flex: 1,
         minWidth: 100,
+        filterValueGetter: (params) => {
+          const v = params.data?.editOpt;
+          return v != null ? (EDIT_OPT_LABELS[v] ?? String(v)) : '';
+        },
         cellRenderer: (params: ICellRendererParams<PreNumTrans>) => {
           if (!params.data) return null;
           const label = EDIT_OPT_LABELS[params.data.editOpt] ?? String(params.data.editOpt);
           return <span>{label}</span>;
         },
       },
-      { headerName: 'Digit수', field: 'delCount', flex: 0.7, minWidth: 80 },
+      { headerName: 'Digit 수', field: 'delCount', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
-        headerName: '추가Digit',
+        headerName: '추가 Digit',
         field: 'addDigit',
         flex: 1,
         minWidth: 100,
         valueFormatter: (params) => params.data?.addDigit ?? '-',
       },
-      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80 },
+      { headerName: '우선순위', field: 'priority', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '변환동작',
         field: 'transAction',
         flex: 1,
         minWidth: 110,
+        filterValueGetter: (params) => {
+          if (params.data?.transAction == null) return '-';
+          return TRANS_ACTION_LABELS[params.data.transAction] ?? String(params.data.transAction);
+        },
         cellRenderer: (params: ICellRendererParams<PreNumTrans>) => {
           if (params.data?.transAction == null) return <span>-</span>;
           const label = TRANS_ACTION_LABELS[params.data.transAction] ?? String(params.data.transAction);
@@ -182,6 +196,7 @@ export default function PreNumTransList() {
         field: 'routeName',
         flex: 1.2,
         minWidth: 120,
+        tooltipField: 'routeName',
         valueFormatter: (params) => params.data?.routeName ?? '-',
       },
       {
@@ -189,33 +204,11 @@ export default function PreNumTransList() {
         field: 'transDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'transDesc',
         valueFormatter: (params) => params.data?.transDesc ?? '-',
       },
-      {
-        headerName: '',
-        field: 'preTransId',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<PreNumTrans>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -225,7 +218,9 @@ export default function PreNumTransList() {
         {/* ===== 상단 헤더 박스 (제목 + 검색 + 추가) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="px-5 h-[56px] bg-white flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">발신 DNIS 사전변환 (총 {allTransList.length}건)</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-800">발신 DNIS 사전변환 (총 {allTransList.length}건)</span>
+            </div>
             <div className="flex items-center gap-2">
               <Input
                 allowClear
@@ -296,7 +291,6 @@ export default function PreNumTransList() {
                           <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
                           <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
                         </div>
-                        <div className="text-xs text-gray-500">Node ID: {node.nodeId}</div>
 
                         {/* 하단 태그: 등록 건수 */}
                         <div className="flex flex-wrap gap-1 mt-auto pt-2">
@@ -327,6 +321,16 @@ export default function PreNumTransList() {
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
+            <Button
+              danger
+              size="small"
+              icon={<Trash2 className="size-3.5" />}
+              disabled={selectedRows.length === 0}
+              title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
+              onClick={handleDeleteSelected}
+            >
+              삭제
+            </Button>
           </div>
 
           <div className="flex-1">
@@ -339,12 +343,14 @@ export default function PreNumTransList() {
                 pagination: false,
                 sideBar: false,
               }}
+              rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
               loading={isLoading}
               getRowId={(params) => String(params.data.preTransId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
               }}
+              onSelectionChanged={(e: SelectionChangedEvent<PreNumTrans>) => setSelectedRows(e.api.getSelectedRows())}
             />
           </div>
         </div>

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Card, Tag, Tooltip } from 'antd';
 import { toast } from '@/shared-util';
+import { DASHBOARD_ICON_SVG, DEFAULT_DASHBOARD_ICON } from '../constants/dashboardIconConstants';
 import { DOMAIN_LABELS } from '../constants/monitoringConstants';
 import { dashboardKeys, useDeleteDashboard } from '../hooks/useDashboardQueries';
 import type { DashboardListItem } from '../types';
@@ -35,6 +36,7 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
 
   const handleView = () => navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/view`);
   const handleEdit = () => navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/edit`);
+  const handleEditInfo = () => navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/edit-info`);
   // 기본은 항상 플레이(view) 진입. 편집은 Dropdown 메뉴 또는 view 화면의 [편집] 버튼으로.
   const handleCardClick = handleView;
   const handleDelete = () =>
@@ -45,15 +47,20 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
   const domainLabel = DOMAIN_LABELS[dashboard.domainCode];
 
   const title = (
-    <span
-      className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
-      onClick={(e) => {
-        e.stopPropagation();
-        handleCardClick();
-      }}
-    >
-      {dashboard.dashboardName}
-    </span>
+    <div className="flex items-center gap-2">
+      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]">
+        {DASHBOARD_ICON_SVG[dashboard.iconType ?? DEFAULT_DASHBOARD_ICON]}
+      </span>
+      <span
+        className="truncate hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleCardClick();
+        }}
+      >
+        {dashboard.dashboardName}
+      </span>
+    </div>
   );
 
   const extra = (
@@ -69,7 +76,10 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
           ▶ 플레이
         </DropdownMenuItem>
         <DropdownMenuItem className="hover:cursor-pointer" onClick={handleEdit}>
-          편집
+          화면 편집
+        </DropdownMenuItem>
+        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleEditInfo}>
+          정보 편집
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="hover:cursor-pointer text-[var(--color-bt-danger)] focus:text-[var(--color-bt-danger)]" onClick={handleDelete}>

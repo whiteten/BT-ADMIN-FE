@@ -14,7 +14,7 @@ type KnowledgeCardProps = KnowledgeListItem & {
 export default function KnowledgeCard({ documentId, documentName, description, fileCount, updatedAt, onDetail, onDelete }: KnowledgeCardProps) {
   const title = (
     <div className="flex items-center gap-2.5">
-      <div className="w-8 h-8 rounded-lg bg-[#EAF2FB] flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-lg bg-[var(--color-bt-primary-soft)] flex items-center justify-center shrink-0">
         <BookOpen className="size-[18px] text-[var(--color-bt-primary)]" />
       </div>
       <span

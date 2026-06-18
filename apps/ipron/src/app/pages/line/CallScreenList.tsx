@@ -13,23 +13,19 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallScreenDrawer, { type CallScreenDrawerRef } from '../../features/call-screen/components/CallScreenDrawer';
-import { callScreenQueryKeys, useDeleteCallScreen, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
+import { callScreenQueryKeys, useDeleteCallScreenBatch, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
 import type { CallScreen } from '../../features/call-screen/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/call-screen' },
-  { title: '수신번호차단관리', path: '/ipron/line/call-screen' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: '수신번호차단관리', path: '/ipron/line/call-screen' }];
 
 export default function CallScreenList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -47,7 +43,11 @@ export default function CallScreenList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [searchText, setSearchText] = useState('');
+  /** 카드 슬라이더 필터용 (테넌트명/노드명) */
+  const [cardSearchText, setCardSearchText] = useState('');
+  /** 번호패턴 서버사이드 LIKE 검색어 — SWAT IPR20S1060L numPattern 대응 */
+  const [numPatternSearch, setNumPatternSearch] = useState('');
+  const [selectedRows, setSelectedRows] = useState<CallScreen[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
@@ -57,18 +57,39 @@ export default function CallScreenList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodeTenants = [] } = useGetNodeTenants();
 
-  // 선택된 노드의 전체 차단번호 1회 fetch → 클라이언트에서 테넌트별 필터 + 카운트
-  const nodeListParams = useMemo(() => (selectedNodeId ? { nodeId: selectedNodeId } : undefined), [selectedNodeId]);
-  const { data: nodeCallScreens = [], isLoading } = useGetCallScreenList({
+  const isNumPatternSearching = numPatternSearch.trim().length > 0;
+
+  // 번호패턴 검색 모드: 서버 LIKE 검색 — SWAT numPattern 조건 대응
+  const numPatternParams = useMemo(
+    () =>
+      isNumPatternSearching
+        ? {
+            numPattern: numPatternSearch.trim(),
+            ...(selectedNodeId ? { nodeId: selectedNodeId } : {}),
+          }
+        : undefined,
+    [isNumPatternSearching, numPatternSearch, selectedNodeId],
+  );
+  const { data: numPatternResults = [], isLoading: isNumPatternLoading } = useGetCallScreenList({
+    params: numPatternParams,
+    queryOptions: { enabled: !!numPatternParams },
+  });
+
+  // 노드 선택 모드: 선택된 노드의 전체 차단번호 1회 fetch → 클라이언트에서 테넌트별 필터 + 카운트
+  const nodeListParams = useMemo(() => (selectedNodeId && !isNumPatternSearching ? { nodeId: selectedNodeId } : undefined), [selectedNodeId, isNumPatternSearching]);
+  const { data: nodeCallScreens = [], isLoading: isNodeLoading } = useGetCallScreenList({
     params: nodeListParams,
     queryOptions: { enabled: !!nodeListParams },
   });
 
-  // 그리드 표시용: 전체 테넌트면 노드 전체, 개별 테넌트면 해당 테넌트만
+  const isLoading = isNumPatternSearching ? isNumPatternLoading : isNodeLoading;
+
+  // 그리드 표시용: 번호패턴 검색이면 서버 결과, 아니면 노드/테넌트 필터
   const callScreens = useMemo(() => {
+    if (isNumPatternSearching) return numPatternResults;
     if (selectedTenantId === -1 || selectedTenantId === null) return nodeCallScreens;
     return nodeCallScreens.filter((cs) => cs.tenantId === selectedTenantId);
-  }, [nodeCallScreens, selectedTenantId]);
+  }, [isNumPatternSearching, numPatternResults, nodeCallScreens, selectedTenantId]);
 
   // 테넌트별 차단번호 개수
   const callScreenCountByTenant = useMemo(() => {
@@ -80,11 +101,12 @@ export default function CallScreenList() {
   }, [nodeCallScreens]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
-  const { mutate: deleteCallScreen } = useDeleteCallScreen({
+  const { mutate: deleteCallScreenBatch } = useDeleteCallScreenBatch({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('수신번호 차단이 삭제되었습니다.');
+        toast.success('수신번호 차단이 삭제되었습니다');
         invalidateList();
+        setSelectedRows([]);
       },
     },
   });
@@ -96,7 +118,12 @@ export default function CallScreenList() {
         queryKey: callScreenQueryKeys.getList(nodeListParams).queryKey,
       });
     }
-  }, [queryClient, nodeListParams]);
+    if (numPatternParams) {
+      queryClient.invalidateQueries({
+        queryKey: callScreenQueryKeys.getList(numPatternParams).queryKey,
+      });
+    }
+  }, [queryClient, nodeListParams, numPatternParams]);
 
   // ─── Derived data: 노드 > 테넌트 구조 ──────────────────────────────────────
   interface TenantInfo {
@@ -137,34 +164,34 @@ export default function CallScreenList() {
     return { nodeGroups: groups, allTenants: tenants };
   }, [nodeTenants]);
 
-  // 검색 + 노드 필터 적용된 테넌트 카드 목록
-  const isSearching = searchText.trim().length > 0;
+  // 카드 검색 + 노드 필터 적용된 테넌트 카드 목록
+  const isCardSearching = cardSearchText.trim().length > 0;
 
   const filteredTenants = useMemo(() => {
     let list = allTenants;
 
-    // 검색 중이면 노드 필터 무시, 아니면 선택된 노드 필터 적용
-    if (!isSearching && selectedNodeId !== null) {
+    // 카드 검색 중이면 노드 필터 무시, 아니면 선택된 노드 필터 적용
+    if (!isCardSearching && selectedNodeId !== null) {
       list = list.filter((t) => t.nodeId === selectedNodeId);
     }
 
-    if (isSearching) {
-      const kw = searchText.trim().toLowerCase();
+    if (isCardSearching) {
+      const kw = cardSearchText.trim().toLowerCase();
       list = list.filter((t) => t.tenantName.toLowerCase().includes(kw) || t.nodeName.toLowerCase().includes(kw));
     }
 
     return list;
-  }, [allTenants, selectedNodeId, isSearching, searchText]);
+  }, [allTenants, selectedNodeId, isCardSearching, cardSearchText]);
 
-  // 노드별 테넌트 수 (검색 결과 기준)
+  // 노드별 테넌트 수 (카드 검색 결과 기준)
   const tenantCountByNode = useMemo(() => {
     const map = new Map<number, number>();
-    const source = isSearching ? filteredTenants : allTenants;
+    const source = isCardSearching ? filteredTenants : allTenants;
     for (const t of source) {
       map.set(t.nodeId, (map.get(t.nodeId) ?? 0) + 1);
     }
     return map;
-  }, [allTenants, filteredTenants, isSearching]);
+  }, [allTenants, filteredTenants, isCardSearching]);
 
   const selectedNodeName = useMemo(() => {
     if (!selectedNodeId) return '';
@@ -194,15 +221,17 @@ export default function CallScreenList() {
   const handleNodeSelect = (nodeId: number) => {
     setSelectedNodeId(nodeId);
     setSelectedTenantId(null);
-    setSearchText('');
+    setCardSearchText('');
+    setNumPatternSearch('');
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setSearchText(e.target.value);
+  const handleCardSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setCardSearchText(e.target.value);
     if (e.target.value.trim().length > 0) {
-      // 검색 시작 시 노드/테넌트 선택 자동 해제
+      // 카드 검색 시 노드/테넌트 선택 자동 해제
       setSelectedNodeId(null);
       setSelectedTenantId(null);
+      setNumPatternSearch('');
     }
   };
 
@@ -212,27 +241,27 @@ export default function CallScreenList() {
   };
 
   const handleCreate = useCallback(() => {
-    if (selectedNodeId && selectedTenantId) {
-      drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
+    if (!selectedNodeId || !selectedTenantId || selectedTenantId === -1) {
+      toast.warning('노드와 특정 테넌트를 선택하세요');
+      return;
     }
+    drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
   }, [selectedNodeId, selectedTenantId, selectedNodeName, selectedTenantName]);
 
   const handleEdit = useCallback((item: CallScreen) => {
     drawerRef.current?.open(item);
   }, []);
 
-  const handleDelete = useCallback(
-    (item: CallScreen) => {
-      modal.confirm.execute({
-        onOk: () => deleteCallScreen({ id: item.callscreenId }),
-        options: {
-          title: '수신번호 차단 삭제',
-          content: `"${item.numPattern}" 차단을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteCallScreen],
-  );
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRows.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => deleteCallScreenBatch(selectedRows.map((item) => item.callscreenId)),
+      options: {
+        title: '수신번호 차단 삭제',
+        content: `선택한 ${selectedRows.length}건의 차단번호를 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, selectedRows, deleteCallScreenBatch]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateList();
@@ -246,7 +275,7 @@ export default function CallScreenList() {
         field: 'nodeName',
         flex: 1,
         minWidth: 110,
-        valueFormatter: (params) => params.data?.nodeName ?? `Node ${params.data?.nodeId ?? '-'}`,
+        valueFormatter: (params) => params.data?.nodeName ?? '-',
       },
       {
         headerName: '테넌트명',
@@ -259,6 +288,7 @@ export default function CallScreenList() {
         field: 'numPattern',
         flex: 2,
         minWidth: 200,
+        tooltipField: 'numPattern',
         cellStyle: { fontFamily: 'monospace' },
       },
       {
@@ -266,33 +296,11 @@ export default function CallScreenList() {
         field: 'screenDesc',
         flex: 1.5,
         minWidth: 160,
+        tooltipField: 'screenDesc',
         valueFormatter: (params) => params.data?.screenDesc ?? '-',
       },
-      {
-        headerName: '',
-        field: 'callscreenId',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<CallScreen>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -353,17 +361,44 @@ export default function CallScreenList() {
               <ChevronRight className="size-4 text-gray-500" />
             </button>
 
-            {/* 우측: 검색 + 추가 버튼 */}
+            {/* 우측: 번호패턴 검색(서버사이드) + 카드 검색 + 추가 버튼 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              {/* 번호패턴 서버사이드 LIKE 검색 — SWAT "차단번호패턴" 검색란 대응 */}
+              <Input.Search
+                allowClear
+                placeholder="차단번호패턴 검색"
+                value={numPatternSearch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setNumPatternSearch(val);
+                  if (val.trim().length > 0) {
+                    setCardSearchText('');
+                  }
+                }}
+                onSearch={(val) => {
+                  setNumPatternSearch(val);
+                  if (val.trim().length > 0) {
+                    setCardSearchText('');
+                  }
+                }}
+                style={{ width: 180 }}
+              />
+              {/* 카드 슬라이더 필터 (테넌트명/노드명) */}
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="수신번호차단 검색"
-                value={searchText}
-                onChange={handleSearchChange}
-                style={{ width: 200 }}
+                placeholder="테넌트 검색"
+                value={cardSearchText}
+                onChange={handleCardSearchChange}
+                style={{ width: 140 }}
               />
-              <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!selectedNodeId || !selectedTenantId} onClick={handleCreate}>
+              <Button
+                type="primary"
+                icon={<Plus className="size-3.5" />}
+                onClick={handleCreate}
+                disabled={!selectedNodeId || !selectedTenantId || selectedTenantId === -1}
+                title={!selectedNodeId || !selectedTenantId || selectedTenantId === -1 ? '노드와 테넌트를 선택하세요' : undefined}
+              >
                 추가
               </Button>
             </div>
@@ -377,7 +412,7 @@ export default function CallScreenList() {
             {filteredTenants.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
                 <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '테넌트가 없습니다'}</span>
+                <span className="text-sm">{isCardSearching ? '검색 결과가 없습니다' : '테넌트가 없습니다'}</span>
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">
@@ -389,7 +424,7 @@ export default function CallScreenList() {
                 />
                 <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                   {/* 전체 테넌트 카드 (선택 노드의 모든 테넌트 차단번호 통합 조회) */}
-                  {selectedNodeId && !isSearching && (
+                  {selectedNodeId && !isCardSearching && !isNumPatternSearching && (
                     <div
                       key="__all_tenant__"
                       className={`border rounded-lg p-3 cursor-pointer transition-all w-[110px] h-[130px] flex-shrink-0 flex flex-col items-center justify-center gap-1 ${
@@ -461,13 +496,26 @@ export default function CallScreenList() {
 
         {/* ===== 하단: 차단번호 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          {selectedNodeId && selectedTenantId ? (
+          {(selectedNodeId && selectedTenantId) || isNumPatternSearching ? (
             <>
               {/* Grid header */}
-              <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
                 <span className="text-sm font-semibold text-gray-800">
-                  {selectedNodeName} / {selectedTenantId === -1 ? '전체 테넌트' : selectedTenantName} 수신번호차단 ({callScreens.length}건)
+                  {isNumPatternSearching
+                    ? `차단번호패턴 "${numPatternSearch.trim()}" 검색 결과 (${callScreens.length}건)`
+                    : `${selectedNodeName} / ${selectedTenantId === -1 ? '전체 테넌트' : selectedTenantName} 수신번호차단 (${callScreens.length}건)`}
                 </span>
+                <div className="ml-auto">
+                  <Button
+                    danger
+                    icon={<Trash2 className="size-3.5" />}
+                    onClick={handleDeleteSelected}
+                    disabled={selectedRows.length === 0}
+                    title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
+                  >
+                    삭제
+                  </Button>
+                </div>
               </div>
 
               {/* Grid */}
@@ -475,7 +523,7 @@ export default function CallScreenList() {
                 {callScreens.length === 0 && !isLoading ? (
                   <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
                     <Empty description={false} />
-                    <span className="text-sm">이 테넌트에 등록된 차단번호가 없습니다</span>
+                    <span className="text-sm">{isNumPatternSearching ? '검색 결과가 없습니다' : '이 테넌트에 등록된 차단번호가 없습니다'}</span>
                   </div>
                 ) : (
                   <AgGridReact<CallScreen>
@@ -487,12 +535,14 @@ export default function CallScreenList() {
                       pagination: false,
                       sideBar: false,
                     }}
+                    rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
                     loading={isLoading}
                     getRowId={(params) => String(params.data.callscreenId)}
-                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                    defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                     onRowDoubleClicked={(e) => {
                       if (e.data) handleEdit(e.data);
                     }}
+                    onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
                   />
                 )}
               </div>

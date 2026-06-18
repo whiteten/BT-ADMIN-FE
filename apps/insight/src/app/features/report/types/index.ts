@@ -7,7 +7,7 @@ export type FieldType = 'DIM' | 'MSR';
 export type PanelType = 'GRID' | 'BAR' | 'LINE' | 'PIE' | 'RADAR' | 'KPI';
 export type AggFunc = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
 export type KpiDirection = 'HIGHER_BETTER' | 'LOWER_BETTER' | 'NEUTRAL';
-export type SlotType = 'ROW' | 'COLUMN' | 'X_AXIS' | 'Y_AXIS' | 'SERIES' | 'SLICE' | 'VALUE' | 'AXIS' | 'SORT' | 'LIMIT' | 'FILTER';
+export type SlotType = 'ROW' | 'COLUMN' | 'X_AXIS' | 'Y_AXIS' | 'SERIES' | 'SLICE' | 'VALUE' | 'AXIS' | 'SORT' | 'LIMIT' | 'FILTER' | 'KPI';
 
 export interface ReportListItem {
   reportId: number;
@@ -15,7 +15,10 @@ export interface ReportListItem {
   description?: string;
   domain: DomainCode;
   datasetId: number;
-  isPublished: boolean;
+  /** 보고서 패널들이 사용하는 데이터셋명 목록 (distinct, 이름순). v5.0 패널 단위 데이터셋. */
+  datasetNames?: string[];
+  /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
+  isSystem?: boolean;
   ownerUserId: number;
   updatedAt: string;
   iconType?: ReportIconType;
@@ -28,7 +31,8 @@ export interface ReportDetail {
   domain: DomainCode;
   datasetId: number;
   iconType?: ReportIconType;
-  isPublished: boolean;
+  /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
+  isSystem?: boolean;
   ownerUserId: number;
   createdAt: string;
   updatedAt: string;
@@ -63,7 +67,6 @@ export interface SearchBinding {
   bindId: number;
   searchCondId: number;
   title: string;
-  isBundle: boolean;
   bindOrder: number;
   requiredYn: boolean;
   defaultValue?: unknown;
@@ -82,7 +85,13 @@ export interface PanelFieldMap {
   sortDirection?: 'ASC' | 'DESC';
   topN?: number;
   otherGrouping?: boolean;
+  /** ROW 슬롯 숨김 차원: GROUP BY에는 포함하되 그리드 컬럼으로 표시하지 않음 (AS-IS SELECT_YN=0·GROUP_YN=1 대응). */
+  isHidden?: boolean;
   searchCondId?: number;
+  /** FILTER 슬롯 cascade: 이 컬럼이 검색조건의 어느 단계(node)에 매핑되는지 (G4-b). 단일 조건은 미지정. */
+  nodeCode?: string;
+  /** VALUE 슬롯 헤더 병합: 같은 값끼리 그리드 부모헤더(column group)로 묶음 (AS-IS GROUP_HEADER_NAME). 빈값=병합 안함. */
+  headerGroup?: string;
 }
 
 export interface PanelLayout {
@@ -183,10 +192,4 @@ export interface SearchBindingCreateDatas {
   bindOrder: number;
   requiredYn: boolean;
   defaultValue?: unknown;
-}
-
-export interface PublishDatas {
-  menuPath: string;
-  menuName: string;
-  permissionGroups: string[];
 }

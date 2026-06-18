@@ -9,6 +9,7 @@ import SttModelRecogDrawer, { type SttModelRecogDrawerRef } from '../components/
 import { useGetCodes } from '../hooks/useCommonQueries';
 import { modelQueryKeys, useDeleteSttModel, useGetSttModelList } from '../hooks/useModelQueries';
 import type { ModelTunningResult, ModelTunningType, SttModelItem } from '../types';
+import { Badge } from '@/components/ui/badge';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const MODEL_TYPE_OPTIONS = [
@@ -68,8 +69,8 @@ function ModelCard({ model, onDetail, onMeasure, onDelete }: ModelCardProps) {
 
         {/* Tags */}
         <div className="px-5 pb-5 flex items-center gap-2">
-          <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[13px] font-medium ${statusConfig.className}`}>{statusConfig.label}</span>
-          <span className={`inline-flex items-center h-6 px-2.5 rounded-full text-[13px] font-medium ${typeConfig.className}`}>{typeConfig.label}</span>
+          <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${statusConfig.className}`}>{statusConfig.label}</Badge>
+          <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${typeConfig.className}`}>{typeConfig.label}</Badge>
           <span className="text-xs text-gray-400 ml-auto">{model.workTime ? dayjs(model.workTime).format('YYYY-MM-DD HH:mm:ss') : '—'}</span>
         </div>
       </div>

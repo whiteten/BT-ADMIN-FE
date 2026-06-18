@@ -5,7 +5,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { routeApi } from '../api/routeApi';
+import { type DodTransOption, type MentOption, type WorktimeOption, routeApi } from '../api/routeApi';
 import type { Route, RoutePoint } from '../types';
 
 export const routeQueryKeys = createQueryKeys('routes', {
@@ -15,6 +15,9 @@ export const routeQueryKeys = createQueryKeys('routes', {
   getNodes: null,
   getEndpoints: (params?: Record<string, unknown>) => [params],
   getRoutesByNode: (nodeId?: number) => [nodeId],
+  getDodTransOptions: (nodeId?: number) => [nodeId],
+  getWorktimeOptions: (nodeId?: number) => [nodeId],
+  getMentOptions: (nodeId?: number) => [nodeId],
 });
 
 // ─── Route Queries ─────────────────────────────────────────────────────────
@@ -104,6 +107,16 @@ export const useDeleteRoutePoint = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
+/**
+ * 라우트 국선 일괄 배정 해제 (벌크 1콜)
+ */
+export const useDeleteRoutePointsBatch = ({ mutationOptions }: MutationHookOptions<void, { routeId: number; endptIds: number[] }> = {}) => {
+  return useMutation({
+    mutationFn: routeApi.deleteRoutePointsBatch,
+    ...mutationOptions,
+  });
+};
+
 // ─── Node Query ────────────────────────────────────────────────────────────
 
 interface NodeSimpleResponse {
@@ -144,6 +157,47 @@ export const useGetRoutesByNode = (nodeId?: number, queryOptions?: QueryHookOpti
   return useQuery({
     queryKey: routeQueryKeys.getRoutesByNode(nodeId).queryKey,
     queryFn: () => routeApi.getRoutesByNode(nodeId!),
+    enabled: !!nodeId,
+    ...queryOptions,
+  });
+};
+
+// ─── Combo Option Queries (발신라우트 폼 동적 Select용) ───────────────────────
+
+/**
+ * DOD 번호변환 콤보 옵션 (nodeId 선택 시 동적 갱신)
+ * SWAT: cbCreate('#poDodTransId','dodtrans','search1='+nodeId)
+ */
+export const useGetDodTransOptions = (nodeId?: number, queryOptions?: QueryHookOptions<DodTransOption[]>['queryOptions']) => {
+  return useQuery({
+    queryKey: routeQueryKeys.getDodTransOptions(nodeId).queryKey,
+    queryFn: () => routeApi.getDodTransOptions(nodeId!),
+    enabled: !!nodeId,
+    ...queryOptions,
+  });
+};
+
+/**
+ * 업무시간 콤보 옵션 (nodeId 선택 시 동적 갱신)
+ * SWAT: cbCreate('#poIeWorktimeId','worktime','nodeId='+nodeId+'&tenantId=0')
+ */
+export const useGetWorktimeOptions = (nodeId?: number, queryOptions?: QueryHookOptions<WorktimeOption[]>['queryOptions']) => {
+  return useQuery({
+    queryKey: routeQueryKeys.getWorktimeOptions(nodeId).queryKey,
+    queryFn: () => routeApi.getWorktimeOptions(nodeId!),
+    enabled: !!nodeId,
+    ...queryOptions,
+  });
+};
+
+/**
+ * 안내멘트 콤보 옵션 (nodeId 선택 시 동적 갱신)
+ * SWAT: cbCreate('#poWorktimeMentId','ment','nodeId='+nodeId+'&tenantId=0')
+ */
+export const useGetMentOptions = (nodeId?: number, queryOptions?: QueryHookOptions<MentOption[]>['queryOptions']) => {
+  return useQuery({
+    queryKey: routeQueryKeys.getMentOptions(nodeId).queryKey,
+    queryFn: () => routeApi.getMentOptions(nodeId!),
     enabled: !!nodeId,
     ...queryOptions,
   });

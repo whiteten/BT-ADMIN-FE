@@ -25,7 +25,6 @@ export interface SearchConditionListItem {
   searchCondId: number;
   title: string;
   categoryCode?: string;
-  isBundle: boolean;
   nodes: SearchConditionNodeSummary[];
   usedReportCount: number;
 }
@@ -49,7 +48,6 @@ export interface SearchConditionDetail {
   searchCondId: number;
   title: string;
   categoryCode?: string;
-  isBundle: boolean;
   description?: string;
   nodes: SearchConditionNode[];
 }
@@ -57,7 +55,6 @@ export interface SearchConditionDetail {
 export type SearchConditionCreateDatas = {
   title: string;
   categoryCode?: string;
-  isBundle?: boolean;
   description?: string;
   nodes: Omit<SearchConditionNode, 'nodeId'>[];
 };
@@ -76,4 +73,21 @@ export interface SqlPreviewResult {
   value: string | null;
   parent?: string | null;
   level?: number | null;
+}
+
+/** 장표 런타임 cascade — 검색조건 단계 메타 (옵션 SQL 제외, 렌더링용 경량 정보). */
+export interface SearchCondStage {
+  nodeCode: string;
+  nodeLabel: string;
+  inputType: InputType;
+  nodeDepth: number;
+  parentNodeCode?: string | null;
+  sortOrder?: number;
+}
+
+export interface SearchCondMeta {
+  searchCondId: number;
+  title: string;
+  /** nodeDepth → sortOrder 순으로 정렬된 단계 체인. */
+  stages: SearchCondStage[];
 }

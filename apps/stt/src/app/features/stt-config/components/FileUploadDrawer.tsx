@@ -187,14 +187,8 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(
         </div>
 
         <div className="flex flex-col gap-2 flex-1 min-h-0">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-[#495057]">STT 대상 파일 리스트</span>
-            {isSending && ftsProgress && (
-              <span className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
-                <Loader2 size={12} className="animate-spin shrink-0" />
-                STT 요청중 {ftsProgress.completed}/{ftsProgress.total}
-              </span>
-            )}
           </div>
           <div className="border border-[#e9ebec] rounded overflow-hidden flex flex-col min-h-0 flex-1">
             <div className="bg-[#f8f9fa] px-4 py-2 text-sm font-medium text-[#495057] text-center border-b border-[#e9ebec] shrink-0">STT 대상 파일명</div>

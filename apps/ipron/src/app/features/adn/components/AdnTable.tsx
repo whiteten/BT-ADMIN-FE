@@ -1,63 +1,40 @@
 /**
  * ADN 관리 ag-Grid 테이블 — DnTable 패턴.
- * 컬럼: ☐ | 테넌트 | ADN번호 | 상태 | 로그인 ADN | MD5 인증 | MD5 ID | 상담원 기본상태 | 그룹DN | 수정일시 | [휴지통]
+ * 컬럼: ☐ | 테넌트 | ADN번호 | 상태 | 로그인 ADN | MD5 인증 | MD5 ID | 상담원 기본상태 | 그룹DN | 수정일시
+ * 삭제: 체크박스 다중선택 + 툴바 삭제 버튼만 (행별 휴지통 제거)
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { AdnResponse } from '../types';
 import { getAdnDftStateName } from '../utils/adnEnums';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface AdnTableProps {
   rowData: AdnResponse[];
   isLoading?: boolean;
   onRowDoubleClicked: (adn: AdnResponse) => void;
-  onDelete: (adn: AdnResponse) => void;
   onSelectionChanged?: (selected: AdnResponse[]) => void;
   onBulkDelete?: () => void;
   selectedCount?: number;
 }
 
-function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () => void; selectedCount: number }) {
-  const disabled = selectedCount === 0;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={(e) => {
-        e.stopPropagation();
-        onBulkDelete?.();
-      }}
-      title={disabled ? '삭제할 행을 선택하세요' : `선택한 ${selectedCount}건 삭제`}
-      className={`flex items-center justify-center w-full h-full ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:text-red-600'}`}
-    >
-      <IconTrash className="size-5 text-red-500" />
-    </button>
-  );
-}
-
-export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDelete, onSelectionChanged, onBulkDelete, selectedCount = 0 }: AdnTableProps) {
+export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSelectionChanged, onBulkDelete, selectedCount = 0 }: AdnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, editable: false, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   const columnDefs: ColDef<AdnResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
-      { headerName: '테넌트', field: 'tenantName', minWidth: 140 },
+      { headerName: '테넌트', field: 'tenantName', minWidth: 140, tooltipField: 'tenantName' },
       {
         headerName: 'ADN 번호',
         field: 'dnNo',
@@ -74,10 +51,12 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 130,
         maxWidth: 140,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        // ADN DN_STATUS: '8'=로그인, '9'=로그아웃 (공유 DnStatus '1' 아님 — DB 실확인)
+        filterValueGetter: (params) => (params.data?.dnStatus === '8' ? '로그인' : '로그아웃'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.dnStatus;
           if (v == null) return '-';
-          const isActive = v === '1';
+          const isActive = v === '8';
           return (
             <span
               className={`inline-flex items-center justify-center w-[90px] h-[22px] leading-none px-1.5 rounded text-[11px] font-medium ${
@@ -93,6 +72,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         headerName: '로그인 ADN',
         field: 'loginAdn',
         minWidth: 130,
+        tooltipField: 'loginAdn',
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -101,6 +81,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         minWidth: 110,
         maxWidth: 120,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => (params.data?.md5Auth === 1 ? '설정' : '해제'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
           const v = params.data?.md5Auth;
           return v === 1 ? (
@@ -114,49 +95,33 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
           );
         },
       },
-      { headerName: 'MD5 ID', field: 'md5Authid', minWidth: 110, valueFormatter: (p) => p.value ?? '-' },
+      { headerName: 'MD5 ID', field: 'md5Authid', minWidth: 110, tooltipField: 'md5Authid', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '상담원 기본상태',
         field: 'adnDftState',
         minWidth: 140,
+        filterValueGetter: (params) => getAdnDftStateName(params.data?.adnDftState),
         valueFormatter: (p) => getAdnDftStateName(p.value),
       },
       {
         headerName: '그룹DN',
         field: 'origGrpdnId',
-        minWidth: 100,
-        maxWidth: 120,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (params) => (params.value == null ? '-' : String(params.value)),
+        minWidth: 140,
+        maxWidth: 220,
+        valueGetter: (params) => {
+          const { origGrpdnNo, origGrpdnName, origGrpdnId } = params.data ?? {};
+          if (origGrpdnId == null || origGrpdnId === 0) return '-';
+          if (origGrpdnNo != null) {
+            return origGrpdnName != null ? `${origGrpdnNo} (${origGrpdnName})` : String(origGrpdnNo);
+          }
+          // origGrpdnId 존재하나 번호 미조인 시 raw ID 노출 금지 — '-' 처리
+          return '-';
+        },
+        tooltipValueGetter: (params) => params.value ?? '',
       },
       { headerName: '수정일시', field: 'workTime', minWidth: 160, flex: 1, valueFormatter: (p) => p.value ?? '-' },
-      {
-        headerName: '',
-        maxWidth: 60,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        pinned: 'right',
-        headerComponent: () => <BulkDeleteHeader onBulkDelete={onBulkDelete} selectedCount={selectedCount} />,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
-          const { data } = params;
-          if (!data) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(data);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [onDelete, onBulkDelete, selectedCount],
+    [],
   );
 
   return (
@@ -169,9 +134,8 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onDel
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}
       onSelectionChanged={(e) => onSelectionChanged?.(e.api.getSelectedRows())}

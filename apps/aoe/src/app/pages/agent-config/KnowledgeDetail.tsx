@@ -24,7 +24,7 @@ export default function KnowledgeDetail() {
 
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AOE 관리', path: '/aoe/agent-config' },
       { title: '지식', path: '/aoe/agent-config/knowledge/list' },
       { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
     ];

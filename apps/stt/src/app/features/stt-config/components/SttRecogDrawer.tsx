@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, RowClickedEvent } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Modal, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
@@ -11,6 +11,7 @@ import { modelQueryKeys, useExecuteRecogEvaluate, useGetRecogResultList } from '
 import { recogQueryKeys } from '../hooks/useRecogQueries';
 import type { RecogResultItem, RecogTargetListItem, SttModelItem } from '../types';
 import NoData from '@/components/custom/NoData';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export interface SttRecogDrawerRef {
@@ -48,6 +49,20 @@ function computeCharDiff(oldStr: string, newStr: string): DiffPart[] {
   return parts;
 }
 
+const RECOG_STATUS_CONFIG: Record<number, string> = {
+  10: 'text-gray-500 bg-gray-100',
+  15: 'text-gray-500 bg-gray-100',
+  16: 'text-red-500 bg-red-50',
+  20: 'text-blue-600 bg-blue-50',
+  30: 'text-red-500 bg-red-50',
+  50: 'text-emerald-600 bg-emerald-50',
+};
+
+function StatusBadge({ value, data }: ICellRendererParams<RecogResultItem>) {
+  const cls = RECOG_STATUS_CONFIG[data?.recogStatus ?? -1] ?? 'text-gray-500 bg-gray-100';
+  return <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${cls}`}>{value ?? '-'}</Badge>;
+}
+
 function InlineDiff({ oldStr, newStr }: { oldStr: string; newStr: string }) {
   const parts = computeCharDiff(oldStr, newStr);
   return (
@@ -80,9 +95,9 @@ const targetColumnDefs: ColDef<RecogTargetListItem>[] = [
 
 const columnDefs: ColDef<RecogResultItem>[] = [
   { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, minWidth: 160 },
-  { headerName: '정답지 내용', field: 'orgResult', flex: 3, minWidth: 160 },
+  { headerName: '정답지 내용', field: 'orgResult', flex: 3, minWidth: 160, tooltipField: 'orgResult' },
   { headerName: '화자', field: 'rxtxKind', flex: 1, minWidth: 70, valueFormatter: ({ value }) => ({ 1: '고객', 2: '상담원', 9: '통합' })[value as 1 | 2 | 9] ?? String(value) },
-  { headerName: '진행상태', field: 'recogStatusName', flex: 1, minWidth: 80 },
+  { headerName: '진행상태', field: 'recogStatusName', flex: 1, minWidth: 80, cellRenderer: StatusBadge, cellStyle: { display: 'flex', alignItems: 'center' } },
   { headerName: '인식률', field: 'recogRate', flex: 1, minWidth: 80, cellRenderer: 'percentBarRenderer', cellStyle: { display: 'flex', alignItems: 'center', padding: '0 8px' } },
   { headerName: '음절개수', field: 'wordCnt', flex: 1, minWidth: 70 },
   { headerName: 'HIT', field: 'hitCnt', flex: 1, minWidth: 70, headerTooltip: '정답지와 STT 결과가 일치한 음절 수' },

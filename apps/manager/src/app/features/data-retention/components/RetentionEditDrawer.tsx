@@ -89,7 +89,15 @@ const RetentionEditDrawer = forwardRef<RetentionEditDrawerRef, RetentionEditDraw
   );
 
   return (
-    <Drawer open={state.open} onClose={handleClose} title={state.policy?.policyName ?? ''} styles={{ wrapper: { width: 480 } }} footer={footer} destroyOnHidden>
+    <Drawer
+      open={state.open}
+      onClose={handleClose}
+      title={state.policy?.policyName ?? ''}
+      closable={{ placement: 'end' }}
+      styles={{ wrapper: { width: 480 } }}
+      footer={footer}
+      destroyOnHidden
+    >
       {state.policy && (
         <div className="flex flex-col gap-6">
           {/* 정책 기본 정보 */}

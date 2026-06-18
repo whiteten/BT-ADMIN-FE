@@ -95,4 +95,7 @@ export const searchApi = {
     const contentType = (response.headers as Record<string, string>)['content-type'] ?? '';
     return parseMultipartMixed(buffer, contentType);
   },
+  exportSttSearchExcel: async (data: { ucidGkeys: string[] }) => {
+    return await apiClient.post<Blob>('/stt-search-excel', data, { responseType: 'blob' });
+  },
 };

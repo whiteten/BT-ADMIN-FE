@@ -5,15 +5,25 @@ import { Button } from 'antd';
 import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { templateWidgetApi } from '../../features/monitoring/api/templateWidgetApi';
 import DashboardHeader from '../../features/monitoring/components/DashboardHeader';
 import DashboardCanvas from '../../features/monitoring/components/canvas/DashboardCanvas';
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
 import LayoutPickerModal from '../../features/monitoring/components/canvas/LayoutPickerModal';
 import WidgetLibraryModal from '../../features/monitoring/components/canvas/WidgetLibraryModal';
-import { dashboardKeys, useCreateWidget, useDeleteWidget, useGetDashboard, useUpdateDashboard, useUpdateLayout } from '../../features/monitoring/hooks/useDashboardQueries';
+import { DrilldownProvider } from '../../features/monitoring/components/drilldown/DrilldownProvider';
+import {
+  dashboardKeys,
+  useCreateWidget,
+  useDeleteWidget,
+  useGetCustomWidgetCatalog,
+  useGetDashboard,
+  useUpdateDashboard,
+  useUpdateLayout,
+} from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
 import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
-import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
+import type { CustomWidgetCatalogItem, TemplateWidgetDefinitionListItem, TemplateWidgetMapping, Widget } from '../../features/monitoring/types';
 import { autoPackPosition } from '../../features/monitoring/utils/autoPackPosition';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -48,6 +58,16 @@ export default function DashboardView() {
   const initialWidgets = useMemo<Widget[]>(() => (dashboard?.widgets ?? []) as Widget[], [dashboard]);
   const [widgets, setWidgets] = useState<Widget[]>(initialWidgets);
 
+  // 커스텀 위젯 카탈로그 → widgetTypeId별 최소 크기 맵 (그리드 리사이즈 최소값 가드용).
+  const { data: customCatalog } = useGetCustomWidgetCatalog();
+  const customMinSize = useMemo<Record<string, { minW: number; minH: number }>>(() => {
+    const map: Record<string, { minW: number; minH: number }> = {};
+    for (const c of customCatalog ?? []) {
+      map[c.widgetTypeId] = { minW: c.minW, minH: c.minH };
+    }
+    return map;
+  }, [customCatalog]);
+
   useEffect(() => {
     setWidgets(initialWidgets);
   }, [initialWidgets]);
@@ -66,7 +86,7 @@ export default function DashboardView() {
     return () => clearBreadcrumb();
   }, [dashboard, dashboardId, mode, setBreadcrumb, clearBreadcrumb]);
 
-  const [monitoringStarted, setMonitoringStarted] = useState(false);
+  const [monitoringStarted, setMonitoringStarted] = useState(initialMode === 'view');
   const [refreshThrottle, setRefreshThrottle] = useState<1 | 3 | 5 | 10 | 'PAUSED'>(3);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -89,6 +109,8 @@ export default function DashboardView() {
       // 편집 모드 진입 시 OS 전체화면은 가급적 해제 (필요 시)
       if (document.fullscreenElement) document.exitFullscreen?.().catch((e) => console.warn('exit fullscreen failed', e));
     } else {
+      // 뷰 모드 진입 시 모니터링을 즉시 시작 (페이지 접근 즉시 폴링).
+      setMonitoringStarted(true);
       setIsLibraryOpen(false);
       setIsLayoutPickerOpen(false);
       setReplacingWidgetId(null);
@@ -98,7 +120,7 @@ export default function DashboardView() {
   const customWidgetIds = useMemo(() => widgets.filter((w) => w.kind === 'CUSTOM').map((w) => w.widgetId), [widgets]);
   const widgetUserSettings = useWidgetUserSettingsMap(customWidgetIds);
 
-  const { connectionState, widgetData } = useDashboardSocket({
+  const { connectionState, widgetData, subscribeAdhoc, unsubscribeAdhoc } = useDashboardSocket({
     dashboardId,
     widgets,
     refreshThrottle,
@@ -203,22 +225,52 @@ export default function DashboardView() {
     setWidgets(next);
   };
 
-  const handleAddTemplate = () => {
-    const target = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
-    navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`, {
-      state: {
-        initialMode: 'edit',
-        position: target?.position,
-        replacingWidgetId: replacingWidgetId,
+  // 저장된 템플릿 위젯 정의를 골라 대시보드 인스턴스(kind=TEMPLATE)로 배치.
+  const handleAddTemplate = async (def: TemplateWidgetDefinitionListItem) => {
+    if (isCreating) return;
+    // 매핑은 상세에만 있으므로 선택 시 상세를 조회해 인스턴스로 복제.
+    const detail = await templateWidgetApi.getDetail(def.templateWidgetId);
+
+    const targetWidget = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
+    const defaultW = detail.layoutW ?? 6;
+    const defaultH = detail.layoutH ?? 6;
+    const basePosition = targetWidget ? targetWidget.position : { row: 0, col: 0, w: defaultW, h: defaultH };
+    const position = {
+      ...basePosition,
+      w: Math.max(basePosition.w, detail.layoutW ?? 1),
+      h: Math.max(basePosition.h, detail.layoutH ?? 1),
+    };
+
+    createWidget({
+      dashboardId,
+      data: {
+        kind: 'TEMPLATE',
+        widgetName: detail.widgetName,
+        datasetId: detail.datasetId,
+        visualizations: detail.visualizations,
+        defaultViz: detail.defaultViz,
+        mapping: (detail.mapping ?? {}) as TemplateWidgetMapping,
+        refreshInterval: detail.refreshInterval ?? 3,
+        position,
       },
     });
+
+    if (replacingWidgetId) {
+      setWidgets((prev) => prev.filter((w) => w.widgetId !== replacingWidgetId));
+    }
   };
 
   const handleAddCustom = (catalogItem: CustomWidgetCatalogItem) => {
     if (isCreating) return;
 
     const targetWidget = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
-    const position = targetWidget ? targetWidget.position : { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 };
+    const basePosition = targetWidget ? targetWidget.position : { row: 0, col: 0, w: catalogItem.minW ?? 4, h: catalogItem.minH ?? 4 };
+    // 패널을 위젯 최소 크기(MIN_W/MIN_H)보다 작게 그린 경우 최소 크기로 자동 보정.
+    const position = {
+      ...basePosition,
+      w: Math.max(basePosition.w, catalogItem.minW ?? 1),
+      h: Math.max(basePosition.h, catalogItem.minH ?? 1),
+    };
 
     createWidget({
       dashboardId,
@@ -289,41 +341,59 @@ export default function DashboardView() {
   const canEdit = true;
 
   return (
-    <div ref={rootRef} className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
-      <DashboardHeader
-        dashboard={dashboard}
-        mode={mode}
-        canEdit={canEdit}
-        monitoringStarted={monitoringStarted}
-        connectionState={connectionState}
-        refreshThrottle={refreshThrottle}
-        onChangeRefreshThrottle={setRefreshThrottle}
-        onToggleMonitoring={() => setMonitoringStarted((v) => !v)}
-        onEnterEdit={() => setMode('edit')}
-        onRename={handleRename}
-        onSave={handleSave}
-        isSaving={isSaving}
-        onCancel={handleCancel}
-        onAddSlot={() => setIsLayoutPickerOpen(true)}
-      />
+    <DrilldownProvider subscribeAdhoc={subscribeAdhoc} unsubscribeAdhoc={unsubscribeAdhoc} widgetData={widgetData}>
+      <div ref={rootRef} className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
+        <DashboardHeader
+          dashboard={dashboard}
+          mode={mode}
+          canEdit={canEdit}
+          monitoringStarted={monitoringStarted}
+          connectionState={connectionState}
+          refreshThrottle={refreshThrottle}
+          onChangeRefreshThrottle={setRefreshThrottle}
+          onToggleMonitoring={() => setMonitoringStarted((v) => !v)}
+          onEnterEdit={() => setMode('edit')}
+          onRename={handleRename}
+          onSave={handleSave}
+          isSaving={isSaving}
+          onCancel={handleCancel}
+          onAddSlot={() => setIsLayoutPickerOpen(true)}
+        />
 
-      {mode === 'edit' ? (
-        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={true} onWidgetsChange={handleWidgetsChange} onAddWidgetAt={handleAddWidgetAt}>
-          {isEmpty && (
-            <div className="mt-4 flex flex-col gap-4">
-              <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
-            </div>
-          )}
-        </DashboardCanvas>
-      ) : isEmpty ? (
-        <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
-      ) : (
-        <DashboardCanvas dashboardId={dashboardId} widgets={widgets} editMode={false} widgetData={widgetData} onRequestPause={() => setMonitoringStarted(false)} />
-      )}
+        {mode === 'edit' ? (
+          <DashboardCanvas
+            dashboardId={dashboardId}
+            widgets={widgets}
+            editMode={true}
+            onWidgetsChange={handleWidgetsChange}
+            onAddWidgetAt={handleAddWidgetAt}
+            customMinSize={customMinSize}
+            widgetUserSettings={widgetUserSettings}
+          >
+            {isEmpty && (
+              <div className="mt-4 flex flex-col gap-4">
+                <EmptyCanvas onLayoutSelect={handleLayoutSelect} />
+              </div>
+            )}
+          </DashboardCanvas>
+        ) : isEmpty ? (
+          <EmptyViewState canEdit={canEdit} onEnterEdit={() => setMode('edit')} />
+        ) : (
+          <DashboardCanvas
+            dashboardId={dashboardId}
+            widgets={widgets}
+            editMode={false}
+            widgetData={widgetData}
+            onRequestPause={() => setMonitoringStarted(false)}
+            customMinSize={customMinSize}
+            widgetUserSettings={widgetUserSettings}
+          />
+        )}
 
-      <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
-      <LayoutPickerModal open={isLayoutPickerOpen} onClose={() => setIsLayoutPickerOpen(false)} onSelect={handleAddSlotSelect} />
-    </div>
+        <WidgetLibraryModal open={isLibraryOpen} onClose={() => setIsLibraryOpen(false)} onAddTemplate={handleAddTemplate} onAddCustom={handleAddCustom} />
+        <LayoutPickerModal open={isLayoutPickerOpen} onClose={() => setIsLayoutPickerOpen(false)} onSelect={handleAddSlotSelect} />
+      </div>
+    </DrilldownProvider>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Widget, WsConnectionState, WsServerMessage, WsSubscribeMessage } from '../types';
 import { getCustomWidgetFields } from '../widgets/registry';
 
@@ -41,6 +41,13 @@ export interface UseDashboardSocketResult {
   widgetData: Record<string, WidgetData>;
   /** 강제 재구독 (옵션 변경 시 호출) */
   resubscribe: () => void;
+  /**
+   * 드릴다운 — 대시보드에 없는 위젯 타입을 임시 widgetId(`drill:<type>:<ts>`)로 즉석 구독.
+   * 헬스보드 링크 모달 등에서 사용. 데이터는 동일 widgetData[widgetId] 로 수신된다.
+   */
+  subscribeAdhoc: (widgetId: string, widgetType: string, options?: Record<string, unknown>) => void;
+  /** 드릴다운 — 즉석 구독 해제 + 누적 데이터 정리. */
+  unsubscribeAdhoc: (widgetId: string) => void;
 }
 
 export function useDashboardSocket({
@@ -160,6 +167,18 @@ export function useDashboardSocket({
 
   // ─── 연결 시작 / 정리 ────────────────────────────────────────────────
 
+  // 구독 대상(CUSTOM 위젯)의 시그니처. 대시보드가 비동기로 로드되어 위젯이
+  // [] → [populated] 로 바뀌면 이 값이 변해 소켓을 재연결 → onopen 에서 최신 위젯으로 SUBSCRIBE.
+  // (자동 시작 시 마운트 시점엔 위젯이 아직 로드 전이라 빈 구독이 되는 레이스 방지)
+  const subscriptionKey = useMemo(
+    () =>
+      widgets
+        .filter((w) => w.kind === 'CUSTOM')
+        .map((w) => `${w.widgetId}:${w.widgetTypeId}`)
+        .join(','),
+    [widgets],
+  );
+
   useEffect(() => {
     if (!enabled) {
       setConnectionState('idle');
@@ -181,7 +200,7 @@ export function useDashboardSocket({
         mockIntervalRef.current = null;
       }
     };
-  }, [dashboardId, enabled]);
+  }, [dashboardId, enabled, subscriptionKey]);
 
   // ─── 재구독 (글로벌 옵션 변경 시) ────────────────────────────────────
 
@@ -206,5 +225,41 @@ export function useDashboardSocket({
     });
   }, [widgets, globalOptions, widgetUserSettings]);
 
-  return { connectionState, widgetData, resubscribe };
+  // ─── 드릴다운 즉석 구독/해제 ─────────────────────────────────────────
+
+  const subscribeAdhoc = useCallback(
+    (widgetId: string, widgetType: string, options?: Record<string, unknown>) => {
+      const ws = socketRef.current;
+      if (MOCK_MODE || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const fields = getCustomWidgetFields(widgetType);
+      const msg: WsSubscribeMessage = {
+        type: 'SUBSCRIBE',
+        widgetId,
+        widgetType,
+        options: {
+          ...(options ?? {}),
+          ...globalOptions,
+          ...(fields && fields.length > 0 ? { fields } : {}),
+        },
+      };
+      ws.send(JSON.stringify(msg));
+    },
+    [globalOptions],
+  );
+
+  const unsubscribeAdhoc = useCallback((widgetId: string) => {
+    const ws = socketRef.current;
+    if (!MOCK_MODE && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'UNSUBSCRIBE', widgetId }));
+    }
+    // 모달이 닫혀도 직전 프레임이 잔존하지 않도록 누적 데이터에서 제거.
+    setWidgetData((prev) => {
+      if (!(widgetId in prev)) return prev;
+      const next = { ...prev };
+      delete next[widgetId];
+      return next;
+    });
+  }, []);
+
+  return { connectionState, widgetData, resubscribe, subscribeAdhoc, unsubscribeAdhoc };
 }

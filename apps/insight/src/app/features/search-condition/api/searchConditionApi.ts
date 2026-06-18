@@ -1,13 +1,7 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { InputType, SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
+import type { SearchCondMeta, SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
-
-export interface SearchCondOptions {
-  options: { value: string; label: string }[];
-  inputType: InputType;
-  title: string;
-}
 
 export const searchConditionApi = {
   getSearchConditions: async (params?: Record<string, unknown>): Promise<SearchConditionListItem[]> => {
@@ -34,25 +28,43 @@ export const searchConditionApi = {
     await apiClient.delete('/insight-statistics-search-condition-delete', { params: { searchCondId } });
   },
 
-  /** 검색조건 옵션 목록 + inputType + title 로드 (GlobalFilter 런타임). */
-  getOptions: async (searchCondId: number): Promise<SearchCondOptions> => {
+  /**
+   * 장표 런타임 — 검색조건 단계 메타(stages) 로드.
+   * detail 을 재사용해 optionSql 을 제외한 경량 단계 정보만 추출. depth → sortOrder 순 정렬.
+   */
+  getStages: async (searchCondId: number): Promise<SearchCondMeta> => {
     const detail = await searchConditionApi.getSearchCondition(searchCondId);
-    const fallback: SearchCondOptions = { options: [], inputType: 'SELECT', title: detail?.title ?? '' };
-    if (!detail?.nodes?.length) return fallback;
-    const node = detail.nodes[0];
-    if (!node.optionSql) return { ...fallback, inputType: node.inputType };
-    const results = await searchConditionApi.previewSql({
-      optionSql: node.optionSql,
-      valueColumn: node.valueColumn,
-      labelColumn: node.labelColumn,
-      parentColumn: node.parentColumn ?? undefined,
-      levelColumn: node.levelColumn ?? undefined,
-    });
-    return {
-      options: results.map((r) => ({ value: String(r.value ?? ''), label: String(r.label ?? r.value ?? '') })),
-      inputType: node.inputType,
-      title: detail.title,
-    };
+    const stages = (detail?.nodes ?? [])
+      .map((n) => ({
+        nodeCode: n.nodeCode,
+        nodeLabel: n.nodeLabel,
+        inputType: n.inputType,
+        nodeDepth: n.nodeDepth,
+        parentNodeCode: n.parentNodeCode ?? null,
+        sortOrder: n.sortOrder ?? 0,
+      }))
+      .sort((a, b) => a.nodeDepth - b.nodeDepth || (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    return { searchCondId, title: detail?.title ?? '', stages };
+  },
+
+  /**
+   * 장표 런타임 cascade — 한 단계(node)의 옵션을 부모 선택값 기준으로 조회.
+   * nodeCode null 이면 루트 단계. parentValue 는 단일/다중 모두 배열로 전송 (IN 확장).
+   */
+  resolveStageOptions: async (searchCondId: number, nodeCode: string | null, parentValue?: string | string[] | null): Promise<SqlPreviewResult[]> => {
+    const pv = parentValue == null ? undefined : Array.isArray(parentValue) ? parentValue : [parentValue];
+    const response = await apiClient.post<Record<string, unknown>>(
+      '/insight-statistics-search-condition-resolve',
+      { nodeCode: nodeCode ?? null, parentValue: pv },
+      { params: { searchCondId } },
+    );
+    const raw = (response as unknown as { data: { data: unknown } })?.data?.data;
+    if (Array.isArray(raw)) return raw as SqlPreviewResult[];
+    if (raw && typeof raw === 'object') {
+      const arr = (raw as Record<string, unknown>).value ?? (raw as Record<string, unknown>).items;
+      if (Array.isArray(arr)) return arr as SqlPreviewResult[];
+    }
+    return [];
   },
 
   /**

@@ -10,6 +10,9 @@ interface WizardStepAProps {
   titleLabel?: string;
   title: string;
   onTitleChange(title: string): void;
+  /** 설명 입력 — 핸들러가 주어진 경우에만 입력 UI 표시 */
+  description?: string;
+  onDescriptionChange?(description: string): void;
   selectedDomain: DomainCode | null;
   onDomainChange(domain: DomainCode): void;
   selectedView: string;
@@ -23,6 +26,8 @@ export default function WizardStepA({
   titleLabel = '이름',
   title,
   onTitleChange,
+  description = '',
+  onDescriptionChange,
   selectedDomain,
   onDomainChange,
   selectedView,
@@ -64,6 +69,20 @@ export default function WizardStepA({
         >
           <Input value={title} onChange={(e) => onTitleChange(e.target.value)} placeholder="내선 사용 현황" size="large" />
         </Form.Item>
+
+        {/* 설명 (선택) — 목록 카드에 노출됨 */}
+        {onDescriptionChange && (
+          <Form.Item label="설명">
+            <Input.TextArea
+              value={description}
+              onChange={(e) => onDescriptionChange(e.target.value)}
+              placeholder="데이터셋에 대한 간단한 설명 (목록 카드에 표시됩니다)"
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              maxLength={500}
+              showCount
+            />
+          </Form.Item>
+        )}
 
         <Divider />
 

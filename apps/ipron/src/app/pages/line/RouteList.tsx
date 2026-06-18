@@ -14,16 +14,12 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ENDPOINT_TYPE_LABELS } from '../../features/endpoint/types';
 import RoutePointDialog, { type RoutePointDialogRef } from '../../features/route/components/RoutePointDialog';
-import { routeQueryKeys, useDeleteRoute, useDeleteRoutePoint, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
+import { routeQueryKeys, useDeleteRoute, useDeleteRoutePointsBatch, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
 import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../../features/route/types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/route' },
-  { title: '발신라우트', path: '/ipron/line/route' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: '발신라우트', path: '/ipron/line/route' }];
 
 export default function RouteList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -48,6 +44,7 @@ export default function RouteList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(initRouteId);
   const [searchText, setSearchText] = useState('');
+  const [selectedRoutePoints, setSelectedRoutePoints] = useState<RoutePoint[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const routePointDialogRef = useRef<RoutePointDialogRef>(null);
@@ -65,17 +62,17 @@ export default function RouteList() {
   const { mutate: deleteRoute } = useDeleteRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('라우트가 삭제되었습니다.');
+        toast.success('라우트가 삭제되었습니다');
         if (selectedRouteId) setSelectedRouteId(null);
         invalidateRoutes();
       },
     },
   });
 
-  const { mutate: deleteRoutePoint } = useDeleteRoutePoint({
+  const { mutate: deleteRoutePointsBatch } = useDeleteRoutePointsBatch({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('국선 배정이 해제되었습니다.');
+        toast.success('국선 배정이 해제되었습니다');
         invalidateRoutePoints();
         invalidateRoutes();
       },
@@ -153,11 +150,15 @@ export default function RouteList() {
 
   const handleDelete = useCallback(
     (route: Route) => {
+      if ((route.routePointCount ?? 0) > 0) {
+        toast.error(`배정된 국선 ${route.routePointCount}건이 있어 삭제할 수 없습니다`);
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteRoute({ id: route.routeId }),
         options: {
           title: '라우트 삭제',
-          content: `"${route.routeName}" 라우트를 삭제하시겠습니까?\n배정된 국선이 있으면 먼저 해제해야 합니다.`,
+          content: `"${route.routeName}" 라우트를 삭제하시겠습니까?`,
         },
       });
     },
@@ -165,17 +166,20 @@ export default function RouteList() {
   );
 
   const handlePointDelete = useCallback(
-    (point: RoutePoint) => {
-      if (!selectedRouteId) return;
+    (points: RoutePoint[]) => {
+      if (!selectedRouteId || points.length === 0) return;
       modal.confirm.execute({
-        onOk: () => deleteRoutePoint({ id: selectedRouteId, endptId: point.endptId }),
+        onOk: () => {
+          deleteRoutePointsBatch({ routeId: selectedRouteId, endptIds: points.map((point) => point.endptId) });
+          setSelectedRoutePoints([]);
+        },
         options: {
           title: '국선 배정 해제',
-          content: `"${point.endptName}" 국선 배정을 해제하시겠습니까?`,
+          content: points.length === 1 ? `"${points[0].endptName}" 국선 배정을 해제하시겠습니까?` : `선택한 국선 ${points.length}건의 배정을 해제하시겠습니까?`,
         },
       });
     },
-    [modal, deleteRoutePoint, selectedRouteId],
+    [modal, deleteRoutePointsBatch, selectedRouteId],
   );
 
   const handlePointDialogSuccess = useCallback(() => {
@@ -206,6 +210,7 @@ export default function RouteList() {
         field: 'nodeName',
         flex: 1,
         minWidth: 80,
+        tooltipField: 'nodeName',
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           return params.data.nodeName ?? '-';
@@ -216,6 +221,7 @@ export default function RouteList() {
         field: 'endptType',
         flex: 1,
         minWidth: 80,
+        filterValueGetter: (params) => (params.data ? (ENDPOINT_TYPE_LABELS[params.data.endptType] ?? `유형${params.data.endptType}`) : null),
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           return ENDPOINT_TYPE_LABELS[params.data.endptType] ?? `유형${params.data.endptType}`;
@@ -226,12 +232,14 @@ export default function RouteList() {
         field: 'endptName',
         flex: 2,
         minWidth: 120,
+        tooltipField: 'endptName',
       },
       {
         headerName: '백업구분',
         field: 'backupGb',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => params.data?.backupGb ?? '-',
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           const gb = params.data.backupGb ?? '';
@@ -264,31 +272,10 @@ export default function RouteList() {
         field: 'epPriority',
         flex: 1,
         minWidth: 70,
-      },
-      {
-        headerName: '',
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handlePointDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
+        filter: 'agNumberColumnFilter',
       },
     ],
-    [handlePointDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -516,9 +503,21 @@ export default function RouteList() {
               {/* Action bar */}
               <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
                 <span className="text-[13px] text-gray-400">국선 배정 ({routePoints.length}/32)</span>
-                <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => routePointDialogRef.current?.open()}>
-                  국선 배정
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    danger
+                    size="small"
+                    icon={<Trash2 className="size-3.5" />}
+                    disabled={selectedRoutePoints.length === 0}
+                    title={selectedRoutePoints.length === 0 ? '해제할 국선을 선택하세요' : `선택한 ${selectedRoutePoints.length}건 배정 해제`}
+                    onClick={() => handlePointDelete(selectedRoutePoints)}
+                  >
+                    배정 해제 <span className={selectedRoutePoints.length > 0 ? 'visible' : 'invisible'}>({selectedRoutePoints.length})</span>
+                  </Button>
+                  <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => routePointDialogRef.current?.open()}>
+                    국선 배정
+                  </Button>
+                </div>
               </div>
 
               {/* ag-Grid */}
@@ -526,10 +525,20 @@ export default function RouteList() {
                 <AgGridReact<RoutePoint>
                   rowData={routePoints}
                   columnDefs={pointColumnDefs}
-                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  gridOptions={{
+                    ...gridOptions,
+                    statusBar: undefined,
+                    pagination: false,
+                    sideBar: false,
+                  }}
+                  rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
                   loading={isPointsLoading}
                   getRowId={(params) => String(params.data.endptId)}
-                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  onSelectionChanged={(e) => setSelectedRoutePoints(e.api.getSelectedRows())}
+                  onRowDoubleClicked={() => {
+                    if (selectedRouteId) navigate(`/ipron/line/route/${selectedRouteId}`);
+                  }}
                 />
               </div>
             </div>

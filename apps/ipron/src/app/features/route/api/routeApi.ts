@@ -11,6 +11,7 @@
  * - ipron-routepoint-list:      GET    라우트포인트 목록 조회
  * - ipron-routepoint-update:    PUT    라우트포인트 일괄 업데이트
  * - ipron-routepoint-delete:    DELETE 라우트포인트 개별 삭제
+ * - ipron-route-point-delete-batch: DELETE 라우트 국선 일괄 해제 (path: routeId, body: endptIds[])
  * - manager-node-list:          GET    노드 목록 조회 (cross-service)
  * - ipron-endpoint-list:        GET    국선 목록 조회 (국선배정용)
  */
@@ -105,6 +106,14 @@ export const routeApi = {
     return await apiClient.delete('/ipron-routepoint-delete', { params });
   },
 
+  /**
+   * 라우트 국선 일괄 배정 해제 (path: routeId, body: endptIds[])
+   * @flow ipron-route-point-delete-batch (POST /api/ipron/routes/{routeId}/points/delete-batch)
+   */
+  deleteRoutePointsBatch: async ({ routeId, endptIds }: { routeId: number; endptIds: number[] }): Promise<void> => {
+    await apiClient.post('/ipron-route-point-delete-batch', { endptIds }, { params: { routeId } });
+  },
+
   // ─── Node (cross-service) ────────────────────────────────────────────────────
 
   /**
@@ -151,4 +160,74 @@ export const routeApi = {
     });
     return response.data?.data?.value ?? [];
   },
+
+  // ─── Combo Options (발신라우트 폼 동적 Select용) ──────────────────────────
+
+  /**
+   * DOD 번호변환 콤보 옵션 조회
+   * @flow ipron-dodtrans-options
+   * SWAT: cbCreate('#poDodTransId','dodtrans','search1='+nodeId)
+   * BE: GET /api/ipron/dod-trans-masters?nodeId=X
+   */
+  getDodTransOptions: async (nodeId: number): Promise<DodTransOption[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: DodTransOption[] }>>('/ipron-dodtrans-options', {
+      params: { nodeId },
+    });
+    // dod-trans-masters는 전체 DodTransMasterResponse 반환 — value 배열 또는 data 직접
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) {
+      return (raw as DodTransOption[]).map((item) => ({ dodTransId: item.dodTransId, dodTransName: item.dodTransName }));
+    }
+    return (raw as { value?: DodTransOption[] })?.value ?? [];
+  },
+
+  /**
+   * 업무시간 콤보 옵션 조회
+   * @flow ipron-route-worktime-options
+   * SWAT: cbCreate('#poIeWorktimeId','worktime','nodeId='+nodeId+'&tenantId=0')
+   * BE: GET /api/ipron/routes/worktime-options?nodeId=X
+   */
+  getWorktimeOptions: async (nodeId: number): Promise<WorktimeOption[]> => {
+    // BE WorktimeOptionItem = { id, name } — BFF wrapping으로 { value: [{id,name},...] } 도착
+    const response = await apiClient.get<ApiResponse<{ value: Array<{ id: number; name: string }> }>>('/ipron-route-worktime-options', {
+      params: { nodeId },
+      silent: true,
+    });
+    const raw = response.data?.data;
+    const items: Array<{ id: number; name: string }> = Array.isArray(raw) ? raw : ((raw as { value?: Array<{ id: number; name: string }> })?.value ?? []);
+    // 호출부(RouteForm.tsx, EndpointForm.tsx)가 worktimeId/worktimeName 사용하므로 여기서 변환
+    return items.map((item) => ({ worktimeId: item.id, worktimeName: item.name }));
+  },
+
+  /**
+   * 안내멘트 콤보 옵션 조회
+   * @flow ipron-ment-options (ipron-ment-mgmt seed에 이미 등록됨)
+   * SWAT: cbCreate('#poWorktimeMentId','ment','nodeId='+nodeId+'&tenantId=0')
+   * BE: GET /api/ipron/ments/options?nodeId=X&tenantId=0
+   */
+  getMentOptions: async (nodeId: number): Promise<MentOption[]> => {
+    const response = await apiClient.get<ApiResponse<MentOption[]>>('/ipron-ment-options', {
+      params: { nodeId, tenantId: 0 },
+    });
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) return raw;
+    return (raw as { value?: MentOption[] })?.value ?? [];
+  },
 };
+
+// ─── Combo Option Types ───────────────────────────────────────────────────────
+
+export interface DodTransOption {
+  dodTransId: number;
+  dodTransName: string;
+}
+
+export interface WorktimeOption {
+  worktimeId: number;
+  worktimeName: string;
+}
+
+export interface MentOption {
+  id: number;
+  name: string;
+}

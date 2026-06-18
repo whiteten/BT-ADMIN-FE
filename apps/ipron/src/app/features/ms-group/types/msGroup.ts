@@ -56,6 +56,7 @@ export const MS_STATUS_LABELS: Record<string, string> = {
 export interface MsGroup {
   msGroupId: number;
   nodeId: number;
+  nodeName: string; // BE에서 직접 제공 (카드 폴백 방지)
   msGroupName: string;
   routeType: string;
   routeCnt: number; // 할당 MS 수 (집계)

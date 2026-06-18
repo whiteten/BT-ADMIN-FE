@@ -4,7 +4,7 @@
  *
  * 표시 정보:
  *  - 테넌트명 (또는 "전체")
- *  - 전체 DN / 레지 / 언레지 수
+ *  - 전체 DN / 등록 / 미등록 수
  */
 import { Building2 } from 'lucide-react';
 
@@ -57,11 +57,11 @@ export default function DnTenantCard({ tenantId, tenantName, stats, selected, on
           <span className="font-semibold text-gray-800">{totalCnt.toLocaleString()}건</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">REGISTERED</span>
+          <span className="text-gray-500">등록</span>
           <span className="font-medium text-green-600">{activeCnt.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">UNREGISTERED</span>
+          <span className="text-gray-500">미등록</span>
           <span className="font-medium text-red-500">{inactiveCnt.toLocaleString()}</span>
         </div>
       </div>

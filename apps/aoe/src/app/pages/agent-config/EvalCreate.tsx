@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Checkbox, Col, Form, Input, Modal, Row, Select, Steps } from 'antd';
 import { Plus, Settings, X } from 'lucide-react';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
-import ApiClient, { type ApiResponse, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
+import { knowledgeApi } from '../../features/agent-config/api/knowledgeApi';
 import {
   knowledgeQueryKeys,
   useCreateKnowledgeEval,
@@ -16,8 +17,6 @@ import {
 import type { EvalChunkSetting, EvalGenerateDocItem, EvalQuestionSetting, KnowledgeChunkItem } from '../../features/agent-config/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-
-const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 const DIFFICULTY_OPTIONS = [
   { label: '보통', value: '보통' },
@@ -42,7 +41,7 @@ function ChunkCard({ chunk, selected, onToggle }: { chunk: KnowledgeChunkItem; s
     <div
       onClick={() => onToggle(chunk.chunkId)}
       className={`p-3 rounded-lg border cursor-pointer transition-all ${
-        selected ? 'bg-[#EAF2FB] border-[var(--color-bt-primary)]' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+        selected ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
       }`}
     >
       <div className="flex items-start gap-2.5">
@@ -118,7 +117,7 @@ function QuestionPanel({
       <button
         type="button"
         onClick={() => onAddQuestion(chunk.chunkId)}
-        className="w-full py-2 border-2 border-dashed border-[var(--color-bt-primary)]/40 rounded-lg text-xs text-[var(--color-bt-primary)] hover:bg-[#EAF2FB] flex items-center justify-center gap-1 transition-colors"
+        className="w-full py-2 border-2 border-dashed border-[var(--color-bt-primary)]/40 rounded-lg text-xs text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)] flex items-center justify-center gap-1 transition-colors"
       >
         <Plus className="size-3.5" />
         질문 추가
@@ -136,8 +135,6 @@ export default function EvalCreate() {
   const [step1Form] = Form.useForm<Step1FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
 
-  const [availableChunks, setAvailableChunks] = useState<KnowledgeChunkItem[]>([]);
-  const [chunksLoading, setChunksLoading] = useState(false);
   const [selectedChunks, setSelectedChunks] = useState<string[]>([]);
   const [chunkSettings, setChunkSettings] = useState<EvalChunkSetting[]>([]);
 
@@ -188,24 +185,19 @@ export default function EvalCreate() {
 
   const selectedFileIds: string[] = Form.useWatch('fileIds', step1Form) ?? [];
 
+  const chunkQueries = useQueries({
+    queries: selectedFileIds.map((fileId) => ({
+      queryKey: knowledgeQueryKeys.getKnowledgeChunks({ fileId }).queryKey,
+      queryFn: async () => {
+        const chunks = await knowledgeApi.getKnowledgeChunks({ fileId });
+        return chunks.map((chunk) => ({ ...chunk, fileId }));
+      },
+    })),
+  });
+  const chunksLoading = chunkQueries.some((q) => q.isPending);
+  const availableChunks: KnowledgeChunkItem[] = chunkQueries.flatMap((q) => q.data ?? []);
+
   useEffect(() => {
-    if (selectedFileIds.length === 0) {
-      setAvailableChunks([]);
-      setSelectedChunks([]);
-      setChunkSettings([]);
-      return;
-    }
-    setChunksLoading(true);
-    Promise.all(
-      selectedFileIds.map((fileId) =>
-        apiClient
-          .get<ApiResponse<{ items: KnowledgeChunkItem[] }>>('/aoe-knowledge-chunks', { params: { fileId } })
-          .then((res) => (res.data?.data?.items ?? []).map((chunk) => ({ ...chunk, fileId })))
-          .catch(() => [] as KnowledgeChunkItem[]),
-      ),
-    )
-      .then((results) => setAvailableChunks(results.flat()))
-      .finally(() => setChunksLoading(false));
     setSelectedChunks([]);
     setChunkSettings([]);
   }, [selectedFileIds.join(',')]);
@@ -324,7 +316,7 @@ export default function EvalCreate() {
 
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AOE 관리', path: '/aoe/agent-config' },
       { title: '지식', path: '/aoe/agent-config/knowledge/list' },
       { title: ':documentName', path: `/aoe/agent-config/knowledge/${documentId}` },
       { title: '평가셋 생성', path: `/aoe/agent-config/knowledge/${documentId}/eval/create` },

@@ -81,6 +81,16 @@ export const useDeletePreNumTrans = ({ mutationOptions }: MutationHookOptions = 
   });
 };
 
+/**
+ * 사전변환 일괄 삭제 (벌크 1콜)
+ */
+export const useDeletePreNumTransBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => preNumTransApi.deleteBatch(ids),
+    ...mutationOptions,
+  });
+};
+
 // ─── 공통 훅 ──────────────────────────────────────────────────────────────
 
 /**

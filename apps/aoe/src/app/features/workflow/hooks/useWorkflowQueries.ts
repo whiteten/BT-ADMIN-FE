@@ -3,10 +3,11 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { workflowApi } from '../api/workflowApi';
-import type { AgentDeployResponse, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
+import type { AgentDeployResponse, AgentVersion, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
 
 export const workflowQueryKeys = createQueryKeys('workflow', {
   graph: (agentId: string) => [agentId],
+  versions: (agentId: string) => [agentId],
 });
 
 export const useGetWorkflowGraph = ({ params, queryOptions }: QueryHookWithParamsOptions<WorkflowGraph> & { params: { agentId: string } }) => {
@@ -65,6 +66,36 @@ export const useDeleteEdge = ({ mutationOptions }: MutationHookOptions<void, { a
 export const useDeployAgent = ({ mutationOptions }: MutationHookOptions<AgentDeployResponse, { agentId: string }> = {}) => {
   return useMutation({
     mutationFn: (params) => workflowApi.deployAgent(params),
+    ...mutationOptions,
+  });
+};
+
+export const useGetAgentVersions = ({ params, queryOptions }: QueryHookWithParamsOptions<AgentVersion[]> & { params: { agentId: string } }) => {
+  return useQuery({
+    queryKey: workflowQueryKeys.versions(params.agentId).queryKey,
+    queryFn: () => workflowApi.getAgentVersions(params),
+    enabled: !!params.agentId,
+    ...queryOptions,
+  });
+};
+
+export const useRestoreAgentVersion = ({ mutationOptions }: MutationHookOptions<AgentVersion, { agentId: string; versionNo: number }> = {}) => {
+  return useMutation({
+    mutationFn: (params) => workflowApi.restoreAgentVersion(params),
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateAgentVersion = ({ mutationOptions }: MutationHookOptions<AgentVersion, { params: { agentId: string; versionNo: number }; data: { memo: string } }> = {}) => {
+  return useMutation({
+    mutationFn: workflowApi.updateAgentVersion,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteAgentVersion = ({ mutationOptions }: MutationHookOptions<void, { agentId: string; versionNo: number }> = {}) => {
+  return useMutation({
+    mutationFn: (params) => workflowApi.deleteAgentVersion(params),
     ...mutationOptions,
   });
 };

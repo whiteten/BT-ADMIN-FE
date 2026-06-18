@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import FcaWsSessionEventHandler from './features/router/FcaWsSessionEventHandler';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
@@ -32,6 +33,9 @@ const BotDialogHistory = React.lazy(() => import('./pages/tracking/BotDialogHist
 const BotRealtime = React.lazy(() => import('./pages/tracking/BotRealtime'));
 const DecryptLog = React.lazy(() => import('./pages/tracking/DecryptLog'));
 
+// 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
+const pv = createPageVariantSocket('fca');
+
 export const routes = [
   {
     path: '/',
@@ -47,41 +51,41 @@ export const routes = [
             path: 'bot',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <BotList /> },
-              { path: 'create', element: <BotCreate /> },
-              { path: ':serviceId', element: <BotDetail /> },
+              { path: 'list', element: pv('bot-config/bot/list', BotList) },
+              { path: 'create', element: pv('bot-config/bot/create', BotCreate) },
+              { path: ':serviceId', element: pv('bot-config/bot/:serviceId', BotDetail) },
             ],
           },
           {
             path: 'model',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ModelList /> },
-              { path: 'create', element: <ModelCreate /> },
+              { path: 'list', element: pv('bot-config/model/list', ModelList) },
+              { path: 'create', element: pv('bot-config/model/create', ModelCreate) },
               {
                 path: ':modelId',
                 element: <ModelDetailLayout />,
                 children: [
-                  { index: true, element: <ModelDetail /> },
+                  { index: true, element: pv('bot-config/model/:modelId', ModelDetail) },
                   {
                     path: 'intent',
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':intentId', element: <IntentDetail /> },
+                      { path: ':intentId', element: pv('bot-config/model/:modelId/intent/:intentId', IntentDetail) },
                     ],
                   },
                   {
                     path: 'entity',
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':entityId', element: <EntityDetail /> },
+                      { path: ':entityId', element: pv('bot-config/model/:modelId/entity/:entityId', EntityDetail) },
                     ],
                   },
                   {
                     path: 'evaluation',
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':evalId', element: <EvaluationDetail /> },
+                      { path: ':evalId', element: pv('bot-config/model/:modelId/evaluation/:evalId', EvaluationDetail) },
                     ],
                   },
                 ],
@@ -99,32 +103,32 @@ export const routes = [
             path: 'model',
             children: [
               { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <ModelList /> },
-              { path: 'create', element: <ModelCreate /> },
+              { path: 'list', element: pv('global/model/list', ModelList) },
+              { path: 'create', element: pv('global/model/create', ModelCreate) },
               {
                 path: ':modelId',
                 element: <ModelDetailLayout />,
                 children: [
-                  { index: true, element: <ModelDetail /> },
+                  { index: true, element: pv('global/model/:modelId', ModelDetail) },
                   {
                     path: 'intent',
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':intentId', element: <IntentDetail /> },
+                      { path: ':intentId', element: pv('global/model/:modelId/intent/:intentId', IntentDetail) },
                     ],
                   },
                   {
                     path: 'entity',
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':entityId', element: <EntityDetail /> },
+                      { path: ':entityId', element: pv('global/model/:modelId/entity/:entityId', EntityDetail) },
                     ],
                   },
                   {
                     path: 'evaluation',
                     children: [
                       { index: true, element: <Navigate to=".." replace /> },
-                      { path: ':evalId', element: <EvaluationDetail /> },
+                      { path: ':evalId', element: pv('global/model/:modelId/evaluation/:evalId', EvaluationDetail) },
                     ],
                   },
                 ],
@@ -133,7 +137,7 @@ export const routes = [
           },
           {
             path: 'env',
-            element: <GlobalEnvList />,
+            element: pv('global/env', GlobalEnvList),
           },
           {
             path: 'aoe',
@@ -142,8 +146,8 @@ export const routes = [
               {
                 path: 'config',
                 children: [
-                  { index: true, element: <AoeConfig /> },
-                  { path: ':agentId/faq', element: <FaqDetail /> },
+                  { index: true, element: pv('global/aoe/config', AoeConfig) },
+                  { path: ':agentId/faq', element: pv('global/aoe/config/:agentId/faq', FaqDetail) },
                 ],
               },
             ],
@@ -155,9 +159,9 @@ export const routes = [
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="bot-realtime" replace /> },
-          { path: 'bot-dialog-history', element: <BotDialogHistory /> },
-          { path: 'bot-realtime', element: <BotRealtime /> },
-          { path: 'decrypt-log', element: <DecryptLog /> },
+          { path: 'bot-dialog-history', element: pv('tracking/bot-dialog-history', BotDialogHistory) },
+          { path: 'bot-realtime', element: pv('tracking/bot-realtime', BotRealtime) },
+          { path: 'decrypt-log', element: pv('tracking/decrypt-log', DecryptLog) },
         ],
       },
       {
@@ -165,8 +169,8 @@ export const routes = [
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="call-bot" replace /> },
-          { path: 'call-bot', element: <BotDashboard /> },
-          { path: 'call-campaign', element: <CampaignDashboard /> },
+          { path: 'call-bot', element: pv('dashboard/call-bot', BotDashboard) },
+          { path: 'call-campaign', element: pv('dashboard/call-campaign', CampaignDashboard) },
         ],
       },
       {
@@ -179,10 +183,10 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="service" replace /> },
-              { path: 'service', element: <ServiceStatistics /> },
-              { path: 'dialog', element: <DialogStatistics /> },
-              { path: 'slot', element: <SlotStatistics /> },
-              { path: 'user-def', element: <UserDefStatistics /> },
+              { path: 'service', element: pv('statistics/call-bot/service', ServiceStatistics) },
+              { path: 'dialog', element: pv('statistics/call-bot/dialog', DialogStatistics) },
+              { path: 'slot', element: pv('statistics/call-bot/slot', SlotStatistics) },
+              { path: 'user-def', element: pv('statistics/call-bot/user-def', UserDefStatistics) },
             ],
           },
           {
@@ -190,9 +194,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="intent" replace /> },
-              { path: 'intent', element: <IntentStatistics /> },
-              { path: 'entity', element: <EntityStatistics /> },
-              { path: 'keyword', element: <KeywordStatistics /> },
+              { path: 'intent', element: pv('statistics/nlu/intent', IntentStatistics) },
+              { path: 'entity', element: pv('statistics/nlu/entity', EntityStatistics) },
+              { path: 'keyword', element: pv('statistics/nlu/keyword', KeywordStatistics) },
             ],
           },
           {
@@ -200,9 +204,9 @@ export const routes = [
             element: <Outlet />,
             children: [
               { index: true, element: <Navigate to="campaign-result" replace /> },
-              { path: 'campaign-result', element: <CampaignResultStatistics /> },
-              { path: 'campaign-individual-result', element: <CampaignIndividualResultStatistics /> },
-              { path: 'achievement-result', element: <CampaignAchievementStatistics /> },
+              { path: 'campaign-result', element: pv('statistics/campaign/campaign-result', CampaignResultStatistics) },
+              { path: 'campaign-individual-result', element: pv('statistics/campaign/campaign-individual-result', CampaignIndividualResultStatistics) },
+              { path: 'achievement-result', element: pv('statistics/campaign/achievement-result', CampaignAchievementStatistics) },
             ],
           },
         ],

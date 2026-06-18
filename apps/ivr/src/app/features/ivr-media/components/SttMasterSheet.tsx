@@ -143,6 +143,7 @@ const SttMasterSheet = forwardRef<SttMasterSheetRef, Props>(({ onSuccess }, ref)
   return (
     <Drawer
       title={isEditMode ? 'STT 설정 (수정)' : 'STT 설정 (등록)'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 480 } }}

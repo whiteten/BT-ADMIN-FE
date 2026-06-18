@@ -66,12 +66,13 @@ export default function AdnImportDrawer({ open, onClose }: AdnImportDrawerProps)
   return (
     <Drawer
       title="ADN 엑셀 가져오기"
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
       width={480}
-      destroyOnClose
-      extra={
-        <div className="flex gap-2">
+      destroyOnHidden
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={isPending} onClick={handleImport} disabled={fileList.length === 0}>
             가져오기

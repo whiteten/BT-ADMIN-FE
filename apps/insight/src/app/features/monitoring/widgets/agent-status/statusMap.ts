@@ -45,6 +45,24 @@ export function statusMeta(agentStatus: number | string | undefined, reasonCode:
 }
 
 /**
+ * 표시용 상태 라벨. 이석(30) + 실제 사유코드면 테넌트별 이석 사유명을 붙여 `이석 · {사유명}` 으로 표시.
+ * 사유명은 `reasonNames[`{tenantId}_{reasonCode}`]` (이석 사유 lookup) 에서 조회, 없으면 기본 라벨.
+ */
+export function agentStatusLabel(
+  agentStatus: number | string | undefined,
+  reasonCode: number | string | undefined,
+  tenantId: number | string | undefined,
+  reasonNames?: Record<string, string>,
+): string {
+  const meta = statusMeta(agentStatus, reasonCode);
+  if (statusKey(agentStatus, reasonCode) === '30' && reasonCode != null && Number(reasonCode) !== -1) {
+    const nm = reasonNames?.[`${tenantId}_${reasonCode}`];
+    if (nm) return `${meta.label} · ${nm}`;
+  }
+  return meta.label;
+}
+
+/**
  * 레거시 `agentStatus.jsp` 11 상태 — 칩 필터·그룹 헤더 요약에서 공통으로 사용.
  * 표시 순서: 로그아웃 → 이석 → 대기(IB/OB) → 통화(IB/OB) → 벨울림 → 다이얼링 → 보류 → 후처리
  */
@@ -104,38 +122,51 @@ export const COLOR_SOFT_VAR: Record<StatusColor, string> = {
 };
 
 /**
- * 임계 기본값 (분). 키는 statusKey() 출력과 동일.
+ * 임계 기본값 (초). 키는 statusKey() 출력과 동일.
  * 사용자 위젯 옵션에서 `options.thresholds` 로 오버라이드 가능.
  *
- * - notice 초과 → 주의 (노란 강조)
- * - alarm  초과 → 임계 (빨간 강조 + 펄스 보더)
+ * - warn   초과 → 주의 (노란 강조)
+ * - danger 초과 → 위험 (빨간 강조 + 펄스 보더)
  *
- * 벨울림(51)·다이얼링(52)은 초 단위 압박이라 0.1분(=6초) 기준.
- * 보류(53)는 고객 대기 상태이므로 매우 타이트.
+ * 벨울림(51)·다이얼링(52)은 초 단위 압박. 보류(53)는 고객 대기 상태이므로 매우 타이트.
  */
 export const DEFAULT_THRESHOLDS: Record<string, Threshold> = {
-  '5010': { notice: 5, alarm: 10 }, // 통화 IB
-  '5020': { notice: 5, alarm: 10 }, // 통화 OB
-  '53': { notice: 0.5, alarm: 2 }, // 보류 — 고객 기다림
-  '51': { notice: 0.1, alarm: 0.3 }, // 벨울림 — 6초/18초
-  '52': { notice: 0.3, alarm: 0.8 }, // 다이얼링
-  '60': { notice: 3, alarm: 5 }, // 후처리
-  '30': { notice: 20, alarm: 40 }, // 이석
+  '5010': { warn: 300, danger: 600 }, // 통화 IB — 5분/10분
+  '5020': { warn: 300, danger: 600 }, // 통화 OB — 5분/10분
+  '53': { warn: 30, danger: 120 }, // 보류 — 고객 기다림
+  '51': { warn: 6, danger: 18 }, // 벨울림 — 6초/18초
+  '52': { warn: 18, danger: 48 }, // 다이얼링
+  '60': { warn: 180, danger: 300 }, // 후처리 — 3분/5분
+  '30': { warn: 1200, danger: 2400 }, // 이석 — 20분/40분
 };
 
-/** 현재 상태의 알람 등급 계산. */
+/** 테넌트별 이석 사유 임계 키 — `options.thresholds` 에서 `reason:{tenantId}:{reasonCode}` 로 저장/조회. */
+export function reasonThresholdKey(tenantId: number | string, reasonCode: number | string): string {
+  return `reason:${tenantId}:${reasonCode}`;
+}
+
+/**
+ * 현재 상태의 알람 등급 계산.
+ * 이석(30)은 테넌트별 사유 임계(`reason:{tenantId}:{reasonCode}`)를 우선 적용하고,
+ * 없으면 공통 '30' 임계 → 기본값 순으로 폴백한다.
+ */
 export function alarmLevel(
   agentStatus: number | string | undefined,
   reasonCode: number | string | undefined,
+  tenantId: number | string | undefined,
   durationSec: number,
   overrides?: Record<string, Threshold>,
 ): AlarmLevel {
   const k = statusKey(agentStatus, reasonCode);
-  const th = overrides?.[k] ?? DEFAULT_THRESHOLDS[k];
+  let th: Threshold | undefined;
+  // 이석(30) + 실제 사유코드일 때만 테넌트별 사유 임계. REASON_CODE = -1(사유 없음)은 공통 '30'.
+  if (k === '30' && tenantId != null && reasonCode != null && Number(reasonCode) !== -1) {
+    th = overrides?.[reasonThresholdKey(tenantId, reasonCode)];
+  }
+  if (!th) th = overrides?.[k] ?? DEFAULT_THRESHOLDS[k];
   if (!th) return 0;
-  const m = durationSec / 60;
-  if (m > th.alarm) return 2;
-  if (m > th.notice) return 1;
+  if (durationSec > th.danger) return 2;
+  if (durationSec > th.warn) return 1;
   return 0;
 }
 

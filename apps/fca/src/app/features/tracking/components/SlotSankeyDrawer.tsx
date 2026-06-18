@@ -690,6 +690,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
       open={open}
       onClose={onClose}
       title="대화여정"
+      closable={{ placement: 'end' }}
       width={1280}
       destroyOnHidden
       styles={{ body: { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}

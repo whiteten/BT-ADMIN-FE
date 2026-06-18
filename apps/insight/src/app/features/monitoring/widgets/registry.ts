@@ -10,8 +10,14 @@
 
 import type { ComponentType } from 'react';
 import AgentStatusWidget from './agent-status/AgentStatusWidget';
+import AlarmCenterWidget from './alarm-center/AlarmCenterWidget';
+import ChannelDetailWidget from './channel-detail/ChannelDetailWidget';
 import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
 import HealthBoardWidget from './health-board/HealthBoardWidget';
+import NodeDetailWidget from './node-detail/NodeDetailWidget';
+import QualityRiskWidget from './quality-risk/QualityRiskWidget';
+import TimeTrendWidget from './time-trend/TimeTrendWidget';
+import TrunkFlowWidget from './trunk-flow/TrunkFlowWidget';
 
 /** 모든 커스텀 위젯 컴포넌트의 공통 props. */
 export interface CustomWidgetComponentProps {
@@ -105,7 +111,12 @@ const CTIQ_STATUS_FIELDS = [
   'SUM_CONN_CNT',
   'SUM_ANSWER_CNT',
   'SUM_ANSWER_CNT_TOT',
+  'SUM_EXTQ_ANSWER_CNT',
+  'SUM_NODE_ANSWER_CNT',
   'SUM_ABDN_CNT',
+  // 서비스레벨(SLA) 원본 — FE 가 직접 SLA/응대율 계산 (precomputed KPI_* 미신뢰)
+  'SUM_SLANSW_CNT',
+  'SUM_SLABDN_CNT',
   // 시간
   'AVG_ANSTALK_TIME',
   'AVG_ANSWAIT_TIME',
@@ -119,12 +130,55 @@ const CTIQ_STATUS_FIELDS = [
   'DB_UPDATE_SEC',
 ];
 
+/** 채널 상세 위젯에서 사용하는 필드 — 채널상태 격자·목록·점유 집계에 필요. */
+const CHANNEL_DETAIL_FIELDS = [
+  // 식별 / 시스템
+  'CENTER_ID',
+  'SYSTEM_ID',
+  'SYSTEM_NAME',
+  'IR_TYPE',
+  'CHNL_NO',
+  // 상태
+  'CHNL_STATUS',
+  'MEDIA_TYPE',
+  'ENTRY_PATH',
+  'INOUT_KIND',
+  'PROTOCOL',
+  // 서비스 / 호 컨텍스트
+  'SERVICE_ID',
+  // BE enrich — 시나리오명(TB_IR_SERVICEMASTER) · 메뉴명(TB_IR_SERVICEMENU)
+  'SERVICE_NAME',
+  'MENU_NAME',
+  'SERVICE_DNIS',
+  'SERVICE_ANI',
+  'UCID',
+  // 신선도
+  'DB_UPDATE_TIME',
+];
+
 const REGISTRY: Record<string, CustomWidgetEntry> = {
   'agent-status-matrix': { component: AgentStatusWidget, fields: AGENT_STATUS_CARD_FIELDS },
   'ctiq-status-matrix': { component: CtiqStatusWidget, fields: CTIQ_STATUS_FIELDS },
   // 종합 헬스보드 — 허브 위젯. 여러 데이터소스(IC:GROUP/CTIQ/AGENT, IE/IR 시스템)를 BE 가 집계해
   // 단일 객체로 내려준다. row 필드 화이트리스트 개념이 없어 fields 미지정(전체 수신).
   'health-board': { component: HealthBoardWidget },
+  // 노드 상세 — 헬스보드 신호등 드릴다운. IO `SYSTEM:STAT`(시스템별 CPU/메모리/디스크/프로세스/모듈)
+  // 을 시스템 단위 객체 배열로 수신. 필드 화이트리스트 없이 전체 수신.
+  'node-detail': { component: NodeDetailWidget },
+  // 알람센터 — 헬스보드 알람 카드 드릴다운. Oracle `TB_CC_ERRHISTORY`(장애 발생 이력) row 배열 수신.
+  'alarm-center': { component: AlarmCenterWidget },
+  // 트렁크 회선현황(흐름) — IE:TRUNK 라인을 회선 그룹(IPV4)→노드(PBX)로 BE 가 집계해 단일 객체로 내려준다.
+  // (summary/nodes/groups 구조, 라인 state-line 포함) row 필드 화이트리스트 없음 → fields 미지정(전체 수신).
+  'trunk-flow-saturation': { component: TrunkFlowWidget },
+  // 채널 상세 — 헬스보드 채널 현황 카드 드릴다운. IR CH:IVR:{SYSTEM_ID}(DS_SLEE_CH_STATE) 채널별 row 배열 수신.
+  // 시스템(SLEE)별 채널상태 격자/목록/막대/선 4종 뷰. fields 화이트리스트로 전송량 축소.
+  'channel-detail': { component: ChannelDetailWidget, fields: CHANNEL_DETAIL_FIELDS },
+  // 통화 품질 위험판 — IE:EXTDN(통화중 MoS) ⨝ IC:AGENT(상담사명)을 BE 가 집계해
+  // {summary/dist/items} 단일 객체로 내려준다. 화이트리스트 없이 전체 수신.
+  'quality-risk-board': { component: QualityRiskWidget },
+  // 타임트렌드 종합판 — PSR 누적(인입 vs 응대 추세 + 미처리 음영)을 BE 가 {series/current/peak}
+  // 단일 객체로 내려준다(min10/hour/day 3입자 모두). 화이트리스트 없이 전체 수신.
+  'time-trend-board': { component: TimeTrendWidget },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {
