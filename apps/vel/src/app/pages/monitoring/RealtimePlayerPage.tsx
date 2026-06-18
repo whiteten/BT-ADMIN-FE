@@ -174,83 +174,67 @@ export default function RealtimePlayerPage() {
         }
       });
 
-      const startStreaming = async () => {
+      // 같은 sid로 /vel-realtime-play 를 반복 POST(폴링). VEL이 sid별 세션을 유지하며 Core 오디오를
+      // 버퍼링했다가 ~1초짜리 "유한 조각"으로 잘라서 응답한다. 각 조각은 EOF로 끝나므로 BFF aggregation을
+      // 통과한다(무한 스트림은 BFF가 flush 못 함 → 청취처럼 유한 응답으로 우회). 조각을 MSE에 이어붙여 재생.
+      const requestBody = {
+        cmd: 'RecPlayRealTime',
+        tenant_id: params.tenant_id,
+        agent_dn: params.agent_dn,
+        manager_id: params.manager_id,
+        ip: params.ip,
+        port: params.port,
+        media_ip: params.media_ip,
+        media_port: params.media_port,
+        sid,
+      };
+
+      const pollLoop = async () => {
+        setStatus('READY');
+        setMessage('실시간 감청 대기 중 (연결 유지)...');
+        lastPacketTime.current = Date.now();
         while (!localAbort.signal.aborted) {
-          let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
           try {
-            setStatus('READY');
-            setMessage('실시간 감청 대기 중 (연결 유지)...');
-            lastPacketTime.current = Date.now();
-
-            const requestBody = {
-              cmd: 'RecPlayRealTime',
-              tenant_id: params.tenant_id,
-              agent_dn: params.agent_dn,
-              manager_id: params.manager_id,
-              ip: params.ip,
-              port: params.port,
-              media_ip: params.media_ip,
-              media_port: params.media_port,
-              sid,
-              _ts: Date.now(),
-            };
-
-            // BFF aggregation flow(vel-realtime-play) 경유 → VEL → Core TCP 중계. POST라 CSRF(X-CSRF-TOKEN) 필요.
-            // ※ 알려진 한계: BFF aggregation이 무한 스트림을 flush하지 못해(유한 파일만 통과) 실시간 청크가
-            //   안 흘러옴 — relay 통로 아키텍처 미해결 상태(2026-06-16 팀 논의 대상).
             const response = await fetch(`/api/bff/vel-realtime-play`, {
               method: 'POST',
               signal: localAbort.signal,
               headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCookie('XSRF-TOKEN') ?? '' },
               body: JSON.stringify(requestBody),
             });
-            if (!response.ok || !response.body) throw new Error('Server connection failed');
+            if (!response.ok) throw new Error('segment request failed');
 
-            reader = response.body.getReader();
-            while (true) {
-              if (localAbort.signal.aborted) {
-                await reader.cancel();
-                break;
+            const seg = new Uint8Array(await response.arrayBuffer());
+            if (seg.length > 10) {
+              // 실제 음성 조각 수신
+              lastPacketTime.current = Date.now();
+              setTimeLeft(SILENCE_TIMEOUT);
+              if (statusRef.current !== 'PLAYING') {
+                setStatus('PLAYING');
+                setMessage('실시간 감청 중...');
               }
-              const { done, value } = await reader.read();
-              if (done) break;
+              queue.current.push(seg);
+              pump();
 
-              // 백엔드 keep-alive 더미(1바이트 등)는 무시, 실제 음성만 처리
-              if (value && value.length > 10) {
-                lastPacketTime.current = Date.now();
-                setTimeLeft(SILENCE_TIMEOUT);
-                if (statusRef.current !== 'PLAYING') {
-                  setStatus('PLAYING');
-                  setMessage('실시간 감청 중...');
-                }
-                queue.current.push(value);
-                pump();
-
-                // 라이브 엣지로 점프(실시간성 유지)
-                if (audio.buffered.length > 0) {
-                  const lastBuffered = audio.buffered.end(audio.buffered.length - 1);
-                  if (lastBuffered - audio.currentTime > 2.5) audio.currentTime = lastBuffered - 0.3;
-                }
-                if (audio.paused) audio.play().catch(() => undefined);
+              // 라이브 엣지로 점프(실시간성 유지)
+              if (audio.buffered.length > 0) {
+                const lastBuffered = audio.buffered.end(audio.buffered.length - 1);
+                if (lastBuffered - audio.currentTime > 2.5) audio.currentTime = lastBuffered - 0.3;
               }
+              if (audio.paused) audio.play().catch(() => undefined);
+            } else if (statusRef.current === 'PLAYING') {
+              // 빈 조각 지속 = 통화 무음/대기
+              setStatus('READY');
+              setMessage('실시간 감청 대기 중 (패킷 대기)...');
             }
           } catch {
             if (localAbort.signal.aborted) break;
             setStatus('READY');
             setMessage('연결 복구 중...');
-            await new Promise((r) => setTimeout(r, 2000));
-          } finally {
-            if (reader) {
-              try {
-                await reader.cancel();
-              } catch {
-                /* ignore */
-              }
-            }
+            await new Promise((r) => setTimeout(r, 1000));
           }
         }
       };
-      startStreaming();
+      pollLoop();
     };
 
     // beforeunload 핸들러는 이벤트 인자가 sid로 새지 않도록 이 run의 sid로 바인딩
