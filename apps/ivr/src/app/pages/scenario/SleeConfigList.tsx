@@ -9,12 +9,28 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Drawer, Empty, Input, Radio, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Building2, ChevronLeft, ChevronRight, FileCog, FileText, History, Info, Search, Server, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
+import {
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Download,
+  FileCog,
+  FileText,
+  History,
+  Info,
+  Search,
+  Server,
+  Settings,
+  Trash2,
+  Upload as UploadIcon,
+} from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PropertyEditDrawer, { type PropertyEditDrawerRef } from '../../features/slee-config/components/PropertyEditDrawer';
 import SleeConfigApplyResultModal, { type SleeConfigApplyResultModalRef } from '../../features/slee-config/components/SleeConfigApplyResultModal';
 import SleeConfigHistoryModal, { type SleeConfigHistoryModalRef } from '../../features/slee-config/components/SleeConfigHistoryModal';
+import SleeConfigReservationResultModal, { type SleeConfigReservationResultModalRef } from '../../features/slee-config/components/SleeConfigReservationResultModal';
 import SleeUserconfigImportModal, { type SleeUserconfigImportModalRef } from '../../features/slee-config/components/SleeUserconfigImportModal';
 import {
   sleeConfigQueryKeys,
@@ -22,6 +38,7 @@ import {
   useApplyReservation,
   useDeleteConfigFile,
   useDeleteProperty,
+  useExportSleeConfig,
   useGetSleeConfigCategories,
   useGetSleeConfigFiles,
   useGetSleeConfigIrSystems,
@@ -68,6 +85,7 @@ export default function SleeConfigList() {
   const importModalRef = useRef<SleeUserconfigImportModalRef>(null);
   const historyModalRef = useRef<SleeConfigHistoryModalRef>(null);
   const applyResultModalRef = useRef<SleeConfigApplyResultModalRef>(null);
+  const reservationResultModalRef = useRef<SleeConfigReservationResultModalRef>(null);
   // Drawer 열고 시스템 첫 로드 시점에만 자동 전체 체크. 이후 사용자 수동 해제 가능.
   const autoCheckDoneRef = useRef(false);
 
@@ -265,10 +283,26 @@ export default function SleeConfigList() {
     });
   }, [modal, selectedTenantId, selectedConfigFile, deleteConfigFile]);
 
+  // ─── 환경변수 Export (cfg ZIP) — AS-IS IPR30S3030EX ──────────────────────
+  const { mutate: exportConfig, isPending: isExporting } = useExportSleeConfig();
+  const handleExport = useCallback(() => {
+    if (!selectedTenantId || !selectedConfigFile) {
+      toast.warning('Export할 환경파일을 선택하세요.');
+      return;
+    }
+    exportConfig({ tenantId: selectedTenantId, configFile: selectedConfigFile });
+  }, [selectedTenantId, selectedConfigFile, exportConfig]);
+
   // ─── 이력 모달 (Phase 6) ─────────────────────────────────────────────
   const handleOpenHistory = useCallback(() => {
     if (!selectedTenantId || !selectedConfigFile) return;
     historyModalRef.current?.open({ tenantId: selectedTenantId, configFile: selectedConfigFile });
+  }, [selectedTenantId, selectedConfigFile]);
+
+  // ─── 예약 적용 결과 모달 (AS-IS IPR30S3030L3) ──────────────────────────
+  const handleOpenReservationResult = useCallback(() => {
+    if (!selectedTenantId || !selectedConfigFile) return;
+    reservationResultModalRef.current?.open({ tenantId: selectedTenantId, configFile: selectedConfigFile });
   }, [selectedTenantId, selectedConfigFile]);
 
   /** 행별 휴지통 단건 삭제 — DNIS관리(MCS) 와 동일하게 useModal 사용 (centered 모달). */
@@ -338,7 +372,13 @@ export default function SleeConfigList() {
   const { mutate: applyReservation, isPending: isApplyingReservation } = useApplyReservation({
     mutationOptions: {
       onSuccess: (result) => {
-        toast.success(`예약 등록 완료 — svcResvId: ${result.svcResvId} (insert=${result.configSystemInserted}, update=${result.configSystemUpdated})`);
+        // svcResvId 가 없으면 변경분이 없어 예약이 생성되지 않은 것 (즉시 적용의 "변경사항 없음"과 동일 정책)
+        if (!result.svcResvId) {
+          toast.info('변경사항 없음 — 예약할 변경 내용이 없습니다.');
+          setApplyDrawerOpen(false);
+          return;
+        }
+        toast.success(`예약 등록 완료 (insert=${result.configSystemInserted}, update=${result.configSystemUpdated})`);
         setApplyDrawerOpen(false);
       },
       onError: () => {
@@ -541,16 +581,27 @@ export default function SleeConfigList() {
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
-              <Button icon={<UploadIcon className="size-3.5" />} disabled={!selectedTenantId} onClick={() => selectedTenantId && importModalRef.current?.open(selectedTenantId)}>
+              <Button
+                variant="solid"
+                icon={<UploadIcon className="size-3.5" />}
+                disabled={!selectedTenantId}
+                onClick={() => selectedTenantId && importModalRef.current?.open(selectedTenantId)}
+              >
                 Import
               </Button>
-              <Button icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
+              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} disabled={!selectedConfigFile} onClick={handleExport}>
+                Export
+              </Button>
+              <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
                 파일단위 적용
               </Button>
-              <Button icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
+              <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
+                예약 적용 결과
+              </Button>
+              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
                 이력
               </Button>
-              <Button danger icon={<Trash2 className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleDeleteConfigFile}>
+              <Button color="red" variant="solid" icon={<Trash2 className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleDeleteConfigFile}>
                 파일삭제
               </Button>
             </div>
@@ -651,7 +702,7 @@ export default function SleeConfigList() {
                 {selectedCategory ? `${selectedCategory} 속성` : '속성'} ({properties.length})
               </span>
               <div className="flex gap-2 items-center">
-                <Button icon={<Settings className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
+                <Button color="purple" variant="solid" icon={<Settings className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
                   항목단위 적용 ({selectedPropertyKeys.size})
                 </Button>
                 {/* 삭제는 행별 휴지통으로 처리 (DNIS관리(MCS) 패턴 동일) */}
@@ -851,6 +902,7 @@ export default function SleeConfigList() {
       <PropertyEditDrawer ref={propertyEditDrawerRef} onSuccess={invalidateAllSleeConfig} />
       <SleeUserconfigImportModal ref={importModalRef} />
       <SleeConfigHistoryModal ref={historyModalRef} />
+      <SleeConfigReservationResultModal ref={reservationResultModalRef} />
       <SleeConfigApplyResultModal ref={applyResultModalRef} />
     </div>
   );

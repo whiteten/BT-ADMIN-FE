@@ -20,12 +20,15 @@ const ReportView = React.lazy(() => import('./pages/report-view/ReportView'));
 const DashboardList = React.lazy(() => import('./pages/monitoring-dashboards/DashboardList'));
 const DashboardCreateWizard = React.lazy(() => import('./pages/monitoring-dashboard-wizard/DashboardCreateWizard'));
 const DashboardEditor = React.lazy(() => import('./pages/monitoring-dashboard-editor/DashboardEditor'));
+const DashboardEditInfo = React.lazy(() => import('./pages/monitoring-dashboard-edit-info/DashboardEditInfo'));
 const TemplateWidgetWizard = React.lazy(() => import('./pages/monitoring-template-widget-wizard/TemplateWidgetWizard'));
 const CustomWidgetCatalogPage = React.lazy(() => import('./pages/monitoring-custom-widget-catalog/CustomWidgetCatalogPage'));
 const DashboardView = React.lazy(() => import('./pages/monitoring-dashboard-view/DashboardView'));
 const DatasetCatalog = React.lazy(() => import('./pages/monitoring-datasets/DatasetCatalog'));
 const DatasetWizard = React.lazy(() => import('./pages/monitoring-dataset-wizard/DatasetWizard'));
 const LookupCatalogList = React.lazy(() => import('./pages/monitoring-lookups/LookupCatalogList'));
+const WidgetCatalogManageList = React.lazy(() => import('./pages/monitoring-widgets/WidgetCatalogManageList'));
+const TemplateWidgetBuilder = React.lazy(() => import('./pages/monitoring-template-widget-builder/TemplateWidgetBuilder'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('insight');
@@ -97,6 +100,7 @@ export const routes = [
               { index: true, element: pv('monitoring/dashboards', DashboardList) },
               { path: 'create', element: pv('monitoring/dashboards/create', DashboardCreateWizard) },
               { path: ':dashboardId/edit', element: pv('monitoring/dashboards/:dashboardId/edit', DashboardEditor) },
+              { path: ':dashboardId/edit-info', element: pv('monitoring/dashboards/:dashboardId/edit-info', DashboardEditInfo) },
               { path: ':dashboardId/edit/widget/create/template', element: pv('monitoring/dashboards/:dashboardId/edit/widget/create/template', TemplateWidgetWizard) },
               { path: ':dashboardId/edit/widget/create/custom', element: pv('monitoring/dashboards/:dashboardId/edit/widget/create/custom', CustomWidgetCatalogPage) },
               { path: ':dashboardId/view', element: pv('monitoring/dashboards/:dashboardId/view', DashboardView) },
@@ -115,6 +119,15 @@ export const routes = [
             path: 'lookups',
             element: <Outlet />,
             children: [{ index: true, element: pv('monitoring/lookups', LookupCatalogList) }],
+          },
+          {
+            path: 'widgets',
+            element: <Outlet />,
+            children: [
+              { index: true, element: pv('monitoring/widgets', WidgetCatalogManageList) },
+              { path: 'template/new', element: pv('monitoring/widgets/template/new', TemplateWidgetBuilder) },
+              { path: 'template/:templateWidgetId/edit', element: pv('monitoring/widgets/template/:templateWidgetId/edit', TemplateWidgetBuilder) },
+            ],
           },
         ],
       },

@@ -128,7 +128,7 @@ export default function ReportCard({ report }: ReportCardProps) {
         {report.title}
       </span>
       {report.isSystem && (
-        <Tag color="blue" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4 shrink-0">
+        <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4 shrink-0">
           시스템
         </Tag>
       )}

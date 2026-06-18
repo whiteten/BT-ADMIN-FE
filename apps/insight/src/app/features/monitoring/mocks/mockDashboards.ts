@@ -8,7 +8,6 @@ import type { DashboardDetail, DashboardListItem } from '../types';
 export const MOCK_DASHBOARDS: DashboardListItem[] = [
   {
     dashboardId: 1,
-    dashboardCode: 'pbx-ops',
     dashboardName: '교환기 운영 관제',
     domainCode: 'IE',
     status: 'PUBLISHED',
@@ -23,7 +22,6 @@ export const MOCK_DASHBOARDS: DashboardListItem[] = [
   },
   {
     dashboardId: 2,
-    dashboardCode: 'cti-group',
     dashboardName: '상담그룹 관제',
     domainCode: 'IC',
     status: 'DRAFT',
@@ -38,7 +36,6 @@ export const MOCK_DASHBOARDS: DashboardListItem[] = [
   },
   {
     dashboardId: 3,
-    dashboardCode: 'ivr-flow',
     dashboardName: 'IVR 시나리오 관제',
     domainCode: 'IR',
     status: 'PUBLISHED',
@@ -53,7 +50,6 @@ export const MOCK_DASHBOARDS: DashboardListItem[] = [
   },
   {
     dashboardId: 8,
-    dashboardCode: 'test-8',
     dashboardName: '디버깅용 대시보드',
     domainCode: 'IC',
     status: 'DRAFT',

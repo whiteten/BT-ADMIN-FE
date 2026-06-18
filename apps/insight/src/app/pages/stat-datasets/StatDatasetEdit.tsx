@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, App, Button, Divider, Tag, Typography } from 'antd';
+import { Alert, App, Button, Col, Divider, Row, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { Calendar, Columns3, Database, Layers } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
-import { useGetDataset, useSetDatasetSystemFlag, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
+import { useGetDataset, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { ColumnFormatValue, DataSourceFieldRequest, FieldMetaItem, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import type { DomainCode } from '../../features/report/types';
@@ -153,29 +153,6 @@ export default function StatDatasetEdit() {
     },
   });
 
-  const { mutate: setSystemFlag, isPending: isFlagPending } = useSetDatasetSystemFlag({
-    mutationOptions: {
-      onSuccess: (_, { toSystem }) => {
-        toast.success(toSystem ? '시스템 데이터셋으로 승격되었습니다.' : '시스템 데이터셋 승격이 해제되었습니다.');
-      },
-      onError: () => toast.error('처리 중 오류가 발생했습니다.'),
-    },
-  });
-
-  const handleToggleSystem = () => {
-    if (!dataset || !datasetId) return;
-    const toSystem = !dataset.isSystem;
-    modal.confirm({
-      title: toSystem ? '시스템 데이터셋 승격' : '시스템 데이터셋 승격 해제',
-      content: toSystem
-        ? '시스템 데이터셋으로 승격하면 모든 사용자에게 노출되며, 수정/삭제는 관리자만 가능합니다. 계속하시겠습니까?'
-        : '승격을 해제하면 등록 테넌트 소유의 일반 데이터셋으로 복귀합니다. 계속하시겠습니까?',
-      okText: '확인',
-      cancelText: '취소',
-      onOk: () => setSystemFlag({ datasetId, toSystem }),
-    });
-  };
-
   // 데이터셋 명 인라인 편집 — 로컬 상태만 변경. 실제 저장은 [저장] 버튼에서 전체 payload로 전송.
   // (백엔드 update DTO는 dbViewPrefix @NotBlank 필수 → 이름만 부분 전송 시 400)
   const handleRename = (value: string) => {
@@ -298,7 +275,7 @@ export default function StatDatasetEdit() {
             {dataset!.productCode}
           </Tag>
           {dataset!.isSystem && (
-            <Tag color="blue" className="!mb-0 !mr-0">
+            <Tag color="purple" className="!mb-0 !mr-0">
               시스템
             </Tag>
           )}
@@ -306,11 +283,6 @@ export default function StatDatasetEdit() {
             <span className="text-[10px] font-bold text-bt-fg-muted">VIEW</span>
             <span className="text-xs font-mono text-bt-fg-muted">{dataset!.dbViewPrefix}</span>
           </span>
-          {isSystemAdmin && (
-            <Button size="small" className="ml-auto" loading={isFlagPending} onClick={handleToggleSystem}>
-              {dataset!.isSystem ? '시스템 승격 해제' : '시스템 데이터셋으로 승격'}
-            </Button>
-          )}
         </div>
         {/* 설명 인라인 편집 — 목록 카드에 노출되는 텍스트. 저장 버튼으로 함께 저장. */}
         <Typography.Text
@@ -335,7 +307,8 @@ export default function StatDatasetEdit() {
 
       <div className="flex w-full flex-1 min-h-0 gap-4">
         <div className="flex-1 min-w-0 h-full min-h-0 bg-white bt-shadow flex flex-col">
-          <div className="flex-1 min-h-0">
+          {/* 콘텐츠 영역(모니터링 DatasetWizard 동일 패턴) — flex-1 min-h-0 로 푸터 높이만큼 자동 축소, 내부 스크롤 */}
+          <div className="w-full flex-1 min-h-0 overflow-hidden">
             <WizardStepB
               datasetId={datasetId}
               domain={dataset!.productCode as DomainCode}
@@ -348,20 +321,31 @@ export default function StatDatasetEdit() {
               readOnly={readOnly}
             />
           </div>
+          {/* 하단 액션 바(모니터링 동일 스타일) — 카드 내부 플레인 푸터 */}
           {!isCalcEditing && (
-            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
-              <div className="flex items-center justify-center gap-5">
+            <div className="w-full px-7 py-3">
+              <Row gutter={20} justify="center">
                 {readOnly ? (
-                  <Button onClick={() => navigate('/insight/statistics/datasets')}>목록</Button>
+                  <Col>
+                    <Button variant="solid" onClick={() => navigate('/insight/statistics/datasets')}>
+                      목록
+                    </Button>
+                  </Col>
                 ) : (
                   <>
-                    <Button onClick={() => navigate('/insight/statistics/datasets')}>취소</Button>
-                    <Button type="primary" onClick={handleSave} loading={isPending}>
-                      저장
-                    </Button>
+                    <Col>
+                      <Button variant="solid" onClick={() => navigate('/insight/statistics/datasets')}>
+                        취소
+                      </Button>
+                    </Col>
+                    <Col>
+                      <Button variant="solid" color="primary" onClick={handleSave} loading={isPending}>
+                        저장
+                      </Button>
+                    </Col>
                   </>
                 )}
-              </div>
+              </Row>
             </div>
           )}
         </div>

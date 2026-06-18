@@ -1,20 +1,17 @@
 /**
- * 대시보드 생성 화면 — 단일 폼(도메인 + 기본 정보 한 번에).
- * - 좌: 도메인 선택 + 이름/설명
- * - 우: 입력 정보 요약 (XL 이상에서만 표시)
- * - 생성 후 자동으로 편집 화면으로 이동
+ * 대시보드 생성 화면 — 통계 보고서 생성과 동일한 단일 컬럼 구성.
+ * 이름 → 카테고리 카드 → 아이콘 그리드 → 설명. 생성 후 편집 화면으로 이동.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Col, Divider, Form, type FormProps, Input, Row } from 'antd';
-import { Check, X } from 'lucide-react';
+import { type BreadcrumbProps, Button } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { DOMAIN_LABELS } from '../../features/monitoring/constants/monitoringConstants';
+import DashboardMetaFields from '../../features/monitoring/components/DashboardMetaFields';
 import { dashboardKeys, useCreateDashboard } from '../../features/monitoring/hooks/useDashboardQueries';
-import type { DomainCode } from '../../features/monitoring/types';
+import type { DashboardIconType, DomainCode } from '../../features/monitoring/types';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '모니터링', path: '/insight/monitoring' },
@@ -22,40 +19,22 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '등록', path: '/insight/monitoring/dashboards/create' },
 ];
 
-interface CreateFormValues {
-  domainCode: DomainCode;
-  dashboardName: string;
-  description?: string;
-}
-
-const DOMAIN_CHOICES: Array<{ value: DomainCode; label: string; hint: string }> = [
-  { value: 'IE', label: '교환기', hint: '내선·국선·트렁크·콜 라우팅' },
-  { value: 'IC', label: 'CTI', hint: '상담사·상담그룹·통화·CDR' },
-  { value: 'IR', label: 'IVR', hint: '시나리오·음성안내·통계' },
-];
-
-const displayValue = (value: unknown): React.ReactNode => {
-  if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
-  return String(value);
-};
-
 export default function DashboardCreateWizard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const [form] = Form.useForm<CreateFormValues>();
+  const [showErrors, setShowErrors] = useState(false);
+  const [name, setName] = useState('');
+  const [domain, setDomain] = useState<DomainCode | null>(null);
+  const [icon, setIcon] = useState<DashboardIconType | null>(null);
+  const [description, setDescription] = useState('');
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
-
-  const initialValues: Partial<CreateFormValues> = {
-    domainCode: 'IE',
-  };
-  const formValues = Form.useWatch([], form);
 
   const createDashboardMutation = useCreateDashboard({
     mutationOptions: {
@@ -67,145 +46,50 @@ export default function DashboardCreateWizard() {
     },
   });
 
-  const handleSubmitBtn = () => form.submit();
-
-  const onFinish: FormProps<CreateFormValues>['onFinish'] = (values) => {
+  const handleSubmit = () => {
+    if (!name.trim() || !domain || !icon) {
+      setShowErrors(true);
+      if (!name.trim()) toast.error('대시보드 이름을 입력하세요.');
+      else if (!domain) toast.error('카테고리를 선택하세요.');
+      else toast.error('아이콘을 선택하세요.');
+      return;
+    }
     createDashboardMutation.mutate({
-      domainCode: values.domainCode,
-      dashboardName: values.dashboardName.trim(),
-      description: values.description?.trim() || undefined,
+      domainCode: domain,
+      dashboardName: name.trim(),
+      description: description.trim() || undefined,
+      iconType: icon,
     });
   };
 
-  const onFinishFailed: FormProps<CreateFormValues>['onFinishFailed'] = (errorInfo) => {
-    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
-    toast.error(firstError ?? '입력 항목을 확인해주세요.');
-  };
-
-  const selectedDomain = (formValues?.domainCode ?? initialValues.domainCode) as DomainCode;
-
-  // Validation 아이콘 — 요약 사이드바용 (실시간 검증 상태)
-  const renderValidationIcon = (fieldName: keyof CreateFormValues) => {
-    const errors = form.getFieldError(fieldName);
-    const touched = form.isFieldTouched(fieldName);
-    const hasValue = formValues?.[fieldName];
-    if (errors.length > 0) return <X className="w-4 h-4 text-red-500 ml-2 shrink-0" />;
-    if (touched || hasValue) return <Check className="w-4 h-4 text-green-500 ml-2 shrink-0" />;
-    return null;
-  };
-
-  function renderFormSummary() {
-    const values = (formValues ?? initialValues) as CreateFormValues;
-    const { domainCode, dashboardName, description } = values;
-    const domainLabel = domainCode ? `${domainCode} · ${DOMAIN_LABELS[domainCode]}` : null;
-
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">도메인</span>
-            <span className="text-gray-800 font-medium flex-1">{displayValue(domainLabel)}</span>
-            {renderValidationIcon('domainCode')}
-          </div>
-        </div>
-        <Divider className="!my-3" />
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-28 shrink-0">대시보드 이름</span>
-            <span className="text-gray-800 flex-1 truncate">{displayValue(dashboardName)}</span>
-            {renderValidationIcon('dashboardName')}
-          </div>
-          <div className="flex items-start gap-1">
-            <span className="text-gray-500 w-28 shrink-0">설명</span>
-            <span className="text-gray-800 flex-1 break-words">{displayValue(description)}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  function renderFooter() {
-    return (
-      <Row gutter={20} justify="center">
-        <Col>
-          <Button variant="solid" onClick={() => navigate('/insight/monitoring/dashboards')}>
-            취소
-          </Button>
-        </Col>
-        <Col>
-          <Button variant="solid" color="primary" onClick={handleSubmitBtn} loading={createDashboardMutation.isPending}>
-            저장
-          </Button>
-        </Col>
-      </Row>
-    );
-  }
+  const handleCancel = () => navigate('/insight/monitoring/dashboards');
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex w-full flex-1 min-h-0 gap-4">
+      <div className="flex w-full flex-1 min-h-0">
         <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
-          <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
-            <Form form={form} initialValues={initialValues} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-              {/* 도메인 선택 */}
-              <Form.Item name="domainCode" label="도메인" required tooltip="생성 후에는 변경할 수 없습니다." rules={[{ required: true, message: '도메인을 선택해 주세요.' }]}>
-                <div className="grid grid-cols-3 gap-3">
-                  {DOMAIN_CHOICES.map((d) => {
-                    const active = selectedDomain === d.value;
-                    return (
-                      <button
-                        key={d.value}
-                        type="button"
-                        onClick={() => form.setFieldValue('domainCode', d.value)}
-                        className={`flex flex-col items-start gap-2 rounded p-4 text-left transition-colors ${
-                          active
-                            ? 'border-2 border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]'
-                            : 'border border-[var(--color-bt-border)] bg-white hover:border-[var(--color-bt-primary)]'
-                        }`}
-                      >
-                        <span className="rounded bg-[var(--color-bt-primary)] px-2 py-0.5 font-mono text-[11px] font-bold text-white">{d.value}</span>
-                        <span className={`text-[14px] font-semibold ${active ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg)]'}`}>{d.label}</span>
-                        <span className="text-[11px] text-[var(--color-bt-fg-muted)]">{d.hint}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </Form.Item>
-
-              <Divider className="!my-5" />
-
-              {/* 기본 정보 */}
-              <Row gutter={20}>
-                <Col span={24}>
-                  <Form.Item
-                    name="dashboardName"
-                    label="대시보드 이름"
-                    required
-                    hasFeedback
-                    rules={[
-                      { required: true, message: '대시보드 이름을 입력해 주세요.' },
-                      { whitespace: true, message: '대시보드 이름을 입력해 주세요.' },
-                      { max: 120, message: '최대 120자까지 입력 가능합니다.' },
-                    ]}
-                  >
-                    <Input placeholder="예: 교환기 운영 관제" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              <Row gutter={20}>
-                <Col span={24}>
-                  <Form.Item name="description" label="설명" rules={[{ max: 500, message: '최대 500자까지 입력 가능합니다.' }]}>
-                    <Input.TextArea placeholder="이 대시보드의 용도·범위를 간단히 입력하세요." rows={3} showCount maxLength={500} />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Form>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <DashboardMetaFields
+              name={name}
+              onNameChange={setName}
+              domain={domain}
+              onDomainChange={setDomain}
+              icon={icon}
+              onIconChange={setIcon}
+              description={description}
+              onDescriptionChange={setDescription}
+              showErrors={showErrors}
+            />
           </div>
-          <div className="w-full px-7 pb-7">{renderFooter()}</div>
-        </div>
-        <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
-          <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">입력 정보 요약</div>
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{renderFormSummary()}</div>
+
+          <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
+            <div className="flex items-center justify-between">
+              <Button onClick={handleCancel}>취소</Button>
+              <Button type="primary" onClick={handleSubmit} loading={createDashboardMutation.isPending}>
+                대시보드 구성하기 →
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

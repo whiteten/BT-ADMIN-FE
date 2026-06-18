@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
 import { PANEL_PALETTE, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, paletteAt, splitLineStyle, verticalGradient } from './echartsPanelTheme';
-import { formatColumnValue } from '../../../../utils/columnFormat';
+import { formatCell } from '../../../../utils/columnFormat';
 import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
@@ -52,6 +52,7 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
     if (!xField) return {};
     const dn = (name: string) => displayNameMap.get(name) ?? name;
     const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
+    const fmtMap = new Map((queryResult?.columns ?? []).map((c) => [c.name, c.format]));
     const xName = xField.fieldName;
     const rawOf = (row: Record<string, unknown>) => String(row[xName] ?? '');
     const single = yFields.length === 1;
@@ -104,11 +105,11 @@ export default function PanelBarChart({ panel, reportId }: PanelBarChartProps) {
               position: isHorizontal ? 'right' : 'top',
               fontSize: 10,
               color: '#475467',
-              formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), f.columnFormat),
+              formatter: (p: { value: number }) => formatCell(Number(p.value ?? 0), fmtMap.get(f.fieldName), f.columnFormat),
             }
           : { show: false },
         // 툴팁 값도 컬럼 서식(Rate %, Time hh:mm:ss 등) 적용
-        tooltip: { valueFormatter: (v: unknown) => formatColumnValue(v, f.columnFormat) },
+        tooltip: { valueFormatter: (v: unknown) => formatCell(v, fmtMap.get(f.fieldName), f.columnFormat) },
         markLine: goalLine?.enabled && goalLine.value != null && !isHorizontal ? goalMarkLine(goalLine.value) : undefined,
         data: catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
       };

@@ -200,28 +200,28 @@ function toTrunkBoard(raw: unknown): TrunkBoard {
 // ─── 임계 판정 ─────────────────────────────────────────────────
 
 const DEFAULTS: Required<HealthBoardThresholds> = {
-  answerRate: { good: 90, warn: 80 },
-  serviceLevel: { good: 90, warn: 80 },
-  abandonRate: { good: 3, warn: 5 },
-  waiting: { good: 9, warn: 29 },
+  answerRate: { warn: 90, danger: 80 },
+  serviceLevel: { warn: 90, danger: 80 },
+  abandonRate: { warn: 3, danger: 5 },
+  waiting: { warn: 9, danger: 29 },
 };
 
-/** 헬스보드 KPI 임계 기본값 — 설정 드로어 초기화/병합에 사용. (good: 주의(주황) 경계, warn: 위험(빨강) 경계) */
+/** 헬스보드 KPI 임계 기본값 — 설정 드로어 초기화/병합에 사용. (warn: 주의(주황) 경계, danger: 위험(빨강) 경계) */
 export const DEFAULT_HB_THRESHOLDS: Required<HealthBoardThresholds> = DEFAULTS;
 
-/** 높을수록 좋음: good 이상 정상 / warn 이상 주의 / 미만 위험. (KPI 게이지는 notice/danger 2밴드) */
-export function higherBetter(value: number | null, t: { good: number; warn: number }): Severity {
+/** 높을수록 좋음: warn 이상 정상 / danger 이상 주의 / 미만 위험. (KPI 게이지는 notice/danger 2밴드) */
+export function higherBetter(value: number | null, t: { warn: number; danger: number }): Severity {
   if (value == null) return 'notice';
-  if (value >= t.good) return 'success';
-  if (value >= t.warn) return 'notice';
+  if (value >= t.warn) return 'success';
+  if (value >= t.danger) return 'notice';
   return 'danger';
 }
 
-/** 낮을수록 좋음: good 이하 정상 / warn 이하 주의 / 초과 위험. (KPI 게이지는 notice/danger 2밴드) */
-export function lowerBetter(value: number | null, t: { good: number; warn: number }): Severity {
+/** 낮을수록 좋음: warn 이하 정상 / danger 이하 주의 / 초과 위험. (KPI 게이지는 notice/danger 2밴드) */
+export function lowerBetter(value: number | null, t: { warn: number; danger: number }): Severity {
   if (value == null) return 'notice';
-  if (value <= t.good) return 'success';
-  if (value <= t.warn) return 'notice';
+  if (value <= t.warn) return 'success';
+  if (value <= t.danger) return 'notice';
   return 'danger';
 }
 
