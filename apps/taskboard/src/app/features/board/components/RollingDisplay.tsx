@@ -1,16 +1,84 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type DroppedWidget, type TableColumn, parseLayoutWidgets } from '../types/taskboard.types';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
+import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
+import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
+import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList } from '../hooks/useTaskboardQueries';
+import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
+import { buildGroupIdsByHashKey, collectRedisWsSubscriptions, getCalcDisplayValue, getRedisDisplayValue, mergeWsSubscriptions } from '../utils/redisValue';
+import { getWidgetVisualStyle, isTransparentBg } from '../utils/widgetVisualStyle';
 
 export interface RollingLayout {
   layoutId: number;
   layoutName: string;
   fileName?: string;
   layoutJson?: string;
+  /** 이 슬라이드의 화면 인스턴스(디스플레이 그룹핑 × 레이아웃 연결) ID — TaskboardDisplayLayout.displayLayoutId */
+  displayId: number;
+  selectionJson?: string;
 }
 
 export interface RollingData {
   transitionType: string;
   layouts: RollingLayout[];
+}
+
+export function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
+  if (!selectionJson) return {};
+  try {
+    return JSON.parse(selectionJson) as TaskboardDisplaySelection;
+  } catch {
+    return {};
+  }
+}
+
+/** 여러 hashKey의 id→record 맵을 하나로 합친다. */
+function mergeByHashKeys(dataByHashKey: Record<string, Record<string, CtiqRecord>>, hashKeys: string[]): Record<string, CtiqRecord> {
+  const merged: Record<string, CtiqRecord> = {};
+  hashKeys.forEach((hk) => Object.assign(merged, dataByHashKey[hk] ?? {}));
+  return merged;
+}
+
+/** 레이아웃들의 위젯에서 table-group/queue/agent가 실제 쓰는 컬럼을 모아 WS 구독 columns로 사용(여러 레이아웃 합집합). */
+function collectTableColumns(allWidgets: DroppedWidget[]) {
+  const tableGroupWidgets = allWidgets.filter((w) => w.item.id === 'table-group' && Array.isArray(w.item.tableConfig?.columns));
+  const configuredRtsCols = tableGroupWidgets.flatMap((w) =>
+    (w.item.tableConfig!.columns as TableColumn[]).filter((c) => !['name', 'agents', 'talk'].includes(c.key)).map((c) => c.key.toUpperCase()),
+  );
+  const groupColumns = configuredRtsCols.length > 0 ? [...new Set(configuredRtsCols)] : undefined;
+
+  const tableQueueWidgets = allWidgets.filter((w) => w.item.id === 'table-queue' && Array.isArray(w.item.tableConfig?.columns));
+  const queueChartWidgets = allWidgets.filter((w) => w.item.id === 'chart-bar-queue' || w.item.id === 'chart-line-trend');
+  const queueColumns = [
+    ...new Set(
+      [
+        ...tableQueueWidgets.flatMap((w) =>
+          (w.item.tableConfig!.columns as TableColumn[]).map((c) =>
+            c.key === 'wait' ? 'RTS_WAIT_CNT' : c.key === 'talk' ? 'SUM_CONN_CNT' : c.key === 'name' ? null : c.key.toUpperCase(),
+          ),
+        ),
+        ...(queueChartWidgets.length > 0 ? ['RTS_WAIT_CNT'] : []),
+      ].filter((c): c is string => !!c),
+    ),
+  ];
+
+  const tableAgentWidgets = allWidgets.filter((w) => w.item.id === 'table-agent' && Array.isArray(w.item.tableConfig?.columns));
+  const agentColumns = [
+    ...new Set(
+      tableAgentWidgets.flatMap((w) =>
+        (w.item.tableConfig!.columns as TableColumn[]).map((c) =>
+          c.key === 'status' ? 'AGENT_STATUS' : c.key === 'count' ? 'SUM_ANSW_CNT' : c.key === 'name' ? null : c.key.toUpperCase(),
+        ),
+      ),
+    ),
+  ].filter((c): c is string => !!c);
+
+  // 미디어타입은 디스플레이 선택값이 아니라 위젯 등록 시점에 고정된 값(item.mediaType) — 위젯별로 합집합
+  const groupMediaTypes = [...new Set(tableGroupWidgets.map((w) => w.item.mediaType ?? '0'))];
+  const queueMediaTypes = [...new Set([...tableQueueWidgets, ...queueChartWidgets].map((w) => w.item.mediaType ?? '0'))];
+  const agentMediaTypes = [...new Set(tableAgentWidgets.map((w) => w.item.mediaType ?? '0'))];
+
+  return { groupColumns, queueColumns, agentColumns, configuredRtsCols, tableGroupWidgets, groupMediaTypes, queueMediaTypes, agentMediaTypes };
 }
 
 export const parseRollingData = (raw?: string): RollingData => {
@@ -28,6 +96,7 @@ export const parseRollingData = (raw?: string): RollingData => {
 };
 
 export const TRANSITION_OPTIONS = [
+  { value: 'none', label: '기본', icon: '■' },
   { value: 'fade', label: '페이드', icon: '✦' },
   { value: 'slideLeft', label: '← 슬라이드', icon: '←' },
   { value: 'slideRight', label: '→ 슬라이드', icon: '→' },
@@ -37,9 +106,15 @@ export const TRANSITION_OPTIONS = [
   { value: 'zoomOut', label: '줌 아웃', icon: '⊖' },
   { value: 'blur', label: '블러', icon: '◎' },
   { value: 'flip', label: '플립', icon: '⟳' },
+  { value: 'mosaic', label: '모자이크', icon: '▦' },
+  { value: 'wipe', label: '와이프', icon: '◨' },
+  { value: 'rotateIn', label: '회전', icon: '↻' },
+  { value: 'bounce', label: '바운스', icon: '⤵' },
+  { value: 'random', label: '랜덤', icon: '⚄' },
 ];
 
 const TRANSITION_ANIMATION: Record<string, string> = {
+  none: '',
   fade: 'rollingFadeIn 0.7s ease-in-out',
   slideLeft: 'rollingSlideLeft 0.5s ease-out',
   slideRight: 'rollingSlideRight 0.5s ease-out',
@@ -49,9 +124,17 @@ const TRANSITION_ANIMATION: Record<string, string> = {
   zoomOut: 'rollingZoomOut 0.6s ease-out',
   blur: 'rollingBlur 0.7s ease-in-out',
   flip: 'rollingFlip 0.7s ease-out',
+  mosaic: 'rollingMosaicIn 0.9s ease-out',
+  wipe: 'rollingWipeIn 0.6s ease-in-out',
+  rotateIn: 'rollingRotateIn 0.6s ease-out',
+  bounce: 'rollingBounceIn 0.8s ease-out',
 };
 
+/** '랜덤' 선택 시 매 전환마다 이 목록에서 하나를 골라 적용 ('기본'은 제외) */
+export const RANDOM_TRANSITION_POOL = Object.keys(TRANSITION_ANIMATION).filter((key) => key !== 'none');
+
 export const TRANSITION_PREVIEW_ANIMATION: Record<string, string> = {
+  none: 'pvNone 2s ease-in-out infinite',
   fade: 'pvFade 2s ease-in-out infinite',
   slideLeft: 'pvSlideLeft 2s ease-in-out infinite',
   slideRight: 'pvSlideRight 2s ease-in-out infinite',
@@ -61,6 +144,11 @@ export const TRANSITION_PREVIEW_ANIMATION: Record<string, string> = {
   zoomOut: 'pvZoomOut 2s ease-in-out infinite',
   blur: 'pvBlur 2s ease-in-out infinite',
   flip: 'pvFlip 2s ease-in-out infinite',
+  mosaic: 'pvMosaic 2s ease-in-out infinite',
+  wipe: 'pvWipe 2s ease-in-out infinite',
+  rotateIn: 'pvRotateIn 2s ease-in-out infinite',
+  bounce: 'pvBounce 2s ease-in-out infinite',
+  random: 'pvRandom 2s ease-in-out infinite',
 };
 
 const TRANSITION_CSS = `
@@ -73,6 +161,32 @@ const TRANSITION_CSS = `
   @keyframes rollingZoomOut { from { opacity: 0; transform: scale(1.25); } to { opacity: 1; transform: scale(1); } }
   @keyframes rollingBlur { from { opacity: 0; filter: blur(24px); } to { opacity: 1; filter: blur(0); } }
   @keyframes rollingFlip { from { opacity: 0; transform: perspective(1000px) rotateY(-90deg); } to { opacity: 1; transform: perspective(1000px) rotateY(0); } }
+  @keyframes rollingMosaicIn {
+    from {
+      opacity: 0;
+      filter: blur(2px);
+      -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 55%);
+      -webkit-mask-size: 28px 28px;
+      mask-image: radial-gradient(circle, #000 55%, transparent 55%);
+      mask-size: 28px 28px;
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+      -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 55%);
+      -webkit-mask-size: 2px 2px;
+      mask-image: radial-gradient(circle, #000 55%, transparent 55%);
+      mask-size: 2px 2px;
+    }
+  }
+  @keyframes rollingWipeIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes rollingRotateIn { from { opacity: 0; transform: rotate(-10deg) scale(0.85); } to { opacity: 1; transform: rotate(0deg) scale(1); } }
+  @keyframes rollingBounceIn {
+    0% { opacity: 0; transform: translateY(-60px); }
+    60% { opacity: 1; transform: translateY(12px); }
+    80% { transform: translateY(-6px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
 `;
 
 export const TRANSITION_PREVIEW_CSS = `
@@ -85,13 +199,177 @@ export const TRANSITION_PREVIEW_CSS = `
   @keyframes pvZoomOut { 0%,100%{transform:scale(1.6);opacity:0} 40%,60%{transform:scale(1);opacity:1} }
   @keyframes pvBlur { 0%,100%{filter:blur(6px);opacity:0} 40%,60%{filter:blur(0);opacity:1} }
   @keyframes pvFlip { 0%{transform:perspective(60px) rotateY(-90deg);opacity:0} 40%,60%{transform:perspective(60px) rotateY(0);opacity:1} 100%{transform:perspective(60px) rotateY(90deg);opacity:0} }
+  @keyframes pvMosaic {
+    0%,100% {
+      opacity: 0; filter: blur(2px);
+      -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 55%); -webkit-mask-size: 14px 14px;
+      mask-image: radial-gradient(circle, #000 55%, transparent 55%); mask-size: 14px 14px;
+    }
+    40%,60% {
+      opacity: 1; filter: blur(0);
+      -webkit-mask-image: radial-gradient(circle, #000 55%, transparent 55%); -webkit-mask-size: 2px 2px;
+      mask-image: radial-gradient(circle, #000 55%, transparent 55%); mask-size: 2px 2px;
+    }
+  }
+  @keyframes pvWipe { 0%{clip-path:inset(0 100% 0 0)} 40%,60%{clip-path:inset(0 0 0 0)} 100%{clip-path:inset(0 0 0 100%)} }
+  @keyframes pvRotateIn { 0%,100%{transform:rotate(-10deg) scale(0.7);opacity:0} 40%,60%{transform:rotate(0deg) scale(1);opacity:1} }
+  @keyframes pvBounce {
+    0%,100% { opacity:0; transform: translateY(-12px); }
+    30% { opacity:1; transform: translateY(4px); }
+    40% { transform: translateY(-2px); }
+    50%,65% { opacity:1; transform: translateY(0); }
+  }
+  @keyframes pvRandom {
+    0%,100% { opacity:0; transform: scale(0.5) rotate(-12deg); filter: blur(3px); }
+    30% { opacity:1; transform: scale(1) rotate(0deg) translateX(0); filter: blur(0); }
+    50%,60% { opacity:1; transform: scale(1) rotate(0deg) translateX(0); }
+    80% { opacity:1; transform: translateX(6px); }
+  }
+  @keyframes pvNone { 0%,39.9%{opacity:0} 40%,60%{opacity:1} 60.1%,100%{opacity:0} }
 `;
 
-function RollingTableWidget({ widget }: { widget: DroppedWidget }) {
+const CHART_ROLLING_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+
+// ── 실시간 테이블 행 생성 헬퍼 ───────────────────────────────────────────────
+function buildLiveTableRows(
+  widgetId: string,
+  queueRows: CtiQueueRow[],
+  agentRows: CtiAgentRow[],
+  groupRows: CtiGroupRow[],
+  columns: TableColumn[],
+  selection: TaskboardDisplaySelection,
+  mediaTypes: string[],
+  dataByHashKey: Record<string, Record<string, CtiqRecord>>,
+  agentHashKeys: string[],
+): Record<string, string | number>[] {
+  if (widgetId === 'table-queue') {
+    const selectedQueueIds = selection.queueIds ?? [];
+    const ctiqWsData = mergeByHashKeys(
+      dataByHashKey,
+      mediaTypes.map((mt) => `IC:CTIQ:${mt}`),
+    );
+    const filtered = selectedQueueIds.length > 0 ? queueRows.filter((q) => selectedQueueIds.includes(q.ctiqId)) : queueRows;
+    return filtered.slice(0, 20).map((q) => {
+      const ws = ctiqWsData[q.ctiqId];
+      const row: Record<string, string | number> = {};
+      columns.forEach((col) => {
+        switch (col.key) {
+          case 'name':
+            row[col.key] = q.ctiqName;
+            break;
+          case 'wait':
+            row[col.key] = Number(ws?.RTS_WAIT_CNT ?? q.rtsWaitCnt ?? 0);
+            break;
+          case 'talk':
+            row[col.key] = Number(ws?.SUM_CONN_CNT ?? q.totalIn ?? 0);
+            break;
+          default:
+            row[col.key] = ws?.[col.key.toUpperCase()] != null ? String(ws[col.key.toUpperCase()]) : q[col.key] != null ? String(q[col.key]) : '';
+        }
+      });
+      return row;
+    });
+  }
+  if (widgetId === 'table-agent') {
+    const selectedAgentIds = selection.agentIds ?? [];
+    const agentWsData = mergeByHashKeys(dataByHashKey, agentHashKeys);
+    const filtered = selectedAgentIds.length > 0 ? agentRows.filter((a) => selectedAgentIds.includes(a.agentId)) : agentRows;
+    return filtered.slice(0, 20).map((agent) => {
+      const ws = agentWsData[agent.agentId];
+      const row: Record<string, string | number> = {};
+      columns.forEach((col) => {
+        switch (col.key) {
+          case 'name':
+            row[col.key] = agent.agentName;
+            break;
+          case 'status':
+            row[col.key] = String(ws?.AGENT_STATUS ?? agent.statusName ?? '');
+            break;
+          case 'count':
+            row[col.key] = Number(ws?.SUM_ANSW_CNT ?? agent.talkCount ?? 0);
+            break;
+          default:
+            row[col.key] = ws?.[col.key.toUpperCase()] != null ? String(ws[col.key.toUpperCase()]) : agent[col.key] != null ? String(agent[col.key]) : '';
+        }
+      });
+      return row;
+    });
+  }
+  if (widgetId === 'table-group') {
+    const selectedGroupIds = selection.groupIds ?? [];
+    const filtered = selectedGroupIds.length > 0 ? groupRows.filter((g) => selectedGroupIds.includes(g.groupId)) : groupRows;
+    return filtered.slice(0, 20).map((group) => {
+      const row: Record<string, string | number> = {};
+      columns.forEach((col) => {
+        switch (col.key) {
+          case 'name':
+            row[col.key] = group.groupName;
+            break;
+          case 'agents':
+            row[col.key] = group.agentCount;
+            break;
+          case 'talk':
+            row[col.key] = group.talkCount;
+            break;
+          default: {
+            // IC:GROUP:{mediaType} 해시에서 compositeKey별 값을 조회하여 합산
+            row[col.key] = (group.compositeKeys ?? []).reduce((sum, ck) => {
+              return sum + mediaTypes.reduce((mSum, mt) => mSum + Number(dataByHashKey[`IC:GROUP:${mt}`]?.[ck]?.[col.key.toUpperCase()] ?? 0), 0);
+            }, 0);
+            break;
+          }
+        }
+      });
+      return row;
+    });
+  }
+  return [];
+}
+
+// ── 실시간 차트 데이터 생성 헬퍼 ─────────────────────────────────────────────
+function buildLiveChartData(
+  widgetId: string,
+  queueRows: CtiQueueRow[],
+  agentRows: CtiAgentRow[],
+  groupRows: CtiGroupRow[],
+  ctiqWsData: Record<string, CtiqRecord>,
+  selectedQueueIds: string[],
+): Array<{ name: string; value: number }> {
+  if (widgetId === 'chart-bar-queue' || widgetId === 'chart-line-trend') {
+    const hasWs = Object.keys(ctiqWsData).length > 0;
+    if (hasWs) {
+      const qIds = selectedQueueIds.length > 0 ? selectedQueueIds : Object.keys(ctiqWsData);
+      return qIds.slice(0, 8).map((qId) => {
+        const q = ctiqWsData[qId] ?? {};
+        const name = queueRows.find((r) => r.ctiqId === qId)?.ctiqName ?? qId;
+        const value = Number(q.RTS_WAIT_CNT ?? 0);
+        return { name, value };
+      });
+    }
+    const filtered = selectedQueueIds.length > 0 ? queueRows.filter((q) => selectedQueueIds.includes(q.ctiqId)) : queueRows;
+    return filtered.slice(0, 8).map((q) => ({ name: q.ctiqName, value: q.rtsWaitCnt ?? 0 }));
+  }
+  if (widgetId === 'chart-pie-agent') {
+    const statusMap: Record<string, number> = {};
+    agentRows.forEach((agent) => {
+      const s = agent.statusName || '알수없음';
+      statusMap[s] = (statusMap[s] ?? 0) + 1;
+    });
+    return Object.entries(statusMap).map(([name, value]) => ({ name, value }));
+  }
+  if (widgetId === 'chart-donut-group') {
+    return groupRows.slice(0, 6).map((g) => ({ name: g.groupName, value: g.talkCount }));
+  }
+  return [];
+}
+
+// ── 테이블 위젯 렌더 ────────────────────────────────────────────────────────
+function RollingTableWidget({ widget, liveRows }: { widget: DroppedWidget; liveRows?: Record<string, string | number>[] }) {
   const cfg = widget.item.tableConfig;
   if (!cfg) return null;
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
+  const rows = liveRows && liveRows.length > 0 ? liveRows : cfg.sampleRows;
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {showTitle && (
@@ -125,7 +403,7 @@ function RollingTableWidget({ widget }: { widget: DroppedWidget }) {
             </tr>
           </thead>
           <tbody>
-            {cfg.sampleRows.map((row, ri) => (
+            {rows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
                 {(cfg.columns as TableColumn[]).map((col) => (
                   <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -141,9 +419,80 @@ function RollingTableWidget({ widget }: { widget: DroppedWidget }) {
   );
 }
 
+// ── 차트 위젯 렌더 ───────────────────────────────────────────────────────────
+function RollingChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData: Array<{ name: string; value: number }> }) {
+  const cfg = widget.item.chartConfig as ChartConfig | undefined;
+  const chartType = cfg?.chartType ?? 'bar';
+  const data = liveData.length > 0 ? liveData : (cfg?.sampleData ?? []);
+  const showTitle = widget.showTitle !== false;
+  const displayTitle = widget.customTitle ?? widget.item.label;
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {showTitle && (
+        <div
+          className="truncate font-semibold px-1 flex-shrink-0"
+          style={{
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            textAlign: widget.style.titleAlign ?? 'left',
+            color: widget.style.color,
+            fontFamily: widget.style.fontFamily,
+          }}
+        >
+          {displayTitle}
+        </div>
+      )}
+      <div className="flex-1 min-h-0">
+        <ResponsiveContainer width="100%" height="100%">
+          {chartType === 'bar' ? (
+            <BarChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: 8 }} />
+              <YAxis tick={{ fill: widget.style.color, fontSize: 8 }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <Bar dataKey="value">
+                {data.map((_, i) => (
+                  <Cell key={i} fill={CHART_ROLLING_COLORS[i % CHART_ROLLING_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          ) : chartType === 'line' ? (
+            <LineChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: 8 }} />
+              <YAxis tick={{ fill: widget.style.color, fontSize: 8 }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <Line type="monotone" dataKey="value" stroke={widget.item.color} strokeWidth={2} dot={false} />
+            </LineChart>
+          ) : (
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={chartType === 'donut' ? '40%' : 0} outerRadius="70%">
+                {data.map((_, i) => (
+                  <Cell key={i} fill={CHART_ROLLING_COLORS[i % CHART_ROLLING_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 8, color: widget.style.color }} />
+            </PieChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 const ROLLING_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
 
-function RollingValueWidget({ widget }: { widget: DroppedWidget }) {
+function RollingValueWidget({
+  widget,
+  widgets,
+  redisData,
+  groupIdsByHashKey,
+}: {
+  widget: DroppedWidget;
+  widgets: DroppedWidget[];
+  redisData?: CtiWsDataByHashKey;
+  groupIdsByHashKey?: Record<string, string[]>;
+}) {
   const isEtcClock = widget.item.category === 'etc' && ROLLING_ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
 
@@ -167,7 +516,15 @@ function RollingValueWidget({ widget }: { widget: DroppedWidget }) {
     return String(widget.item.sampleValue);
   };
 
-  const displayValue = isEtcClock ? getLiveValue() : widget.item.sampleValue;
+  const isRedis = widget.item.category === 'Redis' && !!widget.item.redisHashKey;
+  const isCalc = widget.item.category === 'Calc';
+  const displayValue = isEtcClock
+    ? getLiveValue()
+    : isCalc
+      ? getCalcDisplayValue(widget, widgets, redisData, groupIdsByHashKey)
+      : isRedis
+        ? getRedisDisplayValue(widget, redisData, groupIdsByHashKey)
+        : widget.item.sampleValue;
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   return (
@@ -180,7 +537,7 @@ function RollingValueWidget({ widget }: { widget: DroppedWidget }) {
           {displayTitle}
         </div>
       )}
-      <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize }}>
+      <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize, textAlign: widget.style.valueAlign ?? 'left' }}>
         {displayValue}
         {widget.item.unit && (
           <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
@@ -188,14 +545,48 @@ function RollingValueWidget({ widget }: { widget: DroppedWidget }) {
           </span>
         )}
       </div>
-      <div className="w-full h-0.5 rounded mt-1" style={{ backgroundColor: widget.item.color }} />
     </div>
   );
 }
 
-export function LayoutScreen({ layout }: { layout: RollingLayout }) {
+// ── LayoutScreen ─────────────────────────────────────────────────────────────
+interface LayoutScreenProps {
+  layout: RollingLayout;
+  liveQueues?: CtiQueueRow[];
+  liveAgents?: CtiAgentRow[];
+  liveGroups?: CtiGroupRow[];
+  /** RollingPlayer가 로테이션 전체 레이아웃 합산으로 구독한 WS 데이터(공유) */
+  dataByHashKey?: Record<string, Record<string, CtiqRecord>>;
+  agentHashKeys?: string[];
+}
+
+export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGroups = [], dataByHashKey = {}, agentHashKeys = [] }: LayoutScreenProps) {
   const widgets = parseLayoutWidgets(layout.layoutJson);
+  const selection = parseSelection(layout.selectionJson);
   const [imgRatio, setImgRatio] = useState(16 / 9);
+
+  // 미디어타입은 이 레이아웃 자신의 위젯(item.mediaType)에서 가져온다 — 디스플레이 선택값이 아님.
+  const { queueMediaTypes, groupMediaTypes } = collectTableColumns(widgets);
+
+  // IC:GROUP:* 단일값 위젯이 보여줄 그룹은 이 슬라이드 자신의 선택값(selection.groupIds) 기준으로 결정.
+  // (RollingPlayer가 모든 슬라이드를 합산해 구독은 이미 끝냈으므로, 여기서는 받은 데이터 중 이 슬라이드 몫만 골라 읽는다)
+  const groupIdsByHashKey = buildGroupIdsByHashKey(widgets, liveGroups, selection.groupIds ?? []);
+
+  const ctiqWsData = mergeByHashKeys(
+    dataByHashKey,
+    queueMediaTypes.map((mt) => `IC:CTIQ:${mt}`),
+  );
+
+  // table-group 위젯 컬럼 — 커스텀 컬럼 없을 때만, 공유 WS 응답(전체 컬럼)에서 RTS_ 컬럼 자동 추론
+  const tableGroupWidgets = widgets.filter((w) => w.item.id === 'table-group' && Array.isArray(w.item.tableConfig?.columns));
+  const configuredRtsCols = tableGroupWidgets.flatMap((w) =>
+    (w.item.tableConfig!.columns as TableColumn[]).filter((c) => !['name', 'agents', 'talk'].includes(c.key)).map((c) => c.key.toUpperCase()),
+  );
+  const groupCompositeKeys = [...new Set(liveGroups.filter((g) => !selection.groupIds?.length || selection.groupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))];
+  const groupHashRtsFallback =
+    configuredRtsCols.length === 0 && tableGroupWidgets.length > 0
+      ? [...new Set(groupMediaTypes.flatMap((mt) => Object.keys(dataByHashKey?.[`IC:GROUP:${mt}`]?.[groupCompositeKeys[0] ?? ''] ?? {}).filter((k) => k.startsWith('RTS_'))))]
+      : [];
 
   useEffect(() => {
     if (!layout.fileName) return;
@@ -205,6 +596,29 @@ export function LayoutScreen({ layout }: { layout: RollingLayout }) {
     };
     img.src = layout.fileName;
   }, [layout.fileName]);
+
+  const renderWidget = (widget: DroppedWidget) => {
+    if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
+    const dt = widget.item.displayType;
+    if (dt === 'table') {
+      const cfg = widget.item.tableConfig;
+      let tableColumns = (cfg?.columns ?? []) as TableColumn[];
+      if (widget.item.id === 'table-group' && groupHashRtsFallback.length > 0) {
+        const existingKeys = new Set(tableColumns.map((c) => c.key.toUpperCase()));
+        const extraCols: TableColumn[] = groupHashRtsFallback.filter((k) => !existingKeys.has(k)).map((k) => ({ key: k.toLowerCase(), label: k }));
+        tableColumns = [...tableColumns, ...extraCols];
+      }
+      const liveRows = cfg
+        ? buildLiveTableRows(widget.item.id, liveQueues, liveAgents, liveGroups, tableColumns, selection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys)
+        : [];
+      return <RollingTableWidget widget={widget} liveRows={liveRows} />;
+    }
+    if (dt === 'chart') {
+      const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, selection.queueIds ?? []);
+      return <RollingChartWidget widget={widget} liveData={liveChartData} />;
+    }
+    return <RollingValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} groupIdsByHashKey={groupIdsByHashKey} />;
+  };
 
   return (
     <div className="w-full h-full relative bg-black overflow-hidden flex items-center justify-center">
@@ -225,15 +639,11 @@ export function LayoutScreen({ layout }: { layout: RollingLayout }) {
               top: `${widget.y}%`,
               width: `${widget.w ?? 13}%`,
               height: `${widget.h ?? 16}%`,
-              backgroundColor: widget.style.bgColor,
-              color: widget.style.color,
-              fontFamily: widget.style.fontFamily,
-              fontSize: widget.style.fontSize,
-              overflow: 'hidden',
+              ...getWidgetVisualStyle(widget.style),
             }}
-            className="rounded-lg shadow-xl backdrop-blur-sm border border-white/10"
+            className={isTransparentBg(widget.style) ? '' : 'shadow-xl backdrop-blur-sm'}
           >
-            {widget.item.displayType === 'table' ? <RollingTableWidget widget={widget} /> : <RollingValueWidget widget={widget} />}
+            {renderWidget(widget)}
           </div>
         ))}
       </div>
@@ -241,6 +651,7 @@ export function LayoutScreen({ layout }: { layout: RollingLayout }) {
   );
 }
 
+// ── RollingPlayer ─────────────────────────────────────────────────────────────
 export interface RollingPlayerProps {
   layouts: RollingLayout[];
   intervalSec: number;
@@ -255,6 +666,52 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // HTTP 폴링 — 큐/상담사/그룹 전체 목록 (정적 마스터성 데이터, 마운트 시 1회만)
+  const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
+  const { data: agentRows = [] } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
+  const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+
+  // 로테이션에 포함된 모든 레이아웃의 디스플레이 선택값(큐/그룹/상담사) + 위젯 컬럼/미디어타입을 합산해 WS 구독 하나로 커버.
+  // 미디어타입은 디스플레이 선택값이 아니라 위젯 등록 시점에 고정된 값(item.mediaType).
+  const allSelections = layouts.map((l) => parseSelection(l.selectionJson));
+
+  // 로테이션 전체 레이아웃 중 그 데이터를 실제로 쓰는 위젯이 하나라도 있을 때만 해당 종류를 구독(불필요한 대량 조회 방지)
+  const allWidgets = layouts.flatMap((l) => parseLayoutWidgets(l.layoutJson));
+  const { groupColumns, queueColumns, agentColumns, groupMediaTypes, queueMediaTypes, agentMediaTypes } = collectTableColumns(allWidgets);
+  const needsQueue = allWidgets.some((w) => w.item.id === 'table-queue' || w.item.id === 'chart-bar-queue' || w.item.id === 'chart-line-trend');
+  const needsGroup = allWidgets.some((w) => w.item.id === 'table-group');
+  const needsAgent = allWidgets.some((w) => w.item.id === 'table-agent');
+
+  const allQueueIds = needsQueue ? [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))] : [];
+  const allSelectedGroupIds = [...new Set(allSelections.flatMap((s) => s.groupIds ?? []))];
+  const groupCompositeKeys = needsGroup
+    ? [...new Set(groupRows.filter((g) => allSelectedGroupIds.length === 0 || allSelectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))]
+    : [];
+  const allSelectedAgentIds = [...new Set(allSelections.flatMap((s) => s.agentIds ?? []))];
+  const targetAgents = allSelectedAgentIds.length > 0 ? agentRows.filter((a) => allSelectedAgentIds.includes(a.agentId)) : agentRows;
+  const agentIdsByGroupId = needsAgent
+    ? targetAgents.reduce<Record<string, string[]>>((acc, a) => {
+        if (!a.groupId) return acc;
+        (acc[a.groupId] ??= []).push(a.agentId);
+        return acc;
+      }, {})
+    : {};
+  const agentHashKeys = Object.keys(agentIdsByGroupId).flatMap((groupId) => agentMediaTypes.map((mt) => `IC:AGENT:${groupId}:${mt}`));
+
+  // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 로테이션 내 모든 레이아웃 합산해 같은 WS 소켓으로 구독.
+  // IC:GROUP:* 위젯은 슬라이드마다 선택값이 다를 수 있으므로, 구독은 전체 슬라이드 선택값의 합집합으로 넉넉히 받아두고
+  // 실제 화면 표시는 LayoutScreen에서 그 슬라이드 자신의 선택값으로 다시 골라 읽는다.
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(allWidgets, buildGroupIdsByHashKey(allWidgets, groupRows, allSelectedGroupIds));
+
+  // WebSocket — 전체 레이아웃 큐/그룹/상담사 KPI + 단일값 Redis 위젯 실시간 수신 (미디어타입·그룹별 hashKey로 분리 구독)
+  const subscriptions: CtiWsSubscription[] = mergeWsSubscriptions([
+    ...(allQueueIds.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: allQueueIds, columns: queueColumns })) : []),
+    ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
+    ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
+    ...widgetRedisSubscriptions,
+  ]);
+  const { dataByHashKey } = useCtiqWebSocket(subscriptions);
 
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
@@ -296,19 +753,24 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
+  // '랜덤'은 매 전환(currentIndex 변경)마다 한 번씩 새로 뽑아 전환 도중 애니메이션이 바뀌지 않도록 고정
+  const [randomAnimation, setRandomAnimation] = useState(() => TRANSITION_ANIMATION[RANDOM_TRANSITION_POOL[Math.floor(Math.random() * RANDOM_TRANSITION_POOL.length)]]);
+  useEffect(() => {
+    if (transitionType !== 'random') return;
+    setRandomAnimation(TRANSITION_ANIMATION[RANDOM_TRANSITION_POOL[Math.floor(Math.random() * RANDOM_TRANSITION_POOL.length)]]);
+  }, [transitionType, currentIndex]);
+
   const current = layouts[currentIndex];
   if (!current) return null;
 
-  const animation = TRANSITION_ANIMATION[transitionType] ?? TRANSITION_ANIMATION.fade;
-
+  const animation = transitionType === 'random' ? (randomAnimation ?? TRANSITION_ANIMATION.fade) : (TRANSITION_ANIMATION[transitionType] ?? TRANSITION_ANIMATION.fade);
   const styleContent = TRANSITION_CSS + `body { cursor: ${showControls ? 'auto' : 'none'} !important; }`;
 
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
-      {}
       <style dangerouslySetInnerHTML={{ __html: styleContent }} />
       <div key={currentIndex} className="absolute inset-0" style={{ animation }}>
-        <LayoutScreen layout={current} />
+        <LayoutScreen layout={current} liveQueues={queueRows} liveAgents={agentRows} liveGroups={groupRows} dataByHashKey={dataByHashKey} agentHashKeys={agentHashKeys} />
       </div>
 
       <div
@@ -352,7 +814,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
           <div className="flex justify-center gap-2 pb-3 pt-4 bg-gradient-to-t from-black/60 to-transparent">
             {layouts.map((l, i) => (
               <button
-                key={l.layoutId}
+                key={i}
                 onClick={() => {
                   setCurrentIndex(i);
                   setProgress(0);

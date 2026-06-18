@@ -63,13 +63,13 @@ export default function RealtimeTestPage() {
 
   const handleChange = (name: keyof FormState, value: string) => setForm((prev) => ({ ...prev, [name]: value }));
 
-  const handleStart = () => {
-    const qs = new URLSearchParams(Object.entries(form)).toString();
+  const handleStart = (mode: 'poll' | 'stream') => {
+    const qs = new URLSearchParams({ ...form, mode }).toString();
     const w = 560;
     const h = 560;
     const left = Math.max(0, (window.screen.width - w) / 2);
     const top = Math.max(0, (window.screen.height - h) / 2);
-    const name = `RealtimePlayer-${form.agent_dn}-${Date.now()}`;
+    const name = `RealtimePlayer-${mode}-${form.agent_dn}-${Date.now()}`;
     window.open(`/vel-eavesdrop/monitoring/realtime-player?${qs}`, name, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
@@ -97,15 +97,23 @@ export default function RealtimeTestPage() {
             ))}
           </div>
 
-          <Button type="primary" size="large" onClick={handleStart} style={{ background: '#6366f1', borderColor: '#6366f1' }}>
-            청취 테스트 시작
-          </Button>
+          <div className="flex gap-3">
+            <Button type="primary" size="large" onClick={() => handleStart('poll')} style={{ background: '#6366f1', borderColor: '#6366f1', flex: 1 }}>
+              청취 (폴링·원래)
+            </Button>
+            <Button size="large" onClick={() => handleStart('stream')} style={{ flex: 1 }}>
+              스트림 테스트 (BFF 패스스루)
+            </Button>
+          </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded p-4 text-xs text-gray-500 leading-relaxed">
             <p className="font-medium text-gray-600 mb-1">💡 안내</p>
-            내선번호 등을 입력하고 시작하면 별도 감청 플레이어 팝업이 열립니다. 해당 내선에서 통화가 발생하면 자동으로 실시간 음성이 재생됩니다.
+            <b>청취 (폴링·원래)</b> — <code>/vel-realtime-play</code> 세그먼트 폴링. BFF aggregation을 통과하는 현행 방식(운영 동작).
             <br />
-            음원은 <b>api_base</b>(Veloce가 제공하는 스트리밍 API)가 제공합니다. Veloce API가 다른 origin이면 그쪽 CORS 허용 또는 dev proxy 설정이 필요합니다.
+            <b>스트림 테스트 (BFF 패스스루)</b> — <code>/vel-realtime-stream</code> 무한 스트림. BFF가 무한 audio/mpeg를 flush(패스스루)하는지 검증용. 미지원이면 0바이트로 막혀
+            플레이어에 실패 표시됩니다.
+            <br />
+            내선번호 등을 입력하고 버튼을 누르면 별도 감청 플레이어 팝업이 열리고, 해당 내선 통화 발생 시 실시간 음성이 재생됩니다.
           </div>
         </div>
       </div>
