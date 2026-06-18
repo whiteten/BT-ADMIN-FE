@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Alert, App, Button, Divider, Tag, Typography } from 'antd';
+import { Alert, App, Button, Col, Divider, Row, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { Calendar, Columns3, Database, Layers } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
@@ -307,7 +307,8 @@ export default function StatDatasetEdit() {
 
       <div className="flex w-full flex-1 min-h-0 gap-4">
         <div className="flex-1 min-w-0 h-full min-h-0 bg-white bt-shadow flex flex-col">
-          <div className="flex-1 min-h-0">
+          {/* 콘텐츠 영역(모니터링 DatasetWizard 동일 패턴) — flex-1 min-h-0 로 푸터 높이만큼 자동 축소, 내부 스크롤 */}
+          <div className="w-full flex-1 min-h-0 overflow-hidden">
             <WizardStepB
               datasetId={datasetId}
               domain={dataset!.productCode as DomainCode}
@@ -320,20 +321,31 @@ export default function StatDatasetEdit() {
               readOnly={readOnly}
             />
           </div>
+          {/* 하단 액션 바(모니터링 동일 스타일) — 카드 내부 플레인 푸터 */}
           {!isCalcEditing && (
-            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
-              <div className="flex items-center justify-center gap-5">
+            <div className="w-full px-7 py-3">
+              <Row gutter={20} justify="center">
                 {readOnly ? (
-                  <Button onClick={() => navigate('/insight/statistics/datasets')}>목록</Button>
+                  <Col>
+                    <Button variant="solid" onClick={() => navigate('/insight/statistics/datasets')}>
+                      목록
+                    </Button>
+                  </Col>
                 ) : (
                   <>
-                    <Button onClick={() => navigate('/insight/statistics/datasets')}>취소</Button>
-                    <Button type="primary" onClick={handleSave} loading={isPending}>
-                      저장
-                    </Button>
+                    <Col>
+                      <Button variant="solid" onClick={() => navigate('/insight/statistics/datasets')}>
+                        취소
+                      </Button>
+                    </Col>
+                    <Col>
+                      <Button variant="solid" color="primary" onClick={handleSave} loading={isPending}>
+                        저장
+                      </Button>
+                    </Col>
                   </>
                 )}
-              </div>
+              </Row>
             </div>
           )}
         </div>

@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import type { EffectiveFormat } from '../features/panel/api/panelApi';
 import type { ColumnFormat } from '../features/report/types';
 
 /**
@@ -43,6 +44,92 @@ export function formatColumnValue(value: unknown, format: ColumnFormat | undefin
     default:
       return num.toLocaleString('ko-KR');
   }
+}
+
+/** Java 날짜 패턴(yyyy-MM-dd HH:mm:ss) → dayjs 토큰. 대소문자 다른 y/d 만 치환. */
+function javaPatternToDayjs(pattern: string): string {
+  return pattern.replace(/y+/g, (m) => m.toUpperCase()).replace(/d+/g, (m) => m.toUpperCase());
+}
+
+/**
+ * BE 산출 최종 서식(EffectiveFormat)으로 원시값을 표시 문자열로 변환한다.
+ * 전역 포맷 정책(소수자릿수·천단위·로케일)이 BE 에서 이미 병합되어 내려오므로 그대로 적용한다.
+ *
+ * - 천단위/소수자릿수/로케일: Intl(NumberFormat) 로 type 무관 공통 적용
+ * - PERCENT: 원시값은 이미 백분율 수치(AS-IS 동일, ×100 안 함). percentScale 은 메타로만 보유
+ * - CURRENCY: symbol 우선, 없으면 'value code'
+ * - DURATION: 초 → hh:mm:ss
+ * - DATETIME: pattern 있으면 그대로, 없으면 yyyy-MM-dd[ HH:mm:ss]
+ * - MASK: maskStart~maskEnd 구간을 maskChar 로 치환
+ * - NONE: 원시값 그대로
+ */
+export function formatByEffectiveFormat(value: unknown, fmt: EffectiveFormat): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const locale = fmt.locale || 'ko-KR';
+
+  if (fmt.type === 'NONE') return String(value);
+
+  if (fmt.type === 'DATETIME') {
+    const d = dayjs(value as string);
+    if (!d.isValid()) return String(value);
+    if (fmt.pattern) return d.format(javaPatternToDayjs(fmt.pattern));
+    return d.hour() || d.minute() || d.second() ? d.format('YYYY-MM-DD HH:mm:ss') : d.format('YYYY-MM-DD');
+  }
+
+  if (fmt.type === 'MASK') {
+    const str = String(value);
+    const ch = fmt.maskChar || '*';
+    const start = Math.max(0, fmt.maskStart ?? 0);
+    const end = Math.min(str.length - 1, fmt.maskEnd ?? str.length - 1);
+    if (end < start) return str;
+    return str.slice(0, start) + ch.repeat(end - start + 1) + str.slice(end + 1);
+  }
+
+  const num = Number(value);
+  if (isNaN(num)) return String(value);
+
+  const decimals = Math.max(0, fmt.decimals ?? 0);
+  const nf = num.toLocaleString(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: fmt.thousandsSep,
+  });
+
+  switch (fmt.type) {
+    case 'PERCENT':
+      return `${nf}%`;
+    case 'CURRENCY':
+      return fmt.symbol ? `${fmt.symbol}${nf}` : fmt.currencyCode ? `${nf} ${fmt.currencyCode}` : nf;
+    case 'DURATION': {
+      const total = Math.floor(num);
+      const h = Math.floor(total / 3600)
+        .toString()
+        .padStart(2, '0');
+      const m = Math.floor((total % 3600) / 60)
+        .toString()
+        .padStart(2, '0');
+      const s = Math.floor(total % 60)
+        .toString()
+        .padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+    case 'NUMBER':
+    case 'DECIMAL':
+    default:
+      return nf;
+  }
+}
+
+/**
+ * 통합 셀 서식 — BE 서식 메타(EffectiveFormat)에 실제 타입이 있으면 우선,
+ * 없거나 NONE(미지정)이면 패널 columnFormat 으로 폴백.
+ * 그리드·차트·KPI 가 동일 규칙으로 표시하도록 단일 진입점으로 둔다.
+ *
+ * NONE 폴백 이유: 계산필드 등 BE formatterType 미지정 컬럼은 NONE 으로 내려오는데,
+ * 이때 원본(미반올림) 노출 대신 보고서 작성자가 패널에 지정한 columnFormat(Rate/Decimal 등)을 적용한다.
+ */
+export function formatCell(value: unknown, meta: EffectiveFormat | undefined, fallback: ColumnFormat | undefined): string {
+  return meta && meta.type !== 'NONE' ? formatByEffectiveFormat(value, meta) : formatColumnValue(value, fallback);
 }
 
 const FORMATTER_TO_COLUMN: Record<string, ColumnFormat> = {

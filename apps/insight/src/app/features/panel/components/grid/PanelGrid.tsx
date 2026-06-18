@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type {
   ColDef,
   ColGroupDef,
@@ -14,12 +14,13 @@ import type {
   ValueFormatterParams,
 } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { formatColumnValue as formatValue } from '../../../../utils/columnFormat';
+import { formatCell } from '../../../../utils/columnFormat';
 import { evaluateRowExpression, extractFieldRefs } from '../../../../utils/rowExpression';
 import { formatTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { PanelDetail } from '../../../report/types';
+import type { EffectiveFormat } from '../../api/panelApi';
 import { usePanelData } from '../../hooks/usePanelQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -75,6 +76,11 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
+  // 컬럼 최종 서식 메타(BE EffectiveFormat) — 행 도착 시 갱신. ref 로 보관해
+  // columnDefs 재생성(=컬럼 상태 리셋) 없이 valueFormatter 가 최신 서식을 읽게 한다.
+  const formatMetaRef = useRef<Map<string, EffectiveFormat>>(new Map());
+  formatMetaRef.current = useMemo(() => new Map((queryResult?.columns ?? []).map((c) => [c.name, c.format])), [queryResult]);
+
   const columnDefs: (ColDef | ColGroupDef)[] = useMemo(() => {
     const dimCols: ColDef[] = rowFields.map((f) => {
       const isTimeKey = f.fieldName === 'PSR_TIME_KEY';
@@ -104,8 +110,10 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
         type: 'numericColumn',
         minWidth: 100,
         maxWidth: AUTO_SIZE_MAX_WIDTH,
-        valueFormatter: (params: ValueFormatterParams) => formatValue(params.value, f.columnFormat),
-        tooltipValueGetter: (params) => formatValue(params.value, f.columnFormat),
+        // BE 서식 메타에 실제 타입이 있으면 전역정책(소수자릿수·천단위·로케일) 반영,
+        // 없거나 NONE(구버전 응답·draft·계산필드 미지정)이면 패널 columnFormat 폴백.
+        valueFormatter: (params: ValueFormatterParams) => formatCell(params.value, formatMetaRef.current.get(f.fieldName), f.columnFormat),
+        tooltipValueGetter: (params) => formatCell(params.value, formatMetaRef.current.get(f.fieldName), f.columnFormat),
       };
       const group = f.headerGroup?.trim();
       if (!group) {

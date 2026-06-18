@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import PanelEChart from './PanelEChart';
 import { PANEL_PALETTE, areaGradient, axisLabelStyle, baseGrid, baseLegend, baseTooltip, goalMarkLine, paletteAt, splitLineStyle } from './echartsPanelTheme';
-import { formatColumnValue } from '../../../../utils/columnFormat';
+import { formatCell } from '../../../../utils/columnFormat';
 import { enumerateTimeKeys, formatTimeKey, isTimeKey } from '../../../../utils/timeKeyFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { ColumnFormat, LineChartOptions, PanelDetail } from '../../../report/types';
+import type { EffectiveFormat } from '../../api/panelApi';
 import { usePanelData } from '../../hooks/usePanelQueries';
 
 interface PanelLineChartProps {
@@ -54,6 +55,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     if (!xField) return {};
     const dn = (name: string) => displayNameMap.get(name) ?? name;
     const data = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
+    const fmtMap = new Map((queryResult?.columns ?? []).map((c) => [c.name, c.format]));
     const xName = xField.fieldName;
     const rawOf = (row: Record<string, unknown>) => String(row[xName] ?? '');
 
@@ -78,7 +80,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     const categories = catKeys.map((k) => formatTimeKey(k));
 
     // 공통 라인 시리즈 스타일 빌더
-    const makeLine = (name: string, i: number, values: number[], single: boolean, format: ColumnFormat | undefined) => {
+    const makeLine = (name: string, i: number, values: number[], single: boolean, format: ColumnFormat | undefined, eff: EffectiveFormat | undefined) => {
       const color = paletteAt(i);
       return {
         type: 'line',
@@ -92,10 +94,10 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
         areaStyle: single ? { color: areaGradient(color) } : undefined,
         emphasis: { focus: 'series' as const },
         label: showDataLabel
-          ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), format) }
+          ? { show: true, position: 'top', fontSize: 10, color: '#475467', formatter: (p: { value: number }) => formatCell(Number(p.value ?? 0), eff, format) }
           : { show: false },
         // 툴팁 값도 컬럼 서식 적용
-        tooltip: { valueFormatter: (v: unknown) => formatColumnValue(v, format) },
+        tooltip: { valueFormatter: (v: unknown) => formatCell(v, eff, format) },
         markLine: goalLine?.enabled && goalLine.value != null ? goalMarkLine(goalLine.value) : undefined,
         data: values,
       };
@@ -137,6 +139,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
           catKeys.map((k) => m.get(k) ?? 0),
           lineCount === 1,
           measure?.columnFormat,
+          measure ? fmtMap.get(measure.fieldName) : undefined,
         );
       });
     } else {
@@ -156,6 +159,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
           catKeys.map((k) => byKey.get(k)?.[f.fieldName] ?? 0),
           lineCount === 1,
           f.columnFormat,
+          fmtMap.get(f.fieldName),
         ),
       );
     }
