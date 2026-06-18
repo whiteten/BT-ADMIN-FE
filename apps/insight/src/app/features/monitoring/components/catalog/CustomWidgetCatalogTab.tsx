@@ -114,7 +114,7 @@ export default function CustomWidgetCatalogTab() {
   };
 
   return (
-    <div className="flex flex-col gap-5 w-full h-full">
+    <div className="flex flex-col gap-5 w-full flex-1 min-h-0">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
         <div className="flex items-center w-full gap-3">
           <Select
@@ -131,7 +131,7 @@ export default function CustomWidgetCatalogTab() {
           <Select value={domainFilter} onChange={setDomainFilter} options={DOMAIN_FILTER_OPTIONS} className="!max-w-[180px] !min-w-[160px]" popupMatchSelectWidth={false} />
         </div>
       </header>
-      <div className="w-full h-full">
+      <div className="w-full flex-1 min-h-0">
         <AgGridReact<CustomWidgetCatalogItem>
           rowData={filteredList}
           columnDefs={columnDefs}

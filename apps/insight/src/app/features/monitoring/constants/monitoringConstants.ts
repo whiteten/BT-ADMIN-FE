@@ -12,6 +12,12 @@ export const DOMAIN_LABELS: Record<DomainCode, string> = {
   IR: 'IVR',
 };
 
+export const DOMAIN_TAG_COLOR: Record<DomainCode, string> = {
+  IE: 'blue',
+  IC: 'green',
+  IR: 'orange',
+};
+
 export const DOMAIN_COLOR_CLASS: Record<DomainCode, string> = {
   IE: 'bg-[var(--color-bt-primary)] text-white',
   IC: 'bg-[var(--color-bt-success)] text-white',
