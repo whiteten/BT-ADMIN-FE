@@ -112,6 +112,8 @@ export interface BarChartOptions {
 export interface LineChartOptions {
   dataLabel?: boolean;
   goalLine?: { enabled: boolean; value?: number };
+  /** 시리즈별 평균값 수평선(자동) 표시 */
+  avgLine?: boolean;
   legend?: boolean;
 }
 
