@@ -64,7 +64,8 @@ function ReportViewBody({ reportId }: { reportId: number }) {
     if (reportFull) {
       setBreadcrumb(
         [
-          { title: '보고서', path: '/insight/statistics/reports' },
+          { title: '통계', path: '/insight/statistics' },
+          { title: '보고서 관리', path: '/insight/statistics/reports' },
           { title: ':reportTitle', path: `/insight/statistics/reports/view?reportId=${reportId}` },
         ],
         {

@@ -59,6 +59,16 @@ export const useDeleteDnProfile = ({ mutationOptions }: MutationHookOptions = {}
   });
 };
 
+/**
+ * 프로파일 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteDnProfileBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => dnProfileApi.deleteBatch(ids),
+    ...mutationOptions,
+  });
+};
+
 // ─── Node / Tenant / Options ───────────────────────────────────────────────
 
 export const useGetDnProfileNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {

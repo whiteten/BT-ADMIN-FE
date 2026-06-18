@@ -1,15 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { Modal } from 'antd';
-import { Activity, BarChart2, Hexagon, LayoutGrid, LineChart, type LucideIcon, PieChart, X } from 'lucide-react';
+import { BarChart2, Hexagon, LayoutGrid, LineChart, type LucideIcon, PieChart, X } from 'lucide-react';
 import type { PanelType } from '../../report/types';
 
+// KPI 는 패널 타입이 아니라 패널 편집의 KPI 슬롯으로 설정 → 보고서 상단 요약 카드로 표시 (타입 목록에서 제외)
 export const PANEL_TYPE_OPTIONS: { type: PanelType; label: string; Icon: LucideIcon; description: string }[] = [
   { type: 'GRID', label: '그리드', Icon: LayoutGrid, description: '행/열 테이블' },
   { type: 'BAR', label: 'BAR', Icon: BarChart2, description: '막대 차트' },
   { type: 'LINE', label: 'LINE', Icon: LineChart, description: '추세선 차트' },
   { type: 'PIE', label: 'PIE', Icon: PieChart, description: '파이/도넛' },
   { type: 'RADAR', label: 'RADAR', Icon: Hexagon, description: '레이더 차트' },
-  { type: 'KPI', label: 'KPI', Icon: Activity, description: 'KPI 카드' },
 ];
 
 interface PanelTypePickerModalProps {

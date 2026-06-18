@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 
-const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard'];
+const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard', 'vel'];
 
 /**
  * LAN IPv4 주소를 자동 감지합니다.
@@ -44,11 +44,19 @@ function showMenu() {
 }
 
 function parseSelection(input) {
+  // 구분자는 콤마·공백 모두 허용. PowerShell→pnpm 경로에서 `3,4,8`이 단일 인자
+  // `"3 4 8"`(공백 구분)로 전달되는 케이스까지 흡수한다.
   const selections = input
     .trim()
-    .split(',')
-    .map((s) => parseInt(s.trim()));
+    .split(/[\s,]+/)
+    .filter(Boolean)
+    .map((s) => parseInt(s, 10));
   const selected = [];
+
+  // 1(모든 Remote)·2(Host만)는 단독 선택 전용. 다른 번호와 함께 입력하면 의미가 모순됨.
+  if ((selections.includes(1) || selections.includes(2)) && selections.length > 1) {
+    throw new Error('❌ 1(모든 Remote) 또는 2(Host만)는 다른 번호와 함께 선택할 수 없습니다. 단독으로 입력해주세요.');
+  }
 
   for (const num of selections) {
     if (isNaN(num) || num < 1 || num > REMOTE_APPS.length + 2) throw new Error(`❌ 잘못된 번호입니다: ${num} (1~${REMOTE_APPS.length + 2} 사이의 숫자를 입력해주세요)`);
@@ -160,7 +168,9 @@ function serveHost() {
   const applied = applyLocalConfigEnv();
   if (applied.length > 0) console.log(`📄 serve-host.local.json 적용: ${applied.join(', ')}`);
 
-  const cliArg = process.argv[2];
+  // PowerShell은 `pnpm serve 3,4,8`의 `3,4,8`을 배열 연산자로 해석해 인자 3개로
+  // 쪼갠다. slice(2).join(',')으로 흩어진 인자를 다시 합쳐 따옴표 유무와 무관하게 처리.
+  const cliArg = process.argv.slice(2).join(',');
 
   if (cliArg) {
     console.log(`\n📥 인자로 전달된 선택: ${cliArg}`);

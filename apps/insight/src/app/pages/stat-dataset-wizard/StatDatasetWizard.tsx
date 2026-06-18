@@ -21,6 +21,7 @@ export default function StatDatasetWizard() {
   const [showErrors, setShowErrors] = useState(false);
 
   const [datasetName, setDatasetName] = useState('');
+  const [datasetDescription, setDatasetDescription] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<DomainCode | null>(null);
   const [selectedPrefix, setSelectedPrefix] = useState('');
 
@@ -33,6 +34,7 @@ export default function StatDatasetWizard() {
 
   useEffect(() => {
     setBreadcrumb([
+      { title: '통계', path: '/insight/statistics' },
       { title: '데이터셋', path: '/insight/statistics/datasets' },
       { title: '새 데이터셋 생성', path: '/insight/statistics/datasets/new' },
     ]);
@@ -92,6 +94,7 @@ export default function StatDatasetWizard() {
     try {
       await createDataset({
         datasourceName: datasetName.trim(),
+        description: datasetDescription.trim() || undefined,
         productCode: selectedDomain ?? undefined,
         dbViewPrefix: selectedPrefix,
         fields: fieldDisplays.length > 0 ? buildFieldRequests(fieldDisplays, calcFields) : undefined,
@@ -145,6 +148,8 @@ export default function StatDatasetWizard() {
                 titleLabel="데이터셋 이름"
                 title={datasetName}
                 onTitleChange={setDatasetName}
+                description={datasetDescription}
+                onDescriptionChange={setDatasetDescription}
                 selectedDomain={selectedDomain}
                 onDomainChange={handleDomainChange}
                 selectedView={selectedPrefix}

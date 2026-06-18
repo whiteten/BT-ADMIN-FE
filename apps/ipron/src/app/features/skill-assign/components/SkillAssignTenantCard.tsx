@@ -1,10 +1,11 @@
 /**
- * 스킬 배정 테넌트 카드 (240×100) — AdnTenantCard 패턴.
+ * 스킬 배정 테넌트 카드 (240×116) — AdnTenantCard 패턴.
  *
  * 표시 정보:
  *  - 테넌트명 (또는 "전체")
  *  - 상담사/스킬셋 수
  *  - 매핑 수
+ *  - 스킬모음 수
  *  - 스킬 미보유 상담사 수 (경고)
  */
 import { Building2 } from 'lucide-react';
@@ -27,11 +28,11 @@ interface SkillAssignTenantCardProps {
 
 export default function SkillAssignTenantCard({ tenantId, tenantName, stats, selected, onClick }: SkillAssignTenantCardProps) {
   const isAll = tenantId === null;
-  const { agentCount, skillsetCount, mappingCount, unassignedAgentCnt } = stats;
+  const { agentCount, skillsetCount, mappingCount, skillGroupCount, unassignedAgentCnt } = stats;
 
   return (
     <div
-      className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[240px] h-[100px] flex-shrink-0 flex flex-col ${
+      className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[240px] h-[116px] flex-shrink-0 flex flex-col ${
         selected ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
       }`}
       onClick={onClick}
@@ -59,6 +60,10 @@ export default function SkillAssignTenantCard({ tenantId, tenantName, stats, sel
         <div className="flex items-center justify-between">
           <span className="text-gray-500">매핑 수</span>
           <span className="font-medium text-[#405189]">{mappingCount.toLocaleString()}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-500">스킬모음</span>
+          <span className="font-medium text-gray-800">{skillGroupCount.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-gray-500">스킬 미보유</span>

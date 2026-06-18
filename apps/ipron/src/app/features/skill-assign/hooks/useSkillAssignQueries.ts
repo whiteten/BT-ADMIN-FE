@@ -17,13 +17,17 @@ import type {
   BulkGrantResult,
   BulkRevokeRequest,
   BulkRevokeResult,
+  BulkUpdatePlRequest,
   SkillAgentBulkAssignRequest,
   SkillAgentBulkAssignResult,
   SkillAgentResponse,
   SkillAgentUpdateRequest,
   SkillAssignTenantStat,
+  SkillGroupApplyRequest,
+  SkillGroupApplyResult,
   SkillGroupCreateRequest,
   SkillGroupListParams,
+  SkillGroupMemberResponse,
   SkillGroupResponse,
   SkillGroupUpdateRequest,
   SkillsetCoverageItem,
@@ -35,6 +39,7 @@ export const skillAssignQueryKeys = createQueryKeys('skill-assign', {
   skillsetsByAgent: (agentId?: number) => [agentId],
   agentsBySkillset: (skillsetId?: number) => [skillsetId],
   skillGroups: (params?: Record<string, unknown>) => [params],
+  skillGroupMembers: (skillGroupId?: number) => [skillGroupId],
   coverage: (agentIds?: number[]) => [agentIds],
   agentCoverage: (skillsetIds?: number[]) => [skillsetIds],
 });
@@ -58,8 +63,13 @@ export const useGetAvailableSkillsets = ({ params, queryOptions }: QueryHookWith
 export const useGetSkillsetsByAgent = (agentId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillAgentResponse[]> = {}) =>
   useQuery({
     queryKey: skillAssignQueryKeys.skillsetsByAgent(agentId ?? undefined).queryKey,
-    queryFn: () => skillAssignApi.getSkillsetsByAgent(agentId as number),
+    // signal 전달 → react-query v5 자동취소(hover 폭주 시 직전 요청 abort)
+    queryFn: ({ signal }) => skillAssignApi.getSkillsetsByAgent(agentId as number, signal),
     enabled: !!agentId,
+    // hover 재진입 시 캐시 재사용 (SkillAssignStatusModal 과 동일)
+    staleTime: 30_000,
+    // observer 소멸 후에도 캐시 유지 → 재hover 시 staleTime 내 재요청 0
+    gcTime: 60_000,
     ...queryOptions,
   });
 
@@ -67,8 +77,13 @@ export const useGetSkillsetsByAgent = (agentId: number | null | undefined, { que
 export const useGetAgentsBySkillset = (skillsetId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillAgentResponse[]> = {}) =>
   useQuery({
     queryKey: skillAssignQueryKeys.agentsBySkillset(skillsetId ?? undefined).queryKey,
-    queryFn: () => skillAssignApi.getAgentsBySkillset(skillsetId as number),
+    // signal 전달 → react-query v5 자동취소
+    queryFn: ({ signal }) => skillAssignApi.getAgentsBySkillset(skillsetId as number, signal),
     enabled: !!skillsetId,
+    // hover 재진입 시 캐시 재사용 (SkillAssignStatusModal 과 동일)
+    staleTime: 30_000,
+    // observer 소멸 후에도 캐시 유지 → 재hover 시 staleTime 내 재요청 0
+    gcTime: 60_000,
     ...queryOptions,
   });
 
@@ -76,6 +91,15 @@ export const useGetSkillGroups = ({ params, queryOptions }: QueryHookWithParamsO
   useQuery({
     queryKey: skillAssignQueryKeys.skillGroups(params).queryKey,
     queryFn: () => skillAssignApi.getSkillGroups(params as SkillGroupListParams),
+    ...queryOptions,
+  });
+
+/** 모음 멤버 목록 (적용 드로어 P/L 미리보기 + 수정 드로어 prefill) */
+export const useGetSkillGroupMembers = (skillGroupId: number | null | undefined, { queryOptions }: QueryHookOptions<SkillGroupMemberResponse[]> = {}) =>
+  useQuery({
+    queryKey: skillAssignQueryKeys.skillGroupMembers(skillGroupId ?? undefined).queryKey,
+    queryFn: () => skillAssignApi.getSkillGroupMembers(skillGroupId as number),
+    enabled: skillGroupId != null,
     ...queryOptions,
   });
 
@@ -170,10 +194,24 @@ export const useBulkRevoke = ({ mutationOptions }: MutationHookOptions<BulkRevok
   });
 };
 
+/** N × M 배정행 우선순위·스킬레벨 일괄 수정 (모드 ① Bulk Bar — 미존재 조합은 skip, 반환=갱신 행 수) */
+export const useBulkUpdatePl = ({ mutationOptions }: MutationHookOptions<number, BulkUpdatePlRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => skillAssignApi.bulkUpdatePl(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentSkill(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
 // ─── Mutations — 스킬모음 ──────────────────────────────────────────────────
 
 const invalidateSkillGroups = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.skillGroups._def });
+  qc.invalidateQueries({ queryKey: skillAssignQueryKeys.skillGroupMembers._def });
   qc.invalidateQueries({ queryKey: skillAssignQueryKeys.tenantStats.queryKey });
 };
 
@@ -208,6 +246,22 @@ export const useDeleteSkillGroup = ({ mutationOptions }: MutationHookOptions<voi
     ...mutationOptions,
     onSuccess: (...args) => {
       invalidateSkillGroups(qc);
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 모음 → 상담사 일괄 적용 (병합/upsert).
+ * 적용 시 상담사 보유 스킬이 변하므로 agent↔skill 계열 캐시 전체 invalidate.
+ */
+export const useApplySkillGroup = ({ mutationOptions }: MutationHookOptions<SkillGroupApplyResult, { skillGroupId: number; body: SkillGroupApplyRequest }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ skillGroupId, body }) => skillAssignApi.applySkillGroup(skillGroupId, body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      invalidateAgentSkill(qc);
       mutationOptions?.onSuccess?.(...args);
     },
   });

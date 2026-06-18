@@ -10,6 +10,7 @@
  *  상담사↔스킬셋 (/api/ipron/skill-agents)
  *    ipron-skill-skillsets-by-agent      GET    한 상담사의 스킬셋 (path: agentId)
  *    ipron-skill-bulk-assign             POST   상담사에 스킬셋 일괄 배정 (path: agentId, body)
+ *    ipron-skill-bulk-update-pl          POST   N×M 배정행 우선순위·스킬레벨 일괄 수정 (body)
  *    ipron-skill-update                  PUT    P/L 수정 (path: agentId/skillsetId, body)
  *    ipron-skill-unassign                DELETE 단건 해제 (path: agentId/skillsetId)
  *
@@ -18,7 +19,8 @@
  *    ipron-skill-groups-create           POST   등록
  *    ipron-skill-groups-update           PUT    수정 (path: skillGroupId, body)
  *    ipron-skill-groups-delete           DELETE 삭제 (path: skillGroupId)
- *    (멤버 조회는 BE 가 직접 / Phase 1: 모음 detail 시 함께 조회)
+ *    ipron-skill-group-members           GET    멤버 목록 (path: skillGroupId) — 적용 드로어 미리보기
+ *    ipron-skill-groups-apply            POST   모음→상담사 일괄 적용 (path: skillGroupId, body agentIds[])
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
@@ -29,13 +31,17 @@ import type {
   BulkGrantResult,
   BulkRevokeRequest,
   BulkRevokeResult,
+  BulkUpdatePlRequest,
   SkillAgentBulkAssignRequest,
   SkillAgentBulkAssignResult,
   SkillAgentResponse,
   SkillAgentUpdateRequest,
   SkillAssignTenantStat,
+  SkillGroupApplyRequest,
+  SkillGroupApplyResult,
   SkillGroupCreateRequest,
   SkillGroupListParams,
+  SkillGroupMemberResponse,
   SkillGroupResponse,
   SkillGroupUpdateRequest,
   SkillsetCoverageItem,
@@ -76,14 +82,14 @@ export const skillAssignApi = {
 
   // ─── 상담사↔스킬셋 ────────────────────────────────────────────────────────
 
-  getSkillsetsByAgent: async (agentId: number): Promise<SkillAgentResponse[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-skillsets-by-agent', { params: { agentId } });
+  getSkillsetsByAgent: async (agentId: number, signal?: AbortSignal): Promise<SkillAgentResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-skillsets-by-agent', { params: { agentId }, signal });
     return res.data?.data?.value ?? [];
   },
 
   /** 한 스킬셋에 배정된 상담사 목록 (배정 현황 조회 탭 — 스킬셋 기준) */
-  getAgentsBySkillset: async (skillsetId: number): Promise<SkillAgentResponse[]> => {
-    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-agents-by-skillset', { params: { skillsetId } });
+  getAgentsBySkillset: async (skillsetId: number, signal?: AbortSignal): Promise<SkillAgentResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SkillAgentResponse[] }>>('/ipron-skill-agents-by-skillset', { params: { skillsetId }, signal });
     return res.data?.data?.value ?? [];
   },
 
@@ -113,6 +119,12 @@ export const skillAssignApi = {
     return res.data?.data;
   },
 
+  /** N × M 배정행 우선순위·스킬레벨 일괄 수정. 미존재 조합은 skip. 반환 = 갱신된 행 수. */
+  bulkUpdatePl: async (body: BulkUpdatePlRequest): Promise<number> => {
+    const res = await apiClient.post<ApiResponse<number>>('/ipron-skill-bulk-update-pl', body);
+    return res.data?.data ?? 0;
+  },
+
   // ─── 스킬모음 ──────────────────────────────────────────────────────────────
 
   getSkillGroups: async (params?: SkillGroupListParams): Promise<SkillGroupResponse[]> => {
@@ -134,7 +146,15 @@ export const skillAssignApi = {
     await apiClient.delete('/ipron-skill-groups-delete', { params: { skillGroupId } });
   },
 
-  // Phase 1: 모음 멤버 조회는 BFF flow 미등록 — 모음 detail 시 클라이언트가 BE 직접 호출하지 않음.
-  // 편집 드로어에서 멤버 수정 = 전체 교체 방식. 멤버 표시는 별도 화면 (모음 detail 페이지)에서 처리.
-  // 추후 BFF flow 추가 시 여기에 getSkillGroupMembers 추가.
+  /** 모음 멤버 목록 (적용 드로어 P/L 미리보기 + 수정 드로어 prefill) */
+  getSkillGroupMembers: async (skillGroupId: number): Promise<SkillGroupMemberResponse[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: SkillGroupMemberResponse[] }>>('/ipron-skill-group-members', { params: { skillGroupId } });
+    return res.data?.data?.value ?? [];
+  },
+
+  /** 모음 → 상담사 N명 일괄 적용 (병합/upsert — 기존 타 스킬 보존, 동일 스킬셋은 모음 P/L 갱신) */
+  applySkillGroup: async (skillGroupId: number, body: SkillGroupApplyRequest): Promise<SkillGroupApplyResult> => {
+    const res = await apiClient.post<ApiResponse<SkillGroupApplyResult>>('/ipron-skill-groups-apply', body, { params: { skillGroupId } });
+    return res.data?.data;
+  },
 };

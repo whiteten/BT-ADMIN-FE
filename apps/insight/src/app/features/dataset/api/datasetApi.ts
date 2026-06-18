@@ -63,6 +63,14 @@ export const datasetApi = {
     await apiClient.delete('/insight-statistics-datasource-delete', { params: { datasetId } });
   },
 
+  /** 시스템 데이터셋 승격/해제 — 시스템 관리자 전용. */
+  setDatasetSystemFlag: async (datasetId: number, toSystem: boolean): Promise<DatasetDetail> => {
+    const response = toSystem
+      ? await apiClient.post<ApiResponse<DatasetDetail>>('/insight-statistics-datasource-promote', {}, { params: { datasetId } })
+      : await apiClient.delete<ApiResponse<DatasetDetail>>('/insight-statistics-datasource-demote', { params: { datasetId } });
+    return response.data?.data;
+  },
+
   getSchemaPreview: async (dbViewPrefix: string): Promise<FieldMetaItem[]> => {
     const response = await apiClient.get<ApiResponse<{ value: FieldMetaItem[] }>>('/insight-statistics-datasource-schema-preview', {
       params: { dbViewPrefix },

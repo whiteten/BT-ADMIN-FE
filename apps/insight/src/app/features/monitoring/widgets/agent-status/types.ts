@@ -149,10 +149,10 @@ export type GroupBy = 'queue' | 'state' | 'category' | 'none';
 /** 정렬 기준. */
 export type SortBy = 'duration' | 'name' | 'state' | 'answered' | 'rate';
 
-/** 상태별 임계값 (분). statusMap.DEFAULT_THRESHOLDS 와 호환. */
+/** 상태별 임계값 (초). statusMap.DEFAULT_THRESHOLDS 와 호환. warn=주의 경계, danger=위험 경계. */
 export interface Threshold {
-  /** 주의 (노란 강조) 임계 — 분 단위 */
-  notice: number;
-  /** 임계 초과 (빨간 강조) — 분 단위 */
-  alarm: number;
+  /** 주의 (노란 강조) 경계 — 초 단위 */
+  warn: number;
+  /** 위험 (빨간 강조) 경계 — 초 단위 */
+  danger: number;
 }

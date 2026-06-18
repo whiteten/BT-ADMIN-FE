@@ -88,32 +88,16 @@ export default function ScenarioVersionGrid({ serviceId, serviceName, onSelectio
     },
   });
 
+  // 다운로드 처리(Blob 추출 + Content-Disposition 파싱 + download trigger)는 hook 의 mutationFn 내부에서 일괄 처리.
+  // 이 컴포넌트는 에러 토스트만 담당. (FCA useDownloadScenario 패턴과 동일)
   const { mutate: downloadMutate } = useDownloadScenario({
     mutationOptions: {
-      onSuccess: (blob, variables) => {
-        const fileName = `scenario_v${(variables as Record<string, unknown>).serviceVer}.sxml`;
-        const url = window.URL.createObjectURL(blob as Blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        window.URL.revokeObjectURL(url);
-      },
       onError: () => toast.error('시나리오 파일 다운로드에 실패했습니다.'),
     },
   });
 
   const { mutate: downloadDocMutate } = useDownloadScenarioDocument({
     mutationOptions: {
-      onSuccess: (blob, variables) => {
-        const fileName = `scenario_doc_v${(variables as Record<string, unknown>).serviceVer}`;
-        const url = window.URL.createObjectURL(blob as Blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        window.URL.revokeObjectURL(url);
-      },
       onError: () => toast.error('시나리오 문서 다운로드에 실패했습니다.'),
     },
   });

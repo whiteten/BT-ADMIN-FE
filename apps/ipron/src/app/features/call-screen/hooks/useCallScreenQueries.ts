@@ -67,3 +67,13 @@ export const useDeleteCallScreen = ({ mutationOptions }: MutationHookOptions = {
     ...mutationOptions,
   });
 };
+
+/**
+ * 수신번호 차단 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteCallScreenBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => callScreenApi.deleteBatch(ids),
+    ...mutationOptions,
+  });
+};

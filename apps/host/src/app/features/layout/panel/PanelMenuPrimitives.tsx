@@ -1,8 +1,10 @@
 import { useLocation } from 'react-router-dom';
 import { SquareDashed } from 'lucide-react';
+import { fuzzyScore } from '@/shared-util';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { MenuActionButtons } from '../components/MenuActionButtons';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { Highlight } from '@/components/custom/Highlight';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -38,12 +40,15 @@ export const hasActiveDescendant = (item: MenuItem, location: LocationLike, appI
   return item.children?.some((child) => hasActiveDescendant(child, location, appId)) ?? false;
 };
 
-/** 재귀적으로 검색어 매칭 여부 */
+/**
+ * 재귀적으로 검색어 매칭 여부.
+ * 퍼지 매칭(서브시퀀스 + 한글 초성·자모) — 예: "ㄷㅅㅂㄷ"→대시보드, "대보드"→대시보드.
+ * 자식 중 하나라도 매치되면 부모도 노출.
+ */
 export const hasMatch = (menu: MenuItem, q: string): boolean => {
   if (menu.hide) return false;
-  const lower = q.toLowerCase();
-  if (menu.label.toLowerCase().includes(lower)) return true;
-  return menu.children?.some((c) => hasMatch(c, lower)) ?? false;
+  if (fuzzyScore(q, menu.label) >= 0) return true;
+  return menu.children?.some((c) => hasMatch(c, q)) ?? false;
 };
 
 /** 메뉴의 서브그룹(children이 있는 직계 자식) 수 — 카드 col-span 계산용 */
@@ -53,19 +58,8 @@ export const countSubgroups = (menu: MenuItem): number => {
   return subs.length > 1 ? subs.length : 1;
 };
 
-/** 검색 매칭 부분 하이라이트 */
-export function Highlight({ text, query }: { text: string; query: string }) {
-  if (!query) return text;
-  const i = text.toLowerCase().indexOf(query.toLowerCase());
-  if (i === -1) return text;
-  return (
-    <>
-      {text.slice(0, i)}
-      <mark className="bg-amber-200/70 text-inherit rounded-sm px-px">{text.slice(i, i + query.length)}</mark>
-      {text.slice(i + query.length)}
-    </>
-  );
-}
+// Highlight 는 공통 컴포넌트(libs/shared-ui)로 이관 — 기존 import 경로 호환을 위해 재노출.
+export { Highlight };
 
 interface MenuLinkProps {
   item: MenuItem;

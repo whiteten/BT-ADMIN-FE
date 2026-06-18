@@ -140,7 +140,7 @@ export default function RouteForm() {
   const { mutate: createRoute, isPending: isCreating } = useCreateRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('라우트가 등록되었습니다.');
+        toast.success('라우트가 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: routeQueryKeys.getRoutes().queryKey });
         navigate('/ipron/line/route');
       },
@@ -150,7 +150,7 @@ export default function RouteForm() {
   const { mutate: updateRoute, isPending: isUpdating } = useUpdateRoute({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('라우트가 수정되었습니다.');
+        toast.success('라우트가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: routeQueryKeys.getRoutes().queryKey });
         navigate('/ipron/line/route');
       },
@@ -225,7 +225,8 @@ export default function RouteForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: '발신라우트', path: '/ipron/line/route' },
       {
         title: isEditMode ? '수정' : '등록',
@@ -275,8 +276,8 @@ export default function RouteForm() {
           <SummaryRow label="링백톤사용" value={displayValue(values.ringbacktoneYn === 1 ? '설정' : '해제')} />
           <SummaryRow label="블록사용" value={displayValue(values.routeBlockYn === 1 ? '설정' : '해제')} />
           <SummaryRow label="Busy 우회 라우트" value={displayValue(nodeRoutes.find((r) => r.routeId === values.busyRouteId)?.routeName ?? values.busyRouteId)} />
-          <SummaryRow label="블럭시 우회 라우트" value={displayValue(nodeRoutes.find((r) => r.routeId === values.blockRouteId)?.routeName ?? values.blockRouteId)} />
-          <SummaryRow label="편집 Digit수" value={displayValue(values.delCount)} />
+          <SummaryRow label="블록 시 우회 라우트" value={displayValue(nodeRoutes.find((r) => r.routeId === values.blockRouteId)?.routeName ?? values.blockRouteId)} />
+          <SummaryRow label="편집 Digit 수" value={displayValue(values.delCount)} />
           <SummaryRow label="편집 Digit" value={displayValue(values.addDigit)} />
           <SummaryRow label="편집 옵션" value={displayValue(EDIT_OPT_LABELS[values.editOpt as string] ?? values.editOpt)} />
           <SummaryRow label="업무시간 외 제어" value={displayValue(WORKTIME_OPT_LABELS[values.worktimeOpt as string] ?? values.worktimeOpt)} />
@@ -537,7 +538,7 @@ export default function RouteForm() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item name="blockRouteId" label="블럭시 우회 라우트">
+                        <Form.Item name="blockRouteId" label="블록 시 우회 라우트">
                           <Select options={[{ label: '없음', value: 0 }, ...routeSelectOptions]} allowClear placeholder="선택" />
                         </Form.Item>
                       </Col>
@@ -548,10 +549,10 @@ export default function RouteForm() {
                       <Col span={6}>
                         <Form.Item
                           name="delCount"
-                          label="편집 Digit수"
+                          label="편집 Digit 수"
                           required
                           rules={[
-                            { required: true, message: '편집 Digit수는 필수입니다' },
+                            { required: true, message: '편집 Digit 수는 필수입니다' },
                             { type: 'number', min: -1, message: '-1 이상' },
                           ]}
                         >

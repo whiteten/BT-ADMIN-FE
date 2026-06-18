@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
-import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip, koNum, paletteAt } from './echartsPanelTheme';
+import PanelEChart from './PanelEChart';
+import { FONT_FAMILY, PANEL_PALETTE, baseLegend, baseTooltip, paletteAt } from './echartsPanelTheme';
+import { formatColumnValue } from '../../../../utils/columnFormat';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { PanelDetail, RadarChartOptions } from '../../../report/types';
@@ -53,11 +54,15 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
       return { name: String(row[axisField.fieldName] ?? ''), max: Math.ceil(max * 1.15) };
     });
 
+    // 레이더 라벨/툴팁 서식 — 값 필드가 동질 단위라는 전제로 첫 필드 서식 사용
+    const valueFormat = valueFields[0]?.columnFormat;
     const series = {
       type: 'radar',
       symbolSize: 4,
       emphasis: { focus: 'series', lineStyle: { width: 3 } },
-      label: showDataLabel ? { show: true, fontSize: 9, color: '#475467', formatter: (p: { value: number }) => koNum(Number(p.value ?? 0)) } : { show: false },
+      label: showDataLabel
+        ? { show: true, fontSize: 9, color: '#475467', formatter: (p: { value: number }) => formatColumnValue(Number(p.value ?? 0), valueFormat) }
+        : { show: false },
       data: valueFields.map((f, i) => {
         const color = paletteAt(i);
         return {
@@ -106,5 +111,5 @@ export default function PanelRadarChart({ panel, reportId }: PanelRadarChartProp
     );
   }
 
-  return <ReactECharts option={option} style={{ height: '100%', width: '100%', minHeight: 160 }} notMerge lazyUpdate />;
+  return <PanelEChart option={option} panelId={panel.panelId} />;
 }

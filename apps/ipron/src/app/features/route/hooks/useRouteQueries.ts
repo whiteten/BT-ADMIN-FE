@@ -107,6 +107,16 @@ export const useDeleteRoutePoint = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
+/**
+ * 라우트 국선 일괄 배정 해제 (벌크 1콜)
+ */
+export const useDeleteRoutePointsBatch = ({ mutationOptions }: MutationHookOptions<void, { routeId: number; endptIds: number[] }> = {}) => {
+  return useMutation({
+    mutationFn: routeApi.deleteRoutePointsBatch,
+    ...mutationOptions,
+  });
+};
+
 // ─── Node Query ────────────────────────────────────────────────────────────
 
 interface NodeSimpleResponse {

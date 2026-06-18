@@ -4,9 +4,10 @@ import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Pause, Play, Trash2 } from 'lucide-react';
+import { Download, Pause, Play, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { fileUploadApi } from '../../features/stt-config/api/fileUploadApi';
 import FileUploadDrawer, { type FileUploadDrawerRef } from '../../features/stt-config/components/FileUploadDrawer';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../../features/stt-config/components/SttSearchDetailDrawer';
 import { fileUploadQueryKeys, useDeleteFileUpload, useGetFileUploadList } from '../../features/stt-config/hooks/useFileUploadQueries';
@@ -63,6 +64,7 @@ export default function FileUploadList() {
   const drawerRef = useRef<FileUploadDrawerRef>(null);
   const detailDrawerRef = useRef<SttSearchDetailDrawerRef>(null);
 
+  const [isExporting, setIsExporting] = useState(false);
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -106,6 +108,27 @@ export default function FileUploadList() {
 
   const handleDelete = (data: FileUploadItem) => {
     modal.confirm.delete({ onOk: () => deleteFile(data.ucidGkey) });
+  };
+
+  const handleExcelDownload = async () => {
+    const ucidGkeys: string[] = [];
+    gridRef.current?.api.forEachNodeAfterFilter((node) => {
+      if (node.data?.ucidGkey) ucidGkeys.push(node.data.ucidGkey);
+    });
+    if (!ucidGkeys.length) {
+      toast.warning('다운로드할 데이터가 없습니다.');
+      return;
+    }
+    setIsExporting(true);
+    try {
+      const response = await fileUploadApi.exportFileUploadExcel({ ucidGkeys });
+      const fileName = extractFileName(response.headers['content-disposition'], `STT_FILE_UPLOAD_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    } catch {
+      toast.error('엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const columnDefs: ColDef<FileUploadItem>[] = [
@@ -177,7 +200,17 @@ export default function FileUploadList() {
                 {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
               </button>
             </Tooltip>
-            <Button color="cyan" variant="solid" onClick={() => drawerRef.current?.open()}>
+            <Button
+              color="cyan"
+              variant="solid"
+              loading={isExporting}
+              icon={<Download className="size-4" />}
+              className="flex items-center gap-1 shrink-0"
+              onClick={handleExcelDownload}
+            >
+              Export
+            </Button>
+            <Button type="primary" onClick={() => drawerRef.current?.open()}>
               파일업로드
             </Button>
           </div>

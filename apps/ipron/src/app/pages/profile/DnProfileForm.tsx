@@ -213,7 +213,7 @@ export default function DnProfileForm() {
   const { mutate: createDnProfile, isPending: isCreating } = useCreateDnProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('내선 프로파일이 등록되었습니다.');
+        toast.success('내선 프로파일이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: dnProfileQueryKeys.getList().queryKey });
         navigate('/ipron/profile/dn-profile');
       },
@@ -223,7 +223,7 @@ export default function DnProfileForm() {
   const { mutate: updateDnProfile, isPending: isUpdating } = useUpdateDnProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('내선 프로파일이 수정되었습니다.');
+        toast.success('내선 프로파일이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: dnProfileQueryKeys.getList().queryKey });
         navigate('/ipron/profile/dn-profile');
       },
@@ -233,7 +233,7 @@ export default function DnProfileForm() {
   const { mutate: deleteDnProfile } = useDeleteDnProfile({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('내선 프로파일이 삭제되었습니다.');
+        toast.success('내선 프로파일이 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: dnProfileQueryKeys.getList().queryKey });
         navigate('/ipron/profile/dn-profile');
       },
@@ -319,7 +319,8 @@ export default function DnProfileForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '프로파일 관리', path: '/ipron/profile' },
+      { title: '번호자원관리' },
+      { title: '프로파일', path: '/ipron/profile' },
       { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
       {
         title: isEditMode ? '수정' : '등록',

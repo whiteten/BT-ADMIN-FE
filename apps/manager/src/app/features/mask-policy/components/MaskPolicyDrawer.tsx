@@ -134,6 +134,7 @@ const MaskPolicyDrawer = forwardRef<MaskPolicyDrawerRef, Props>(({ category, onS
   return (
     <Drawer
       title={isEditMode ? '패턴 정책 수정' : '패턴 정책 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => {
         setVisible(false);

@@ -93,6 +93,8 @@ function findRepoRoot() {
  * apps/ 디렉토리를 스캔해 remote 목록을 동적 발견한다.
  * 규칙: `apps/<app>/src/app/routes.tsx` 가 존재하는 디렉토리 = remote.
  *   - host 는 routes.tsx 가 없어 자동 제외된다.
+ *   - custom 은 현장 커스텀 오버라이드 운반체(일반 업무 remote 아님)라 명시 제외한다.
+ *     routes.tsx 는 단독 serve용 스캐폴드일 뿐 사용자 화면이 없다.
  *   - 신규 remote 가 추가돼도 코드 수정 없이 자동 포함된다(확장성).
  * 정렬: serve 포트 오름차순(포트는 apps/<app>/project.json 의 targets.serve.options.port).
  *       포트를 못 읽은 앱은 뒤에 알파벳순으로 둔다.
@@ -115,6 +117,7 @@ function discoverApps(repoRoot) {
       .readdirSync(appsDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name)
+      .filter((name) => name !== 'custom') // 현장 커스텀 운반체 — 업무 remote 아님
       .filter((name) => fs.existsSync(path.join(appsDir, name, 'src', 'app', 'routes.tsx')));
   } catch {
     return [];

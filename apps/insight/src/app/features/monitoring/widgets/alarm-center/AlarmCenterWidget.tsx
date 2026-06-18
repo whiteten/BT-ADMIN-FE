@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, Search } from 'lucide-react';
+import { Activity, AlertCircle, AlertOctagon, AlertTriangle, CheckCircle2, History, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { DEMO_ALARMS, isAlarmDemoMode } from './demoData';
 import {
@@ -146,8 +146,10 @@ export default function AlarmCenterWidget({ data }: AlarmCenterWidgetProps) {
           label="전체 장애"
           period="최근 7일"
           value={counts.total}
+          sub="건"
           hex="#1F79D4"
           blackValue
+          icon={<History className="h-3.5 w-3.5" />}
           right={
             <div className="flex flex-col gap-0.5 text-[11px] leading-tight text-bt-fg-muted">
               <LevelMini label="위험" value={counts.totalCritical} hex={levelMeta(3).hex} />
@@ -156,11 +158,11 @@ export default function AlarmCenterWidget({ data }: AlarmCenterWidgetProps) {
             </div>
           }
         />
-        <StatTile label="미복구" value={counts.unresolved} sev="danger" pulse={counts.unresolved > 0} />
-        <StatTile label="위험" sub="발생 중" value={counts.critical} hex={levelMeta(3).hex} pulse={counts.critical > 0} />
-        <StatTile label="경고" sub="발생 중" value={counts.major} hex={levelMeta(2).hex} />
-        <StatTile label="주의" sub="발생 중" value={counts.minor} hex={levelMeta(1).hex} />
-        <StatTile label="복구완료" period="최근 7일" value={counts.resolved} sev="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
+        <StatTile label="미복구" value={counts.unresolved} sub="건" sev="danger" pulse={counts.unresolved > 0} icon={<Activity className="h-3.5 w-3.5" />} />
+        <StatTile label="위험" sub="발생 중" value={counts.critical} hex={levelMeta(3).hex} pulse={counts.critical > 0} icon={<AlertOctagon className="h-3.5 w-3.5" />} />
+        <StatTile label="경고" sub="발생 중" value={counts.major} hex={levelMeta(2).hex} icon={<AlertTriangle className="h-3.5 w-3.5" />} />
+        <StatTile label="주의" sub="발생 중" value={counts.minor} hex={levelMeta(1).hex} icon={<AlertCircle className="h-3.5 w-3.5" />} />
+        <StatTile label="복구완료" period="최근 7일" value={counts.resolved} sub="건" sev="success" icon={<CheckCircle2 className="h-3.5 w-3.5" />} />
       </section>
 
       {/* ═══ 필터 바 ═══ */}
@@ -259,14 +261,18 @@ function StatTile({
         {label}
         {period && <span className="text-[10px] font-medium normal-case tracking-normal text-bt-fg-muted">· {period}</span>}
       </div>
-      <div className="mt-1 flex items-end justify-between gap-2">
-        <div className="flex items-baseline gap-1.5">
+      {/* 숫자는 하단 기준선(mt-auto + items-end)으로 정렬해 모든 카드의 숫자 라인을 세로로 맞춘다.
+          숫자는 항상 카드 가운데 정렬. '전체 장애'는 등급 분해(right)를 우측에 두되 좌측 동일폭 스페이서로
+          균형을 맞춰 숫자가 카드 정중앙에 오게 한다(분해 블록은 흐름에 남겨 카드 높이를 유지). */}
+      <div className="mt-auto flex items-end gap-2">
+        {right && <div className="flex-1" aria-hidden />}
+        <div className={`flex items-baseline justify-center gap-1.5 ${right ? 'flex-1' : 'w-full'}`}>
           <span className={`text-[28px] font-extrabold leading-none tabular-nums ${text}`} style={valueStyle}>
             {value.toLocaleString()}
           </span>
           {sub && <span className="text-[11px] text-bt-fg-muted">{sub}</span>}
         </div>
-        {right}
+        {right && <div className="flex flex-1 justify-end">{right}</div>}
       </div>
     </div>
   );

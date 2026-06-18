@@ -12,7 +12,15 @@ import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch } fro
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
-import { endpointQueryKeys, useCreateEndpoint, useGetEndpointDetail, useGetNodes, useGetRegnums, useUpdateEndpoint } from '../../features/endpoint/hooks/useEndpointQueries';
+import {
+  endpointQueryKeys,
+  useCreateEndpoint,
+  useGetCountries,
+  useGetEndpointDetail,
+  useGetNodes,
+  useGetRegnums,
+  useUpdateEndpoint,
+} from '../../features/endpoint/hooks/useEndpointQueries';
 import {
   ENDPOINT_FORM_STEPS,
   ENDPOINT_INITIAL_VALUES,
@@ -100,6 +108,7 @@ export default function EndpointForm() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
   const { data: sipProfiles = [] } = useGetSipProfiles();
+  const { data: countries = [] } = useGetCountries();
   const { data: endpointDetail, isFetching } = useGetEndpointDetail({
     params: endptId ? { id: endptId } : undefined,
     queryOptions: { enabled: !!endptId },
@@ -172,7 +181,7 @@ export default function EndpointForm() {
   const { mutate: createEndpoint, isPending: isCreating } = useCreateEndpoint({
     mutationOptions: {
       onSuccess: (data: any) => {
-        toast.success('국선이 등록되었습니다.');
+        toast.success('국선이 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: endpointQueryKeys.getEndpoints().queryKey });
         const nodeId = data?.nodeId || form.getFieldValue('nodeId');
         const epId = data?.endptId;
@@ -184,7 +193,7 @@ export default function EndpointForm() {
   const { mutate: updateEndpoint, isPending: isUpdating } = useUpdateEndpoint({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('국선이 수정되었습니다.');
+        toast.success('국선이 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: endpointQueryKeys.getEndpoints().queryKey });
         const nodeId = form.getFieldValue('nodeId');
         navigate(`/ipron/line/endpoint?nodeId=${nodeId}${endptId ? `&endptId=${endptId}` : ''}`);
@@ -197,6 +206,8 @@ export default function EndpointForm() {
   // ─── Options ────────────────────────────────────────────────────────────────
   const nodeOptions = nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }));
   const sipProfileOptions = sipProfiles.map((p) => ({ label: p.sipProfileName, value: p.sipProfileId }));
+  // 국가코드: TB_CC_COUNTRY — "+IDD 국가명" 형식 (SWAT IE_EndPoint.comboCountryId 정합)
+  const countryOptions = countries.map((c) => ({ label: c.label, value: c.value }));
   // DR 노드: 선택된 nodeId 기준 같은 클러스터의 다른 노드만 표시
   const [drNodeOptions, setDrNodeOptions] = useState<Array<{ label: string; value: number }>>([{ label: '없음', value: 0 }]);
   const selectedNodeIdForDr = Form.useWatch('nodeId', form);
@@ -306,12 +317,12 @@ export default function EndpointForm() {
         if (String(currentEndptType) !== '4') {
           // 인/아웃 최대채널 min=1 검증 (SWAT line 1142-1145)
           if (currentMaxchnl < 1) {
-            toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다.');
+            toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다');
             return;
           }
           // OB할당채널 > 최대채널 교차 검증 (SWAT line 1137-1140)
           if (currentDodchnl > currentMaxchnl) {
-            toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다.');
+            toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다');
             return;
           }
         }
@@ -409,7 +420,8 @@ export default function EndpointForm() {
 
   useEffect(() => {
     setBreadcrumb([
-      { title: '회선관리', path: '/ipron/line' },
+      { title: '회선관리' },
+      { title: '호 라우팅' },
       { title: '국선관리', path: '/ipron/line/endpoint' },
       {
         title: isEditMode ? '수정' : '등록',
@@ -498,7 +510,9 @@ export default function EndpointForm() {
           <SummaryRow label="중개 옵션" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.natOption))} />
           <SummaryRow label="중개 옵션(DR)" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.drnatOption))} />
           {values.natOption !== 0 && <SummaryRow label="MS그룹" value={displayValue(msGroupOptions.find((g) => g.value === values.msGroupId)?.label ?? values.msGroupId)} />}
-          {values.drnatOption !== 0 && <SummaryRow label="MS그룹(DR)" value={displayValue(values.msDrgroupId)} />}
+          {values.drnatOption !== 0 && (
+            <SummaryRow label="MS그룹(DR)" value={displayValue(drMsGroupOptions.find((g) => g.value === values.msDrgroupId)?.label ?? values.msDrgroupId)} />
+          )}
           <SummaryRow label="NAT 동작옵션" value={displayValue(getLabelByValue(ENAT_OPTION_OPTIONS, values.enatOption))} />
           <SummaryRow label="NAT IP 주소" value={displayValue(values.natIpAddress)} />
         </div>
@@ -683,6 +697,8 @@ export default function EndpointForm() {
                               ? [
                                   { required: true, message: '등록 아이디는 필수입니다' },
                                   { max: 20, message: '20자 이내여야 합니다' },
+                                  // SWAT IPR20S1010.jsp iValidator line 1102: pattern ^[0-9a-zA-Z_]+$ 한글/특수문자 금지
+                                  { pattern: /^[0-9a-zA-Z_]+$/, message: '영문자·숫자·_만 입력 가능합니다' },
                                 ]
                               : []
                           }
@@ -885,7 +901,7 @@ export default function EndpointForm() {
                       <Col span={6}>
                         {countryCodeUseYn === 1 && (
                           <Form.Item name="countryId" label="국가번호">
-                            <InputNumber min={0} className="!w-full" placeholder="국가번호 ID" />
+                            <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
                           </Form.Item>
                         )}
                       </Col>

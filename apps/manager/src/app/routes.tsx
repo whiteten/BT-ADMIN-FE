@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useBreadcrumbStore } from '@/shared-store';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 const UserList = React.lazy(() => import('./pages/user/UserList'));
@@ -55,6 +56,9 @@ const NodeSetting = React.lazy(() => import('./pages/node-management/NodeSetting
 const ClusterConfig = React.lazy(() => import('./pages/node-management/ClusterConfig'));
 const TenantAllocWizard = React.lazy(() => import('./pages/node-management/TenantAllocWizard'));
 
+// 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
+const pv = createPageVariantSocket('manager');
+
 export const routes = [
   {
     path: '/',
@@ -83,15 +87,15 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <UserList />,
+                element: pv('resource/user/list', UserList),
               },
               {
                 path: 'create',
-                element: <UserCreate />,
+                element: pv('resource/user/create', UserCreate),
               },
               {
                 path: ':userId',
-                element: <UserDetail />,
+                element: pv('resource/user/:userId', UserDetail),
               },
             ],
           },
@@ -105,7 +109,7 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <AuthGroupManagement />,
+                element: pv('resource/auth-group/list', AuthGroupManagement),
               },
             ],
           },
@@ -119,45 +123,45 @@ export const routes = [
               },
               {
                 path: 'create',
-                element: <RoleCreate />,
+                element: pv('resource/role/create', RoleCreate),
               },
               {
                 path: ':roleId',
-                element: <RoleDetail />,
+                element: pv('resource/role/:roleId', RoleDetail),
               },
             ],
           },
           {
             path: 'menu',
-            element: <MenuManagement />,
+            element: pv('resource/menu', MenuManagement),
           },
           {
             path: 'page-variant',
-            element: <PageVariantManagement />,
+            element: pv('resource/page-variant', PageVariantManagement),
           },
           {
             path: 'bff-flow',
-            element: <BffFlowManagement />,
+            element: pv('resource/bff-flow', BffFlowManagement),
           },
           {
             path: 'account-policy',
-            element: <AccountPolicy />,
+            element: pv('resource/account-policy', AccountPolicy),
           },
           {
             path: 'work-history',
-            element: <WorkHistoryList />,
+            element: pv('resource/work-history', WorkHistoryList),
           },
           {
             path: 'data-retention',
-            element: <DataRetention />,
+            element: pv('resource/data-retention', DataRetention),
           },
           {
             path: 'mask-policy',
-            element: <MaskPolicyManagement />,
+            element: pv('resource/mask-policy', MaskPolicyManagement),
           },
           {
             path: 'mask-unmask',
-            element: <MaskUnmask />,
+            element: pv('resource/mask-unmask', MaskUnmask),
           },
           {
             path: 'client',
@@ -169,15 +173,15 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <ClientList />,
+                element: pv('resource/client/list', ClientList),
               },
               {
                 path: 'create',
-                element: <ClientCreate />,
+                element: pv('resource/client/create', ClientCreate),
               },
               {
                 path: ':clientId',
-                element: <ClientDetail />,
+                element: pv('resource/client/:clientId', ClientDetail),
               },
             ],
           },
@@ -191,7 +195,7 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <LicenseList />,
+                element: pv('resource/license/list', LicenseList),
               },
             ],
           },
@@ -205,15 +209,15 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <TenantList />,
+                element: pv('resource/tenant-management/list', TenantList),
               },
               {
                 path: 'create',
-                element: <TenantCreate />,
+                element: pv('resource/tenant-management/create', TenantCreate),
               },
               {
                 path: ':tenantId',
-                element: <TenantDetail />,
+                element: pv('resource/tenant-management/:tenantId', TenantDetail),
               },
             ],
           },
@@ -227,27 +231,27 @@ export const routes = [
               },
               {
                 path: 'list',
-                element: <NodeList />,
+                element: pv('resource/node-management/list', NodeList),
               },
               {
                 path: 'create',
-                element: <NodeCreate />,
+                element: pv('resource/node-management/create', NodeCreate),
               },
               {
                 path: ':nodeId',
-                element: <NodeDetail />,
+                element: pv('resource/node-management/:nodeId', NodeDetail),
               },
               {
                 path: ':nodeId/settings',
-                element: <NodeSetting />,
+                element: pv('resource/node-management/:nodeId/settings', NodeSetting),
               },
               {
                 path: ':nodeId/cluster-config',
-                element: <ClusterConfig />,
+                element: pv('resource/node-management/:nodeId/cluster-config', ClusterConfig),
               },
               {
                 path: ':nodeId/alloc/:tenantId',
-                element: <TenantAllocWizard />,
+                element: pv('resource/node-management/:nodeId/alloc/:tenantId', TenantAllocWizard),
               },
             ],
           },

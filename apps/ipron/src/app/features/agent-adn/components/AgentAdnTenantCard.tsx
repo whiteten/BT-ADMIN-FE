@@ -2,8 +2,8 @@
  * 상담사 ADN 매핑 — 테넌트 카드 (240×100).
  *
  * AdnTenantCard 패턴 동일. 표시 stats:
- *  - 전체 상담사 / 할당 / 미할당
- *  - 미할당이 화면 핵심 KPI (자동할당 대상). 0 초과 시 주황색 강조.
+ *  - 전체 상담사 / 배정 / 미배정
+ *  - 미배정이 화면 핵심 KPI (자동할당 대상). 0 초과 시 주황색 강조.
  */
 import { Building2 } from 'lucide-react';
 
@@ -52,11 +52,11 @@ export default function AgentAdnTenantCard({ tenantId, tenantName, stats, select
           <span className="font-semibold text-gray-800">{totalCnt.toLocaleString()}명</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">할당</span>
+          <span className="text-gray-500">배정</span>
           <span className="font-medium text-green-600">{assignedCnt.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">미할당</span>
+          <span className="text-gray-500">미배정</span>
           <span className={`font-medium ${unassignedColor}`}>{unassignedCnt.toLocaleString()}</span>
         </div>
       </div>

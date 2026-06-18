@@ -244,6 +244,7 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
   return (
     <Drawer
       title={isEditMode ? 'DN 그룹 수정' : 'DN 그룹 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 640 } }}

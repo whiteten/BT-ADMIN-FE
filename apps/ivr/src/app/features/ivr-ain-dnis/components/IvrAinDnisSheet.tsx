@@ -140,6 +140,7 @@ const IvrAinDnisSheet = forwardRef<IvrAinDnisSheetRef, Props>(({ onSuccess }, re
   return (
     <Drawer
       title={isEditMode ? '대표번호별 DNIS 수정' : '대표번호별 DNIS 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={480}

@@ -104,6 +104,22 @@ export const useDeleteBsrGroup = ({ mutationOptions }: MutationHookOptions<void,
   });
 };
 
+/**
+ * BSR 그룹 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteBsrGroupBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (bsrGroupIds: number[]) => bsrGroupApi.removeBatch(bsrGroupIds),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: bsrGroupQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: bsrGroupQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
 export const useAssignBsrSchedules = ({ mutationOptions }: MutationHookOptions<void, { bsrGroupId: number; scheduleIds: number[] }> = {}) => {
   const qc = useQueryClient();
   return useMutation({
@@ -120,6 +136,21 @@ export const useUnassignBsrSchedule = ({ mutationOptions }: MutationHookOptions<
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ bsrGroupId, scheduleId }) => bsrGroupApi.unassignSchedule(bsrGroupId, scheduleId),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: bsrGroupQueryKeys.getGroupSchedules(args[1].bsrGroupId).queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 그룹에서 스케줄 일괄 배정 해제 (벌크 1콜)
+ */
+export const useUnassignBsrScheduleBatch = ({ mutationOptions }: MutationHookOptions<void, { bsrGroupId: number; scheduleIds: number[] }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ bsrGroupId, scheduleIds }) => bsrGroupApi.unassignScheduleBatch(bsrGroupId, scheduleIds),
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: bsrGroupQueryKeys.getGroupSchedules(args[1].bsrGroupId).queryKey });

@@ -72,6 +72,16 @@ export const useDeleteAcl = ({ mutationOptions }: MutationHookOptions = {}) => {
 };
 
 /**
+ * PBX ACL 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteAclBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => aclApi.deleteBatch(ids),
+    ...mutationOptions,
+  });
+};
+
+/**
  * CTI ACL 목록 조회
  */
 export const useGetCtiAcls = ({ params, queryOptions }: QueryHookWithParamsOptions<Acl[]> = {}) => {
@@ -108,6 +118,16 @@ export const useUpdateCtiAcl = ({ mutationOptions }: MutationHookOptions = {}) =
 export const useDeleteCtiAcl = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
     mutationFn: aclApi.deleteCtiAcl,
+    ...mutationOptions,
+  });
+};
+
+/**
+ * CTI ACL 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteCtiAclBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => aclApi.deleteCtiBatch(ids),
     ...mutationOptions,
   });
 };

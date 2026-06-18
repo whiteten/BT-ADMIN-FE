@@ -6,6 +6,7 @@ import { Button } from 'antd';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { useGetRecogResultList } from '../hooks/useModelQueries';
 import { recogQueryKeys, useDeleteRecogTarget, useGetRecogTargetList } from '../hooks/useRecogQueries';
 import type { RecogTargetListItem, SttModelItem } from '../types';
 import SttRecogDrawer, { type SttRecogDrawerRef } from './SttRecogDrawer';
@@ -13,7 +14,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const FIXED_MODEL: SttModelItem = {
-  modelVerId: '20250101_000000',
+  modelVerId: 'STT_MODEL_2026',
   modelVerName: '',
   modelDesc: '',
   recogRate: null,
@@ -52,6 +53,10 @@ export default function RecogTargetList({ groupCode, groupName = '', engineCode 
   const { gridOptions } = useAggridOptions();
 
   const { data: targetList = [], isLoading } = useGetRecogTargetList({ groupCode, engineCode });
+  const { data: recogData } = useGetRecogResultList({
+    params: groupCode ? { modelVerId: FIXED_MODEL.modelVerId, groupCode } : null,
+  });
+  const summary = recogData?.summary;
 
   const { mutate: deleteTarget } = useDeleteRecogTarget({
     mutationOptions: {
@@ -94,8 +99,20 @@ export default function RecogTargetList({ groupCode, groupName = '', engineCode 
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      <div className="flex justify-end">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-[#495057] shrink-0">최종 측정 인식률</span>
+          {summary?.recogRate != null ? (
+            <>
+              <span className="text-xl font-bold text-yellow-500 px-1">{summary.recogRate}</span>
+              {summary.recogDate && <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{dayjs(summary.recogDate).format('YYYY-MM-DD HH:mm:ss')}</span>}
+            </>
+          ) : (
+            <span className="text-sm text-gray-400">—</span>
+          )}
+        </div>
         <Button
+          className="ml-auto"
           color="cyan"
           variant="solid"
           onClick={() => {

@@ -7,7 +7,7 @@
  *      블럭 | 착금 | 발금 | 개별발신번호 | [휴지통]
  */
 import { useMemo } from 'react';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { DnResponse } from '../types';
 import { BOOL_OX_LABEL, DN_STATUS_LABELS, TRANSPORT_TYPE_LABELS } from '../utils/dnEnums';
@@ -46,23 +46,18 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
 export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDelete, onSelectionChanged, onBulkDelete, selectedCount = 0 }: DnTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
+
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
 
   const columnDefs: ColDef<DnResponse>[] = useMemo(
     () => [
-      // 체크박스 컬럼
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
       {
         headerName: '내선프로파일ID',
         field: 'dnProfileId',
@@ -133,15 +128,16 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         valueFormatter: (params) => params.value ?? '-',
       },
       {
-        headerName: 'Global',
+        headerName: '글로벌여부',
         field: 'globalDnYn',
         minWidth: 80,
         maxWidth: 90,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.globalDnYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
-        headerName: 'IP',
+        headerName: 'IP 주소',
         minWidth: 140,
         valueGetter: (params) => {
           const d = params.data;
@@ -187,27 +183,30 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         valueFormatter: (params) => params.value ?? '-',
       },
       {
-        headerName: '블럭',
+        headerName: '차단',
         field: 'extBlockYn',
         minWidth: 70,
         maxWidth: 80,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.extBlockYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
-        headerName: '착금',
+        headerName: '착신금지',
         field: 'dnTblYn',
-        minWidth: 70,
-        maxWidth: 80,
+        minWidth: 90,
+        maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.dnTblYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
-        headerName: '발금',
+        headerName: '발신금지',
         field: 'dnOblYn',
-        minWidth: 70,
-        maxWidth: 80,
+        minWidth: 90,
+        maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
+        filterValueGetter: (params) => BOOL_OX_LABEL(params.data?.dnOblYn),
         valueFormatter: (params) => BOOL_OX_LABEL(params.value),
       },
       {
@@ -255,9 +254,8 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
       }}
+      rowSelection={rowSelection}
       loading={isLoading}
       onRowDoubleClicked={(e) => {
         if (e.data) onRowDoubleClicked(e.data);

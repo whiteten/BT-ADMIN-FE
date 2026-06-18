@@ -8,7 +8,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { App, Button, Checkbox, Divider, Input, Select, Tag, Tooltip } from 'antd';
 import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
-import { toast } from '@/shared-util';
+import { createUUID, toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
 import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
@@ -107,6 +107,8 @@ interface WizardStepBProps {
   onCalcFieldsChange: (fields: LocalCalcFieldDraft[]) => void;
   onEditingChange?: (isEditing: boolean) => void;
   onValidationStatusChange?: (status: ValidationStatus) => void;
+  /** 읽기 전용 모드 — 시스템 데이터셋을 일반 사용자가 열람할 때. 모든 편집 UI 비활성화. */
+  readOnly?: boolean;
 }
 
 export default function WizardStepB({
@@ -119,6 +121,7 @@ export default function WizardStepB({
   onCalcFieldsChange,
   onEditingChange,
   onValidationStatusChange,
+  readOnly = false,
 }: WizardStepBProps) {
   const [editing, setEditing] = useState<EditingState>({ mode: 'idle' });
   const { gridOptions } = useAggridOptions();
@@ -247,6 +250,7 @@ export default function WizardStepB({
   );
 
   const toggleAll = (checked: boolean) => {
+    if (readOnly) return;
     onFieldDisplaysChange(fieldDisplays.map((f) => (f.isCalcField ? f : { ...f, isVisible: checked })));
   };
 
@@ -271,6 +275,7 @@ export default function WizardStepB({
 
   // ─── 팔레트 드래그 재정렬 ──────────────────────────────────────────────────
   const handleDimDragEnd = (event: DragEndEvent) => {
+    if (readOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const dims = [...fieldDisplays.filter((f) => f.fieldType === 'DIM' && !f.isCalcField)].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -288,6 +293,7 @@ export default function WizardStepB({
   };
 
   const handleMsrDragEnd = (event: DragEndEvent) => {
+    if (readOnly) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const msrs = [...fieldDisplays.filter((f) => f.fieldType === 'MSR')].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -315,10 +321,7 @@ export default function WizardStepB({
   // ─── Calc field CRUD + fieldDisplays sync ─────────────────────────────────
   const handleCalcSave = (data: CalcFieldCreateDatas) => {
     if (editing.mode === 'add') {
-      const newId =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID()
-          : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+      const newId = createUUID();
       onCalcFieldsChange([...calcFields, { ...data, _localId: newId }]);
       onFieldDisplaysChange([
         ...fieldDisplays,
@@ -538,13 +541,17 @@ export default function WizardStepB({
           <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
             검증 실행
           </Button>
-          <Divider orientation="vertical" className="mx-0" />
-          <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
-            컬럼 가져오기
-          </Button>
-          <Button size="small" type="primary" icon={<Plus className="w-3 h-3" />} onClick={() => setEditing({ mode: 'add' })}>
-            계산필드 추가
-          </Button>
+          {!readOnly && (
+            <>
+              <Divider orientation="vertical" className="mx-0" />
+              <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
+                컬럼 가져오기
+              </Button>
+              <Button size="small" type="primary" icon={<Plus className="w-3 h-3" />} onClick={() => setEditing({ mode: 'add' })}>
+                계산필드 추가
+              </Button>
+            </>
+          )}
         </div>
 
         {/* 검증 결과 인라인 에러 */}
@@ -587,7 +594,7 @@ export default function WizardStepB({
                 cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
                   data ? (
                     <div className="flex items-center justify-center h-full">
-                      <Checkbox checked={data.isVisible} onChange={(e) => updateField(data.fieldName, { isVisible: e.target.checked })} />
+                      <Checkbox checked={data.isVisible} disabled={readOnly} onChange={(e) => updateField(data.fieldName, { isVisible: e.target.checked })} />
                     </div>
                   ) : null,
               },
@@ -636,7 +643,7 @@ export default function WizardStepB({
                         value={data.columnFormat as ColumnFormat}
                         options={FORMAT_OPTIONS}
                         onChange={(v) => updateField(data.fieldName, { columnFormat: v })}
-                        disabled={!data.isVisible}
+                        disabled={readOnly || !data.isVisible}
                         style={{ width: '100%' }}
                       />
                     </div>
@@ -649,7 +656,12 @@ export default function WizardStepB({
                 cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
                   data ? (
                     <div className="flex items-center h-full w-full">
-                      <Input size="small" value={data.displayName} onChange={(e) => updateField(data.fieldName, { displayName: e.target.value })} disabled={!data.isVisible} />
+                      <Input
+                        size="small"
+                        value={data.displayName}
+                        onChange={(e) => updateField(data.fieldName, { displayName: e.target.value })}
+                        disabled={readOnly || !data.isVisible}
+                      />
                     </div>
                   ) : null,
               },
@@ -660,7 +672,7 @@ export default function WizardStepB({
                 suppressHeaderMenuButton: true,
                 cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '2px' },
                 cellRenderer: ({ data }: { data?: LocalFieldDisplay }) => {
-                  if (!data?.isCalcField) return null;
+                  if (!data?.isCalcField || readOnly) return null;
                   const cf = calcFields.find((c) => c.fieldCode === data.fieldName);
                   if (!cf) return null;
                   return (
@@ -673,7 +685,11 @@ export default function WizardStepB({
               },
             ];
 
-            const sortedRows = [...fieldDisplays].sort((a, b) => a.sortOrder - b.sortOrder);
+            // 체크(isVisible)된 컬럼을 원처뷰 순서(sortOrder)대로 맨 위에 모으고, 미체크 컬럼을 그 아래에 배치
+            const sortedRows = [...fieldDisplays].sort((a, b) => {
+              if (a.isVisible !== b.isVisible) return a.isVisible ? -1 : 1;
+              return a.sortOrder - b.sortOrder;
+            });
 
             return (
               <div className="h-full">

@@ -3,6 +3,8 @@ import { Drawer, Input, type InputRef } from 'antd';
 import dayjs from 'dayjs';
 import { Bot, RotateCcw, User } from 'lucide-react';
 import { Log } from '@/log';
+import { createUUID } from '@/shared-util';
+import MessageCopyButton from '../../shared/components/MessageCopyButton';
 import { useRefreshAgent, useTestAgent } from '../hooks/useAgentQueries';
 import type { ChatMessage } from '../types';
 import { IconSend } from '@/components/custom/Icons';
@@ -12,6 +14,11 @@ import { cn } from '@/lib/utils';
 export interface AgentPlaygroundDrawerRef {
   open: (params: { agentId: string; agentName: string }) => void;
   close: () => void;
+}
+
+interface AgentPlaygroundDrawerProps {
+  /** 드로어 열림/닫힘 변화 통지 — 부모가 캔버스 단축키 비활성 등에 활용 */
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface DrawerState {
@@ -53,12 +60,15 @@ const pickAnswerText = (data: unknown): string | null => {
   return null;
 };
 
-const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
+const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygroundDrawerProps>(({ onOpenChange }, ref) => {
   const [state, setState] = useState<DrawerState>({ open: false, agentId: '', agentName: '' });
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [threadId, setThreadId] = useState('');
   const [serviceId, setServiceId] = useState('');
+  // welcomeMessage(firstYn:'Y') 로드는 메시지가 없을 수도 있으므로 타이핑 인디케이터를 띄우지 않음.
+  // (있으면 메시지가 그대로 뜨고, 없으면 조용히 빈 상태 유지 — 사용자 메시지 응답에만 '...' 노출)
+  const [isWelcomePending, setIsWelcomePending] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(600);
   const inputRef = useRef<InputRef>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,6 +80,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
       onSuccess: (data) => {
         // BE 응답 변경: data 가 단계별 결과 객체 (`{ execute: {result}, run: {result}, ... }`).
         // 옛 단일 result(`{ result: string }`) 도 호환. 우선순위: run > execute > 객체 마지막 키 > 최상위 result
+        setIsWelcomePending(false);
         const text = pickAnswerText(data);
         if (text != null && text.trim() !== '') {
           addMessage({ id: Date.now(), type: 'response', content: { result: text }, timestamp: dayjs().format('HH:mm') });
@@ -78,6 +89,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
       },
       onError: (error) => {
         Log.warn('testAgent error', error);
+        setIsWelcomePending(false);
         addMessage({ id: Date.now(), type: 'response', content: { error: '오류가 발생했습니다.' }, timestamp: dayjs().format('HH:mm') });
         requestAnimationFrame(() => inputRef.current?.focus());
       },
@@ -88,19 +100,21 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
     mutationOptions: {
       onError: (error) => {
         Log.warn('refreshAgent error', error);
+        setIsWelcomePending(false);
       },
     },
   });
 
   useImperativeHandle(ref, () => ({
     open: ({ agentId, agentName }) => {
-      const uuid = crypto.randomUUID();
+      const uuid = createUUID();
       const newServiceId = `test_${uuid}`;
       const newThreadId = `${agentId}_${uuid}`;
       setServiceId(newServiceId);
       setThreadId(newThreadId);
       setMessages([]);
       setInputValue('');
+      setIsWelcomePending(true);
       setState({ open: true, agentId, agentName });
       testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
     },
@@ -123,20 +137,39 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
     });
   }, [messages]);
 
+  // 열림/닫힘 변화를 부모에 통지 (open/close/handleClose 등 모든 경로 일괄 처리)
+  useEffect(() => {
+    onOpenChange?.(state.open);
+  }, [state.open, onOpenChange]);
+
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
     const startWidth = drawerWidth;
 
+    // 드로어 content wrapper DOM 직접 갱신: state 리렌더 + antd 폭 transition을 우회해 드래그를 즉각 반영
+    const wrapperEl = (e.currentTarget as HTMLElement).closest('.ant-drawer-content-wrapper') as HTMLElement | null;
+    const prevTransition = wrapperEl?.style.transition ?? '';
+    if (wrapperEl) wrapperEl.style.transition = 'none';
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+
+    let latestWidth = startWidth;
+
     const handleMouseMove = (ev: MouseEvent) => {
       const delta = startX - ev.clientX;
-      const newWidth = Math.min(Math.max(startWidth + delta, MIN_WIDTH), MAX_WIDTH);
-      setDrawerWidth(newWidth);
+      latestWidth = Math.min(Math.max(startWidth + delta, MIN_WIDTH), MAX_WIDTH);
+      if (wrapperEl) wrapperEl.style.width = `${latestWidth}px`;
     };
 
     const handleMouseUp = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      if (wrapperEl) wrapperEl.style.transition = prevTransition;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      // 최종 폭만 state에 1회 커밋 (DOM 폭과 동일하므로 점프·애니메이션 없음)
+      setDrawerWidth(latestWidth);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -153,12 +186,13 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
   };
 
   const handleRefresh = () => {
-    const uuid = crypto.randomUUID();
+    const uuid = createUUID();
     const newServiceId = `test_${uuid}`;
     const newThreadId = `${state.agentId}_${uuid}`;
     setServiceId(newServiceId);
     setThreadId(newThreadId);
     setMessages([]);
+    setIsWelcomePending(true);
     // AS-IS 와 동일한 시퀀스: refresh(세션 초기화) → test(firstYn='Y') 호출로 welcomeMessage 재수신
     refreshAgent(
       { agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } },
@@ -205,11 +239,12 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
         body: { display: 'flex', flexDirection: 'column', padding: 0, height: '100%', position: 'relative' },
         mask: { backgroundColor: 'rgba(0, 0, 0, 0.18)' },
       }}
-      closable
+      closable={{ placement: 'end' }}
     >
       {/* 리사이즈 핸들 */}
-      <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 group" onMouseDown={handleResizeStart}>
-        <div className="absolute left-[3px] top-0 bottom-0 w-[2px] bg-transparent group-hover:bg-[#405189] transition-colors duration-150" />
+      <div className="absolute left-0 top-0 bottom-0 w-2.5 cursor-ew-resize z-10 group" onMouseDown={handleResizeStart}>
+        {/* 세로 중앙 그립 — 평소엔 옅게, hover 시 브랜드색으로 커짐 (전체 높이 선 없음) */}
+        <div className="absolute left-1/2 top-1/2 h-9 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gray-300/70 transition-all duration-150 group-hover:h-14 group-hover:bg-[var(--color-bt-primary)]" />
       </div>
 
       {/* 메시지 영역 */}
@@ -228,7 +263,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
               <div className={cn('shrink-0 w-7 h-7 rounded-full flex items-center justify-center', isUser ? 'bg-emerald-500/10' : 'bg-blue-500/10')}>
                 {isUser ? <User size={14} className="text-emerald-600" /> : <Bot size={14} className="text-blue-600" />}
               </div>
-              <div className={cn('flex flex-col gap-0.5', isUser && 'items-end')}>
+              <div className={cn('group flex flex-col gap-0.5', isUser && 'items-end')}>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   {isUser ? (
                     <>
@@ -247,11 +282,14 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef>((_, ref) => {
                 >
                   <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
                 </div>
+                <div className={cn('mt-0.5 opacity-0 transition-opacity group-hover:opacity-100', isUser && 'self-end')}>
+                  <MessageCopyButton text={text} />
+                </div>
               </div>
             </div>
           );
         })}
-        {isTesting && (
+        {isTesting && !isWelcomePending && (
           <div className="flex items-start gap-2.5 max-w-[80%]">
             <div className="shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
               <Bot size={14} className="text-blue-600" />

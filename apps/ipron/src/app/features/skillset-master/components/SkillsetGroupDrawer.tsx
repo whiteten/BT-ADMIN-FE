@@ -6,7 +6,7 @@
  * - 삭제는 트리에서 호버 액션 → confirm Modal 처리
  */
 import { useEffect } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Space } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber } from 'antd';
 import type { SkillsetGroupCreateRequest, SkillsetGroupResponse, SkillsetGroupUpdateRequest } from '../types';
 
 interface Props {
@@ -61,17 +61,18 @@ export default function SkillsetGroupDrawer({ open, mode, tenantId, parent, grou
   return (
     <Drawer
       title={title}
+      closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
       width={420}
       destroyOnClose
-      extra={
-        <Space>
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
           <Button type="primary" loading={loading} onClick={() => form.submit()}>
             {mode === 'create' ? '추가' : '저장'}
           </Button>
-        </Space>
+        </div>
       }
     >
       {mode === 'create' && !tenantId && <div className="mb-3 text-xs text-red-500">테넌트를 먼저 선택하세요.</div>}

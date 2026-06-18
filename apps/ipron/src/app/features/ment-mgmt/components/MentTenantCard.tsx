@@ -42,7 +42,7 @@ export default function MentTenantCard({ cardId, cardName, count, selected, onCl
               {isCommon ? (
                 <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold border border-blue-200 text-blue-700 bg-blue-50">공통</span>
               ) : (
-                <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold border border-gray-200 text-gray-500 bg-gray-50">TID {cardId}</span>
+                <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold border border-gray-200 text-gray-500 bg-gray-50">테넌트</span>
               )}
             </span>
           </>

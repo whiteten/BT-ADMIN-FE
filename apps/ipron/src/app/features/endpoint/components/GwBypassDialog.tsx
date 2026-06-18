@@ -63,20 +63,20 @@ const GwBypassDrawer = forwardRef<GwBypassDialogRef, GwBypassDrawerProps>(({ end
 
   const handleApply = useCallback(async () => {
     if (!routingNodeId) {
-      toast.warning('변경할 라우팅 위치를 선택하세요.');
+      toast.warning('변경할 라우팅 위치를 선택하세요');
       return;
     }
     if (selectedRowKeys.length === 0) {
-      toast.warning('적용할 국선을 선택하세요.');
+      toast.warning('적용할 국선을 선택하세요');
       return;
     }
     setLoading(true);
     try {
       await onApply(selectedRowKeys, routingNodeId);
-      toast.success('G/W 우회설정이 적용되었습니다.');
+      toast.success('G/W 우회설정이 적용되었습니다');
       setVisible(false);
     } catch {
-      toast.error('G/W 우회설정 적용에 실패했습니다.');
+      toast.error('G/W 우회설정 적용에 실패했습니다');
     } finally {
       setLoading(false);
     }
@@ -85,6 +85,7 @@ const GwBypassDrawer = forwardRef<GwBypassDialogRef, GwBypassDrawerProps>(({ end
   return (
     <Drawer
       title={`G/W 우회설정 — ${currentNodeName}`}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={() => setVisible(false)}
       width={520}

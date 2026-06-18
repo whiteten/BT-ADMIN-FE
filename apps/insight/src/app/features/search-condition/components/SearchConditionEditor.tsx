@@ -3,11 +3,18 @@ import { useQueryClient } from '@tanstack/react-query';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
 import CodeMirror from '@uiw/react-codemirror';
-import { Button, Checkbox, Drawer, Form, Input, Radio, Select, Tag, Tree, type TreeDataNode } from 'antd';
+import { Button, Checkbox, Drawer, Form, Input, Modal, Radio, Select, Tag, Tree, type TreeDataNode } from 'antd';
 
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { searchConditionKeys, useCreateSearchCondition, useGetSearchCondition, usePreviewSql, useUpdateSearchCondition } from '../hooks/useSearchConditionQueries';
+import {
+  searchConditionKeys,
+  useCreateSearchCondition,
+  useDeleteSearchCondition,
+  useGetSearchCondition,
+  usePreviewSql,
+  useUpdateSearchCondition,
+} from '../hooks/useSearchConditionQueries';
 import { useSearchConditionStore } from '../hooks/useSearchConditionStore';
 import { CATEGORY_OPTIONS, INPUT_TYPE_OPTIONS, type InputType, type SearchConditionNode, type SqlPreviewResult } from '../types';
 import { extractSqlColumnAliases } from '../utils/sqlUtils';
@@ -104,7 +111,19 @@ function renderPreviewControl(node: NodeState): React.ReactNode {
   const options = previewItems.map((i) => ({ value: i.value ?? '', label: i.label ?? i.value ?? '' }));
 
   if (inputType === 'SELECT') {
-    return <Select placeholder="선택하세요" options={options} style={{ minWidth: 200 }} popupMatchSelectWidth={false} className="pointer-events-none" />;
+    // 단일 선택은 접힌 드롭다운이라 pointer-events-none 면 열 수도, 값을 볼 수도 없어 빈 박스로 보였다.
+    // 미리보기에서 실제로 열어 옵션을 확인할 수 있도록 인터랙션을 허용하고, 첫 옵션을 기본값으로 채워 표시한다.
+    return (
+      <Select
+        placeholder="선택하세요"
+        options={options}
+        defaultValue={options[0]?.value}
+        style={{ minWidth: 240 }}
+        popupMatchSelectWidth={false}
+        showSearch
+        optionFilterProp="label"
+      />
+    );
   }
 
   if (inputType === 'MULTI_SELECT') {
@@ -310,6 +329,39 @@ export default function SearchConditionEditor() {
     },
   });
 
+  const { mutate: deleteCondition, isPending: deleting } = useDeleteSearchCondition({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('검색조건이 삭제되었습니다.');
+        invalidateList();
+        closeEditor();
+      },
+      onError: (err: unknown) => {
+        // 보고서/패널에서 사용 중이면 BE가 409 CONFLICT + 사유 메시지 반환 → 그대로 노출
+        const res = (err as { response?: { status?: number; data?: { message?: string } } }).response;
+        const msg = res?.data?.message;
+        if (res?.status === 409) {
+          toast.error(msg || '보고서에서 사용 중인 검색조건은 삭제할 수 없습니다.');
+        } else {
+          toast.error(msg || '삭제 중 오류가 발생했습니다.');
+        }
+      },
+    },
+  });
+
+  // 검증(INVALID) 무관하게 삭제 — 사용 중이면 BE 가드가 409 로 막고 사유를 알려준다.
+  const handleDelete = () => {
+    if (!editingCondition) return;
+    Modal.confirm({
+      title: '검색조건 삭제',
+      content: `'${editingCondition.title}' 검색조건을 삭제하시겠습니까?`,
+      okText: '삭제',
+      okButtonProps: { danger: true },
+      cancelText: '취소',
+      onOk: () => deleteCondition(editingCondition.searchCondId),
+    });
+  };
+
   const allSuccess = nodes.every((n) => n.previewStatus === 'success');
   const allMapped = nodes.every((n) => n.valueColumn && n.labelColumn);
   const allNodesFilled = nodes.every((n) => n.nodeCode.trim() && n.nodeLabel.trim());
@@ -346,6 +398,11 @@ export default function SearchConditionEditor() {
         <Tag color={allMapped ? 'success' : 'error'}>컬럼 매핑</Tag>
       </div>
       <div className="flex items-center gap-2">
+        {isEdit && (
+          <Button danger onClick={handleDelete} loading={deleting}>
+            삭제
+          </Button>
+        )}
         <Button onClick={closeEditor}>취소</Button>
         <Button type="primary" onClick={handleSave} loading={creating || updating} disabled={!canSave}>
           {isEdit ? '수정' : '저장'}
@@ -359,6 +416,7 @@ export default function SearchConditionEditor() {
       open={isEditorOpen}
       onClose={closeEditor}
       title={isEdit ? '검색조건 수정' : '새 검색조건 추가'}
+      closable={{ placement: 'end' }}
       footer={footer}
       destroyOnHidden
       styles={{ wrapper: { width: 960 }, body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
@@ -528,9 +586,6 @@ export default function SearchConditionEditor() {
                       title="상위 단계에서 선택한 값이 이 파라미터로 전달됩니다"
                     >
                       :parentValue
-                    </Button>
-                    <Button size="small" onClick={() => insertParam(':userId')} className="font-mono text-xs">
-                      :userId
                     </Button>
                     <Button size="small" onClick={() => insertParam(':tenantId')} className="font-mono text-xs">
                       :tenantId

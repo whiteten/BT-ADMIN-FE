@@ -53,7 +53,7 @@ export default function CtiCodeTenantCard({ tenantId, tenantName, stats, selecte
           <span className="font-medium text-blue-600">{restCnt.toLocaleString()}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-gray-500">ACW 사유</span>
+          <span className="text-gray-500">후처리(ACW) 사유</span>
           <span className="font-medium text-purple-600">{acwCnt.toLocaleString()}</span>
         </div>
       </div>

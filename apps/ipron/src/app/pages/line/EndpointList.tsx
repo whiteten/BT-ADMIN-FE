@@ -16,10 +16,10 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, Ban, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { AlertTriangle, Ban, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -29,8 +29,8 @@ import GwBypassDialog, { type GwBypassDialogRef } from '../../features/endpoint/
 import {
   endpointQueryKeys,
   useDeleteEndpoint,
-  useDeleteMember,
-  useDeleteRegnum,
+  useDeleteMembersBatch,
+  useDeleteRegnumsBatch,
   useGetEndpoints,
   useGetMembers,
   useGetNodes,
@@ -39,6 +39,7 @@ import {
 import {
   ALLOC_METHOD_LABELS,
   ENDPOINT_TYPE_LABELS,
+  ENDPOINT_TYPE_OPTIONS,
   type Endpoint,
   type EndpointMember,
   type EndpointRegnum,
@@ -52,10 +53,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/endpoint' },
-  { title: '국선관리', path: '/ipron/line/endpoint' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: '국선관리', path: '/ipron/line/endpoint' }];
 
 type BottomTab = 'member' | 'regnum';
 
@@ -85,6 +83,11 @@ export default function EndpointList() {
   const [selectedEndpointId, setSelectedEndpointId] = useState<number | null>(initEndptId);
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const [filterEndptType, setFilterEndptType] = useState<number | null>(null);
+  const [filterLocationNodeId, setFilterLocationNodeId] = useState<number | null>(null);
+  const [selectedMembers, setSelectedMembers] = useState<EndpointMember[]>([]);
+  const [selectedRegnums, setSelectedRegnums] = useState<EndpointRegnum[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const [tenantOptions, setTenantOptions] = useState<Array<{ label: string; value: number }>>([]);
@@ -112,7 +115,7 @@ export default function EndpointList() {
   const { mutate: deleteEndpoint } = useDeleteEndpoint({
     mutationOptions: {
       onSuccess: (_data, variables) => {
-        toast.success('국선이 삭제되었습니다.');
+        toast.success('국선이 삭제되었습니다');
         const deletedId = (variables as { id: number }).id;
         // 1) 선택 해제 (member/regnum 쿼리 비활성화)
         if (selectedEndpointId === deletedId) setSelectedEndpointId(null);
@@ -127,20 +130,20 @@ export default function EndpointList() {
     },
   });
 
-  const { mutate: deleteMember } = useDeleteMember({
+  const { mutate: deleteMembersBatch } = useDeleteMembersBatch({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('멤버가 삭제되었습니다.');
+        toast.success('멤버가 삭제되었습니다');
         invalidateMembers();
         invalidateEndpoints();
       },
     },
   });
 
-  const { mutate: deleteRegnum } = useDeleteRegnum({
+  const { mutate: deleteRegnumsBatch } = useDeleteRegnumsBatch({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('인증번호가 삭제되었습니다.');
+        toast.success('인증번호가 삭제되었습니다');
         invalidateRegnums();
         invalidateEndpoints();
       },
@@ -172,15 +175,27 @@ export default function EndpointList() {
   // 검색어로 필터링 (검색 필드: endptName)
   const isSearching = searchText.trim().length > 0;
   const searchFilteredEndpoints = useMemo(() => {
-    if (!isSearching) return endpoints;
-    const kw = searchText.trim().toLowerCase();
-    return endpoints.filter((ep) => ep.endptName?.toLowerCase().includes(kw));
-  }, [endpoints, isSearching, searchText]);
+    let result = endpoints;
+    // endptName 텍스트 필터
+    if (isSearching) {
+      const kw = searchText.trim().toLowerCase();
+      result = result.filter((ep) => ep.endptName?.toLowerCase().includes(kw));
+    }
+    if (filterEndptType !== null) {
+      result = result.filter((ep) => ep.endptType === filterEndptType);
+    }
+    if (filterLocationNodeId !== null) {
+      result = result.filter((ep) => ep.locationNodeId === filterLocationNodeId);
+    }
+    return result;
+  }, [endpoints, isSearching, searchText, filterEndptType, filterLocationNodeId]);
 
-  // 검색 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
+  const isFiltering = isSearching || filterEndptType !== null || filterLocationNodeId !== null;
+
+  // 검색/필터 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
   const filteredEndpoints = useMemo(
-    () => (isSearching || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
-    [searchFilteredEndpoints, selectedNodeId, isSearching],
+    () => (isFiltering || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
+    [searchFilteredEndpoints, selectedNodeId, isFiltering],
   );
 
   // 노드별 국선 개수 (검색 결과 기준)
@@ -223,6 +238,8 @@ export default function EndpointList() {
     setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
     setSelectedEndpointId(null);
     setSearchText('');
+    setFilterEndptType(null);
+    setFilterLocationNodeId(null);
   };
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -231,6 +248,18 @@ export default function EndpointList() {
       // 검색 시작 시 노드 필터 자동 해제
       setSelectedNodeId(null);
     }
+  };
+
+  const handleEndptTypeFilter = (val: number | null) => {
+    setFilterEndptType(val);
+    setSelectedNodeId(null);
+    setSelectedEndpointId(null);
+  };
+
+  const handleLocationNodeFilter = (val: number | null) => {
+    setFilterLocationNodeId(val);
+    setSelectedNodeId(null);
+    setSelectedEndpointId(null);
   };
 
   const handleCardSelect = (ep: Endpoint) => {
@@ -251,16 +280,14 @@ export default function EndpointList() {
 
   const handleDelete = useCallback(
     async (ep: Endpoint) => {
-      // SWAT IPR20S1010.jsp doDelete() line 844:
-      // memberCount>0 || regnumCount>0 → '해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다' 후 return
       try {
         const [epMembers, epRegnums] = await Promise.all([endpointApi.getMembers({ id: ep.endptId }), endpointApi.getRegnums({ id: ep.endptId })]);
         if (epMembers.length > 0 || epRegnums.length > 0) {
-          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다.');
+          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다');
           return;
         }
       } catch {
-        toast.error('삭제 가능 여부 확인에 실패했습니다.');
+        toast.error('삭제 가능 여부 확인에 실패했습니다');
         return;
       }
       modal.confirm.execute({
@@ -274,33 +301,31 @@ export default function EndpointList() {
     [modal, deleteEndpoint],
   );
 
-  const handleMemberDelete = useCallback(
-    (member: EndpointMember) => {
-      if (!selectedEndpointId) return;
-      modal.confirm.execute({
-        onOk: () => deleteMember({ id: selectedEndpointId, memId: member.endptMemId }),
-        options: {
-          title: '멤버 삭제',
-          content: `"${member.endptMemName}" 멤버를 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteMember, selectedEndpointId],
-  );
+  const handleDeleteSelectedMembers = useCallback(() => {
+    if (!selectedEndpointId || selectedMembers.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => {
+        deleteMembersBatch({ endptId: selectedEndpointId, memIds: selectedMembers.map((m) => m.endptMemId) }, { onSuccess: () => setSelectedMembers([]) });
+      },
+      options: {
+        title: '멤버 삭제',
+        content: `선택한 ${selectedMembers.length}건을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deleteMembersBatch, selectedEndpointId, selectedMembers]);
 
-  const handleRegnumDelete = useCallback(
-    (regnum: EndpointRegnum) => {
-      if (!selectedEndpointId) return;
-      modal.confirm.execute({
-        onOk: () => deleteRegnum({ id: selectedEndpointId, regId: regnum.endptRegnumId }),
-        options: {
-          title: '인증번호 삭제',
-          content: `"${regnum.regNum}" 인증번호를 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteRegnum, selectedEndpointId],
-  );
+  const handleDeleteSelectedRegnums = useCallback(() => {
+    if (!selectedEndpointId || selectedRegnums.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => {
+        deleteRegnumsBatch({ endptId: selectedEndpointId, regIds: selectedRegnums.map((r) => r.endptRegnumId) }, { onSuccess: () => setSelectedRegnums([]) });
+      },
+      options: {
+        title: '인증번호 삭제',
+        content: `선택한 ${selectedRegnums.length}건을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deleteRegnumsBatch, selectedEndpointId, selectedRegnums]);
 
   const handleMemberDrawerSuccess = useCallback(() => {
     invalidateMembers();
@@ -335,30 +360,35 @@ export default function EndpointList() {
         field: 'endptMemName',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'endptMemName',
       },
       {
         headerName: 'IP 주소',
         field: 'ipAddress',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'ipAddress',
       },
       {
         headerName: '포트',
         field: 'portNo',
         flex: 1,
         minWidth: 60,
+        filter: 'agNumberColumnFilter',
       },
       {
         headerName: '우선순위',
         field: 'priority',
         flex: 1,
         minWidth: 70,
+        filter: 'agNumberColumnFilter',
       },
       {
-        headerName: '블럭여부',
+        headerName: '블록여부',
         field: 'blockYn',
         flex: 1,
         minWidth: 70,
+        filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           return params.data.blockYn === 1 ? (
@@ -377,6 +407,12 @@ export default function EndpointList() {
         field: 'monState',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => {
+          const v = params.data?.monState;
+          if (v === 0) return '정상';
+          if (v === 2) return '미사용';
+          return '장애';
+        },
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.monState;
@@ -388,7 +424,7 @@ export default function EndpointList() {
             );
           if (v === 2)
             return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
                 미사용
               </span>
             );
@@ -404,6 +440,12 @@ export default function EndpointList() {
         field: 'regState',
         flex: 1,
         minWidth: 90,
+        filterValueGetter: (params) => {
+          const v = params.data?.regState;
+          if (v === 1) return '등록';
+          if (v === 2) return '미사용';
+          return '미등록';
+        },
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.regState;
@@ -415,7 +457,7 @@ export default function EndpointList() {
             );
           if (v === 2)
             return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
                 미사용
               </span>
             );
@@ -426,31 +468,18 @@ export default function EndpointList() {
           );
         },
       },
-      {
-        headerName: '',
-        colId: 'actions',
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleMemberDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleMemberDelete],
+    [],
+  );
+
+  // ─── Row selection ────────────────────────────────────────────────────────
+  const memberRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+  const regnumRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
   );
 
   // ─── ag-Grid: Regnum columns ──────────────────────────────────────────────
@@ -461,12 +490,14 @@ export default function EndpointList() {
         field: 'regNum',
         flex: 2,
         minWidth: 100,
+        tooltipField: 'regNum',
       },
       {
         headerName: '테넌트',
         field: 'tenantName',
         flex: 2,
         minWidth: 80,
+        tooltipField: 'tenantName',
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
           return params.data.tenantName ?? '-';
@@ -487,6 +518,7 @@ export default function EndpointList() {
         field: 'regActivateYn',
         flex: 1,
         minWidth: 70,
+        filterValueGetter: (params) => (params.data?.regActivateYn === 1 ? '사용' : '미사용'),
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
           return params.data.regActivateYn === 1 ? (
@@ -505,6 +537,7 @@ export default function EndpointList() {
         field: 'regState',
         flex: 1,
         minWidth: 70,
+        filterValueGetter: (params) => (params.data?.regState === 1 ? '등록' : '미등록'),
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
           const v = params.data.regState;
@@ -542,43 +575,20 @@ export default function EndpointList() {
                 if (!disabled && selectedEndpointId) {
                   try {
                     await endpointApi.registerRegnum({ id: selectedEndpointId, regId: params.data!.endptRegnumId });
-                    toast.success('인증요청을 성공하였습니다.');
+                    toast.success('인증요청을 성공하였습니다');
                   } catch {
-                    toast.error('인증요청에 실패하였습니다.');
+                    toast.error('인증요청에 실패하였습니다');
                   }
                 }
               }}
             >
-              REGISTER
-            </button>
-          );
-        },
-      },
-      {
-        headerName: '',
-        colId: 'actions',
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
-        cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleRegnumDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              인증요청
             </button>
           );
         },
       },
     ],
-    [handleRegnumDelete],
+    [selectedEndpointId],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -617,6 +627,8 @@ export default function EndpointList() {
                   setSelectedNodeId(null);
                   setSearchText('');
                   setSelectedEndpointId(null);
+                  setFilterEndptType(null);
+                  setFilterLocationNodeId(null);
                 }}
               >
                 <Layers className="size-3.5" />
@@ -664,13 +676,22 @@ export default function EndpointList() {
 
             {/* 우측: 검색 + G/W 우회설정 + 추가 버튼 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+              <Select allowClear placeholder="구분" value={filterEndptType} onChange={handleEndptTypeFilter} options={[...ENDPOINT_TYPE_OPTIONS]} style={{ width: 120 }} />
+              <Select
+                allowClear
+                placeholder="장비위치"
+                value={filterLocationNodeId}
+                onChange={handleLocationNodeFilter}
+                options={nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }))}
+                style={{ width: 130 }}
+              />
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
                 placeholder="국선 검색"
                 value={searchText}
                 onChange={handleSearchChange}
-                style={{ width: 200 }}
+                style={{ width: 160 }}
               />
               <Button
                 onClick={() => gwBypassRef.current?.open(selectedNodeId ?? nodes[0]?.nodeId, nodes.find((n) => n.nodeId === (selectedNodeId ?? nodes[0]?.nodeId))?.nodeName ?? '')}
@@ -686,104 +707,117 @@ export default function EndpointList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body — 높이 고정 (빈 노드 선택 시에도 유지) */}
-          <div className="flex items-center px-4 py-3 h-[185px]">
-            {filteredEndpoints.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {filteredEndpoints.map((ep) => {
-                    const isCardSelected = selectedEndpointId === ep.endptId;
-                    const tags = getEndpointTagList(ep);
-                    const status = getEndpointStatusInfo(ep);
-                    return (
-                      <div
-                        key={ep.endptId}
-                        id={`ep-card-${ep.endptId}`}
-                        className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[220px] h-[155px] flex-shrink-0 flex flex-col ${
-                          isCardSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          handleCardSelect(ep);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
-                        onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
-                      >
-                        {/* Card header: 상태 배지 + 국선명 + 더보기 */}
-                        <div className="flex items-center justify-between gap-1 mb-1.5">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                            <span
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                              style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
-                            >
-                              {status.label}
-                            </span>
-                            <span className="text-sm font-semibold text-gray-800 truncate">{ep.endptName}</span>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                            <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
-                              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
-                                <MoreVertical className="size-3.5 text-gray-400" />
-                              </button>
-                            </Dropdown>
-                          </div>
-                        </div>
-
-                        {/* Card info */}
-                        <div className="text-xs text-gray-500 space-y-0.5">
-                          <div className="flex items-center gap-1">
-                            <Network className="size-3 text-gray-400" />
-                            <span className="truncate">{ep.nodeName ?? `Node ${ep.nodeId}`}</span>
-                          </div>
-                          <div className="truncate">프로파일: {ep.sipProfileName ?? '-'}</div>
-                          <div>
-                            채널: {ep.endptMaxchnl ?? 0} (OB {ep.endptDodchnl ?? 0})
-                          </div>
-                          <div className="flex items-center gap-2 truncate">
-                            <span className="truncate">할당: {ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
-                            <span className="truncate">등록: {REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
-                          </div>
-                        </div>
-
-                        {/* 하단 상태 태그 (블락/모니터링 등) */}
-                        {tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-auto pt-1.5">
-                            {tags.slice(0, 2).map((tag) => (
-                              <span
-                                key={tag.label}
-                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
-                                style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
-                              >
-                                {tag.label}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+          {/* 접기/펼치기 토글 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setSliderOpen((v) => !v)}
+          >
+            <span>국선 선택</span>
+            <ChevronDown className={`size-4 transition-transform ${sliderOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {/* Card slider body — 높이 고정 */}
+          {sliderOpen && (
+            <div className="flex items-center px-4 py-3 h-[185px]">
+              {filteredEndpoints.length === 0 ? (
+                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
+                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
                 </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="relative flex items-center gap-2 w-full">
+                  <Button
+                    type="text"
+                    icon={<ChevronLeft className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                  <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {filteredEndpoints.map((ep) => {
+                      const isCardSelected = selectedEndpointId === ep.endptId;
+                      const tags = getEndpointTagList(ep);
+                      const status = getEndpointStatusInfo(ep);
+                      return (
+                        <div
+                          key={ep.endptId}
+                          id={`ep-card-${ep.endptId}`}
+                          className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[220px] h-[155px] flex-shrink-0 flex flex-col ${
+                            isCardSelected
+                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                          }`}
+                          onClick={(e) => {
+                            handleCardSelect(ep);
+                            (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                          }}
+                          onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
+                        >
+                          {/* Card header: 상태 배지(비정상만) + 국선명 + 더보기 */}
+                          <div className="flex items-center justify-between gap-1 mb-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                              {ep.epStatus !== 1 && (
+                                <span
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                  style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
+                                >
+                                  {status.label}
+                                </span>
+                              )}
+                              <span className="text-sm font-semibold text-gray-800 truncate">{ep.endptName}</span>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                              <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
+                                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                                  <MoreVertical className="size-3.5 text-gray-400" />
+                                </button>
+                              </Dropdown>
+                            </div>
+                          </div>
+
+                          {/* Card info */}
+                          <div className="text-xs text-gray-500 space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Network className="size-3 text-gray-400" />
+                              <span className="truncate">{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
+                            </div>
+                            <div className="truncate">프로파일: {ep.sipProfileName ?? '-'}</div>
+                            <div>
+                              채널: {ep.endptMaxchnl ?? 0} (OB {ep.endptDodchnl ?? 0})
+                            </div>
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="truncate">할당: {ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
+                              <span className="truncate">등록: {REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
+                            </div>
+                          </div>
+
+                          {/* 하단 상태 태그 (블락/모니터링 등) */}
+                          {tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-auto pt-1.5">
+                              {tags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag.label}
+                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                                  style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
+                                >
+                                  {tag.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<ChevronRight className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ===== 하단: 멤버/인증번호 탭 그리드 ===== */}
@@ -815,15 +849,25 @@ export default function EndpointList() {
                 >
                   인증번호 ({regnums.length})
                 </button>
-                <div className="ml-auto">
+                <div className="ml-auto flex items-center gap-2">
                   {activeTab === 'member' ? (
-                    <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => memberDrawerRef.current?.open()}>
-                      멤버 추가
-                    </Button>
+                    <>
+                      <Button danger icon={<IconTrash className="size-3.5" />} disabled={selectedMembers.length === 0} onClick={handleDeleteSelectedMembers}>
+                        삭제
+                      </Button>
+                      <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => memberDrawerRef.current?.open()}>
+                        멤버 추가
+                      </Button>
+                    </>
                   ) : (
-                    <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => regnumDrawerRef.current?.open()}>
-                      인증번호 추가
-                    </Button>
+                    <>
+                      <Button danger icon={<IconTrash className="size-3.5" />} disabled={selectedRegnums.length === 0} onClick={handleDeleteSelectedRegnums}>
+                        삭제
+                      </Button>
+                      <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => regnumDrawerRef.current?.open()}>
+                        인증번호 추가
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -837,11 +881,15 @@ export default function EndpointList() {
                       rowData={members}
                       columnDefs={memberColumnDefs}
                       gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                      rowSelection={memberRowSelection}
                       loading={isMembersLoading}
                       getRowId={(params) => String(params.data.endptMemId)}
-                      defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) memberDrawerRef.current?.open(e.data);
+                      }}
+                      onSelectionChanged={(e: SelectionChangedEvent<EndpointMember>) => {
+                        setSelectedMembers(e.api.getSelectedRows());
                       }}
                     />
                   </div>
@@ -854,11 +902,15 @@ export default function EndpointList() {
                       rowData={regnums}
                       columnDefs={regnumColumnDefs}
                       gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                      rowSelection={regnumRowSelection}
                       loading={isRegnumsLoading}
                       getRowId={(params) => String(params.data.endptRegnumId)}
-                      defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                      defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                       onRowDoubleClicked={(e) => {
                         if (e.data) regnumDrawerRef.current?.open(e.data);
+                      }}
+                      onSelectionChanged={(e: SelectionChangedEvent<EndpointRegnum>) => {
+                        setSelectedRegnums(e.api.getSelectedRows());
                       }}
                     />
                   </div>

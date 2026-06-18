@@ -4,7 +4,7 @@
  * - 우측: 메뉴 상세/편집 폼
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { BreadcrumbProps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -34,19 +34,12 @@ export default function MenuManagement() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const queryClient = useQueryClient();
-  const [selectedAppId, setSelectedAppId] = useState<string>('');
   const [selectedMenu, setSelectedMenu] = useState<Menu | null>(null);
-  const [selectedTreeAppId, setSelectedTreeAppId] = useState<string | null>(null);
   const drawerRef = useRef<MenuCreateDrawerRef>(null);
 
   // 데이터 조회
   const { data: menus = [], isLoading } = useGetMenus();
   const { data: apps = [] } = useGetApps();
-
-  // 앱 필터 옵션
-  const appFilterOptions = useMemo(() => {
-    return [{ label: '전체 앱', value: '' }, ...apps.map((a) => ({ label: a.appName, value: a.appId }))];
-  }, [apps]);
 
   // 메뉴 목록 무효화 헬퍼
   const invalidateMenus = () => {
@@ -118,34 +111,22 @@ export default function MenuManagement() {
     <div className="flex flex-col gap-4 w-full h-full">
       {/* Tree + Detail Split */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 메뉴 트리 */}
-        <div className="w-[300px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3">
-          <MenuTree
-            menus={menus}
-            apps={appFilterOptions}
-            selectedAppId={selectedAppId}
-            onAppChange={setSelectedAppId}
-            selectedMenuKey={selectedMenu?.menuKey ?? null}
-            selectedTreeAppId={selectedTreeAppId}
-            onSelect={(menu) => {
-              setSelectedMenu(menu);
-              setSelectedTreeAppId(null);
-            }}
-            onTreeAppSelect={(appId) => {
-              setSelectedTreeAppId(appId);
-              setSelectedMenu(null);
-            }}
-            onAdd={() => {
-              const fallbackAppId = selectedMenu?.appId || selectedTreeAppId || selectedAppId || undefined;
-              drawerRef.current?.open(selectedMenu, fallbackAppId);
-            }}
-          />
+        {/* 좌측: 메뉴 트리 — 표준 패널(패딩) + 검색/전체/트리 */}
+        <div className="w-[300px] shrink-0 bg-white bt-shadow p-4 flex flex-col">
+          <div className="flex-1 min-h-0">
+            <MenuTree
+              menus={menus}
+              selectedMenuKey={selectedMenu?.menuKey ?? null}
+              onSelect={setSelectedMenu}
+              onAddMenu={(parent, fallbackAppId) => drawerRef.current?.open(parent, fallbackAppId)}
+            />
+          </div>
         </div>
 
         {/* 우측: 상세 폼 */}
         <div className="flex-1 min-h-0">
           {selectedMenu ? (
-            <MenuDetailForm menu={selectedMenu} apps={apps} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
+            <MenuDetailForm menu={selectedMenu} menus={menus} apps={apps} onSave={handleSave} onDelete={handleDelete} saving={updateMenuMutation.isPending} />
           ) : (
             <div className="h-full bg-white bt-shadow flex items-center justify-center">
               <NoData message="좌측 트리에서 메뉴를 선택해주세요" />

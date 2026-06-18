@@ -10,36 +10,37 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Button, Empty, Input, Modal, Select } from 'antd';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { GridRowColorLegend } from '../../components/GridRowColorLegend';
+import { agentMasterApi } from '../../features/agent-master/api/agentMasterApi';
 import AgentGroupFormDrawer from '../../features/agent-master/components/AgentGroupFormDrawer';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
+import AgentImportDrawer from '../../features/agent-master/components/AgentImportDrawer';
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
 import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
 import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey, type MediaOption } from '../../features/agent-master/components/AgentMediaStatusTable';
 import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
+  agentMasterQueryKeys,
+  useBulkGroupAgents,
+  useBulkMediaAgents,
   useDeleteAgentGroup,
   useDeleteAgents,
   useGetAgentGroupTree,
   useGetAgentTenants,
   useGetAgents,
-  useMoveAgent,
   useReorderAgentGroup,
-  useUpdateAgent,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
 import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
 import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-  { title: '상담사', path: '/ipron/agent-master' },
-  { title: '상담사 관리', path: '/ipron/agent-master' },
-];
+const breadcrumb = [{ title: '상담사 관리' }, { title: '상담사' }, { title: '상담사 설정', path: '/ipron/agent-master' }];
 
 export default function AgentMasterList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -51,7 +52,13 @@ export default function AgentMasterList() {
 
   const navigate = useNavigate();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const cardScrollRef = useRef<HTMLDivElement>(null);
+
+  const invalidateAgents = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getList._def });
+    queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getTenants.queryKey });
+  }, [queryClient]);
 
   // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
   const ctxTenantId = useAuthStore((s) => {
@@ -74,6 +81,10 @@ export default function AgentMasterList() {
   const mediaTableRef = useRef<AgentMediaStatusTableHandle>(null);
   const [mediaDirtyCount, setMediaDirtyCount] = useState(0);
 
+  // 그룹배정 모달 — 선택 상담사를 다른 그룹으로 일괄 이동
+  const [groupDeployOpen, setGroupDeployOpen] = useState(false);
+  const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
+
   // ctx 비동기 로드 시 동기화
   useEffect(() => {
     if (ctxTenantId != null && selectedTenantId === null) {
@@ -94,6 +105,9 @@ export default function AgentMasterList() {
   const [agentDrawer, setAgentDrawer] = useState<
     { open: false } | { open: true; mode: 'create'; tenantId?: number; groupId?: number } | { open: true; mode: 'edit'; agentId: number }
   >({ open: false });
+
+  // 엑셀 가져오기 Drawer
+  const [importDrawerOpen, setImportDrawerOpen] = useState(false);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: agents = [], isLoading } = useGetAgents({
@@ -155,10 +169,16 @@ export default function AgentMasterList() {
     },
   });
 
-  const { mutate: moveAgent } = useMoveAgent({
+  // 그룹 일괄 변경 — 선택/드롭 상담사를 대상 그룹으로 1콜 이동 (207 best-effort)
+  const { mutate: bulkGroupAgents } = useBulkGroupAgents({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('상담사 그룹이 변경되었습니다');
+      onSuccess: (result) => {
+        if (result && result.failCount > 0) {
+          toast.warning(`${result.successCount + result.failCount}명 중 ${result.failCount}명 그룹 변경 실패`);
+        } else {
+          toast.success('상담사 그룹이 변경되었습니다');
+        }
+        setSelectedRows([]);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '그룹 이동 실패';
@@ -192,12 +212,9 @@ export default function AgentMasterList() {
     },
   });
 
-  // 미디어 관리 탭 BSR 저장 — dirty 행 일괄 PUT (상세 Drawer 와 동일 update 엔드포인트)
-  const { mutate: updateAgent, isPending: isSavingMedia } = useUpdateAgent({
+  // 미디어 관리 탭 저장 — dirty 행을 1콜 벌크 PUT (미디어 필드만, 단일 트랜잭션 전체 롤백)
+  const { mutate: bulkMediaAgents, isPending: isSavingMedia } = useBulkMediaAgents({
     mutationOptions: {
-      onSuccess: () => {
-        /* 개별 성공은 조용히 — 전체 완료 후 handleSaveDirty 에서 토스트 */
-      },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '미디어 옵션 저장 실패';
         toast.error(msg);
@@ -207,35 +224,26 @@ export default function AgentMasterList() {
 
   const handleSaveDirty = useCallback(
     (entries: { agentId: number; body: AgentUpdateRequest }[], clearDirty: () => void) => {
-      let completed = 0;
-      let errored = 0;
+      if (entries.length === 0) return;
       const total = entries.length;
-      const finish = () => {
-        completed++;
-        if (completed + errored === total) {
-          if (errored === 0) {
+      // 미디어 필드(useGrpMdaOpt + mediaMatrix)만 1콜 벌크로 — 비미디어 필드 미전송.
+      const items = entries.map(({ agentId, body }) => ({
+        agentId,
+        useGrpMdaOpt: body.useGrpMdaOpt,
+        mediaMatrix: body.mediaMatrix,
+      }));
+      bulkMediaAgents(
+        { items },
+        {
+          onSuccess: () => {
             toast.success(`미디어 옵션 ${total}행이 저장되었습니다`);
             clearDirty();
-          } else {
-            toast.warning(`${total}행 중 ${errored}행 저장 실패 — 다시 시도하세요`);
-            // 실패행은 dirty 유지 (clearDirty 호출 안 함)
-          }
-        }
-      };
-      for (const { agentId, body } of entries) {
-        updateAgent(
-          { id: agentId, body },
-          {
-            onSuccess: finish,
-            onError: () => {
-              errored++;
-              finish();
-            },
           },
-        );
-      }
+          // 전체 롤백 — 실패 시 dirty 유지(clearDirty 미호출), 토스트는 훅 onError 처리.
+        },
+      );
     },
-    [updateAgent],
+    [bulkMediaAgents],
   );
 
   // ─── Derived ────────────────────────────────────────────────────────────
@@ -261,6 +269,34 @@ export default function AgentMasterList() {
   }, [tenantStats]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
+
+  const handleExcelExport = useCallback(async () => {
+    try {
+      const blob = await agentMasterApi.exportExcel({
+        tenantId: selectedTenantId ?? undefined,
+        groupId: selectedGroupId ?? undefined,
+        keyword: searchText.trim() || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'agents.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message ?? '엑셀 내보내기 실패');
+    }
+  }, [selectedTenantId, selectedGroupId, searchText]);
+
+  const handleImportOpen = useCallback(() => {
+    if (!selectedGroupId) {
+      toast.error('좌측 상담그룹을 먼저 선택하세요');
+      return;
+    }
+    setImportDrawerOpen(true);
+  }, [selectedGroupId]);
+
   const handleCreate = useCallback(() => {
     setAgentDrawer({
       open: true,
@@ -293,6 +329,27 @@ export default function AgentMasterList() {
     });
   }, [selectedRows, modal, deleteAgents]);
 
+  // 그룹배정 — 선택 상담사를 대상 그룹으로 일괄 이동
+  const handleGroupDeploy = useCallback(() => {
+    if (selectedRows.length === 0) {
+      toast.error('배정할 상담사를 선택하세요');
+      return;
+    }
+    setDeployTargetGroupId(undefined);
+    setGroupDeployOpen(true);
+  }, [selectedRows]);
+
+  const handleGroupDeployOk = useCallback(() => {
+    if (!deployTargetGroupId) {
+      toast.error('배정할 상담그룹을 선택하세요');
+      return;
+    }
+    if (selectedRows.length === 0) return;
+    bulkGroupAgents({ agentIds: selectedRows.map((a) => a.agentId), groupId: deployTargetGroupId });
+    setGroupDeployOpen(false);
+    setDeployTargetGroupId(undefined);
+  }, [selectedRows, deployTargetGroupId, bulkGroupAgents]);
+
   const handleSelectTenant = useCallback((tenantId: number | null) => {
     setSelectedTenantId(tenantId);
     setSelectedGroupId(null); // 테넌트 바뀌면 그룹 선택 해제
@@ -320,26 +377,25 @@ export default function AgentMasterList() {
       }
       const crossTenant = target && (sourceTenantIds.size > 1 || !sourceTenantIds.has(target.tenantId));
 
-      const move = (allowTenantChange: boolean) => {
-        for (const r of dragged) {
-          moveAgent({ id: r.agentId, body: { targetGroupId, allowTenantChange } });
-        }
-        setSelectedRows([]);
+      // 드롭 그룹(target)으로 dragged 상담사 전원을 1콜 벌크 이동.
+      // crossTenant 면 확인 다이얼로그를 거친 뒤 실행(테넌트 이동 안전장치 보존).
+      const move = () => {
+        bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
       };
 
       if (crossTenant) {
         modal.confirm.execute({
-          onOk: () => move(true),
+          onOk: () => move(),
           options: {
             title: '다른 테넌트로 이동',
             content: `대상 그룹의 테넌트가 다릅니다. ${dragged.length}명의 상담사를 ${target?.tenantName ?? '대상 테넌트'} 로 이동하시겠습니까?`,
           },
         });
       } else {
-        move(false);
+        move();
       }
     },
-    [agents, groupTree, modal, moveAgent],
+    [agents, groupTree, modal, bulkGroupAgents],
   );
 
   // ─── Splitter (트리 ↔ 그리드 리사이즈) ──────────────────────────────────
@@ -369,7 +425,7 @@ export default function AgentMasterList() {
       {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">상담사 현황</span>
+          <span className="text-sm font-semibold text-gray-700">상담사 설정</span>
           {selectedTenantId !== null && (
             <span className="ml-3 text-xs text-gray-500">
               테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
@@ -384,6 +440,12 @@ export default function AgentMasterList() {
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
               style={{ width: 220 }}
             />
+            <Button icon={<Download className="size-3.5" />} onClick={handleExcelExport}>
+              엑셀
+            </Button>
+            <Button icon={<Upload className="size-3.5" />} onClick={handleImportOpen}>
+              가져오기
+            </Button>
           </div>
         </div>
       </div>
@@ -501,10 +563,23 @@ export default function AgentMasterList() {
                 })
               }
               onEditGroup={(g) => setGroupDrawer({ open: true, mode: 'edit', groupId: g.groupId })}
-              onDeleteGroup={(g) => {
+              onDeleteGroup={async (g) => {
+                // SWAT식 사전 체크: 하위그룹/소속상담사 있으면 confirm 없이 toast.error
+                let count = 0;
+                try {
+                  count = await agentMasterApi.getGroupChildrenCount(g.groupId);
+                } catch {
+                  toast.error('그룹 정보를 확인할 수 없습니다');
+                  return;
+                }
+                if (count > 0) {
+                  // BE가 하위그룹과 상담사 수를 합산해 반환 — 두 케이스 구분 불가 시 통합 메시지
+                  toast.error(`소속 상담사 또는 하위 그룹이 ${count}개 있어 삭제할 수 없습니다`);
+                  return;
+                }
                 modal.confirm.execute({
                   onOk: () => deleteGroup(g.groupId),
-                  options: { title: '그룹 삭제', content: `"${g.groupName}" 그룹을 삭제하시겠습니까? (하위 그룹/소속 상담사 있으면 차단됩니다)` },
+                  options: { title: '그룹 삭제', content: `"${g.groupName}" 그룹을 삭제하시겠습니까?` },
                 });
               }}
               onAgentDrop={handleAgentDrop}
@@ -553,10 +628,19 @@ export default function AgentMasterList() {
               </div>
             )}
             <span className="text-xs text-gray-500">
-              {filteredAgents.length.toLocaleString()}건{gridTab === 'agent' && selectedRows.length > 0 && <span> 중 {selectedRows.length}건 선택</span>}
+              {filteredAgents.length.toLocaleString()}건
+              {gridTab === 'agent' && <span className={selectedRows.length > 0 ? '' : 'invisible'}> 중 {selectedRows.length}건 선택</span>}
             </span>
             {gridTab === 'agent' && (
               <div className="ml-auto flex items-center gap-2">
+                <Button
+                  icon={<Users className="size-3.5" />}
+                  onClick={handleGroupDeploy}
+                  disabled={selectedRows.length === 0}
+                  title={selectedRows.length === 0 ? '배정할 상담사를 선택하세요' : `${selectedRows.length}명 그룹배정`}
+                >
+                  그룹배정
+                </Button>
                 <Button
                   danger
                   icon={<Trash2 className="size-3.5" />}
@@ -565,7 +649,7 @@ export default function AgentMasterList() {
                   disabled={selectedRows.length === 0}
                   title={selectedRows.length === 0 ? '삭제할 상담사를 선택하세요' : '선택한 상담사 삭제'}
                 >
-                  {selectedRows.length > 0 ? `삭제 (${selectedRows.length})` : '삭제'}
+                  삭제
                 </Button>
                 <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                   등록
@@ -574,16 +658,22 @@ export default function AgentMasterList() {
             )}
             {gridTab === 'media' && (
               <div className="ml-auto flex items-center gap-2">
-                {mediaDirtyCount > 0 && <span className="text-[11px] text-[#405189] font-medium whitespace-nowrap">미저장 변경 {mediaDirtyCount}행</span>}
+                <GridRowColorLegend items={['dirty']} />
+                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
                 <Button
                   type="primary"
                   size="small"
                   icon={<Save className="size-3.5" />}
-                  onClick={() => mediaTableRef.current?.save()}
+                  onClick={() => {
+                    if (mediaDirtyCount === 0) {
+                      toast.info('변경할 데이터가 존재하지 않습니다');
+                      return;
+                    }
+                    mediaTableRef.current?.save();
+                  }}
                   loading={isSavingMedia}
-                  disabled={mediaDirtyCount === 0 || isSavingMedia}
                 >
-                  저장{mediaDirtyCount > 0 ? ` (${mediaDirtyCount}행)` : ''}
+                  저장
                 </Button>
               </div>
             )}
@@ -639,6 +729,83 @@ export default function AgentMasterList() {
         initialGroupId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.groupId : undefined}
         onClose={() => setAgentDrawer({ open: false })}
       />
+
+      <AgentImportDrawer
+        open={importDrawerOpen}
+        tenantId={selectedTenantId}
+        groupId={selectedGroupId}
+        tenantName={tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null}
+        groupName={(() => {
+          if (!selectedGroupId) return null;
+          const findName = (nodes: AgentGroupNode[]): string | null => {
+            for (const n of nodes) {
+              if (n.groupId === selectedGroupId) return n.groupName;
+              if (n.children?.length) {
+                const found = findName(n.children);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+          return findName(groupTree);
+        })()}
+        onClose={() => setImportDrawerOpen(false)}
+        onSuccess={() => {
+          invalidateAgents();
+          // DN 정본 패턴: 드로어는 닫지 않음 — 사용자가 성공/실패 집계·실패행 확인 후 직접 닫기
+        }}
+      />
+
+      {/* ===== 그룹배정 모달 (SWAT IPR20S4010 poAgentDeploy 대응) ===== */}
+      <Modal
+        title={`그룹배정 — ${selectedRows.length}명`}
+        open={groupDeployOpen}
+        onOk={handleGroupDeployOk}
+        onCancel={() => {
+          setGroupDeployOpen(false);
+          setDeployTargetGroupId(undefined);
+        }}
+        okText="배정"
+        cancelText="취소"
+        width={480}
+      >
+        <div className="mb-4 text-sm text-gray-600">선택한 상담사를 다른 상담그룹으로 일괄 이동합니다.</div>
+        <div className="mb-2">
+          <div className="max-h-48 overflow-y-auto border border-gray-100 rounded text-sm">
+            {selectedRows.map((r) => (
+              <div key={r.agentId} className="flex items-center gap-2 px-3 py-1.5 border-b border-gray-50 last:border-0">
+                <span className="font-medium text-gray-800">{r.agentName}</span>
+                <span className="text-gray-400 text-xs">({r.agentLoginId})</span>
+                <span className="ml-auto text-xs text-gray-500">{r.groupName ?? '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4">
+          <label className="text-sm font-medium text-gray-700 mb-1 block">
+            배정할 상담그룹 <span className="text-red-500">*</span>
+          </label>
+          <Select
+            style={{ width: '100%' }}
+            placeholder="상담그룹을 선택하세요"
+            value={deployTargetGroupId}
+            onChange={(v) => setDeployTargetGroupId(v)}
+            showSearch
+            optionFilterProp="label"
+            options={(() => {
+              const flat: { value: number; label: string }[] = [];
+              const walk = (nodes: AgentGroupNode[]) => {
+                for (const n of nodes) {
+                  flat.push({ value: n.groupId, label: `${'  '.repeat(Math.max(0, n.grpDepth - 1))}${n.groupName}` });
+                  if (n.children?.length) walk(n.children);
+                }
+              };
+              walk(groupTree);
+              return flat;
+            })()}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

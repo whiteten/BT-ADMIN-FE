@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -61,16 +61,29 @@ function EngineDetailPanel({ engineCode, onCreated }: { engineCode: string; onCr
   );
 }
 
+const RecogGroupContext = createContext<RecogGroupItem | null>(null);
+
+function RegisterTabContent() {
+  const group = useContext(RecogGroupContext)!;
+  return <RecogTargetSearch groupCode={group.groupCode} engineCode={group.engineCode} />;
+}
+
+function ListTabContent() {
+  const group = useContext(RecogGroupContext)!;
+  return <RecogTargetList groupCode={group.groupCode} groupName={group.groupName} engineCode={group.engineCode} />;
+}
+
+const GROUP_DETAIL_TABS: PageTab[] = [
+  { id: 'register', label: '정답지 등록', icon: IconBubble, component: RegisterTabContent },
+  { id: 'list', label: '정답지 목록', icon: IconDocument, component: ListTabContent },
+];
+
 function GroupDetailPanel({ group }: { group: RecogGroupItem }) {
-  const RegisterTab = () => <RecogTargetSearch groupCode={group.groupCode} engineCode={group.engineCode} />;
-  const ListTab = () => <RecogTargetList groupCode={group.groupCode} groupName={group.groupName} engineCode={group.engineCode} />;
-
-  const tabs: PageTab[] = [
-    { id: 'register', label: '정답지 등록', icon: IconBubble, component: RegisterTab },
-    { id: 'list', label: '정답지 목록', icon: IconDocument, component: ListTab },
-  ];
-
-  return <PageTabs tabs={tabs} />;
+  return (
+    <RecogGroupContext.Provider value={group}>
+      <PageTabs tabs={GROUP_DETAIL_TABS} />
+    </RecogGroupContext.Provider>
+  );
 }
 
 export default function RecogList() {
@@ -120,7 +133,7 @@ export default function RecogList() {
           ) : selection.type === 'engine' ? (
             <EngineDetailPanel engineCode={selection.engineCode} onCreated={handleGroupCreated} />
           ) : (
-            <GroupDetailPanel key={selection.group.groupCode} group={selection.group} />
+            <GroupDetailPanel group={selection.group} />
           )}
         </div>
       </div>

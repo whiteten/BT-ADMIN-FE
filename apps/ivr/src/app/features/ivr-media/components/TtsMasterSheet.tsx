@@ -167,6 +167,7 @@ const TtsMasterSheet = forwardRef<TtsMasterSheetRef, Props>(({ onSuccess }, ref)
   return (
     <Drawer
       title={isEditMode ? 'TTS 설정 (수정)' : 'TTS 설정 (등록)'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 480 } }}

@@ -8,9 +8,11 @@
  *   ipron-bsr-group-create             POST   생성
  *   ipron-bsr-group-update             PUT    수정
  *   ipron-bsr-group-delete             DELETE 삭제
+ *   ipron-bsr-group-delete-batch       DELETE 일괄 삭제 (body: bsrGroupIds[])
  *   ipron-bsr-group-schedules          GET    그룹 배정 스케줄 목록
  *   ipron-bsr-group-schedules-assign   POST   스케줄 배정
  *   ipron-bsr-group-schedules-unassign DELETE 스케줄 해제
+ *   ipron-bsr-schedule-unassign-batch  DELETE 스케줄 일괄 해제 (path: bsrGroupId, body: scheduleIds[])
  *   ipron-bsr-group-schedule-pool      GET    배정 후보 풀
  *   ipron-bsr-group-schedules-create   POST   스케줄 메타 생성
  *   ipron-bsr-group-schedules-update   PUT    스케줄 메타 수정
@@ -64,6 +66,14 @@ export const bsrGroupApi = {
     await apiClient.delete('/ipron-bsr-group-delete', { params: { bsrGroupId } });
   },
 
+  /**
+   * BSR 그룹 일괄 삭제
+   * @flow ipron-bsr-group-delete-batch (POST /api/ipron/bsr-groups/delete-batch, body: { bsrGroupIds })
+   */
+  removeBatch: async (bsrGroupIds: number[]): Promise<void> => {
+    await apiClient.post('/ipron-bsr-group-delete-batch', { bsrGroupIds });
+  },
+
   // ─── 스케줄 배정 ───────────────────────────────────────────
   getGroupSchedules: async (bsrGroupId: number): Promise<BsrScheduleInfoResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: BsrScheduleInfoResponse[] }>>('/ipron-bsr-group-schedules', { params: { bsrGroupId } });
@@ -76,6 +86,14 @@ export const bsrGroupApi = {
 
   unassignSchedule: async (bsrGroupId: number, scheduleId: number): Promise<void> => {
     await apiClient.delete('/ipron-bsr-group-schedules-unassign', { params: { bsrGroupId, scheduleId } });
+  },
+
+  /**
+   * 그룹에서 스케줄 일괄 배정 해제
+   * @flow ipron-bsr-schedule-unassign-batch (POST /api/ipron/bsr-groups/{bsrGroupId}/schedules/delete-batch, body: { scheduleIds })
+   */
+  unassignScheduleBatch: async (bsrGroupId: number, scheduleIds: number[]): Promise<void> => {
+    await apiClient.post('/ipron-bsr-schedule-unassign-batch', { scheduleIds }, { params: { bsrGroupId } });
   },
 
   getSchedulePool: async (tenantId: number, bsrGroupId?: number): Promise<BsrScheduleInfoResponse[]> => {

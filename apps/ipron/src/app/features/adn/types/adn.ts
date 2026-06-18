@@ -14,6 +14,15 @@
 export type DnStatusCode = '8' | '9';
 export type AdnDefaultStateCode = '1' | '2' | '3';
 
+/**
+ * 내선 IP 인증 유형.
+ * BE ExtAuthType enum 직렬화 코드와 일치.
+ *   '1' = STATIC (고정 IP) — ipv4/ipv6 활성, extIpUpdate 비활성
+ *   '2' = DYNAMIC (동적 IP) — ipv4/ipv6 비활성, extIpUpdate 활성
+ * AS-IS IPR20S2023 changeExtAuthType() 대응.
+ */
+export type ExtAuthtypeCode = '1' | '2';
+
 export interface AdnResponse {
   dnId: number;
   tenantId: number;
@@ -28,6 +37,16 @@ export interface AdnResponse {
 
   adnDftState: AdnDefaultStateCode | null;
   origGrpdnId: number | null;
+  /** 그룹DN 번호 (TB_IE_GDN_MASTER.GDN_NO). origGrpdnId 가 없으면 null. */
+  origGrpdnNo: string | null;
+  /** 그룹DN 이름 (TB_IE_GDN_MASTER.GDN_NAME). origGrpdnId 가 없으면 null. */
+  origGrpdnName: string | null;
+
+  /** 내선 IP 인증 유형. '1'=고정IP, '2'=동적IP, null=해당없음. */
+  extAuthtype: ExtAuthtypeCode | null;
+  ipv4Address: string | null;
+  ipv6Address: string | null;
+  extIpUpdate: number | null; // 0/1
 
   workUser?: number | null;
   workTime?: string | null; // ISO LocalDateTime
@@ -41,6 +60,10 @@ export interface AdnCreateRequest {
   md5Authpwd?: string;
   adnDftState: AdnDefaultStateCode;
   origGrpdnId?: number | null;
+  extAuthtype?: ExtAuthtypeCode | null;
+  ipv4Address?: string;
+  ipv6Address?: string;
+  extIpUpdate?: number | null;
 }
 
 export interface AdnUpdateRequest {
@@ -49,6 +72,10 @@ export interface AdnUpdateRequest {
   md5Authpwd?: string;
   adnDftState: AdnDefaultStateCode;
   origGrpdnId?: number | null;
+  extAuthtype?: ExtAuthtypeCode | null;
+  ipv4Address?: string;
+  ipv6Address?: string;
+  extIpUpdate?: number | null;
 }
 
 export interface AdnCopyRequest {

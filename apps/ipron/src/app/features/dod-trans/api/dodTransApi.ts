@@ -11,6 +11,7 @@
  * - ipron-dod-trans-item-create:    POST   DOD DNIS 변환 아이템 등록
  * - ipron-dod-trans-item-update:    PUT    DOD DNIS 변환 아이템 수정
  * - ipron-dod-trans-item-delete:    DELETE DOD DNIS 변환 아이템 삭제
+ * - ipron-dod-trans-delete-batch:   DELETE DOD DNIS 변환 아이템 일괄 삭제 (body: { items: [{dodTransId, listSeq}] })
  * - manager-node-list:              GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
@@ -109,6 +110,14 @@ export const dodTransApi = {
    */
   deleteItem: async (params: Record<string, unknown>) => {
     return await apiClient.delete('/ipron-dod-trans-item-delete', { params });
+  },
+
+  /**
+   * DOD DNIS 변환 아이템 일괄 삭제 (복합키 {dodTransId, listSeq} 묶음)
+   * @flow ipron-dod-trans-delete-batch (POST /api/ipron/dod-trans-items/delete-batch, body: { items })
+   */
+  deleteItemBatch: async (items: { dodTransId: number; listSeq: number }[]): Promise<void> => {
+    await apiClient.post('/ipron-dod-trans-delete-batch', { items });
   },
 
   // ─── 공통 ─────────────────────────────────────────────────────────────────

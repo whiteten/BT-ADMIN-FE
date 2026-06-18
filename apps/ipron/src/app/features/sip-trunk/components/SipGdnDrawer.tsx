@@ -9,9 +9,10 @@
  *
  * 등록은 헤더 + 버튼 / 수정은 그리드 행 더블클릭(onRowDoubleClicked) 으로 오픈.
  */
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Button, Drawer, Form, Input, InputNumber, Radio, Select } from 'antd';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { Button, Drawer, Form, Input, InputNumber, Radio, Select, Tabs } from 'antd';
 import { toast } from '@/shared-util';
+import { useGetAcdGdnAccessCodeProfileOptions } from '../../acd-gdn/hooks/useAcdGdnQueries';
 import { useCreateSipGdn, useUpdateSipGdn } from '../hooks/useSipTrunkQueries';
 import { CLOSE_TYPE_OPTIONS, ROUTING_KIND_OPTIONS, type SipGdnResponse } from '../types';
 
@@ -49,6 +50,9 @@ interface FormValues {
   blockRoutingDnis: string | null;
   errorRoutingDnis: string | null;
   busyRoutingDnis: string | null;
+  // 접근코드 프로파일 (BE SipGdnCreateRequest:42-43 / SipGdnUpdateRequest 정합)
+  accessCodeProfileId: number | null;
+  drAccessCodeProfileId: number | null;
 }
 
 const DEFAULTS: Partial<FormValues> = {
@@ -62,6 +66,8 @@ const DEFAULTS: Partial<FormValues> = {
   blockRoutingDnis: null,
   errorRoutingDnis: null,
   busyRoutingDnis: null,
+  accessCodeProfileId: null,
+  drAccessCodeProfileId: null,
 };
 
 const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drNodeOptions, onSuccess }, ref) => {
@@ -73,6 +79,13 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
 
   const backUpNodeId = Form.useWatch('backUpNodeId', form);
   const globalForced = backUpNodeId != null && backUpNodeId !== 0;
+
+  // 접근코드 프로파일 콤보 옵션 (레퍼런스: AcdGdnFormDrawer:349-355)
+  const { data: accessCodeProfileOptions = [] } = useGetAcdGdnAccessCodeProfileOptions(nodeId != null ? Number(nodeId) : null);
+  const accessCodeProfileSelectOptions = useMemo(
+    () => [{ value: 0, label: '(미사용)' }, ...accessCodeProfileOptions.map((o) => ({ value: o.id, label: o.name }))],
+    [accessCodeProfileOptions],
+  );
 
   // SWAT :217-224: blockYn=0이면 closeType disabled
   const blockYn = Form.useWatch('blockYn', form);
@@ -112,6 +125,8 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
         blockRoutingDnis: editData.blockRoutingDnis ?? null,
         errorRoutingDnis: editData.errorRoutingDnis ?? null,
         busyRoutingDnis: editData.busyRoutingDnis ?? null,
+        accessCodeProfileId: editData.accessCodeProfileId ?? null,
+        drAccessCodeProfileId: editData.drAccessCodeProfileId ?? null,
       });
     } else {
       form.resetFields();
@@ -146,6 +161,8 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
         blockRoutingDnis: v.blockRoutingDnis || null,
         errorRoutingDnis: v.errorRoutingDnis || null,
         busyRoutingDnis: v.busyRoutingDnis || null,
+        accessCodeProfileId: v.accessCodeProfileId ?? null,
+        drAccessCodeProfileId: backUp != null ? (v.drAccessCodeProfileId ?? null) : null,
       };
     },
     [closeTypeDisabled],
@@ -154,7 +171,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   const { mutate: createGdn, isPending: creating } = useCreateSipGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹DN이 등록되었습니다.');
+        toast.success('그룹DN이 등록되었습니다');
         handleClose();
         onSuccess?.();
       },
@@ -165,7 +182,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   const { mutate: updateGdn, isPending: updating } = useUpdateSipGdn({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('그룹DN이 수정되었습니다.');
+        toast.success('그룹DN이 수정되었습니다');
         if (!isApplyRef.current) handleClose();
         onSuccess?.();
       },
@@ -182,7 +199,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
           updateGdn({ gdnId: editData.gdnId, body: buildBody(v) });
         } else {
           if (nodeId == null || tenantId == null) {
-            toast.warning('노드와 테넌트를 먼저 선택하세요.');
+            toast.warning('노드와 테넌트를 먼저 선택하세요');
             return;
           }
           createGdn({
@@ -202,6 +219,7 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
   return (
     <Drawer
       title={isEdit ? '그룹DN 수정' : '그룹DN 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       width={560}
@@ -221,83 +239,104 @@ const SipGdnDrawer = forwardRef<SipGdnDrawerRef, Props>(({ nodeId, tenantId, drN
       }
     >
       <Form form={form} layout="vertical">
-        {/* ── 기본정보 ── */}
-        <Form.Item
-          name="gdnNo"
-          label="그룹DN 번호"
-          rules={[
-            { required: true, message: '그룹DN 번호는 필수입니다' },
-            { pattern: /^[0-9]{3,8}$/, message: '3~8자리 숫자' },
+        <Tabs
+          items={[
+            {
+              key: 'basic',
+              label: '기본정보',
+              forceRender: true,
+              children: (
+                <div className="grid grid-cols-2 gap-x-4">
+                  <Form.Item
+                    name="gdnNo"
+                    label="그룹DN 번호"
+                    rules={[
+                      { required: true, message: '그룹DN 번호는 필수입니다' },
+                      { pattern: /^[0-9]{3,8}$/, message: '3~8자리 숫자' },
+                    ]}
+                  >
+                    <Input placeholder="3~8자리 숫자" maxLength={8} disabled={isEdit} />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="gdnName"
+                    label="그룹DN 이름"
+                    rules={[
+                      { required: true, message: '그룹DN 이름은 필수입니다' },
+                      { max: 100, message: '100자 이내' },
+                    ]}
+                  >
+                    <Input placeholder="1~100자" maxLength={100} />
+                  </Form.Item>
+
+                  <Form.Item name="backUpNodeId" label="DR노드 (백업 노드)" extra="DR노드 지정 시 Global DN 자동 강제">
+                    <Select options={[{ value: 0, label: '없음' }, ...drNodeOptions.map((n) => ({ value: n.nodeId, label: n.nodeName }))]} />
+                  </Form.Item>
+
+                  <Form.Item name="globalDnYn" label="Global DN" extra={globalForced ? 'DR노드 지정으로 자동 강제' : undefined}>
+                    <Radio.Group disabled={globalForced}>
+                      <Radio value={1}>사용</Radio>
+                      <Radio value={0}>미사용</Radio>
+                    </Radio.Group>
+                  </Form.Item>
+
+                  {/* 접근코드 프로파일 콤보 (레퍼런스: AcdGdnFormDrawer:349-355, BE SipGdnCreateRequest:42-43 정합) */}
+                  <Form.Item name="accessCodeProfileId" label="접근코드 프로파일" tooltip="메인 노드 기준 접근코드 프로파일">
+                    <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear />
+                  </Form.Item>
+                  <Form.Item name="drAccessCodeProfileId" label="DR 접근코드 프로파일" tooltip="DR노드 기준 접근코드 프로파일">
+                    <Select options={accessCodeProfileSelectOptions} placeholder="(미사용)" showSearch optionFilterProp="label" allowClear disabled={!globalForced} />
+                  </Form.Item>
+
+                  {/* F-5: maxWaitcnt / maxWaittime required — 한 행 2열 */}
+                  <Form.Item name="maxWaitcnt" label="최대수신대기호" rules={[{ required: true, message: '필수 입력 항목입니다' }]}>
+                    <InputNumber min={0} className="w-full" />
+                  </Form.Item>
+                  <Form.Item name="maxWaittime" label="최대수신대기시간" rules={[{ required: true, message: '필수 입력 항목입니다' }]}>
+                    <InputNumber min={0} className="w-full" />
+                  </Form.Item>
+
+                  <Form.Item name="blockYn" label="블록 여부" className="col-span-2">
+                    <Radio.Group>
+                      <Radio value={1}>설정</Radio>
+                      <Radio value={0}>해제</Radio>
+                    </Radio.Group>
+                  </Form.Item>
+                </div>
+              ),
+            },
+            {
+              key: 'config',
+              label: '초기구성',
+              forceRender: true,
+              children: (
+                <div className="grid grid-cols-2 gap-x-4">
+                  {/* blockYn=0이면 closeType disabled (SWAT :217-224) */}
+                  <Form.Item name="closeType" label="종료 방법">
+                    <Select disabled={closeTypeDisabled} allowClear placeholder="종료 방법 선택" options={[{ value: null, label: '(미지정)' }, ...CLOSE_TYPE_OPTIONS]} />
+                  </Form.Item>
+
+                  {/* routingKind: SWAT에서 disabled로 표시 (읽기 전용) */}
+                  <Form.Item name="routingKind" label="라우팅 기준" extra="시스템 설정값 (변경 불가)">
+                    <Select disabled allowClear placeholder="(미지정)" options={[{ value: null, label: '(미지정)' }, ...ROUTING_KIND_OPTIONS]} />
+                  </Form.Item>
+
+                  <Form.Item name="blockRoutingDnis" label="차단 우회 DNIS" rules={[{ max: 24, message: '최대 24자' }]}>
+                    <Input placeholder="최대 24자" maxLength={24} />
+                  </Form.Item>
+
+                  <Form.Item name="errorRoutingDnis" label="오류 우회 DNIS" rules={[{ max: 24, message: '최대 24자' }]}>
+                    <Input placeholder="최대 24자" maxLength={24} />
+                  </Form.Item>
+
+                  <Form.Item name="busyRoutingDnis" label="만석 우회 DNIS" rules={[{ max: 24, message: '최대 24자' }]}>
+                    <Input placeholder="최대 24자" maxLength={24} />
+                  </Form.Item>
+                </div>
+              ),
+            },
           ]}
-        >
-          <Input placeholder="3~8자리 숫자" maxLength={8} disabled={isEdit} />
-        </Form.Item>
-
-        <Form.Item
-          name="gdnName"
-          label="그룹DN 이름"
-          rules={[
-            { required: true, message: '그룹DN 이름은 필수입니다' },
-            { max: 100, message: '100자 이내' },
-          ]}
-        >
-          <Input placeholder="1~100자" maxLength={100} />
-        </Form.Item>
-
-        <Form.Item name="backUpNodeId" label="DR노드 (백업 노드)" extra="DR노드 지정 시 Global DN 자동 강제">
-          <Select options={[{ value: 0, label: '없음' }, ...drNodeOptions.map((n) => ({ value: n.nodeId, label: n.nodeName }))]} />
-        </Form.Item>
-
-        <Form.Item name="globalDnYn" label="Global DN" extra={globalForced ? 'DR노드 지정으로 자동 강제' : undefined}>
-          <Radio.Group disabled={globalForced}>
-            <Radio value={1}>사용</Radio>
-            <Radio value={0}>미사용</Radio>
-          </Radio.Group>
-        </Form.Item>
-
-        {/* F-5: maxWaitcnt / maxWaittime required */}
-        <div className="grid grid-cols-2 gap-x-4">
-          <Form.Item name="maxWaitcnt" label="최대수신대기호" rules={[{ required: true, message: '필수 입력 항목입니다' }]}>
-            <InputNumber min={0} className="w-full" />
-          </Form.Item>
-          <Form.Item name="maxWaittime" label="최대수신대기시간" rules={[{ required: true, message: '필수 입력 항목입니다' }]}>
-            <InputNumber min={0} className="w-full" />
-          </Form.Item>
-        </div>
-
-        <Form.Item name="blockYn" label="블럭 여부">
-          <Radio.Group>
-            <Radio value={1}>설정</Radio>
-            <Radio value={0}>해제</Radio>
-          </Radio.Group>
-        </Form.Item>
-
-        {/* ── F-1: 초기구성 탭 필드 (SWAT IPR20S3030 GDN_TYPE=18) ── */}
-        <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
-          <h4 className="text-xs text-gray-500 font-semibold mb-3">초기구성</h4>
-
-          {/* blockYn=0이면 closeType disabled (SWAT :217-224) */}
-          <Form.Item name="closeType" label="종료 방법" extra={closeTypeDisabled ? '블럭 여부를 "설정"으로 변경하면 활성화됩니다' : undefined}>
-            <Select disabled={closeTypeDisabled} allowClear placeholder="종료 방법 선택" options={[{ value: null, label: '(미지정)' }, ...CLOSE_TYPE_OPTIONS]} />
-          </Form.Item>
-
-          {/* routingKind: SWAT에서 disabled로 표시 (읽기 전용) */}
-          <Form.Item name="routingKind" label="라우팅 기준" extra="시스템 설정값 (변경 불가)">
-            <Select disabled allowClear placeholder="(미지정)" options={[{ value: null, label: '(미지정)' }, ...ROUTING_KIND_OPTIONS]} />
-          </Form.Item>
-
-          <Form.Item name="blockRoutingDnis" label="차단 우회 DNIS" rules={[{ max: 24, message: '최대 24자' }]}>
-            <Input placeholder="최대 24자" maxLength={24} />
-          </Form.Item>
-
-          <Form.Item name="errorRoutingDnis" label="오류 우회 DNIS" rules={[{ max: 24, message: '최대 24자' }]}>
-            <Input placeholder="최대 24자" maxLength={24} />
-          </Form.Item>
-
-          <Form.Item name="busyRoutingDnis" label="만석 우회 DNIS" rules={[{ max: 24, message: '최대 24자' }]}>
-            <Input placeholder="최대 24자" maxLength={24} />
-          </Form.Item>
-        </div>
+        />
       </Form>
     </Drawer>
   );

@@ -23,7 +23,7 @@ export default function ToolGroupDetail() {
 
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AOE 관리', path: '/aoe/agent-config' },
       { title: '도구', path: '/aoe/agent-config/tool/list' },
       { title: ':groupName', path: `/aoe/agent-config/tool/${groupId}` },
     ];

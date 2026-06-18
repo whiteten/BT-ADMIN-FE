@@ -8,10 +8,9 @@ import { Activity, CheckCircle2, Pause, PhoneIncoming, Play } from 'lucide-react
 import { useBreadcrumbStore } from '@/shared-store';
 import { useGetDashboard } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { DashboardChannelItem, DashboardItem } from '../../features/monitoring/types';
-import NoData from '@/components/custom/NoData';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: '모니터링', path: '/stt/monitoring' },
   { title: 'STT 대시보드', path: '/stt/monitoring/dashboard/list' },
 ];
 
@@ -36,7 +35,11 @@ function SectionLabel({ children, desc }: { children: React.ReactNode; desc?: st
   );
 }
 
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+
 function buildChartOption(items: DashboardItem[]): EChartsOption {
+  const itemMap = new Map(items.map((i) => [i.callDate.replace('시', '').padStart(2, '0'), i]));
+
   return {
     tooltip: {
       trigger: 'axis',
@@ -45,15 +48,16 @@ function buildChartOption(items: DashboardItem[]): EChartsOption {
       formatter: (params: unknown) => {
         const list = params as Array<{ seriesName: string; value: number; dataIndex: number; marker: string }>;
         if (!list?.length) return '';
-        const idx = list[0].dataIndex;
-        return [`<strong>${items[idx]?.callDate ?? ''}</strong>`, ...list.map((p) => `${p.marker}${p.seriesName}: <strong>${p.value}</strong>`)].join('<br/>');
+        const hour = HOURS[list[0].dataIndex];
+        const label = itemMap.get(hour)?.callDate ?? `${hour}시`;
+        return [`<strong>${label}</strong>`, ...list.map((p) => `${p.marker}${p.seriesName}: <strong>${p.value}</strong>`)].join('<br/>');
       },
     },
     legend: { right: 0, top: 0, textStyle: { color: '#495057', fontSize: 12 } },
     grid: { left: 20, right: 20, bottom: 20, top: 40, containLabel: true },
     xAxis: {
       type: 'category',
-      data: items.map((i) => i.callDate),
+      data: HOURS.map((h) => `${h}시`),
       axisLine: { lineStyle: { color: '#E9EBEC' } },
       axisTick: { show: false },
       axisLabel: { color: '#495057', fontSize: 12 },
@@ -70,28 +74,25 @@ function buildChartOption(items: DashboardItem[]): EChartsOption {
       {
         name: '실시간 인입',
         type: 'bar',
-        data: items.map((i) => i.real),
+        data: HOURS.map((h) => itemMap.get(h)?.real ?? 0),
         itemStyle: { color: CHART_COLORS.real, borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top', color: '#555', fontSize: 11 },
         barMaxWidth: 60,
       },
       {
         name: '배치 인입',
         type: 'bar',
-        data: items.map((i) => i.batch),
+        data: HOURS.map((h) => itemMap.get(h)?.batch ?? 0),
         itemStyle: { color: CHART_COLORS.batch, borderRadius: [4, 4, 0, 0] },
-        label: { show: true, position: 'top', color: '#555', fontSize: 11 },
         barMaxWidth: 60,
       },
       {
         name: '총 변환 수',
         type: 'line',
-        data: items.map((i) => i.completeCnt),
+        data: HOURS.map((h) => itemMap.get(h)?.completeCnt ?? 0),
         symbol: 'circle',
         symbolSize: 8,
         lineStyle: { color: CHART_COLORS.completeCnt, width: 2 },
         itemStyle: { color: '#fff', borderColor: CHART_COLORS.completeCnt, borderWidth: 2 },
-        label: { show: true, position: 'top', color: '#555', fontSize: 11 },
       },
     ],
   };
@@ -293,13 +294,7 @@ export default function SttDashboard() {
       <section>
         <SectionLabel desc="날짜별 실시간·배치 인입 및 총 변환 수 추이">콜 인입/변환현황</SectionLabel>
         <div className="rounded-lg bg-white bt-shadow p-5">
-          {items.length === 0 ? (
-            <div className="flex items-center justify-center" style={{ height: 280 }}>
-              <NoData />
-            </div>
-          ) : (
-            <ReactECharts option={buildChartOption(items)} notMerge style={{ height: 280, width: '100%' }} />
-          )}
+          <ReactECharts option={buildChartOption(items)} notMerge style={{ height: 280, width: '100%' }} />
         </div>
       </section>
 

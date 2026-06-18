@@ -108,11 +108,14 @@ export function toHealthData(data: unknown): HealthBoardData {
         }))
       : [],
     agents: {
-      available: num0(agentsRaw.available),
-      talking: num0(agentsRaw.talking),
-      wrapup: num0(agentsRaw.wrapup),
+      logout: num0(agentsRaw.logout),
       aux: num0(agentsRaw.aux),
-      offline: num0(agentsRaw.offline),
+      ready: num0(agentsRaw.ready),
+      talking: num0(agentsRaw.talking),
+      ringing: num0(agentsRaw.ringing),
+      dialing: num0(agentsRaw.dialing),
+      hold: num0(agentsRaw.hold),
+      wrapup: num0(agentsRaw.wrapup),
     },
     quality: {
       bad: num0(qualityRaw.bad),
@@ -169,14 +172,14 @@ function toTrunkBoard(raw: unknown): TrunkBoard {
   const s = (t.summary ?? {}) as Record<string, unknown>;
   const items = Array.isArray(t.items)
     ? (t.items as Record<string, unknown>[]).map((it) => ({
+        kind: (it.kind === 'CO' ? 'CO' : 'SIP') as 'CO' | 'SIP',
         name: String(it.name ?? ''),
         rate: num0(it.rate),
         busyLine: num0(it.busyLine),
         totalLine: num0(it.totalLine),
         inBusy: num0(it.inBusy),
         outBusy: num0(it.outBusy),
-        block: num0(it.block),
-        registered: it.registered != null ? num0(it.registered) : 1,
+        issueCnt: num0(it.issueCnt),
         severity: normalizeSeverity(it.severity),
       }))
     : [];
@@ -189,7 +192,6 @@ function toTrunkBoard(raw: unknown): TrunkBoard {
       blockCnt: num0(s.blockCnt),
       errorCnt: num0(s.errorCnt),
       normalCnt: num0(s.normalCnt),
-      saturatedCnt: num0(s.saturatedCnt),
     },
     items,
   };
@@ -198,25 +200,28 @@ function toTrunkBoard(raw: unknown): TrunkBoard {
 // ─── 임계 판정 ─────────────────────────────────────────────────
 
 const DEFAULTS: Required<HealthBoardThresholds> = {
-  answerRate: { good: 90, warn: 80 },
-  serviceLevel: { good: 90, warn: 80 },
-  abandonRate: { good: 3, warn: 5 },
-  waiting: { good: 9, warn: 29 },
+  answerRate: { warn: 90, danger: 80 },
+  serviceLevel: { warn: 90, danger: 80 },
+  abandonRate: { warn: 3, danger: 5 },
+  waiting: { warn: 9, danger: 29 },
 };
 
-/** 높을수록 좋음: good 이상 정상 / warn 이상 주의 / 미만 위험. (KPI 게이지는 notice/danger 2밴드) */
-export function higherBetter(value: number | null, t: { good: number; warn: number }): Severity {
+/** 헬스보드 KPI 임계 기본값 — 설정 드로어 초기화/병합에 사용. (warn: 주의(주황) 경계, danger: 위험(빨강) 경계) */
+export const DEFAULT_HB_THRESHOLDS: Required<HealthBoardThresholds> = DEFAULTS;
+
+/** 높을수록 좋음: warn 이상 정상 / danger 이상 주의 / 미만 위험. (KPI 게이지는 notice/danger 2밴드) */
+export function higherBetter(value: number | null, t: { warn: number; danger: number }): Severity {
   if (value == null) return 'notice';
-  if (value >= t.good) return 'success';
-  if (value >= t.warn) return 'notice';
+  if (value >= t.warn) return 'success';
+  if (value >= t.danger) return 'notice';
   return 'danger';
 }
 
-/** 낮을수록 좋음: good 이하 정상 / warn 이하 주의 / 초과 위험. (KPI 게이지는 notice/danger 2밴드) */
-export function lowerBetter(value: number | null, t: { good: number; warn: number }): Severity {
+/** 낮을수록 좋음: warn 이하 정상 / danger 이하 주의 / 초과 위험. (KPI 게이지는 notice/danger 2밴드) */
+export function lowerBetter(value: number | null, t: { warn: number; danger: number }): Severity {
   if (value == null) return 'notice';
-  if (value <= t.good) return 'success';
-  if (value <= t.warn) return 'notice';
+  if (value <= t.warn) return 'success';
+  if (value <= t.danger) return 'notice';
   return 'danger';
 }
 
@@ -321,13 +326,20 @@ export interface DonutSeg {
   dashoffset: number;
 }
 
-/** 상담사 상태 색 (insight @theme --color-bt-st-* 와 동일 hex). */
+/**
+ * 상담사 상태 색 (insight @theme --color-bt-st-* 와 동일 hex).
+ * 표시 순서: 로그아웃 → 이석 → 대기 → 통화 → 벨울림 → 다이얼링 → 보류 → 후처리.
+ * 벨울림·다이얼링은 테마상 동일 ring 토큰이라 도넛 구분을 위해 다이얼링만 밝은 변형색 사용.
+ */
 const AGENT_SEG_META: { key: keyof AgentDistribution; label: string; color: string }[] = [
-  { key: 'available', label: '가용', color: '#0a8a4a' },
-  { key: 'talking', label: '통화', color: '#085fb5' },
-  { key: 'wrapup', label: '후처리', color: '#9b7dff' },
+  { key: 'logout', label: '로그아웃', color: '#cdd2d9' },
   { key: 'aux', label: '이석', color: '#85898f' },
-  { key: 'offline', label: '오프라인', color: '#cdd2d9' },
+  { key: 'ready', label: '대기', color: '#0a8a4a' },
+  { key: 'talking', label: '통화', color: '#085fb5' },
+  { key: 'ringing', label: '벨울림', color: '#b76e00' },
+  { key: 'dialing', label: '다이얼링', color: '#d99a2b' },
+  { key: 'hold', label: '보류', color: '#7a4e9e' },
+  { key: 'wrapup', label: '후처리', color: '#9b7dff' },
 ];
 
 /** 상담사 분포 → 도넛 세그먼트 배열 (누적 offset 계산). */

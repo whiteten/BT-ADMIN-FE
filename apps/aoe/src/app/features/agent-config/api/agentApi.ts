@@ -24,6 +24,10 @@ export const agentApi = {
     const response = await apiClient.delete('/aoe-agents-delete', { params });
     return response;
   },
+  duplicateAgent: async (params: { agentId: string }) => {
+    const response = await apiClient.post('/aoe-agent-duplicate', {}, { params });
+    return response;
+  },
   getAgentTypes: async (params?: Record<string, unknown>) => {
     const response = await apiClient.get<ApiResponse<{ items: AgentType[] }>>('/agent-types', { params });
     return response.data?.data?.items ?? [];

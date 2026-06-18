@@ -12,7 +12,7 @@ import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/aoe/agent-config' },
+  { title: 'AOE 관리', path: '/aoe/agent-config' },
   { title: 'MCP', path: '/aoe/agent-config/mcp/list' },
 ];
 

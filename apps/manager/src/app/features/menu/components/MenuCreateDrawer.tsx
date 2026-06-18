@@ -42,6 +42,8 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
   const watchType = Form.useWatch('type', form);
   const watchParentKey = Form.useWatch('parentKey', form);
   const watchPath = Form.useWatch('path', form);
+  const watchLabel = Form.useWatch('label', form);
+  const watchDesc = Form.useWatch('desc', form);
 
   const appOptions = useMemo(() => apps.map((a) => ({ label: a.appName, value: a.appId })), [apps]);
   const pathOptions = useMemo(() => buildPathOptions(routes, watchAppId), [routes, watchAppId]);
@@ -53,6 +55,21 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
 
   const isPage = watchType === 'PAGE';
   const isTopLevel = !watchParentKey;
+
+  const appName = apps.find((a) => a.appId === watchAppId)?.appName;
+  // 미리보기 breadcrumb의 부모 폴더 체인(top→immediate parent). watchParentKey부터 위로 순회.
+  const ancestorLabels = useMemo(() => {
+    const byKey = new Map(menus.map((m) => [m.menuKey, m]));
+    const labels: string[] = [];
+    let pk: string | null | undefined = watchParentKey;
+    while (pk) {
+      const p = byKey.get(pk);
+      if (!p) break;
+      labels.unshift(p.label);
+      pk = p.parentKey;
+    }
+    return labels;
+  }, [menus, watchParentKey]);
 
   const handleQueryChange = (key: string, value: string | undefined) => {
     setQueryValues((prev) => ({ ...prev, [key]: value }));
@@ -209,10 +226,6 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
 
         {isPage && querySpecs.length > 0 && <QuerySelectorRenderer specs={querySpecs} values={queryValues} onChange={handleQueryChange} errors={queryErrors} />}
 
-        <Form.Item label="설명" name="desc">
-          <Input placeholder="메뉴 설명 (선택사항)" />
-        </Form.Item>
-
         <Row gutter={16}>
           <Col span={12}>
             <Form.Item label="정렬순서" name="sortOrder">
@@ -225,6 +238,28 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
             </Form.Item>
           </Col>
         </Row>
+
+        <Form.Item label="설명" name="desc">
+          <Input.TextArea placeholder="메뉴 설명 (선택사항)" rows={3} />
+        </Form.Item>
+
+        {/*
+         * 메뉴 패널 미리보기 — MenuDetailForm과 동일. host 작게보기 우측 프리뷰(PanelDetailSplit) 재현.
+         * PAGE만 노출. 텍스트 폭 344px 고정(우측 pane 400 - px-7 56). 근거는 MenuDetailForm 주석 참조.
+         */}
+        {isPage && (
+          <Form.Item label="메뉴 패널 미리보기">
+            <div className="inline-block rounded-lg border border-[#e9ecef] bg-[#fcfdfe] px-7 py-6">
+              <p className="w-[344px] mb-2 text-xs text-[#868e96]">{[appName, ...ancestorLabels].filter(Boolean).join(' › ') || '메뉴'}</p>
+              <h2 className="w-[344px] mb-3 text-xl font-bold text-[#212529]">{watchLabel || '메뉴 라벨'}</h2>
+              {watchDesc?.trim() ? (
+                <p className="w-[344px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{watchDesc}</p>
+              ) : (
+                <p className="w-[344px] text-sm text-[#adb5bd]">설명을 입력하면 이곳에 표시됩니다.</p>
+              )}
+            </div>
+          </Form.Item>
+        )}
       </Form>
     </Drawer>
   );

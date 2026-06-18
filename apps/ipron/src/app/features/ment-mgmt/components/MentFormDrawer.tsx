@@ -201,6 +201,12 @@ export default function MentFormDrawer({ state, onClose }: Props) {
 
   const onDownloadCurrent = async (mentId: number, fileName: string) => {
     try {
+      // 파일 없음은 BE 404 → BFF 500 둔갑 → 사전체크(항상 200)로 회피. 실체 없으면 graceful 안내 후 중단.
+      const check = await mentApi.previewCheck(mentId);
+      if (!check.fileExists) {
+        toast.warning(check.message ?? '멘트 파일 실체가 없습니다(메타만 등록됨)');
+        return;
+      }
       const blob = await mentApi.download(mentId);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -338,12 +344,13 @@ export default function MentFormDrawer({ state, onClose }: Props) {
   return (
     <Drawer
       title={isEdit ? '교환기 멘트 수정' : '교환기 멘트 등록'}
+      closable={{ placement: 'end' }}
       width={560}
       open={state.open}
       onClose={onClose}
       forceRender
-      extra={
-        <div className="flex gap-2">
+      footer={
+        <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
           <Button type="primary" loading={submitting} onClick={onSubmit}>
             저장
@@ -389,7 +396,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
 
         <Form.Item label="멘트 파일 (.pcm)" required={!isEdit}>
           {/* 파일 선택 시 메타 저장 후 PCM 바이트를 로컬 스토리지에 업로드. MS 송신(동기화)은 별도 미연동. */}
-          <input ref={singleInputRef} type="file" accept=".pcm" className="hidden" onChange={onPickSingle} />
+          <input ref={singleInputRef} type="file" accept=".pcm" className="hidden" style={{ display: 'none' }} onChange={onPickSingle} />
           {/* 신규/교체 선택된 파일 */}
           {singleFile ? (
             <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -452,12 +459,12 @@ export default function MentFormDrawer({ state, onClose }: Props) {
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-[12px] font-semibold text-gray-600">멘트 파일 (.pcm 다중 선택)</label>
-              {/* Template 다운로드 — SWAT doTemplateDown() 정합 (파일명/설명 컬럼 CSV) */}
-              <Button size="small" icon={<Download className="size-3" />} onClick={onDownloadTemplate} title="멘트 목록 가져오기 템플릿 다운로드 (SWAT IE_MentList_Import 정합)">
-                Template 다운로드
+              {/* 템플릿 다운로드 (파일명/설명 컬럼 CSV) */}
+              <Button size="small" icon={<Download className="size-3" />} onClick={onDownloadTemplate} title="멘트 목록 가져오기 템플릿 다운로드">
+                템플릿 다운로드
               </Button>
             </div>
-            <input ref={multiInputRef} type="file" accept=".pcm" multiple className="hidden" onChange={onPickMulti} />
+            <input ref={multiInputRef} type="file" accept=".pcm" multiple className="hidden" style={{ display: 'none' }} onChange={onPickMulti} />
             <button
               type="button"
               onClick={() => multiInputRef.current?.click()}

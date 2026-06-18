@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, DatePicker, Divider, Radio, Select, TimePicker, Tooltip, TreeSelect, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { Camera, Download, Search } from 'lucide-react';
 import { toast } from '@/shared-util';
 import ComparisonToggle from './ComparisonToggle';
 import { useExportPanelExcel } from '../../panel/hooks/usePanelQueries';
+import { captureChartsToPng } from '../../panel/utils/captureCharts';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../report/hooks/useReportViewStore';
+import type { PanelType } from '../../report/types';
 import { useGetSearchConditionStages, useResolveStageOptions } from '../../search-condition/hooks/useSearchConditionQueries';
 import type { SearchCondStage, SqlPreviewResult } from '../../search-condition/types';
 import { useTimeUnitLimits } from '../hooks/useTimeUnitLimits';
-import { type GlobalConditions, type GlobalFilter, type QuickPreset, type TimeUnit, WEEKDAY_OPTIONS } from '../types';
+import { type GlobalConditions, type QuickPreset, type TimeUnit, WEEKDAY_OPTIONS } from '../types';
 import { createDisabledDate, createEndDisabledDate, getMaxDays, getRangeLabel, validateDateRange } from '../utils/dateRangeLimit';
 
 interface GlobalFilterProps {
@@ -47,10 +49,12 @@ interface SearchCondCascadeProps {
   nodeFieldMap: Record<string, string>;
   /** 단일(노드코드 없는) 바인딩의 컬럼 — 루트 단계 폴백. */
   fallbackFieldName?: string;
+  /** 보고서 ID — cascade 선택 체인 스냅샷을 보고서별로 저장/복원. */
+  reportId: number;
   onChange(fieldName: string, val: string | string[] | null): void;
 }
 
-function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, onChange }: SearchCondCascadeProps) {
+function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, reportId, onChange }: SearchCondCascadeProps) {
   const { data: meta } = useGetSearchConditionStages({ searchCondId });
   const stages = useMemo(() => meta?.stages ?? [], [meta]);
   // 단계별 로컬 선택값 — cascade 구동(자식 조회) + 바인딩 컬럼 전송 양쪽에 사용.
@@ -70,6 +74,35 @@ function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, onCh
   }, [stages]);
 
   const fieldOf = (stage: SearchCondStage): string | undefined => nodeFieldMap[stage.nodeCode] ?? (stage.nodeDepth === 0 ? fallbackFieldName : undefined);
+
+  // cascade 선택 체인(그룹+하위 단계 전체)을 보고서별 스냅샷으로 저장/복원.
+  // searchValues 는 바인딩된 leaf 컬럼만 담아 그룹(부모) 복원이 안 되고, 그룹 미선택이면
+  // 하위 옵션 조회가 비활성→선택값 label 도 못 띄운다. 전체 체인을 직접 보관해 해결.
+  const snapKey = `insight.report.cascade.${reportId}.${searchCondId}`;
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || stages.length === 0) return;
+    try {
+      const raw = localStorage.getItem(snapKey);
+      if (raw) {
+        const snap = JSON.parse(raw) as Record<string, string | string[] | null>;
+        if (snap && typeof snap === 'object') setSelected(snap);
+      }
+    } catch {
+      /* ignore */
+    }
+    seededRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stages]);
+  // 선택 변경 시 스냅샷 저장 (seed 이후에만)
+  useEffect(() => {
+    if (!seededRef.current) return;
+    try {
+      localStorage.setItem(snapKey, JSON.stringify(selected));
+    } catch {
+      /* ignore */
+    }
+  }, [selected, snapKey]);
 
   const handleStageChange = (stage: SearchCondStage, val: string | string[] | null) => {
     // 자손 단계 수집 (BFS, 유효 부모 기준) — 부모 변경 시 자손 값·필터 리셋 대상.
@@ -237,6 +270,10 @@ function StageSelect({ searchCondId, stage, fallbackTitle, hasParent, parentValu
     );
   }
 
+  // 선택된 값을 드롭다운 맨 위로 정렬 — 하위 항목을 골라도 다시 찾기 쉽게(나머지는 원래 순서 유지)
+  const selectedSet = new Set(isMulti ? selectedArr : value ? [value as string] : []);
+  const orderedOptions = selectedSet.size ? [...options.filter((o) => selectedSet.has(o.value)), ...options.filter((o) => !selectedSet.has(o.value))] : options;
+
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm font-medium text-[#495057] shrink-0">{title}</span>
@@ -247,7 +284,7 @@ function StageSelect({ searchCondId, stage, fallbackTitle, hasParent, parentValu
         loading={isLoading}
         disabled={parentMissing}
         {...(isMulti ? { open, onOpenChange: handleOpenChange } : {})}
-        options={options}
+        options={orderedOptions}
         onChange={(val) => {
           if (isMulti) {
             const arr = val as string[];
@@ -296,9 +333,15 @@ const ISO_DATE = 'YYYY-MM-DD';
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────
 // 공통(검색일자 + 단위 + 비교)은 상단 고정 / 데이터셋 동적 검색조건은 그 아래 행.
-export default function GlobalFilter({ reportId }: GlobalFilterProps) {
-  const { panels } = useReportEditorStore();
-  const { globalFilter, committedFilter, setGlobalFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter } = useReportViewStore();
+export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
+  const { panels, report } = useReportEditorStore();
+  const reportTitle = report?.title ?? '통계 보고서';
+  const { globalFilter, committedFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter, hydrateForReport } = useReportViewStore();
+
+  // 뷰 진입(또는 보고서 전환) 시 저장된 조건 복원 — 글로벌 공통조건 + 보고서별 searchValues
+  useEffect(() => {
+    if (mode === 'view') hydrateForReport(reportId);
+  }, [mode, reportId, hydrateForReport]);
 
   // 그리드 패널만 서버 Excel Export (보고서당 그리드 1개 한정). 그리드 패널이 있으면 편집/뷰 모드 무관하게 활성화.
   const gridPanel = panels.find((p) => p.panelType === 'GRID');
@@ -315,6 +358,29 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
       comparison: committedFilter.comparison,
       conditions: committedFilter.conditions,
     });
+  };
+
+  // 차트 패널 PNG 캡처 — 화면의 차트(BAR/LINE/PIE/RADAR)만, 위→아래·좌→우 순으로 최대 6개 자동 분할.
+  const CHART_TYPES: PanelType[] = ['BAR', 'LINE', 'PIE', 'RADAR'];
+  const chartPanels = panels.filter((p) => CHART_TYPES.includes(p.panelType));
+  const [isCapturing, setIsCapturing] = useState(false);
+  const handleCapture = async () => {
+    if (chartPanels.length === 0) return;
+    setIsCapturing(true);
+    try {
+      const ordered = [...chartPanels].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+      const res = await captureChartsToPng(
+        ordered.map((p) => ({ panelId: p.panelId, title: p.title })),
+        reportTitle,
+      );
+      if (!res.ok) toast.error(res.reason ?? '차트 캡처에 실패했습니다.');
+      else if (res.truncated) toast.success(`차트가 많아 상위 6개만 캡처했습니다. (총 ${chartPanels.length}개)`);
+      else toast.success('차트를 캡처했습니다.');
+    } catch {
+      toast.error('차트 캡처에 실패했습니다.');
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   // 통계 설정(TIMEUNIT_LIMIT) 기반 단위별 최대 조회 기간 — 기간 조회조건 제한에 사용
@@ -343,23 +409,7 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
   // 빠른검색 프리셋 — 단위별로 목록이 달라짐(레거시 동일). 백엔드 비교 아님, 검색일자(기간)를 빠르게 세팅.
   const [quickPreset, setQuickPreset] = useState<QuickPreset | null>(null);
 
-  // 보고서 진입 시 localStorage에서 필터 복원 (기간/단위/비교)
-  useEffect(() => {
-    if (!reportId) return;
-    try {
-      const raw = localStorage.getItem(`reportFilter_${reportId}`);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as Partial<GlobalFilter>;
-      const patch: Partial<GlobalFilter> = {};
-      if (saved.timeUnit) patch.timeUnit = saved.timeUnit;
-      if (saved.period) patch.period = saved.period;
-      if ('comparison' in saved) patch.comparison = saved.comparison ?? null;
-      if (Object.keys(patch).length) setGlobalFilter(patch);
-    } catch {
-      /* ignore */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportId]);
+  // 필터 복원은 store.hydrateForReport(reportId) 로 일원화 (위 useEffect). 레거시 reportFilter_* 제거.
 
   // 패널 FILTER 슬롯 → searchCondId별로 단계(nodeCode)→데이터셋 컬럼(fieldName) 매핑 묶음 (cascade)
   const filterBindings = useMemo(() => {
@@ -494,15 +544,7 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
       excludeDays: hasTime ? excludeDays : [],
     };
     setConditions(conditions);
-
-    if (reportId) {
-      try {
-        const globalOnly = { period: globalFilter.period, timeUnit: globalFilter.timeUnit, comparison: globalFilter.comparison };
-        localStorage.setItem(`reportFilter_${reportId}`, JSON.stringify(globalOnly));
-      } catch {
-        /* ignore */
-      }
-    }
+    // 영속화(글로벌 공통조건 + 보고서별 searchValues)는 store.commitFilter 가 처리
     commitFilter();
   };
 
@@ -634,6 +676,11 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
               Export
             </Button>
           </Tooltip>
+          <Tooltip title={chartPanels.length ? undefined : '차트 패널이 있는 보고서만 캡처할 수 있습니다'}>
+            <Button color="purple" variant="solid" icon={<Camera className="size-4" />} disabled={!chartPanels.length} loading={isCapturing} onClick={handleCapture}>
+              캡처
+            </Button>
+          </Tooltip>
         </div>
       </div>
 
@@ -648,6 +695,7 @@ export default function GlobalFilter({ reportId }: GlobalFilterProps) {
                 searchCondId={searchCondId}
                 nodeFieldMap={nodeFieldMap}
                 fallbackFieldName={fallbackFieldName}
+                reportId={reportId}
                 onChange={(fieldName, val) => setSearchValue(fieldName, val)}
               />
             ))}

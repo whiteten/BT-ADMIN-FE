@@ -80,7 +80,16 @@ export interface SkillsetMemberReassignRequest {
   targetTreeId?: number | null;
 }
 
-// ─── 스케쥴 관리 (TB_IC_SCHEDULEINFO + TB_IC_SKILLSCHEDULE) ───────────────────
+/** 업무그룹 트리 D&D 재배치 — AgentGroupReorderRequest 패턴 동일 */
+export type SkillsetGroupReorderPosition = 'BEFORE' | 'AFTER' | 'INSIDE';
+
+export interface SkillsetGroupReorderRequest {
+  position: SkillsetGroupReorderPosition;
+  referenceTreeId: number;
+  targetPriorTreeId?: number | null;
+}
+
+// ─── 스케줄 관리 (TB_IC_SCHEDULEINFO + TB_IC_SKILLSCHEDULE) ───────────────────
 
 export interface ScheduleInfoResponse {
   scheduleId: number;

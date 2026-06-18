@@ -70,6 +70,16 @@ export const useDeleteDidRoute = ({ mutationOptions }: MutationHookOptions = {})
   });
 };
 
+/**
+ * DID라우트 일괄 삭제 (벌크 1콜)
+ */
+export const useDeleteDidRouteBatch = ({ mutationOptions }: MutationHookOptions<void, number[]> = {}) => {
+  return useMutation({
+    mutationFn: (ids: number[]) => didRouteApi.deleteBatch(ids),
+    ...mutationOptions,
+  });
+};
+
 // ─── Node Query ────────────────────────────────────────────────────────────
 
 interface NodeSimpleResponse {

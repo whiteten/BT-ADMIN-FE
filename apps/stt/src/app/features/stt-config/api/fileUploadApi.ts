@@ -21,4 +21,7 @@ export const fileUploadApi = {
   requestStt: async (files: { fileName: string; filePath: string }[]) => {
     return apiClient.post('/stt-file-request', { files });
   },
+  exportFileUploadExcel: async (data: { ucidGkeys: string[] }) => {
+    return await apiClient.post<Blob>('/stt-file-upload-excel', data, { responseType: 'blob' });
+  },
 };

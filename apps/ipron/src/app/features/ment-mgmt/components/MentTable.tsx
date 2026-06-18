@@ -10,9 +10,8 @@
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Pause, Play } from 'lucide-react';
+import { Pause, Play, Trash2 } from 'lucide-react';
 import type { MentResponse } from '../types';
-import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /** YYYYMMDD → YYYY-MM-DD */
@@ -27,9 +26,9 @@ interface MentTableProps {
   /** 현재 재생 중인 멘트 ID (null=정지). */
   playingMentId?: number | null;
   onRowDoubleClicked: (row: MentResponse) => void;
-  onDelete: (row: MentResponse) => void;
   onTogglePlay: (row: MentResponse) => void;
   onSelectionChanged?: (selected: MentResponse[]) => void;
+  onDelete?: (row: MentResponse) => void;
   onBulkDelete?: () => void;
   selectedCount?: number;
 }
@@ -47,7 +46,7 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
       title={disabled ? '삭제할 행을 선택하세요' : `선택한 ${selectedCount}건 삭제`}
       className={`flex items-center justify-center w-full h-full ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:text-red-600'}`}
     >
-      <IconTrash className="size-5 text-red-500" />
+      <Trash2 className="size-5 text-red-500" />
     </button>
   );
 }
@@ -57,35 +56,27 @@ export default function MentTable({
   isLoading,
   playingMentId = null,
   onRowDoubleClicked,
-  onDelete,
   onTogglePlay,
   onSelectionChanged,
+  onDelete,
   onBulkDelete,
   selectedCount = 0,
 }: MentTableProps) {
   const { gridOptions } = useAggridOptions();
 
-  const defaultColDef: ColDef = useMemo(() => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true }), []);
+  const defaultColDef: ColDef = useMemo(
+    () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
+    [],
+  );
 
   const columnDefs: ColDef<MentResponse>[] = useMemo(
     () => [
-      {
-        headerName: '',
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        checkboxSelection: true,
-        headerCheckboxSelection: true,
-        headerCheckboxSelectionFilteredOnly: true,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
       {
         headerName: '멘트ID',
         field: 'ieMentId',
         minWidth: 90,
         maxWidth: 110,
+        filter: 'agNumberColumnFilter',
         cellRenderer: (p: ICellRendererParams<MentResponse>) => <span className="font-mono text-[12px] text-gray-500">{p.value ?? ''}</span>,
       },
       {
@@ -105,6 +96,7 @@ export default function MentTable({
         field: 'mentName',
         flex: 1,
         minWidth: 140,
+        tooltipField: 'mentName',
         cellRenderer: (p: ICellRendererParams<MentResponse>) => <span className="font-semibold text-gray-700">{p.value ?? ''}</span>,
       },
       {
@@ -112,16 +104,25 @@ export default function MentTable({
         field: 'fileName',
         flex: 1,
         minWidth: 140,
-        cellStyle: { fontFamily: 'monospace', fontSize: '12px', color: '#475569' } as CellStyle,
+        tooltipField: 'fileName',
+        cellStyle: { fontFamily: 'monospace', color: '#475569' } as CellStyle,
         valueFormatter: (p) => p.value ?? '-',
       },
-      { headerName: '설명', field: 'mentDesc', flex: 1.2, minWidth: 150, cellStyle: { color: '#6b7280' } as CellStyle, valueFormatter: (p) => p.value ?? '-' },
+      {
+        headerName: '설명',
+        field: 'mentDesc',
+        flex: 1.2,
+        minWidth: 150,
+        tooltipField: 'mentDesc',
+        cellStyle: { color: '#6b7280' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+      },
       {
         headerName: '업로드일자',
         field: 'createDate',
         minWidth: 110,
         maxWidth: 130,
-        cellStyle: { textAlign: 'center', color: '#6b7280', fontSize: '12px' } as CellStyle,
+        cellStyle: { textAlign: 'center', color: '#6b7280' } as CellStyle,
         valueFormatter: (p) => fmtDate(p.value),
       },
       {
@@ -160,7 +161,7 @@ export default function MentTable({
         sortable: false,
         filter: false,
         suppressHeaderMenuButton: true,
-        pinned: 'right',
+        pinned: 'right' as const,
         headerComponent: () => <BulkDeleteHeader onBulkDelete={onBulkDelete} selectedCount={selectedCount} />,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         cellRenderer: (params: ICellRendererParams<MentResponse>) => {
@@ -169,12 +170,13 @@ export default function MentTable({
           return (
             <button
               type="button"
+              title={`"${data.mentName ?? data.ieMentId}" 삭제`}
               onClick={(e) => {
                 e.stopPropagation();
-                onDelete(data);
+                onDelete?.(data);
               }}
             >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-5 text-red-500 hover:cursor-pointer" />
             </button>
           );
         },
@@ -183,18 +185,19 @@ export default function MentTable({
     [playingMentId, onTogglePlay, onDelete, onBulkDelete, selectedCount],
   );
 
+  const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);
+
   return (
     <AgGridReact<MentResponse>
       rowData={rowData}
       columnDefs={columnDefs}
       defaultColDef={defaultColDef}
+      rowSelection={rowSelection}
       gridOptions={{
         ...gridOptions,
         statusBar: undefined,
         pagination: false,
         sideBar: false,
-        rowSelection: 'multiple',
-        suppressRowClickSelection: true,
       }}
       loading={isLoading}
       onRowDoubleClicked={(e) => e.data && onRowDoubleClicked(e.data)}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { SelectorKeys } from './features/router/querySelectors';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 // ─── 통계 ─────────────────────────────────────────────────────────────
@@ -19,12 +20,18 @@ const ReportView = React.lazy(() => import('./pages/report-view/ReportView'));
 const DashboardList = React.lazy(() => import('./pages/monitoring-dashboards/DashboardList'));
 const DashboardCreateWizard = React.lazy(() => import('./pages/monitoring-dashboard-wizard/DashboardCreateWizard'));
 const DashboardEditor = React.lazy(() => import('./pages/monitoring-dashboard-editor/DashboardEditor'));
+const DashboardEditInfo = React.lazy(() => import('./pages/monitoring-dashboard-edit-info/DashboardEditInfo'));
 const TemplateWidgetWizard = React.lazy(() => import('./pages/monitoring-template-widget-wizard/TemplateWidgetWizard'));
 const CustomWidgetCatalogPage = React.lazy(() => import('./pages/monitoring-custom-widget-catalog/CustomWidgetCatalogPage'));
 const DashboardView = React.lazy(() => import('./pages/monitoring-dashboard-view/DashboardView'));
 const DatasetCatalog = React.lazy(() => import('./pages/monitoring-datasets/DatasetCatalog'));
 const DatasetWizard = React.lazy(() => import('./pages/monitoring-dataset-wizard/DatasetWizard'));
 const LookupCatalogList = React.lazy(() => import('./pages/monitoring-lookups/LookupCatalogList'));
+const WidgetCatalogManageList = React.lazy(() => import('./pages/monitoring-widgets/WidgetCatalogManageList'));
+const TemplateWidgetBuilder = React.lazy(() => import('./pages/monitoring-template-widget-builder/TemplateWidgetBuilder'));
+
+// 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
+const pv = createPageVariantSocket('insight');
 
 export const routes = [
   {
@@ -39,40 +46,40 @@ export const routes = [
           { index: true, element: <Navigate to="datasets" replace /> },
           {
             path: 'search-conditions',
-            element: <SearchConditionCatalog />,
+            element: pv('statistics/search-conditions', SearchConditionCatalog),
           },
           {
             path: 'stat-config',
-            element: <StatConfigPage />,
+            element: pv('statistics/stat-config', StatConfigPage),
           },
           {
             path: 'datasets',
             element: <Outlet />,
             children: [
-              { index: true, element: <StatDatasetList /> },
-              { path: 'new', element: <StatDatasetWizard /> },
-              { path: ':datasetId/edit', element: <StatDatasetEdit /> },
+              { index: true, element: pv('statistics/datasets', StatDatasetList) },
+              { path: 'new', element: pv('statistics/datasets/new', StatDatasetWizard) },
+              { path: ':datasetId/edit', element: pv('statistics/datasets/:datasetId/edit', StatDatasetEdit) },
             ],
           },
           {
             path: 'reports',
             element: <Outlet />,
             children: [
-              { index: true, element: <ReportList /> },
+              { index: true, element: pv('statistics/reports', ReportList) },
               {
                 path: 'new',
                 element: <Outlet />,
                 children: [
-                  { index: true, element: <ReportWizard /> },
-                  { path: 'canvas', element: <ReportDraftCanvas /> },
+                  { index: true, element: pv('statistics/reports/new', ReportWizard) },
+                  { path: 'canvas', element: pv('statistics/reports/new/canvas', ReportDraftCanvas) },
                 ],
               },
-              { path: ':reportId/edit', element: <ReportEditor /> },
+              { path: ':reportId/edit', element: pv('statistics/reports/:reportId/edit', ReportEditor) },
               // 통합 통계 보고서 보기 — reportId 를 path 파라미터가 아닌 쿼리스트링으로 받는다.
               // 같은 path 를 여러 메뉴가 공유(메뉴마다 ?reportId 다름)하는 queryString 메뉴 분기 패턴.
               {
                 path: 'view',
-                element: <ReportView />,
+                element: pv('statistics/reports/view', ReportView),
                 handle: {
                   queryParams: [{ key: 'reportId', label: '보고서', selectorKey: SelectorKeys.ReportSelector }],
                 },
@@ -90,27 +97,37 @@ export const routes = [
             path: 'dashboards',
             element: <Outlet />,
             children: [
-              { index: true, element: <DashboardList /> },
-              { path: 'create', element: <DashboardCreateWizard /> },
-              { path: ':dashboardId/edit', element: <DashboardEditor /> },
-              { path: ':dashboardId/edit/widget/create/template', element: <TemplateWidgetWizard /> },
-              { path: ':dashboardId/edit/widget/create/custom', element: <CustomWidgetCatalogPage /> },
-              { path: ':dashboardId/view', element: <DashboardView /> },
+              { index: true, element: pv('monitoring/dashboards', DashboardList) },
+              { path: 'create', element: pv('monitoring/dashboards/create', DashboardCreateWizard) },
+              { path: ':dashboardId/edit', element: pv('monitoring/dashboards/:dashboardId/edit', DashboardEditor) },
+              { path: ':dashboardId/edit-info', element: pv('monitoring/dashboards/:dashboardId/edit-info', DashboardEditInfo) },
+              { path: ':dashboardId/edit/widget/create/template', element: pv('monitoring/dashboards/:dashboardId/edit/widget/create/template', TemplateWidgetWizard) },
+              { path: ':dashboardId/edit/widget/create/custom', element: pv('monitoring/dashboards/:dashboardId/edit/widget/create/custom', CustomWidgetCatalogPage) },
+              { path: ':dashboardId/view', element: pv('monitoring/dashboards/:dashboardId/view', DashboardView) },
             ],
           },
           {
             path: 'datasets',
             element: <Outlet />,
             children: [
-              { index: true, element: <DatasetCatalog /> },
-              { path: 'create', element: <DatasetWizard /> },
-              { path: ':datasetId/edit', element: <DatasetWizard /> },
+              { index: true, element: pv('monitoring/datasets', DatasetCatalog) },
+              { path: 'create', element: pv('monitoring/datasets/create', DatasetWizard) },
+              { path: ':datasetId/edit', element: pv('monitoring/datasets/:datasetId/edit', DatasetWizard) },
             ],
           },
           {
             path: 'lookups',
             element: <Outlet />,
-            children: [{ index: true, element: <LookupCatalogList /> }],
+            children: [{ index: true, element: pv('monitoring/lookups', LookupCatalogList) }],
+          },
+          {
+            path: 'widgets',
+            element: <Outlet />,
+            children: [
+              { index: true, element: pv('monitoring/widgets', WidgetCatalogManageList) },
+              { path: 'template/new', element: pv('monitoring/widgets/template/new', TemplateWidgetBuilder) },
+              { path: 'template/:templateWidgetId/edit', element: pv('monitoring/widgets/template/:templateWidgetId/edit', TemplateWidgetBuilder) },
+            ],
           },
         ],
       },

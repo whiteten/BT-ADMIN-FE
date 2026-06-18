@@ -2,12 +2,33 @@
 
 이 파일은 AI 코딩 도구(Claude Code, Codex, Cursor 등)가 이 저장소의 코드를 작업할 때 참고하는 가이드입니다.
 
-# 중요 지침
+## AI 도구 공통 안내
+
+- **이 파일(AGENTS.md)이 모든 AI 코딩 도구 지침의 단일 소스(SoT)입니다.** Codex·Cursor·Copilot coding agent·Amp·Jules 등 `AGENTS.md` 표준을 지원하는 도구는 이 파일을 자동으로 읽습니다. `CLAUDE.md`, `GEMINI.md`, `.github/copilot-instructions.md`, `.windsurf/rules/agents.md`, `.clinerules`, `.roo/rules/agents.md`, `.junie/guidelines.md`는 모두 이 파일을 가리키는 포인터이므로, 지침 추가·수정은 반드시 이 파일에서만 할 것.
+- **`.claude/skills/`의 스킬 문서는 Claude Code 전용이 아닙니다.** 모든 AI 도구가 읽을 수 있는 일반 마크다운 절차서이므로, 아래 인덱스에 해당하는 작업을 수행할 때는 사용 중인 도구와 무관하게 해당 `SKILL.md`를 먼저 읽고 그 절차를 따를 것.
+
+### AI 작업 스킬 인덱스
+
+| 작업 | 문서 |
+| --- | --- |
+| 커밋 메시지 작성 (카테고리·scope 판정 규칙) | [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) |
+| API 계층·TanStack Query 훅 작성 | [.claude/skills/add-api/SKILL.md](.claude/skills/add-api/SKILL.md) |
+| 데이터 추가/수정 폼 (Ant Design Form) 작성 | [.claude/skills/add-form/SKILL.md](.claude/skills/add-form/SKILL.md) |
+| Drawer/Modal (forwardRef 명령형 제어) 작성 | [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) |
+| Zustand 스토어 작성 | [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) |
+| 트리 UI (useTreeView + TreeView) 작성 | [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) |
+| 검색 기능(client-side fuzzy) 작성 | [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) |
+| AG-Grid 테이블 작성 | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
+| 정식 화면 변형(page variant) 작성 | [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) |
+| React 성능 점검·리팩터 (번들·async·리렌더 체크리스트) | [.claude/skills/react-perf/SKILL.md](.claude/skills/react-perf/SKILL.md) |
+| 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
+| 기존 remote 앱 점검·정규화 | [.claude/commands/update-remote.md](.claude/commands/update-remote.md) |
+
+## 중요 지침
 
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.
 `pnpm-lock.yaml`에는 `ag-grid-enterprise` 패치 정보(`patchedDependencies`, `patch_hash`)가 포함되어 있으므로, lock 파일 수정·충돌 해결 시 해당 내용이 제거되지 않도록 주의할 것. 패치가 누락되면 AG-Grid Enterprise 라이선스 관련 동작에 영향을 줄 수 있음. 또한 pnpm 메이저 버전이 다르면 lock 파일 포맷과 패치 해시가 달라질 수 있으므로, 필수 환경 요구사항에 명시된 pnpm 버전을 준수할 것.
-커밋 메시지 작성 시 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
-커밋 메시지를 작성할 때는 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
+커밋 관련 규칙은 "## 커밋 가이드라인" 섹션 참조.
 이미 사용 중인 라이브러리(Ant Design, shadcn/ui, AG-Grid, TanStack Query, React Hook Form, date-fns, dayjs, lodash 등)로 구현 가능한 기능은 직접 코드를 작성하기 전에 **반드시 해당 라이브러리가 그 기능을 제공하는지 먼저 확인**할 것. 라이브러리가 제공하지 않거나 요구사항에 부합하지 않는 경우에는 임의로 직접 구현하지 말고, 먼저 사용자에게 "라이브러리가 해당 기능을 제공하지 않는데 직접 구현해도 되는지" 확인한 뒤 승인을 받고 진행할 것.
 
 ## 필수 환경 요구사항
@@ -25,10 +46,13 @@
 
 **Nx 모노레포** + **Module Federation** 기반 마이크로 프론트엔드. `apps/host`(셸, 로그인·레이아웃) + remote 앱들(`apps/manager`, `apps/fca`, `apps/ipron`, `apps/aoe`, `apps/insight`, `apps/ivr`, `apps/stt`, `apps/taskboard`) + 공유 라이브러리 `libs/shared-{ui,api,store,util}`. 각 remote는 `module-federation.config.ts`로 모듈을 노출하고 host가 런타임에 통합·라우팅. 상세 구조는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) "2. 프로젝트 구조 이해하기" 참조.
 
+> ⚠️ **`apps/custom`은 일반 업무 remote가 아닙니다** — 현장 커스터마이징 오버라이드 운반체(host remotes 배열 미등록, 런타임 동적 등록, 라우트·메뉴 없음)입니다. "모든 remote"를 대상으로 하는 작업(remote 점검·정규화, 빌드/serve 목록, 매뉴얼 생성, routes.tsx 일괄 수정 등)에서 **custom은 항상 제외**할 것. 상세는 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) 참조.
+
 ## 개발 명령어
 
 - **빌드·개발 서버**: `pnpm run build` / `pnpm run serve` (대화형 앱 선택 + 의존성 확인 포함). 특정 옵션이 필요한 경우에만 `npx nx <target> <project>` 사용.
 - **새 Remote 생성**: 반드시 `pnpm run create-remote` 사용. Module Federation 설정·라우팅 등록 등 자동화 로직이 포함되어 수동 생성 시 정상 동작 안 함.
+- **현장 커스텀 오버라이드 생성**: `pnpm run create-custom` 사용 (대화형, 인자 전달 시 비대화형). 원본 미러링 복사 + exposes·site-manifest 등록을 자동화하며, `--check`로 키 정합성 검증. 상세 절차는 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) "4. 개발 절차" 참조.
 - **lint·typecheck**: husky + lint-staged가 pre-commit hook에서 스테이징된 `.{js,jsx,ts,tsx}`에 자동으로 `eslint --fix` + `prettier --write` 실행. 별도로 돌릴 때는 `npx nx lint <project>` / `npx nx typecheck <project>`.
 - **shadcn 컴포넌트 추가**: `pnpm run shadcn:add <name>`.
 
@@ -66,7 +90,9 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 
 ## 커밋 가이드라인
 
-이 프로젝트는 **commitizen** + cz-git을 사용합니다. 사람이 직접 커밋할 때는 `pnpm commit`(대화형)을 사용하세요.
+- **절차·규칙**: 커밋 메시지 작성 시 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
+- **본문 필수**: 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
+- **사람이 직접 커밋**: 이 프로젝트는 **commitizen** + cz-git을 사용합니다. `pnpm commit`(대화형)을 사용하세요.
 
 ## 파일 구조 컨벤션
 
@@ -141,31 +167,7 @@ features/<feature>/types/
 | `CreateDatas` | 생성 요청용               | `BotCreateDatas`, `ModelCreateDatas` |
 | `UpdateDatas` | 수정 요청용               | `BotBasicInfoUpdateDatas`            |
 
-```typescript
-// 기본 도메인 타입
-export interface Bot {
-  serviceId: string;
-  serviceName: string;
-  serviceDesc?: string;
-  confidence: [number, number];
-  tags?: string[];
-}
-
-// 목록용 - Omit으로 불필요한 필드 제거 + 추가 필드
-export type BotListItem = Omit<Bot, 'serviceDesc' | 'confidence'> & {
-  conversationCount: number;
-  updateTime: string;
-};
-
-// 상세 조회용 - 교차 타입으로 확장
-export type BotItem = Bot & BotSchedule & BotVoice;
-
-// 생성용 - Omit으로 서버 생성 필드 제거
-export type BotCreateDatas = Omit<Bot, 'serviceId' | 'workTime'> & BotVoice;
-
-// 수정용
-export type BotBasicInfoUpdateDatas = Omit<Bot, 'workTime'>;
-```
+> 기본 타입에서 `Omit`(필드 제거)·교차 타입 `&`(필드 확장)으로 용도별 DTO를 파생합니다. 코드 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) "4. 타입 정의 가이드" 참조.
 
 #### 상태값·매핑 타입 — 상수 객체 + 파생 타입 패턴
 
@@ -222,6 +224,20 @@ export const TRAIN_DIFF_STATUS_LABELS: Record<TrainDiffStatus, string> = {
 
 모달과 드로어는 `forwardRef` + `useImperativeHandle`을 사용하여 부모에서 명령형으로 제어합니다. 상세 절차는 [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) 스킬 참조.
 
+### 트리 UI 패턴
+
+트리 UI는 antd `Tree` 신규 도입이나 재귀 렌더 직접 구현 대신 **공통 트리**(`useTreeView` 훅 + `TreeView` 프리미티브, headless-tree 기반)를 사용합니다. 작성 전 트리 적합성 판정(평탄 목록·이종 시각화·TreeSelect 케이스는 트리 아님), 기본 골격, 검색·hover 액션·카운트·툴팁 표준 규격, 외부 DnD 수신·reorder 등 상세 절차는 [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) 스킬 참조.
+
+### 검색 패턴
+
+**client-side 검색(전체 데이터가 메모리에 있는 클라이언트 필터링)은 가능하면 fuzzy를 사용**합니다. `String.includes`(substring LIKE) 대신 공통 fuzzy 유틸(`@/shared-util`의 `fuzzyFilter`·`fuzzyScore`)을 써서 한글 초성·부분 음절·gap 매칭을 지원합니다. 하이라이트는 공통 `Highlight`(`@/components/custom/Highlight`, fuzzy 인덱스 기반)를 사용합니다.
+
+- **배열 목록**: `fuzzyFilter(query, items, selector)` (필터 + 점수 정렬)
+- **트리(useTreeView)**: `matchesSearch: (n, kw) => fuzzyScore(kw, n.label) >= 0` (필터만, 트리 순서 유지)
+- **예외**: 백엔드 `page`/`size` 페이징·AG-Grid **SSRM**은 fuzzy가 아니라 **백엔드 검색**(부분 데이터만 클라이언트에 있으면 오탐). AG-Grid ClientSide는 통째 교체 대신 `doesExternalFilterPass`에 `fuzzyScore`를 연결.
+
+fuzzy 유틸은 `es-hangul` 의존이며 추가 검색 라이브러리(fuse.js·korean-regexp 등)를 들이지 않습니다. client/server 판정, API 선택, 트리 연동, 하이라이트 등 상세 절차는 [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) 스킬 참조.
+
 ### AG-Grid 사용 패턴
 
 `useAggridOptions` 훅으로 공통 그리드 옵션을 적용하고, `ColDef<RowType>[]`로 컬럼을 정의합니다. 편집 가능 컬럼·커스텀 렌더러·액션 컬럼·커스텀 셀 에디터 구성 등 상세 절차는 [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬 참조.
@@ -270,6 +286,16 @@ Log.debug('onFinish', values); // 디버그 로그
 Log.warn('onFinishFailed', errorInfo); // 경고 로그
 ```
 
+#### UUID 생성
+
+```typescript
+import { createUUID } from '@/shared-util';
+
+const id = createUUID(); // ✅ 비-secure context에서도 동작
+```
+
+`crypto.randomUUID()`는 **secure context(HTTPS·localhost) 전용 API**라 HTTP+IP로 접속하는 개발계에서는 `undefined`가 되어 `TypeError: crypto.randomUUID is not a function`이 발생한다. 반드시 `crypto.getRandomValues` 기반인 공용 유틸 `createUUID`(`@/shared-util`)를 사용할 것.
+
 #### 토스트 알림
 
 ```typescript
@@ -303,6 +329,28 @@ modal.confirm.execute({
 });
 ```
 
+#### 로딩 스피너 (FallbackSpinner)
+
+페이지·영역 로딩 중 표시가 필요할 때는 antd `Spin`이나 shadcn `Spinner`를 직접 쓰지 말고 **공통 컴포넌트 `FallbackSpinner`(`@/components/custom/FallbackSpinner`)를 기본**으로 사용합니다.
+
+```typescript
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+
+// 페이지/컨테이너 로딩 (부모 영역 기준 중앙 정렬, 기본 size 100)
+if (isLoading) return <FallbackSpinner />;
+
+// 전체 화면 로딩
+<FallbackSpinner useFullScreen />
+
+// 드로어·모달 내부 섹션 로딩 — size 축소 + 안내 문구
+<FallbackSpinner size={36} tip="대화 내용을 불러오는 중..." />
+```
+
+예외 (FallbackSpinner를 강제하지 않는 경우):
+
+- **용도가 다른 경우**: 버튼 내부 로딩(antd `Button loading`), 리스트 항목 옆 소형 인라인 진행 표시(lucide `Loader2` + `animate-spin`) 등 "영역 로딩"이 아닌 항목 단위 인디케이터
+- **사용자가 직접 다른 컴포넌트를 지시한 경우**: 지시를 따름
+
 ### 라우팅(routes.tsx) 컨벤션
 
 각 remote의 라우팅은 `apps/<remote>/src/app/routes.tsx` 한 파일에 정의하며, **`apps/fca/src/app/routes.tsx`를 레퍼런스**로 삼습니다.
@@ -312,53 +360,15 @@ modal.confirm.execute({
 1. **페이지는 `React.lazy`로 지연 로드**: 모든 페이지 컴포넌트는 파일 상단에서 `const Xxx = React.lazy(() => import('./pages/...'))`로 선언. 라우트 그룹 순서대로 묶어 선언하고, 페이지는 `./pages/...` 상대 경로로 import. (직접 import하면 모든 페이지가 한꺼번에 로드되어 초기 로딩이 느려짐)
 2. **`routes` named export**: 라우트 트리는 `export const routes = [...]` 배열로 내보냄
 3. **단일 루트 + Outlet 그룹**: 최상위는 `{ path: '/', element: <세션핸들러 또는 Outlet>, children: [...] }` 하나. 2-depth 이상 라우트 그룹은 `{ path: '<group>', element: <Outlet />, children: [...] }`로 표현
-4. **index redirect**: 루트·각 그룹의 children 첫 항목은 기본 하위로 보내는 `{ index: true, element: <Navigate to="<default>" replace /> }`. 동적 세그먼트 하위 그룹의 index는 `<Navigate to=".." replace />`로 부모 복귀
-5. **동적 세그먼트**: `:paramId` 형태(camelCase). 탭 레이아웃이 필요한 상세 페이지는 `element`에 `<Feature>DetailLayout`, `children`에 탭·하위 라우트를 둠
-6. **공통 라우트는 복사 작성**: 여러 path에서 동일 라우트 묶음을 재사용하더라도 각 path에 그대로 복사. spread 패턴(`children: [...sharedXxxRoutes]`)은 정적 분석·도구 정합성에 한계가 있어 표준에서 제외 (상세 이유는 DEVELOPER_GUIDE 참조)
-7. **catch-all은 항상 마지막**: `routes` 배열 마지막 항목은 `{ path: '*', element: <NotFound homePath="/" /> }`
-8. **path는 kebab-case**: `bot-config`, `bot-dialog-history`, `call-bot` 등
-9. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·`DynamicElement`·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
-10. **변형·분기**: variant 지원 path는 `<DynamicElement>`로 감싸고("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조)
-11. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
-
-```typescript
-// apps/<remote>/src/app/routes.tsx
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { NotFound } from '@/components/custom/NotFound';
-
-// 페이지 — 라우트 그룹 순서대로 묶어 lazy 선언
-const BotList = React.lazy(() => import('./pages/bot-config/BotList'));
-const BotCreate = React.lazy(() => import('./pages/bot-config/BotCreate'));
-const BotDetail = React.lazy(() => import('./pages/bot-config/BotDetail'));
-
-export const routes = [
-  {
-    path: '/',
-    element: <Outlet />, // 또는 remote별 세션 핸들러 (예: <FcaWsSessionEventHandler />)
-    children: [
-      { index: true, element: <Navigate to="/" replace /> },
-      {
-        path: 'bot-config', // 라우트 그룹 — kebab-case
-        element: <Outlet />,
-        children: [
-          { index: true, element: <Navigate to="bot" replace /> },
-          {
-            path: 'bot',
-            children: [
-              { index: true, element: <Navigate to="list" replace /> },
-              { path: 'list', element: <BotList /> },
-              { path: 'create', element: <BotCreate /> },
-              { path: ':serviceId', element: <BotDetail /> }, // 동적 세그먼트
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  { path: '*', element: <NotFound homePath="/" /> }, // 항상 마지막
-];
-```
+4. **leaf 페이지는 변형 소켓(pv)으로 래핑**: 파일 상단에 `const pv = createPageVariantSocket('<appId>')`를 1회 선언하고, 실제 화면을 그리는 leaf element는 `pv('<화면 키>', Component)`로 작성. 화면 키는 **라우트 경로 그대로**(동적 세그먼트 `:paramId` 포함 — 예: `bot-config/bot/:serviceId`, `cos/:cosId/edit`). 그룹 index가 페이지를 직접 그리면 그룹 경로가 키(예: `cos`). 키는 DB page-variant row·custom remote exposes와 매칭되는 SoT이므로 **한번 정하면 변경 금지** — 이후 라우트 경로·파라미터명이 리팩토링으로 바뀌어도 키는 유지(키가 경로와 어긋나는 건 허용, 끊어지는 게 문제). 레이아웃(`<Feature>DetailLayout`)·`Navigate`·`NotFound`는 소켓 제외
+5. **index redirect**: 루트·각 그룹의 children 첫 항목은 기본 하위로 보내는 `{ index: true, element: <Navigate to="<default>" replace /> }`. 동적 세그먼트 하위 그룹의 index는 `<Navigate to=".." replace />`로 부모 복귀
+6. **동적 세그먼트**: `:paramId` 형태(camelCase). 탭 레이아웃이 필요한 상세 페이지는 `element`에 `<Feature>DetailLayout`, `children`에 탭·하위 라우트를 둠
+7. **공통 라우트는 복사 작성**: 여러 path에서 동일 라우트 묶음을 재사용하더라도 각 path에 그대로 복사. spread 패턴(`children: [...sharedXxxRoutes]`)은 정적 분석·도구 정합성에 한계가 있어 표준에서 제외 (상세 이유는 DEVELOPER_GUIDE 참조). 메뉴 컨텍스트가 다른 복사 라우트는 화면 키도 분리(`bot-config/model/list` vs `global/model/list`)
+8. **catch-all은 항상 마지막**: `routes` 배열 마지막 항목은 `{ path: '*', element: <NotFound homePath="/" /> }`
+9. **path는 kebab-case**: `bot-config`, `bot-dialog-history`, `call-bot` 등
+10. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
+11. **변형·분기**: 정식 variant(2개 이상)를 가진 path만 `pv` 대신 `<DynamicElement variants={...} />`를 직접 사용("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조 — `pv` 소켓과 공존 가능)
+12. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
 
 상세 골격·중첩 상세 페이지·공통 라우트 추출 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "라우팅(routes.tsx) 가이드" 섹션 참조.
 
@@ -375,50 +385,7 @@ export const routes = [
 5. **path 없는 항목**: 부모(redirect-only 그룹 등)는 `path` 없이 두면 BreadcrumbSlot이 비링크 텍스트로 렌더해 클릭이 자연스럽게 비활성
 6. **remote 이름 라벨은 페이지에서 작성하지 않음**: host BreadcrumbSlot이 `useCurrentRemote().appName`을 자동 prepend(비링크). 페이지는 카테고리부터 시작. 결과 합성: `🏠 > [appName] > 페이지 items`. 상세는 DEVELOPER_GUIDE 참조
 
-#### 예시
-
-```typescript
-// 정적 breadcrumb
-const breadcrumb: BreadcrumbProps['items'] = [
-  { title: '관리', path: '/fca/bot-config' },
-  { title: '봇', path: '/fca/bot-config/bot' },
-  { title: '봇 목록', path: '/fca/bot-config/bot/list' },
-];
-
-export default function BotList() {
-  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
-  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-
-  useEffect(() => {
-    setBreadcrumb(breadcrumb);
-    return () => clearBreadcrumb();
-  }, [setBreadcrumb, clearBreadcrumb]);
-
-  // ...
-}
-
-// 동적 라벨 (fetch 결과 의존)
-export default function BotDetail() {
-  const { serviceId } = useParams();
-  const { data: bot } = useGetBot({ params: { serviceId } });
-  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
-  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-
-  useEffect(() => {
-    const items: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/fca/bot-config' },
-      { title: '봇', path: '/fca/bot-config/bot' },
-      { title: ':botName', path: `/fca/bot-config/bot/${serviceId}` },
-    ];
-    setBreadcrumb(items, { botName: bot?.serviceName ?? '-' });
-    return () => clearBreadcrumb();
-  }, [serviceId, bot?.serviceName, setBreadcrumb, clearBreadcrumb]);
-
-  // ...
-}
-```
-
-분기(예: `isPublic`)가 있으면 useEffect 내부에서 조건 분기로 items를 선택하고 deps에 분기 키를 포함합니다. early-return으로 로딩 분기되는 페이지도 hook 순서가 깨지지 않도록 useEffect는 본문 시작부에 두세요.
+정적/동적(fetch 결과 의존) breadcrumb 구현 코드 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 breadcrumb 가이드 참조. 분기(예: `isPublic`)가 있으면 useEffect 내부에서 조건 분기로 items를 선택하고 deps에 분기 키를 포함합니다. early-return으로 로딩 분기되는 페이지도 hook 순서가 깨지지 않도록 useEffect는 본문 시작부에 두세요.
 
 ### 화면 커스터마이징(Variants) 패턴
 
@@ -427,7 +394,7 @@ export default function BotDetail() {
 #### 핵심 규칙 (요약)
 
 1. **변형 정의 파일 위치**: 페이지 옆에 `<Page>.variants.ts`로 co-location (예: `pages/bot-config/BotList.variants.ts`)
-2. **aggregator**: 각 remote의 `apps/<remote>/src/app/features/router/pageVariants.ts`에 모든 variants 파일을 import해서 등록 (MF `./PageVariants`로 expose)
+2. **aggregator**: 각 remote의 `apps/<remote>/src/app/features/router/pageVariantManifest.ts`에 모든 variants 파일을 import해서 등록 (MF `./PageVariantManifest`로 expose)
 3. **DynamicElement 래퍼**: 변형 지원 path는 `routes.tsx`에서 `<DynamicElement variants={...} />`로 감싸 element를 런타임 lookup으로 전환
 4. **컴포넌트 prop 호환성 필수**: 같은 variants 그룹의 모든 컴포넌트는 동일 prop·context·query key를 사용. 본질이 다르면 variant가 아니라 별도 path로 분리
 5. **점진적 도입**: 변형 필요 없는 path는 정적 element 그대로 두고 건드리지 않음. variant 요구사항 생긴 page만 합류
@@ -435,12 +402,12 @@ export default function BotDetail() {
 
 #### 데이터 흐름
 
-- **API/DB**: 메뉴 row의 `componentKey` 컬럼이 SoT
-- **store**: `useMenuStore.menuConfigs[].menus[].componentKey`로 propagate
-- **렌더**: DynamicElement가 menuStore lookup → 매칭되는 variant component 렌더, 누락·미등록 시 defaultKey fallback
-- **picker**: 호스트의 `usePageVariantsStore`(메타만 보관)를 메뉴 관리 화면 picker에서 읽어 카드 그리드 노출
+- **API/DB**: page-variant row(appId/path/componentKey)가 SoT — 운영자가 manager의 화면 지정 메뉴에서 저장
+- **store**: host 부팅 시 화면 지정 API를 `usePageVariantsStore`(지정값)에 mirror, 각 remote 매니페스트 메타는 `usePageVariantManifestStore`에 적재
+- **렌더**: DynamicElement가 `usePageVariantsStore` lookup → 매칭되는 variant component 렌더, 누락·미등록 시 defaultKey fallback (`site:` prefix는 현장 커스텀)
+- **picker**: manager의 화면 지정 화면이 `usePageVariantManifestStore`(메타만 보관)를 읽어 카드 그리드 노출
 
-새 변형 컴포넌트 작성·등록 절차 및 picker 통합 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
+**새 변형을 작성할 때**: [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) 스킬을 사용합니다. variant 적합성 판정, `<Page>.variants.ts` 선언, aggregator 등록, routes.tsx 소켓 교체 등 상세 절차는 해당 스킬에 정리되어 있습니다. picker 통합 등 배경 설명은 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "화면 커스터마이징(Variants) 가이드" 섹션 참조.
 
 ### queryString 기반 메뉴 분기 패턴
 
@@ -464,44 +431,10 @@ export default function BotDetail() {
 - **메뉴 폼**: path Select 변경 시 entry.queryParams 감지 → registry lookup → selector 렌더 → 운영자 선택값을 `URLSearchParams`로 합성해 path 컬럼 저장
 - **사용자 진입**: 메뉴 클릭 → 해당 path로 이동 → 컴포넌트가 `useSearchParams`로 query 읽어 화면 분기
 
-#### 사용 예시
+#### 보충 규칙
 
-```tsx
-// routes.tsx — 공통 selector (옵션은 spec.options에 하드코딩)
-import { DefaultSelectorKeys } from '@/shared-store';
-
-{
-  path: 'dashboard',
-  element: <Dashboard />,
-  handle: {
-    queryParams: [
-      {
-        key: 'option',
-        label: '옵션',
-        selectorKey: DefaultSelectorKeys.EnumSelector,
-        options: [
-          { value: 'A', label: '옵션 A' },
-          { value: 'B', label: '옵션 B' },
-        ],
-      },
-    ],
-  },
-}
-
-// routes.tsx — 도메인 selector (옵션은 selector 컴포넌트 내부에 정의)
-import { SelectorKeys } from './features/router/querySelectors';
-
-{
-  path: 'preset-demo',
-  element: <PresetDemo />,
-  handle: {
-    queryParams: [
-      { key: 'preset', label: '프리셋', selectorKey: SelectorKeys.PresetSelector },
-    ],
-  },
-}
-```
-
+> 공통 selector는 `DefaultSelectorKeys.Xxx`(옵션을 `handle.queryParams[].options`에 하드코딩), 도메인 selector는 remote의 `SelectorKeys.Xxx`(옵션을 selector 컴포넌트 내부에 정의)를 `selectorKey`에 지정합니다. 코드 예시·새 selector 추가 절차는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 참조.
+>
 > 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용).
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가, 옵트인 옵션 없음 — 선택적 query 키 케이스는 의도적으로 미지원).
@@ -523,36 +456,7 @@ import { SelectorKeys } from './features/router/querySelectors';
 - 상수명: `UPPER_SNAKE_CASE`
 - 파일명: `<feature>Constants.ts` (camelCase)
 - 객체 상수는 `as const`로 불변 처리
-
-```typescript
-// features/dashboard/constants/dashboardConstants.ts
-
-// 단순 상수
-export const GRID_COLS = 12;
-export const REFRESH_INTERVAL = 3000;
-
-// 색상 매핑 상수
-export const CHART_COLORS = {
-  primary: '#3B82F6',
-  success: '#10B981',
-  warning: '#F59E0B',
-  danger: '#F06548',
-} as const;
-
-// 라벨 매핑 (Record 타입 사용)
-export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
-  SAME: '동의어',
-  SYNONYMS: '유사어',
-  PATTERNS: '패턴형',
-};
-
-// 색상 매핑
-export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
-  SAME: 'blue',
-  SYNONYMS: 'green',
-  PATTERNS: 'orange',
-};
-```
+- 라벨·색상 매핑은 `Record<도메인타입, string>` 형태로 정의 (상태값 매핑 패턴은 "상태값·매핑 타입" 섹션 참조)
 
 ### 아이콘 사용 패턴
 
@@ -576,37 +480,7 @@ export const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
 
 목록 페이지의 표준 골격은 **상단 검색·필터 + 하단 그리드를 단일 흰색 래퍼로 묶는 구조**다. 필터와 그리드를 각각 별도의 `bg-white bt-shadow` 박스로 분리하지 말고, 하나의 래퍼 안에 `gap-5`로 간격을 두어 같은 영역에 속함을 시각적으로 표현한다.
 
-```typescript
-// ✅ 표준 패턴 — 단일 흰색 래퍼
-// breadcrumb은 host SubHeader가 그리므로 페이지 본문에는 두지 않는다.
-// 페이지 컴포넌트 본문 시작부에서 useBreadcrumbStore.setBreadcrumb을 호출한다.
-<div className="flex flex-col gap-4 w-full h-full">
-  <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
-    {/* 인라인 필터·액션 헤더 */}
-    <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
-      <div className="flex items-center w-full gap-3">
-        <Select ... />
-        <Input ... />
-      </div>
-      <div className="flex items-center gap-2.5">
-        <Button type="primary" onClick={handleCreate}>추가</Button>
-      </div>
-    </header>
-    {/* 그리드 */}
-    <div className="w-full h-full">
-      <AgGridReact rowData={data} columnDefs={columnDefs} />
-    </div>
-  </div>
-  {/* Drawer/Modal은 흰색 래퍼 밖, 외곽 컨테이너 안쪽 */}
-  <SomeDrawer ref={drawerRef} />
-</div>
-
-// ❌ 필터와 그리드를 분리된 박스로 나누지 말 것
-<div className="flex flex-col gap-4 w-full h-full">
-  <div className="bg-white bt-shadow px-7 py-5 h-[76px]">{/* 필터 */}</div>
-  <div className="bg-white bt-shadow w-full h-full">{/* 그리드 */}</div>
-</div>
-```
+> breadcrumb은 host SubHeader가 그리므로 페이지 본문에 두지 않습니다(본문 시작부에서 `useBreadcrumbStore.setBreadcrumb` 호출). ❌ 필터와 그리드를 각각 별도 `bg-white bt-shadow` 박스로 분리하지 말 것. 전체 마크업 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "페이지 레이아웃 가이드" 참조.
 
 핵심 규칙 (요약):
 

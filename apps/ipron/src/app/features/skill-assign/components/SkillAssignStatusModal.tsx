@@ -2,14 +2,14 @@
  * 스킬 배정 현황 모달 — 읽기 전용(READ ONLY).
  *
  * 선택된 상담사 N명 × 스킬셋 M건의 현재 배정 상태를 조합하여 표시.
- * 컬럼: 상담사(로그인ID·이름) / 상담그룹 / 스킬셋명 / 우선순위(P) / 스킬레벨(L) / 상태(배정됨·미배정).
+ * 컬럼: 상담사(로그인ID·이름) / 상담그룹 / 스킬셋명 / 우선순위 / 스킬레벨 / 상태(배정됨·미배정).
  * 미배정 조합도 표시(흐리게). 편집/저장 없음 — 닫기만.
  *
  * 내부에서 useQueries 로 선택된 스킬셋별 배정 상담사 목록을 병렬 로딩.
  */
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import type { ColDef, GridOptions } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Modal, Spin, Tag } from 'antd';
 import type { AgentResponse } from '../../../features/agent-master/types';
@@ -17,6 +17,7 @@ import type { SkillsetResponse } from '../../../features/skillset-master/types';
 import { skillAssignApi } from '../api/skillAssignApi';
 import { skillAssignQueryKeys } from '../hooks/useSkillAssignQueries';
 import type { SkillAgentResponse } from '../types/skillAssign';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface SkillAssignStatusModalProps {
   open: boolean;
@@ -123,7 +124,9 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
       {
         field: 'groupName',
         headerName: '상담그룹',
-        width: 130,
+        minWidth: 110,
+        flex: 1,
+        tooltipField: 'groupName',
         cellRenderer: (params: { data?: StatusRow }) => {
           const d = params.data;
           if (!d) return null;
@@ -133,7 +136,9 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
       {
         field: 'treeName',
         headerName: '업무그룹',
-        width: 130,
+        minWidth: 110,
+        flex: 1,
+        tooltipField: 'treeName',
         cellRenderer: (params: { data?: StatusRow }) => {
           const d = params.data;
           if (!d) return null;
@@ -175,8 +180,9 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
         headerName: '상태',
         width: 90,
         sortable: false,
-        filter: false,
+        filter: true,
         suppressHeaderMenuButton: true,
+        filterValueGetter: (params) => (params.data?.assigned ? '배정됨' : '미배정'),
         cellRenderer: (params: { data?: StatusRow }) => {
           const d = params.data;
           if (!d) return null;
@@ -195,12 +201,16 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
     [],
   );
 
-  const gridOptions = useMemo<GridOptions<StatusRow>>(
+  const { gridOptions: baseGridOptions, theme } = useAggridOptions();
+  const gridOptions = useMemo(
     () => ({
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
-      getRowId: ({ data }) => data.rowKey,
+      ...baseGridOptions,
+      getRowId: ({ data }: { data: StatusRow }) => data.rowKey,
+      pagination: false,
+      statusBar: undefined,
+      sideBar: false,
     }),
-    [],
+    [baseGridOptions],
   );
 
   const assignedCount = rows.filter((r) => r.assigned).length;
@@ -229,8 +239,8 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
           <Spin tip="배정 현황 조회 중..." />
         </div>
       ) : (
-        <div className="ag-theme-quartz" style={{ height: 480 }}>
-          <AgGridReact<StatusRow> rowData={rows} columnDefs={colDefs} gridOptions={gridOptions} />
+        <div style={{ height: 480 }}>
+          <AgGridReact<StatusRow> rowData={rows} columnDefs={colDefs} gridOptions={gridOptions} theme={theme} />
         </div>
       )}
     </Modal>

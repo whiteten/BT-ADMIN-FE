@@ -105,6 +105,16 @@ export const useDeleteItem = ({ mutationOptions }: MutationHookOptions = {}) => 
   });
 };
 
+/**
+ * DOD DNIS 변환 아이템 일괄 삭제 (벌크 1콜, 복합키 묶음)
+ */
+export const useDeleteItemBatch = ({ mutationOptions }: MutationHookOptions<void, { dodTransId: number; listSeq: number }[]> = {}) => {
+  return useMutation({
+    mutationFn: (items: { dodTransId: number; listSeq: number }[]) => dodTransApi.deleteItemBatch(items),
+    ...mutationOptions,
+  });
+};
+
 // ─── 공통 훅 ────────────────────────────────────────────────────────────────
 
 /**

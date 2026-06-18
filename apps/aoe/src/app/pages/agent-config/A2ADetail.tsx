@@ -31,7 +31,7 @@ export default function A2ADetail() {
 
   useEffect(() => {
     const breadcrumb: BreadcrumbProps['items'] = [
-      { title: '관리', path: '/aoe/agent-config' },
+      { title: 'AOE 관리', path: '/aoe/agent-config' },
       { title: 'A2A', path: '/aoe/agent-config/a2a/list' },
       { title: ':agentName', path: `/aoe/agent-config/a2a/${a2aId}` },
     ];

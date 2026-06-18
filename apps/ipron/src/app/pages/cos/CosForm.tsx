@@ -171,7 +171,7 @@ export default function CosForm() {
   const { mutate: createCos, isPending: isCreating } = useCreateCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 등록되었습니다.');
+        toast.success('COS가 등록되었습니다');
         queryClient.invalidateQueries({ queryKey: cosQueryKeys.getList._def });
         navigate('/ipron/cos');
       },
@@ -181,7 +181,7 @@ export default function CosForm() {
   const { mutate: updateCos, isPending: isUpdating } = useUpdateCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 수정되었습니다.');
+        toast.success('COS가 수정되었습니다');
         queryClient.invalidateQueries({ queryKey: cosQueryKeys.getList._def });
         navigate('/ipron/cos');
       },
@@ -191,7 +191,7 @@ export default function CosForm() {
   const { mutate: deleteCos } = useDeleteCos({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('COS가 삭제되었습니다.');
+        toast.success('COS가 삭제되었습니다');
         queryClient.invalidateQueries({ queryKey: cosQueryKeys.getList._def });
         navigate('/ipron/cos');
       },
@@ -218,11 +218,11 @@ export default function CosForm() {
 
       // Step2 비즈니스 검증
       if (values.dodNumAllow === 1 && !values.dodNumPattern?.trim()) {
-        toast.error('특정번호 발신허용 설정 시 패턴은 필수입니다.');
+        toast.error('특정번호 발신허용 설정 시 패턴은 필수입니다');
         return;
       }
       if (values.callScreenSvc === 1 && !values.callScreenNum?.trim()) {
-        toast.error('특정번호 착신금지 설정 시 패턴은 필수입니다.');
+        toast.error('특정번호 착신금지 설정 시 패턴은 필수입니다');
         return;
       }
 
@@ -295,7 +295,7 @@ export default function CosForm() {
         return;
       }
     } catch {
-      toast.error('참조 DN 수 조회에 실패하였습니다.');
+      toast.error('참조 DN 수 조회에 실패하였습니다');
       return;
     }
 
@@ -314,6 +314,7 @@ export default function CosForm() {
   useEffect(() => {
     setBreadcrumb([
       { title: '번호자원관리' },
+      { title: '교환기 번호관리' },
       { title: 'COS 설정', path: '/ipron/cos' },
       {
         title: isEditMode ? '수정' : '등록',
@@ -384,41 +385,37 @@ export default function CosForm() {
   // ─── Footer ──────────────────────────────────────────────────────────────────
   function renderFooter() {
     return (
-      <Row gutter={20} justify="center">
-        <Col>
-          <Button variant="solid" onClick={() => navigate('/ipron/cos')}>
-            취소
-          </Button>
-        </Col>
-        {isEditMode && (
-          <Col>
+      <div className="flex items-center justify-between">
+        {/* 좌측: 위험 액션(삭제) 분리 */}
+        <div>
+          {isEditMode && (
             <Button variant="solid" color="danger" onClick={handleDeleteConfirm}>
               삭제
             </Button>
-          </Col>
-        )}
-        {currentStep > 0 && (
-          <Col>
+          )}
+        </div>
+        {/* 우측: 네비게이션 + 저장 */}
+        <div className="flex items-center gap-3">
+          <Button variant="solid" onClick={() => navigate('/ipron/cos')}>
+            취소
+          </Button>
+          {currentStep > 0 && (
             <Button variant="solid" onClick={() => setCurrentStep((prev) => prev - 1)}>
               이전
             </Button>
-          </Col>
-        )}
-        {!isLastStep && (
-          <Col>
+          )}
+          {!isLastStep && (
             <Button variant="solid" color="primary" onClick={handleNext}>
               다음
             </Button>
-          </Col>
-        )}
-        {isLastStep && (
-          <Col>
+          )}
+          {isLastStep && (
             <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending}>
               {isEditMode ? '수정' : '등록'}
             </Button>
-          </Col>
-        )}
-      </Row>
+          )}
+        </div>
+      </div>
     );
   }
 

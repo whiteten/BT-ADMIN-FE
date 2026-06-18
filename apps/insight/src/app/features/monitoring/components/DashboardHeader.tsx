@@ -37,12 +37,12 @@ interface DashboardHeaderProps {
   canEdit?: boolean;
 }
 
-const CONNECTION_LABEL: Record<WsConnectionState, { label: string; dotClass: string }> = {
-  idle: { label: '대기', dotClass: 'bg-[#adb5bd]' },
-  connecting: { label: '연결 중', dotClass: 'bg-[#ffa94d] pulse-dot' },
-  connected: { label: '실시간', dotClass: 'bg-[#37b24d] pulse-dot' },
-  reconnecting: { label: '재연결 중', dotClass: 'bg-[#ffa94d] pulse-dot' },
-  disconnected: { label: '연결 끊김', dotClass: 'bg-[#fa5252]' },
+const CONNECTION_LABEL: Record<WsConnectionState, { label: string; dotClass: string; pillClass: string }> = {
+  idle: { label: '대기', dotClass: 'bg-[#adb5bd]', pillClass: 'bg-bt-bg-muted text-bt-fg-muted' },
+  connecting: { label: 'CONNECTING…', dotClass: 'bg-[#ffa94d] pulse-dot', pillClass: 'bg-bt-warn-soft text-bt-warn' },
+  connected: { label: 'LIVE', dotClass: 'bg-[#37b24d] pulse-dot', pillClass: 'bg-bt-success-soft text-bt-success' },
+  reconnecting: { label: 'RECONNECTING…', dotClass: 'bg-[#ffa94d] pulse-dot', pillClass: 'bg-bt-warn-soft text-bt-warn' },
+  disconnected: { label: '연결 끊김', dotClass: 'bg-[#fa5252]', pillClass: 'bg-bt-danger-soft text-bt-danger' },
 };
 
 export default function DashboardHeader({
@@ -101,8 +101,8 @@ export default function DashboardHeader({
           <span className="text-xs text-[#868e96] shrink-0">· {DOMAIN_LABELS[dashboard.domainCode]}</span>
 
           {mode === 'view' && monitoringStarted && (
-            <span className="ml-2 inline-flex items-center gap-1.5 text-xs text-[#868e96] shrink-0">
-              <span className={`h-1.5 w-1.5 rounded-full ${conn.dotClass}`} />
+            <span className={`ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${conn.pillClass}`}>
+              <span className={`h-2 w-2 rounded-full ${conn.dotClass}`} />
               {conn.label}
             </span>
           )}

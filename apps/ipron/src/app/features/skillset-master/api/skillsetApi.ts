@@ -18,6 +18,7 @@ import type {
   ScheduleInfoResponse,
   SkillsetCreateRequest,
   SkillsetGroupCreateRequest,
+  SkillsetGroupReorderRequest,
   SkillsetGroupResponse,
   SkillsetGroupUpdateRequest,
   SkillsetMemberReassignRequest,
@@ -92,7 +93,17 @@ export const skillsetApi = {
     await apiClient.post('/ipron-skillset-groups-move-down', undefined, { params: { treeId } });
   },
 
-  // ─── 스케쥴 관리 ──────────────────────────────────────────────
+  /**
+   * 업무그룹 트리 D&D 재배치 (BEFORE/AFTER/INSIDE).
+   * BE: POST /api/ipron/skillset-groups/{treeId}/reorder
+   * BFF: skillset-group-reorder flow 경유 (seed: seed-additions-2026-06-12.sql).
+   */
+  reorderGroup: async (treeId: number, body: SkillsetGroupReorderRequest): Promise<SkillsetGroupResponse> => {
+    const res = await apiClient.post<ApiResponse<SkillsetGroupResponse>>('/skillset-group-reorder', body, { params: { treeId } });
+    return res.data?.data;
+  },
+
+  // ─── 스케줄 관리 ──────────────────────────────────────────────
   getSchedules: async (params?: { tenantId?: number }): Promise<ScheduleInfoResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: ScheduleInfoResponse[] }>>('/ipron-skillset-schedule-list', { params });
     return res.data?.data?.value ?? [];

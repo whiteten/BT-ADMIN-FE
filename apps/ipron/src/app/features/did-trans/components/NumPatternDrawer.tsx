@@ -62,7 +62,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: createPattern, isPending: isCreating } = useCreateNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 등록되었습니다.');
+        toast.success('번호 패턴이 등록되었습니다');
         setEditing(null);
         form.resetFields();
         refetch();
@@ -76,7 +76,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: updatePattern, isPending: isUpdating } = useUpdateNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 수정되었습니다.');
+        toast.success('번호 패턴이 수정되었습니다');
         setEditing(null);
         form.resetFields();
         refetch();
@@ -90,7 +90,7 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
   const { mutate: deletePattern } = useDeleteNumPattern({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('번호 패턴이 삭제되었습니다.');
+        toast.success('번호 패턴이 삭제되었습니다');
         refetch();
       },
       onError: (error: Error) => {
@@ -192,20 +192,21 @@ const NumPatternDrawer = forwardRef<NumPatternDrawerRef, Props>(({ onSelect, onC
 
   return (
     <Drawer
-      title={
-        <div className="flex items-center justify-between">
-          <span>번호 패턴 관리</span>
-          <Button type="primary" size="small" icon={<Plus className="size-3.5" />} onClick={handleStartCreate} disabled={editing !== null}>
-            추가
-          </Button>
-        </div>
-      }
+      title="번호 패턴 관리"
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 560 } }}
       afterOpenChange={(open) => {
         if (open) refetch();
       }}
+      footer={
+        <div className="flex items-center justify-end gap-2">
+          <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleStartCreate} disabled={editing !== null}>
+            추가
+          </Button>
+        </div>
+      }
     >
       {/* Search */}
       <Input

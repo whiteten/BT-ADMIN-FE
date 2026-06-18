@@ -3,9 +3,9 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { scenarioApi } from '../api/scenarioApi';
-import type { DeployTargetSystem, DeployedSystem, Scenario, ScenarioVersion, SystemDeployItem } from '../types';
+import type { DeployTargetSystem, DeployedSystem, Scenario, ScenarioAssignedStatusRow, ScenarioVersion, SystemDeployItem } from '../types';
 
 export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getScenarios: (params?: Record<string, unknown>) => [params],
@@ -16,6 +16,8 @@ export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getDeployStatus: (params?: Record<string, unknown>) => [params],
   getDeployTargets: (params?: Record<string, unknown>) => [params],
   getDeployConfig: (params?: Record<string, unknown>) => [params],
+  getAssignedStatus: null,
+  getAssignedHistory: null,
 });
 
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
@@ -54,6 +56,23 @@ export const useDeleteScenario = ({ mutationOptions }: MutationHookOptions = {})
   return useMutation({
     mutationFn: scenarioApi.deleteScenario,
     ...mutationOptions,
+  });
+};
+
+// ─── 시스템별 시나리오 할당 현황 (IPR20S6020) ──────────────────────────────
+export const useGetScenarioAssignedStatus = ({ queryOptions }: QueryHookOptions<ScenarioAssignedStatusRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioQueryKeys.getAssignedStatus.queryKey,
+    queryFn: () => scenarioApi.getAssignedStatus(),
+    ...queryOptions,
+  });
+};
+
+export const useGetScenarioAssignedHistory = ({ queryOptions }: QueryHookOptions<ScenarioAssignedStatusRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioQueryKeys.getAssignedHistory.queryKey,
+    queryFn: () => scenarioApi.getAssignedHistory(),
+    ...queryOptions,
   });
 };
 
@@ -132,7 +151,11 @@ export const useGetIfeInfo = ({ mutationOptions }: MutationHookOptions = {}) => 
 
 export const useDownloadScenario = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
-    mutationFn: scenarioApi.downloadScenario,
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await scenarioApi.downloadScenario(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `scenario_${params['serviceId']}_v${params['serviceVer']}.SXML`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };
@@ -140,7 +163,11 @@ export const useDownloadScenario = ({ mutationOptions }: MutationHookOptions = {
 /** 시나리오 첨부 문서 다운로드 (Blob). SXML 다운로드와 좌우 대칭. */
 export const useDownloadScenarioDocument = ({ mutationOptions }: MutationHookOptions = {}) => {
   return useMutation({
-    mutationFn: scenarioApi.downloadScenarioDocument,
+    mutationFn: async (params: Record<string, unknown>) => {
+      const response = await scenarioApi.downloadScenarioDocument(params);
+      const fileName = extractFileName(response.headers['content-disposition'], `scenario_doc_${params['serviceId']}_v${params['serviceVer']}`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

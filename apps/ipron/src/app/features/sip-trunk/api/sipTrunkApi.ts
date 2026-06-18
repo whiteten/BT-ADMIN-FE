@@ -70,6 +70,12 @@ export const sipTrunkApi = {
     await apiClient.post('/ipron-sip-gdn-delete-batch', gdnIds);
   },
 
+  /** GDN에 배정된 SIP 트렁크 멤버 존재 여부 — DR노드 변경 전 체크 (SWAT hasGroupMemberSipTrunk 정합) */
+  gdnMembersExist: async (gdnId: number): Promise<boolean> => {
+    const res = await apiClient.get<ApiResponse<boolean>>('/ipron-sip-gdn-members-exists', { params: { gdnId } });
+    return res.data?.data ?? false;
+  },
+
   // ─── 트렁크 마스터 ───────────────────────────────────────────────
   getTrunkList: async (params?: { nodeId?: number; tenantScope?: TenantScope }): Promise<SipTrunkResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ value: SipTrunkResponse[] }>>('/ipron-sip-trunk-list', { params });
@@ -91,6 +97,19 @@ export const sipTrunkApi = {
   getTrunkDetail: async (sipTrunkId: number): Promise<SipTrunkResponse> => {
     const res = await apiClient.get<ApiResponse<SipTrunkResponse>>('/ipron-sip-trunk-detail', { params: { sipTrunkId } });
     return res.data?.data;
+  },
+
+  /**
+   * 내선프로파일 옵션 목록 (SWAT cbCreate p4DnProfileId 정합) — 내선프로파일 콤보화.
+   * dnProfileType=1(TRUNK) 고정, nodeId 필터. (common-trunk getDnProfileOptions 동일 패턴)
+   * @flow ipron-dn-profile-list (기존 flow 재사용)
+   */
+  getDnProfileOptions: async (nodeId: number): Promise<{ dnProfileId: number; dnProfileName: string }[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: { dnProfileId: number; dnProfileName: string }[] }>>('/ipron-dn-profile-list', {
+      params: { nodeId, dnProfileType: '1' },
+    });
+    const raw = res.data?.data?.value ?? [];
+    return raw.map((p) => ({ dnProfileId: p.dnProfileId, dnProfileName: p.dnProfileName }));
   },
 
   createTrunk: async (body: SipTrunkCreateRequest): Promise<SipTrunkResponse> => {

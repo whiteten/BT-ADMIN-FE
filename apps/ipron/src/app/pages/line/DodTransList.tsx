@@ -14,32 +14,28 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, type MenuProps } from 'antd';
-import { ArrowUpDown, Building2, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowUpDown, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../../features/dod-trans/components/DodTransMasterDrawer';
 import {
   dodTransQueryKeys,
-  useDeleteItem,
+  useDeleteItemBatch,
   useDeleteMaster,
   useGetItemList,
   useGetMasterList,
   useGetNodeTenants,
   useGetNodes,
 } from '../../features/dod-trans/hooks/useDodTransQueries';
-import { type DodTransItem, type DodTransMaster, EDIT_OPT_LABELS, TRANS_YN_LABELS } from '../../features/dod-trans/types';
-import { IconTrash } from '@/components/custom/Icons';
+import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../features/dod-trans/types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/dod-trans' },
-  { title: 'DOD DNIS관리', path: '/ipron/line/dod-trans' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: 'DOD DNIS관리', path: '/ipron/line/dod-trans' }];
 
 export default function DodTransList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -63,11 +59,13 @@ export default function DodTransList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   // viewMode: byNode(탭=노드, 카드그룹=테넌트) / byTenant(탭=테넌트, 카드그룹=노드)
   const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
+  const [sliderOpen, setSliderOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(initTenantId);
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
   const [searchText, setSearchText] = useState('');
   const [numPatternSearch, setNumPatternSearch] = useState('');
+  const [selectedItems, setSelectedItems] = useState<DodTransItem[]>([]);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
@@ -95,17 +93,17 @@ export default function DodTransList() {
   const { mutate: deleteMaster } = useDeleteMaster({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('DOD DNIS 변환이 삭제되었습니다.');
+        toast.success('DOD DNIS 변환이 삭제되었습니다');
         if (selectedMasterId) setSelectedMasterId(null);
         invalidateMasters();
       },
     },
   });
 
-  const { mutate: deleteItem } = useDeleteItem({
+  const { mutate: deleteItemBatch } = useDeleteItemBatch({
     mutationOptions: {
       onSuccess: () => {
-        toast.success('변환 패턴이 삭제되었습니다.');
+        toast.success('변환 패턴이 삭제되었습니다');
         invalidateItems();
         invalidateMasters();
       },
@@ -290,11 +288,15 @@ export default function DodTransList() {
 
   const handleDeleteMaster = useCallback(
     (master: DodTransMaster) => {
+      if ((master.itemCount ?? 0) > 0) {
+        toast.error(`등록된 패턴 ${master.itemCount}건이 있어 삭제할 수 없습니다`);
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteMaster({ id: master.dodTransId }),
         options: {
           title: 'DOD DNIS 변환 삭제',
-          content: `"${master.dodTransName}" 변환을 삭제하시겠습니까?\n등록된 패턴이 있으면 삭제할 수 없습니다.`,
+          content: `"${master.dodTransName}" 변환을 삭제하시겠습니까?`,
         },
       });
     },
@@ -311,18 +313,19 @@ export default function DodTransList() {
     itemDrawerRef.current?.open(item);
   }, []);
 
-  const handleDeleteItem = useCallback(
-    (item: DodTransItem) => {
-      modal.confirm.execute({
-        onOk: () => deleteItem({ dodTransId: item.dodTransId, listSeq: item.listSeq }),
-        options: {
-          title: '변환 패턴 삭제',
-          content: `"${item.numPattern}" 패턴을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, deleteItem],
-  );
+  const handleDeleteSelectedItems = useCallback(() => {
+    if (selectedItems.length === 0) return;
+    modal.confirm.execute({
+      onOk: () => {
+        deleteItemBatch(selectedItems.map((item) => ({ dodTransId: item.dodTransId, listSeq: item.listSeq })));
+        setSelectedItems([]);
+      },
+      options: {
+        title: '변환 패턴 삭제',
+        content: `선택한 ${selectedItems.length}건을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, deleteItemBatch, selectedItems]);
 
   const handleMasterDrawerSuccess = useCallback(() => {
     invalidateMasters();
@@ -348,6 +351,12 @@ export default function DodTransList() {
     },
   ];
 
+  // ─── Row selection ────────────────────────────────────────────────────────
+  const itemRowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DodTransItem>[] = useMemo(
     () => [
@@ -357,6 +366,7 @@ export default function DodTransList() {
         flex: 1,
         minWidth: 110,
         valueGetter: () => selectedMaster?.nodeName ?? '-',
+        tooltipValueGetter: () => selectedMaster?.nodeName ?? '-',
       },
       {
         headerName: '테넌트',
@@ -364,6 +374,7 @@ export default function DodTransList() {
         flex: 1,
         minWidth: 110,
         valueGetter: () => selectedMaster?.tenantName ?? '-',
+        tooltipValueGetter: () => selectedMaster?.tenantName ?? '-',
       },
       {
         headerName: '번호패턴',
@@ -371,35 +382,29 @@ export default function DodTransList() {
         flex: 2,
         minWidth: 160,
         cellStyle: { fontFamily: 'monospace' },
+        tooltipField: 'numPattern',
       },
       {
-        headerName: '편집옵션',
-        field: 'editOpt',
-        flex: 1,
-        minWidth: 100,
-        cellRenderer: (params: ICellRendererParams<DodTransItem>) => {
-          if (!params.data) return null;
-          return <span>{EDIT_OPT_LABELS[params.data.editOpt] ?? String(params.data.editOpt)}</span>;
-        },
-      },
-      {
-        headerName: 'Digit수',
+        headerName: 'Digit 수',
         field: 'delCount',
         flex: 0.7,
         minWidth: 80,
+        filter: 'agNumberColumnFilter',
       },
       {
-        headerName: '추가Digit',
+        headerName: '추가 Digit',
         field: 'addDigit',
         flex: 1,
         minWidth: 100,
         valueFormatter: (params) => params.data?.addDigit ?? '-',
+        tooltipField: 'addDigit',
       },
       {
         headerName: '사용여부',
         field: 'transYn',
         flex: 0.8,
         minWidth: 90,
+        filterValueGetter: (params) => (params.data ? (TRANS_YN_LABELS[params.data.transYn] ?? '-') : null),
         cellRenderer: (params: ICellRendererParams<DodTransItem>) => {
           if (!params.data) return null;
           const isOn = params.data.transYn === 1;
@@ -414,31 +419,8 @@ export default function DodTransList() {
           );
         },
       },
-      {
-        headerName: '',
-        field: 'listSeq',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<DodTransItem>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteItem(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDeleteItem, selectedMaster],
+    [selectedMaster],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -550,117 +532,133 @@ export default function DodTransList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          {/* 접기/펼치기 토글 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setSliderOpen((v) => !v)}
+          >
+            <span>변환 선택</span>
+            {sliderOpen ? <ChevronsUp className="size-4" /> : <ChevronsDown className="size-4" />}
+          </button>
           {/* Card slider body — 높이 고정 */}
-          <div className="flex items-center h-[170px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {/* 마스터 카드들 — viewMode에 따라 테넌트별 or 노드별 그룹화 */}
-                {mastersByGroup.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">
-                      {isSearching
-                        ? '검색 결과가 없습니다'
-                        : viewMode === 'byNode' && selectedNodeId
-                          ? '이 노드에 등록된 DOD DNIS 변환이 없습니다'
-                          : viewMode === 'byTenant' && selectedTenantId
-                            ? '이 테넌트에 등록된 DOD DNIS 변환이 없습니다'
-                            : '등록된 DOD DNIS 변환이 없습니다'}
-                    </span>
-                  </div>
-                ) : (
-                  mastersByGroup.map((group, groupIdx) => {
-                    const selectedGroupKey = viewMode === 'byNode' ? selectedMaster?.tenantId : selectedMaster?.nodeId;
-                    const isGroupActive = selectedGroupKey === group.groupId;
-                    const GroupIcon = viewMode === 'byNode' ? Building2 : Network;
-                    return (
-                      <div key={group.groupId} className="flex items-stretch gap-3 flex-shrink-0">
-                        {/* 그룹 라벨 (byNode: 테넌트 / byTenant: 노드) — 선택된 마스터의 그룹이면 강조 */}
-                        <div
-                          className={`flex flex-col items-center justify-center w-[100px] flex-shrink-0 px-2 rounded transition-all border-l-4 ${
-                            isGroupActive ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]' : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
-                          }`}
-                        >
-                          <GroupIcon className={`size-4 flex-shrink-0 ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} />
-                          <span className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} title={group.groupName}>
-                            {group.groupName}
-                          </span>
-                          <span className={`text-[10px] ${isGroupActive ? 'text-white/80' : 'text-gray-500'}`}>{group.masters.length}건</span>
-                        </div>
-
-                        {/* 그룹 내 마스터 카드들 */}
-                        {group.masters.map((master) => {
-                          const isCardSelected = selectedMasterId === master.dodTransId;
-                          return (
-                            <div
-                              key={master.dodTransId}
-                              id={`dod-trans-card-${master.dodTransId}`}
-                              className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[160px] h-[130px] flex-shrink-0 flex flex-col ${
-                                isCardSelected
-                                  ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                                  : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                              }`}
-                              onClick={(e) => {
-                                handleCardSelect(master);
-                                (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                              }}
-                              onDoubleClick={() => handleEditMaster(master)}
+          {sliderOpen && (
+            <div className="flex items-center h-[170px] px-4 py-3">
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* 마스터 카드들 — viewMode에 따라 테넌트별 or 노드별 그룹화 */}
+                  {mastersByGroup.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
+                      <Empty description={false} imageStyle={{ height: 40 }} />
+                      <span className="text-sm">
+                        {isSearching
+                          ? '검색 결과가 없습니다'
+                          : viewMode === 'byNode' && selectedNodeId
+                            ? '이 노드에 등록된 DOD DNIS 변환이 없습니다'
+                            : viewMode === 'byTenant' && selectedTenantId
+                              ? '이 테넌트에 등록된 DOD DNIS 변환이 없습니다'
+                              : '등록된 DOD DNIS 변환이 없습니다'}
+                      </span>
+                    </div>
+                  ) : (
+                    mastersByGroup.map((group, groupIdx) => {
+                      const selectedGroupKey = viewMode === 'byNode' ? selectedMaster?.tenantId : selectedMaster?.nodeId;
+                      const isGroupActive = selectedGroupKey === group.groupId;
+                      const GroupIcon = viewMode === 'byNode' ? Building2 : Network;
+                      return (
+                        <div key={group.groupId} className="flex items-stretch gap-3 flex-shrink-0">
+                          {/* 그룹 라벨 (byNode: 테넌트 / byTenant: 노드) — 선택된 마스터의 그룹이면 강조 */}
+                          <div
+                            className={`flex flex-col items-center justify-center w-[100px] flex-shrink-0 px-2 rounded transition-all border-l-4 ${
+                              isGroupActive
+                                ? 'border-l-[#405189] bg-[#405189] text-white shadow-[0_2px_8px_rgba(64,81,137,0.25)]'
+                                : 'border-l-[#a3b1d6] bg-blue-50/50 text-[#405189]'
+                            }`}
+                          >
+                            <GroupIcon className={`size-4 flex-shrink-0 ${isGroupActive ? 'text-white' : 'text-[#405189]'}`} />
+                            <span
+                              className={`text-[11px] font-semibold mt-1 w-full text-center truncate ${isGroupActive ? 'text-white' : 'text-[#405189]'}`}
+                              title={group.groupName}
                             >
-                              {/* Card header */}
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-semibold text-gray-800 truncate">{master.dodTransName}</span>
-                                <div onClick={(e) => e.stopPropagation()}>
-                                  <Dropdown menu={{ items: getCardMenuItems(master) }} trigger={['click']} placement="bottomRight">
-                                    <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0">
-                                      <MoreVertical className="size-3.5 text-gray-400" />
-                                    </button>
-                                  </Dropdown>
+                              {group.groupName}
+                            </span>
+                            <span className={`text-[10px] ${isGroupActive ? 'text-white/80' : 'text-gray-500'}`}>{group.masters.length}건</span>
+                          </div>
+
+                          {/* 그룹 내 마스터 카드들 */}
+                          {group.masters.map((master) => {
+                            const isCardSelected = selectedMasterId === master.dodTransId;
+                            return (
+                              <div
+                                key={master.dodTransId}
+                                id={`dod-trans-card-${master.dodTransId}`}
+                                className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[160px] h-[130px] flex-shrink-0 flex flex-col ${
+                                  isCardSelected
+                                    ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                                    : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                }`}
+                                onClick={(e) => {
+                                  handleCardSelect(master);
+                                  (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                                }}
+                                onDoubleClick={() => handleEditMaster(master)}
+                              >
+                                {/* Card header */}
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-semibold text-gray-800 truncate">{master.dodTransName}</span>
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <Dropdown menu={{ items: getCardMenuItems(master) }} trigger={['click']} placement="bottomRight">
+                                      <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0">
+                                        <MoreVertical className="size-3.5 text-gray-400" />
+                                      </button>
+                                    </Dropdown>
+                                  </div>
+                                </div>
+
+                                {/* Card info */}
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  <div className="flex items-center gap-1">
+                                    <Network className="size-3 text-gray-400" />
+                                    <span className="truncate">{master.nodeName ?? `노드 ${master.nodeId}`}</span>
+                                  </div>
+                                </div>
+
+                                {/* 패턴 건수 태그 */}
+                                <div className="flex flex-wrap gap-1 mt-auto">
+                                  <span
+                                    className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                      master.itemCount > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                                    }`}
+                                  >
+                                    {master.itemCount > 0 ? `패턴 ${master.itemCount}건` : '패턴 미등록'}
+                                  </span>
                                 </div>
                               </div>
+                            );
+                          })}
 
-                              {/* Card info */}
-                              <div className="text-xs text-gray-500 space-y-0.5">
-                                <div className="flex items-center gap-1">
-                                  <Network className="size-3 text-gray-400" />
-                                  <span className="truncate">{master.nodeName ?? `Node ${master.nodeId}`}</span>
-                                </div>
-                              </div>
-
-                              {/* 패턴 건수 태그 */}
-                              <div className="flex flex-wrap gap-1 mt-auto">
-                                <span
-                                  className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                                    master.itemCount > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
-                                  }`}
-                                >
-                                  {master.itemCount > 0 ? `패턴 ${master.itemCount}건` : '패턴 미등록'}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-
-                        {/* 그룹 사이 구분선 */}
-                        {groupIdx < mastersByGroup.length - 1 && <div className="border-l border-gray-200 mx-1" />}
-                      </div>
-                    );
-                  })
-                )}
+                          {/* 그룹 사이 구분선 */}
+                          {groupIdx < mastersByGroup.length - 1 && <div className="border-l border-gray-200 mx-1" />}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
               </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* ===== 하단: 패턴 ag-Grid ===== */}
@@ -671,6 +669,15 @@ export default function DodTransList() {
               {selectedMaster ? `${selectedMaster.dodTransName} ` : ''}패턴 ({items.length}건)
             </span>
             <div className="flex items-center gap-2">
+              <Button
+                danger
+                icon={<Trash2 className="size-3.5" />}
+                disabled={selectedItems.length === 0}
+                title={selectedItems.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedItems.length}건 삭제`}
+                onClick={handleDeleteSelectedItems}
+              >
+                삭제
+              </Button>
               {selectedMaster && (
                 <Input
                   allowClear
@@ -702,11 +709,15 @@ export default function DodTransList() {
                   pagination: false,
                   sideBar: false,
                 }}
+                rowSelection={itemRowSelection}
                 loading={isItemsLoading}
                 getRowId={(params) => `${params.data.dodTransId}-${params.data.listSeq}`}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (e.data) handleEditItem(e.data);
+                }}
+                onSelectionChanged={(e: SelectionChangedEvent<DodTransItem>) => {
+                  setSelectedItems(e.api.getSelectedRows());
                 }}
               />
             ) : (

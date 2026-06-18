@@ -1,10 +1,11 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Button, Checkbox, Input, Select, Splitter, Tag } from 'antd';
-import { ArrowLeft, GripVertical, X } from 'lucide-react';
+import { Button, Checkbox, Input, Modal, Select, Splitter, Tag, Tooltip } from 'antd';
+import { ArrowLeft, Code2, Copy, Eye, EyeOff, GripVertical, Info, X } from 'lucide-react';
+import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
 import PanelBarChart from './chart/PanelBarChart';
 import PanelLineChart from './chart/PanelLineChart';
@@ -12,12 +13,15 @@ import PanelPieChart from './chart/PanelPieChart';
 import PanelRadarChart from './chart/PanelRadarChart';
 import PanelGrid from './grid/PanelGrid';
 import PanelKpiCard from './kpi/PanelKpiCard';
+import { formatterTypeToColumnFormat } from '../../../utils/columnFormat';
 import { useGetDataSourceFields, useGetDatasets } from '../../dataset/hooks/useDatasetQueries';
 import type { FieldMetaItem } from '../../dataset/types';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useCreatePanel, useUpdatePanel } from '../../report/hooks/useReportQueries';
+import { useReportViewStore } from '../../report/hooks/useReportViewStore';
 import type { AggFunc, ColumnFormat, PanelDetail, PanelFieldMap, PanelLayout, PanelType, SlotType } from '../../report/types';
 import { useGetSearchConditions } from '../../search-condition/hooks/useSearchConditionQueries';
+import { type SqlPreviewResult, panelApi } from '../api/panelApi';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +48,7 @@ interface SlotDef {
   subtitle: string;
   maxItems?: number;
   acceptsRole?: 'DIM' | 'MSR' | 'BOTH';
+  note?: string;
 }
 
 // ─── Slot definitions per panel type ─────────────────────────────────────────
@@ -73,7 +78,20 @@ function getChartSlots(chartType: ChartType): SlotDef[] {
   return [
     { slotType: 'X_AXIS', badge: 'X', title: 'X축 (카테고리)', subtitle: `— ${chartType === 'LINE' ? 'DATE 권장' : '디멘션 1개'}`, maxItems: 1, acceptsRole: 'DIM' },
     { slotType: 'Y_AXIS', badge: 'Y', title: 'Y축 (값)', subtitle: '— 측정값 1개+', acceptsRole: 'MSR' },
-    { slotType: 'SERIES', badge: 'SR', title: '시리즈', subtitle: '— 선택 (그룹 분리)', acceptsRole: 'DIM' },
+    // 시리즈(그룹 분리)는 라인차트에서만 의미 있음
+    ...(chartType === 'LINE'
+      ? [
+          {
+            slotType: 'SERIES' as SlotType,
+            badge: 'SR',
+            title: '시리즈',
+            subtitle: '— 선택 1개 (그룹 분리)',
+            maxItems: 1,
+            acceptsRole: 'DIM' as const,
+            note: '미설정 시 전체 합계를 단일 라인으로 표시합니다.',
+          },
+        ]
+      : []),
   ];
 }
 
@@ -93,7 +111,19 @@ const TOP_N_PRESETS = [5, 10, 20, 50];
 
 const FILTER_SLOT_DEF: SlotDef = { slotType: 'FILTER', badge: 'F', title: '검색조건 바인딩', subtitle: '— 글로벌 필터 연결', acceptsRole: 'BOTH' };
 
+/** 보고서 상단 KPI 요약 카드 — 보고서 전체 최대 5개 (maxItems 는 다른 패널 사용분을 빼고 동적 계산) */
+const KPI_MAX_PER_REPORT = 5;
+
 const FIELD_COLLAPSE_THRESHOLD = 8;
+
+// 검색조건/모니터링 데이터셋 화면과 동일한 SQL 정렬 규격 (sql-formatter)
+function prettySql(sql: string): string {
+  try {
+    return formatSql(sql, { language: 'plsql', keywordCase: 'upper', tabWidth: 2 });
+  } catch {
+    return sql;
+  }
+}
 
 // 검색조건 입력 타입 → 짧은 라벨 (단일/복수 표시)
 const SC_TYPE_LABEL: Record<string, string> = {
@@ -121,7 +151,7 @@ function SortableFieldRow({
 // 값 슬롯(집계가 의미 있는 슬롯)에서만 기본 집계를 채운다.
 // 차원 슬롯(ROW·X_AXIS 등)에 aggFunc를 넣으면 백엔드가 측정값으로 오판해 GROUP BY가 깨진다.
 function defaultAggFunc(field: FieldMetaItem, slotType: SlotType): AggFunc | undefined {
-  if (slotType !== 'VALUE' && slotType !== 'Y_AXIS') return undefined;
+  if (slotType !== 'VALUE' && slotType !== 'Y_AXIS' && slotType !== 'KPI') return undefined;
   // 컬럼 타입 기준 기본 집계: 숫자(NUMBER)→SUM, 그 외(STRING 등)→MAX
   return field.fieldType === 'NUMBER' ? 'SUM' : 'MAX';
 }
@@ -132,9 +162,11 @@ function makeFieldMapEntry(field: FieldMetaItem, slotType: SlotType, slotOrder: 
     slotType,
     slotOrder,
     fieldName: field.fieldName,
-    isCalcField: false,
+    // 데이터셋 CALC 필드는 플래그 유지 — 합계 행 제외·SQL 제외 판정에 쓰임
+    isCalcField: field.fieldRole === 'CALC',
     aggFunc: defaultAggFunc(field, slotType),
-    columnFormat: isMsr ? 'Number' : undefined,
+    // 데이터셋 필드에 지정된 서식(formatterType)을 그대로 상속 — 보고서 표시값이 데이터셋 정의와 일치하도록.
+    columnFormat: isMsr ? formatterTypeToColumnFormat(field.formatterType) : undefined,
   };
 }
 
@@ -187,8 +219,29 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const existingFieldMap = existingPanel?.fieldMap ?? [];
   const [groupByFields, setGroupByFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'ROW'));
   const [valueFields, setValueFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'VALUE'));
-  const [sortFields, setSortFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'SORT'));
+  // 정렬: 저장된 SORT가 있으면 그대로, 비어 있으면 기본 PSR_TIME_KEY ASC 슬롯을 주입한다.
+  // (백엔드는 SORT가 비면 ORDER BY PSR_TIME_KEY ASC로 폴백하므로 UI·SQL을 일치시키기 위함.
+  //  사용자가 수정/삭제/추가하면 그대로 저장되며, 완전히 비우면 다시 기본값으로 노출된다.)
+  const [sortFields, setSortFields] = useState<PanelFieldMap[]>(() => {
+    const existing = existingFieldMap.filter((f) => f.slotType === 'SORT');
+    if (existing.length > 0 || !isGrid) return existing;
+    return [{ slotType: 'SORT', slotOrder: 0, fieldName: 'PSR_TIME_KEY', isCalcField: false, sortDirection: 'ASC' }];
+  });
   const [filterFields, setFilterFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'FILTER'));
+  // KPI 슬롯 — 보고서 상단 요약 카드 지표 (보고서 전체 최대 5개, 패널 타입 무관 공통)
+  const [kpiFields, setKpiFields] = useState<PanelFieldMap[]>(existingFieldMap.filter((f) => f.slotType === 'KPI'));
+  // 같은 보고서의 다른 패널이 이미 사용 중인 KPI 수 → 이 패널이 추가할 수 있는 잔여 한도
+  const otherKpiCount = panels.filter((p) => p.panelId !== (panelId ?? Number.MIN_SAFE_INTEGER)).reduce((n, p) => n + p.fieldMap.filter((f) => f.slotType === 'KPI').length, 0);
+  const kpiMaxItems = Math.max(0, KPI_MAX_PER_REPORT - otherKpiCount);
+  const kpiSlotDef: SlotDef = {
+    slotType: 'KPI',
+    badge: 'K',
+    title: 'KPI 지표',
+    subtitle: '— 상단 요약 카드',
+    maxItems: kpiMaxItems,
+    acceptsRole: 'MSR',
+    note: `측정값을 지정하면 보고서 상단에 요약 카드로 고정 표시됩니다 (보고서 전체 최대 ${KPI_MAX_PER_REPORT}개).`,
+  };
   const [showSumRow, setShowSumRow] = useState(() => (existingPanel?.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true);
 
   // ─── CHART slot state ──────────────────────────────────────────────────────
@@ -226,15 +279,41 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const dimFields = visibleFields.filter((f) => f.fieldRole === 'DIMENSION' || f.fieldRole === 'TIMESTAMP');
   const msrFields = visibleFields.filter((f) => f.fieldRole === 'MEASURE');
 
+  // 데이터셋 서식이 항상 우선 — 패널 로드/데이터셋 변경 시 슬롯 필드의 columnFormat을
+  // 데이터셋의 현재 formatterType으로 덮어쓴다(측정값/계산필드만, 디멘션은 미지정).
+  // (저장 당시 기본값 'Number'로 박힌 기존 패널도 데이터셋 정의대로 표시되도록.)
+  useEffect(() => {
+    if (fields.length === 0) return;
+    const metaMap = new Map(fields.map((f) => [f.fieldName, f]));
+    const apply = (setter: React.Dispatch<React.SetStateAction<PanelFieldMap[]>>) =>
+      setter((prev) => {
+        let changed = false;
+        const next = prev.map((e) => {
+          const meta = metaMap.get(e.fieldName);
+          if (!meta) return e;
+          const isMsr = meta.fieldRole === 'MEASURE' || meta.fieldRole === 'CALC';
+          const cf = isMsr ? formatterTypeToColumnFormat(meta.formatterType) : undefined;
+          if (e.columnFormat === cf) return e;
+          changed = true;
+          return { ...e, columnFormat: cf };
+        });
+        return changed ? next : prev;
+      });
+    [setGroupByFields, setValueFields, setSortFields, setXAxisFields, setYAxisFields, setSeriesFields, setSliceFields, setPieValueFields, setKpiFields].forEach(apply);
+  }, [fields]);
+
   // ─── Slot map: slotType → { fields, setter, maxItems } ───────────────────
   const slotMap: Record<string, { fields: PanelFieldMap[]; setter: React.Dispatch<React.SetStateAction<PanelFieldMap[]>>; maxItems?: number }> = {
     ROW: { fields: groupByFields, setter: setGroupByFields },
     VALUE: { fields: isGrid ? valueFields : pieValueFields, setter: isGrid ? setValueFields : setPieValueFields, maxItems: isGrid ? undefined : 1 },
     SORT: { fields: sortFields, setter: setSortFields },
     X_AXIS: { fields: xAxisFields, setter: setXAxisFields, maxItems: 1 },
-    Y_AXIS: { fields: yAxisFields, setter: setYAxisFields, maxItems: chartType === 'KPI' ? 1 : undefined },
-    SERIES: { fields: seriesFields, setter: setSeriesFields },
+    // 라인차트: 시리즈로 범례를 구현하면 Y축은 1개만(시리즈 미설정 시 Y 다중 → Y값으로 범례)
+    Y_AXIS: { fields: yAxisFields, setter: setYAxisFields, maxItems: chartType === 'KPI' || seriesFields.length > 0 ? 1 : undefined },
+    // Y축이 2개 이상이면 시리즈 사용 불가(상호 배타)
+    SERIES: { fields: seriesFields, setter: setSeriesFields, maxItems: yAxisFields.length > 1 ? 0 : 1 },
     SLICE: { fields: sliceFields, setter: setSliceFields, maxItems: 1 },
+    KPI: { fields: kpiFields, setter: setKpiFields, maxItems: kpiMaxItems },
   };
 
   // ─── Mutations ─────────────────────────────────────────────────────────────
@@ -266,12 +345,15 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Build fieldMap ────────────────────────────────────────────────────────
   const buildFieldMap = (): PanelFieldMap[] => {
+    // KPI 슬롯은 패널 타입 무관 공통 (보고서 상단 요약 카드)
+    const kpiEntries = kpiFields.map((f, i) => normalizeField({ ...f, slotType: 'KPI' as SlotType, slotOrder: i }));
     if (isGrid) {
       return [
         ...groupByFields.map((f, i) => normalizeField({ ...f, slotType: 'ROW' as SlotType, slotOrder: i })),
         ...valueFields.map((f, i) => normalizeField({ ...f, slotType: 'VALUE' as SlotType, slotOrder: i })),
         ...sortFields.map((f, i) => normalizeField({ ...f, slotType: 'SORT' as SlotType, slotOrder: i })),
         ...filterFields.map((f, i) => normalizeField({ ...f, slotType: 'FILTER' as SlotType, slotOrder: i })),
+        ...kpiEntries,
       ];
     }
     let slotFields: PanelFieldMap[];
@@ -288,18 +370,20 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
       ];
     }
     // 검색조건(FILTER) 바인딩은 그리드 전용 — 차트류 패널은 fieldMap에 포함하지 않음
-    if (topNEnabled && topNSortField) {
+    // 정렬기준 필드 미선택 시 첫 후보(보통 첫 Y 측정값)로 폴백 — "사용"만 체크하고 저장해도 유실되지 않게.
+    const topNField = topNSortField || chartSortCandidates[0]?.fieldName;
+    if (topNEnabled && topNField) {
       slotFields.push({
         slotType: 'LIMIT',
         slotOrder: 0,
-        fieldName: topNSortField,
+        fieldName: topNField,
         isCalcField: false,
         topN: topNValue,
         sortDirection: topNSortDir,
         otherGrouping: chartType === 'PIE' ? otherGroupingEnabled : false,
       });
     }
-    return slotFields;
+    return [...slotFields, ...kpiEntries];
   };
 
   const buildChartOptions = () => {
@@ -308,9 +392,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   };
 
   const handleSave = () => {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      toast.error('패널 제목을 입력하세요.');
+      return;
+    }
     const fieldMap = buildFieldMap();
     const chartOptions = buildChartOptions();
-    const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
+    const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title: trimmedTitle, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
     if (isDraft) {
       addPanel({ panelId: -Date.now(), reportId: 0, ...data });
       toast.success('패널이 추가되었습니다.');
@@ -399,6 +488,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     setSliceFields([]);
     setPieValueFields([]);
     setFilterFields([]);
+    setKpiFields([]);
     setFieldOrder({});
   };
 
@@ -456,7 +546,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const fieldDisplayMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
   // ─── Active slot label (for palette hint) ─────────────────────────────────
-  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartType), FILTER_SLOT_DEF].find((s) => s.slotType === activeSlot) : null;
+  const activeSlotDef = activeSlot ? [...GRID_SLOTS, ...getChartSlots(chartType), FILTER_SLOT_DEF, kpiSlotDef].find((s) => s.slotType === activeSlot) : null;
 
   // check if active slot is full (FILTER has no limit)
   const activeSlotFull =
@@ -655,7 +745,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Slot section renderer ─────────────────────────────────────────────────
   const renderSlot = (slotDef: SlotDef) => {
-    const { slotType, badge, title: slotTitle, subtitle, maxItems } = slotDef;
+    const { slotType, badge, title: slotTitle, subtitle, maxItems, note } = slotDef;
     const entry = slotMap[slotType];
     const slotFields = entry?.fields ?? [];
     const isActive = activeSlot === slotType;
@@ -694,6 +784,9 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
           </div>
         </div>
 
+        {/* Slot note (e.g. 미설정 시 동작 안내) when empty */}
+        {note && slotFields.length === 0 && <div className="mb-1.5 text-xs leading-snug text-[var(--color-bt-fg-muted)]">{note}</div>}
+
         {/* Slot hint when active and empty */}
         {isActive && !isFull && slotFields.length === 0 && (
           <div className="mb-1.5 flex items-center gap-1 rounded border border-dashed border-[var(--color-bt-primary)]/40 bg-[var(--color-bt-primary-soft)]/20 px-2 py-1">
@@ -705,7 +798,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
           {slotFields.map((f) => (
             <div key={f.fieldName} className="flex items-center gap-1.5 rounded border border-[var(--color-bt-border)] bg-white px-2 py-1 text-xs">
-              <span className="font-mono font-semibold" title={f.fieldName}>
+              <span className="min-w-[6ch] flex-1 truncate font-mono font-semibold" title={f.fieldName}>
                 {fieldDisplayMap.get(f.fieldName) ?? f.fieldName}
               </span>
               {slotType === 'VALUE' && (
@@ -715,7 +808,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.aggFunc ?? ''}
                     onChange={(v) => updateInSlot(f.fieldName, 'aggFunc', (v || null) as AggFunc, entry.setter)}
                     options={AGG_OPTIONS}
-                    className="ml-auto w-20"
+                    className="w-16 shrink-0"
                     popupMatchSelectWidth={false}
                   />
                   <Select
@@ -723,12 +816,20 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                     value={f.columnFormat ?? 'Number'}
                     onChange={(v) => updateInSlot(f.fieldName, 'columnFormat', v as ColumnFormat, entry.setter)}
                     options={FORMAT_OPTIONS}
-                    className="w-24"
+                    className="w-20 shrink-0"
                     popupMatchSelectWidth={false}
+                  />
+                  <Input
+                    size="small"
+                    value={f.headerGroup ?? ''}
+                    onChange={(e) => updateInSlot(f.fieldName, 'headerGroup', e.target.value || undefined, entry.setter)}
+                    placeholder="헤더"
+                    title="같은 이름끼리 그리드 상단 헤더로 병합 (빈칸=병합 안함)"
+                    className="min-w-[4rem] flex-1"
                   />
                 </>
               )}
-              {slotType === 'Y_AXIS' && (
+              {(slotType === 'Y_AXIS' || slotType === 'KPI') && (
                 <Select
                   size="small"
                   value={f.aggFunc ?? ''}
@@ -743,10 +844,20 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                   {f.sortDirection === 'ASC' ? '↑ ASC' : '↓ DESC'}
                 </Button>
               )}
+              {slotType === 'ROW' && (
+                <button
+                  type="button"
+                  title={f.isHidden ? '그룹화만 적용 — 그리드에 표시 안 함 (클릭 시 표시)' : '그리드에 표시 중 (클릭 시 그룹화만 적용)'}
+                  onClick={() => updateInSlot(f.fieldName, 'isHidden', !f.isHidden, entry.setter)}
+                  className={`ml-auto ${f.isHidden ? 'text-[var(--color-bt-fg-muted)]' : 'text-[var(--color-bt-primary)]'} hover:text-[var(--color-bt-primary)]`}
+                >
+                  {f.isHidden ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeFromSlot(f.fieldName, entry.setter)}
-                className={`text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'SORT' ? '' : 'ml-auto'}`}
+                className={`shrink-0 text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] ${slotType === 'VALUE' || slotType === 'Y_AXIS' || slotType === 'KPI' || slotType === 'SORT' || slotType === 'ROW' ? '' : 'ml-auto'}`}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -867,6 +978,64 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   // ─── Top N sort candidates ────────────────────────────────────────────────
   const chartSortCandidates = [...(chartType === 'PIE' ? pieValueFields : yAxisFields), ...(chartType === 'PIE' ? sliceFields : xAxisFields)];
+  // "사용" 체크 시 정렬기준 필드가 비어 있으면 첫 후보로 자동 선택 → 드롭다운 공란/유실 방지.
+  useEffect(() => {
+    if (topNEnabled && !topNSortField && chartSortCandidates.length > 0) {
+      setTopNSortField(chartSortCandidates[0].fieldName);
+    }
+  }, [topNEnabled, topNSortField, chartSortCandidates]);
+
+  // ─── SQL 미리보기 (저장된 패널 기준 — 레거시 쿼리 미리보기) ─────────────────
+  const { committedFilter } = useReportViewStore();
+  const [sqlPreviewOpen, setSqlPreviewOpen] = useState(false);
+  const [sqlPreviewLoading, setSqlPreviewLoading] = useState(false);
+  const [sqlPreview, setSqlPreview] = useState<SqlPreviewResult | null>(null);
+
+  const handleSqlPreview = async () => {
+    if (!isEdit || !panelId) return;
+    setSqlPreviewOpen(true);
+    setSqlPreviewLoading(true);
+    setSqlPreview(null);
+    try {
+      const result = await panelApi.previewSql({
+        reportId,
+        panelId,
+        period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+        searchValues: committedFilter.searchValues,
+        comparison: committedFilter.comparison,
+        conditions: committedFilter.conditions,
+      });
+      setSqlPreview(result);
+    } catch {
+      toast.error('SQL 미리보기를 불러오지 못했습니다.');
+      setSqlPreviewOpen(false);
+    } finally {
+      setSqlPreviewLoading(false);
+    }
+  };
+
+  const copySql = (text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => toast.success('SQL이 복사되었습니다.'),
+      () => toast.error('복사에 실패했습니다.'),
+    );
+  };
+
+  // 바인딩 파라미터 — 이름·값 2열 테이블
+  const renderParams = (params: Record<string, unknown>) => (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-xs">
+        <tbody>
+          {Object.entries(params).map(([k, v]) => (
+            <tr key={k} className="border-b border-border last:border-b-0">
+              <td className="w-40 whitespace-nowrap bg-muted/30 px-2.5 py-1 font-mono font-semibold text-muted-foreground">:{k}</td>
+              <td className="break-all px-2.5 py-1 font-mono">{Array.isArray(v) ? v.join(', ') : String(v)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   // ─── Live preview panel (편집 상태로 합성) ─────────────────────────────────
   const previewPanel = {
@@ -920,7 +1089,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={onClose}>취소</Button>
-          <Button type="primary" onClick={handleSave} disabled={!title || creating || updating} loading={creating || updating}>
+          <Button type="primary" onClick={handleSave} disabled={!title.trim() || creating || updating} loading={creating || updating}>
             이 패널 저장
           </Button>
         </div>
@@ -965,8 +1134,23 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         <Splitter.Panel min="30%">
           <div className="flex h-full min-w-0 flex-col bg-muted/10">
             <div className="flex shrink-0 items-center gap-2 border-b border-border bg-white px-4 py-2.5">
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="패널 제목 입력" className="max-w-xs" />
+              <label className="shrink-0 text-xs font-medium text-[var(--color-bt-fg)]">
+                패널 제목 <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="패널 제목 입력 (필수)"
+                className="max-w-xs"
+                status={!title.trim() ? 'error' : undefined}
+              />
+              {!title.trim() && <span className="shrink-0 text-xs text-red-500">제목을 입력하세요</span>}
               <span className="ml-auto text-xs text-muted-foreground">실시간 미리보기 · 저장 전</span>
+              <Tooltip title={isEdit ? '이 패널이 실제 실행하는 SQL을 확인합니다 (저장된 설정 기준)' : '패널 저장 후 확인할 수 있습니다'}>
+                <Button size="small" icon={<Code2 className="h-3.5 w-3.5" />} disabled={!isEdit} onClick={handleSqlPreview}>
+                  SQL 보기
+                </Button>
+              </Tooltip>
             </div>
             <div className="flex-1 overflow-auto p-4">
               <div key={previewKey} className="rounded-lg border border-border bg-white p-3" style={{ minHeight: isGrid ? 260 : 480 }}>
@@ -978,13 +1162,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         </Splitter.Panel>
 
         {/* 우: 슬롯 + 검색조건 + 옵션 */}
-        <Splitter.Panel defaultSize={400} min={320} max={600}>
+        <Splitter.Panel defaultSize={460} min={360} max={640}>
           <aside className="flex h-full flex-col bg-muted/20">
             <div className="shrink-0 border-b border-border bg-white px-4 py-2.5 text-sm font-semibold">패널 구성</div>
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
               {isGrid ? (
                 <>
                   {GRID_SLOTS.map(renderSlot)}
+                  {renderSlot(kpiSlotDef)}
                   {renderFilterSlot()}
                   <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
                     <span className="text-sm font-semibold">합계 행</span>
@@ -997,6 +1182,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
               ) : (
                 <>
                   {getChartSlots(chartType).map(renderSlot)}
+                  {chartType !== 'KPI' && renderSlot(kpiSlotDef)}
 
                   {/* Top N — KPI 제외 */}
                   {chartType !== 'KPI' && (
@@ -1105,6 +1291,109 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
           </aside>
         </Splitter.Panel>
       </Splitter>
+
+      {/* SQL 미리보기 모달 — 레거시 '쿼리 미리보기' 대응 (패널 단위) */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2">
+            <Code2 className="h-4 w-4" />
+            <span>쿼리 미리보기</span>
+            {sqlPreview && (
+              <>
+                <Tag color="processing" className="!mb-0 font-mono text-[11px]">
+                  {sqlPreview.resolvedView}
+                </Tag>
+                <Tag className="!mb-0 font-mono text-[11px]">{sqlPreview.timeUnit}</Tag>
+              </>
+            )}
+          </div>
+        }
+        open={sqlPreviewOpen}
+        onCancel={() => setSqlPreviewOpen(false)}
+        footer={null}
+        width={760}
+      >
+        <div className="mb-3 flex gap-2.5 rounded-lg border border-blue-100 bg-blue-50/60 px-3 py-2.5">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+          <div className="space-y-1.5 text-xs leading-relaxed text-foreground/80">
+            <p className="m-0">
+              저장된 패널 설정과 현재 글로벌 필터로 실행되는 SQL입니다. <code className="rounded bg-white px-1 font-mono">:파라미터</code> 값은 아래 표 참고.
+            </p>
+            <p className="m-0">조회 대상 뷰는 시간 단위로 결정됩니다. 다른 단위는 뷰명 접미사를 바꿔 실행하세요.</p>
+            <div className="flex flex-wrap gap-1">
+              {(
+                [
+                  ['_MI', '10분'],
+                  ['_HH', '시간대'],
+                  ['_DD', '일별'],
+                  ['_MM', '월별'],
+                  ['_YY', '연도별'],
+                ] as const
+              ).map(([suffix, label]) => (
+                <span key={suffix} className="rounded border border-blue-200 bg-white px-1.5 py-0.5 font-mono text-[11px]">
+                  {suffix} <span className="font-sans text-muted-foreground">{label}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+        {sqlPreviewLoading && <div className="py-8 text-center text-sm text-muted-foreground">SQL 생성 중…</div>}
+        {!sqlPreviewLoading && sqlPreview && (
+          <div className="flex max-h-[65vh] flex-col gap-3 overflow-y-auto">
+            <div>
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SQL</span>
+                <Button size="small" type="text" icon={<Copy className="h-3 w-3" />} onClick={() => copySql(prettySql(sqlPreview.sql))}>
+                  복사
+                </Button>
+              </div>
+              <pre className="overflow-x-auto whitespace-pre rounded-lg border border-neutral-800 bg-black p-3 font-mono text-xs leading-relaxed text-white">
+                {prettySql(sqlPreview.sql)}
+              </pre>
+            </div>
+
+            <div>
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">바인딩 파라미터</span>
+              {renderParams(sqlPreview.params)}
+            </div>
+
+            {sqlPreview.compareSql && (
+              <div>
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">비교 기간 SQL</span>
+                  <Button size="small" type="text" icon={<Copy className="h-3 w-3" />} onClick={() => copySql(prettySql(sqlPreview.compareSql ?? ''))}>
+                    복사
+                  </Button>
+                </div>
+                <pre className="overflow-x-auto whitespace-pre rounded-lg border border-neutral-800 bg-black p-3 font-mono text-xs leading-relaxed text-white">
+                  {prettySql(sqlPreview.compareSql)}
+                </pre>
+                {sqlPreview.compareParams && <div className="mt-1">{renderParams(sqlPreview.compareParams)}</div>}
+              </div>
+            )}
+
+            {sqlPreview.calcFields.length > 0 && (
+              <div>
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">조회 후 계산 필드 (SQL 미포함)</span>
+                <div className="space-y-1">
+                  {sqlPreview.calcFields.map((c) => (
+                    <div key={c.fieldName} className="flex items-center gap-2 rounded border border-green-200 bg-green-50 px-2 py-1 text-xs">
+                      <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-green-600 font-mono font-bold text-white">ƒ</span>
+                      <span className="font-mono font-semibold text-green-700">{c.displayName || c.fieldName}</span>
+                      {c.expression && (
+                        <code className="ml-auto truncate text-muted-foreground" title={c.expression}>
+                          {c.expression}
+                        </code>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">위 필드는 SQL 결과를 받은 뒤 서버에서 수식으로 계산됩니다.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

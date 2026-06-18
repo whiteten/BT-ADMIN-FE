@@ -11,6 +11,7 @@
  * - ipron-routepoint-list:      GET    라우트포인트 목록 조회
  * - ipron-routepoint-update:    PUT    라우트포인트 일괄 업데이트
  * - ipron-routepoint-delete:    DELETE 라우트포인트 개별 삭제
+ * - ipron-route-point-delete-batch: DELETE 라우트 국선 일괄 해제 (path: routeId, body: endptIds[])
  * - manager-node-list:          GET    노드 목록 조회 (cross-service)
  * - ipron-endpoint-list:        GET    국선 목록 조회 (국선배정용)
  */
@@ -105,6 +106,14 @@ export const routeApi = {
     return await apiClient.delete('/ipron-routepoint-delete', { params });
   },
 
+  /**
+   * 라우트 국선 일괄 배정 해제 (path: routeId, body: endptIds[])
+   * @flow ipron-route-point-delete-batch (POST /api/ipron/routes/{routeId}/points/delete-batch)
+   */
+  deleteRoutePointsBatch: async ({ routeId, endptIds }: { routeId: number; endptIds: number[] }): Promise<void> => {
+    await apiClient.post('/ipron-route-point-delete-batch', { endptIds }, { params: { routeId } });
+  },
+
   // ─── Node (cross-service) ────────────────────────────────────────────────────
 
   /**
@@ -179,12 +188,15 @@ export const routeApi = {
    * BE: GET /api/ipron/routes/worktime-options?nodeId=X
    */
   getWorktimeOptions: async (nodeId: number): Promise<WorktimeOption[]> => {
-    const response = await apiClient.get<ApiResponse<WorktimeOption[]>>('/ipron-route-worktime-options', {
+    // BE WorktimeOptionItem = { id, name } — BFF wrapping으로 { value: [{id,name},...] } 도착
+    const response = await apiClient.get<ApiResponse<{ value: Array<{ id: number; name: string }> }>>('/ipron-route-worktime-options', {
       params: { nodeId },
+      silent: true,
     });
     const raw = response.data?.data;
-    if (Array.isArray(raw)) return raw;
-    return (raw as { value?: WorktimeOption[] })?.value ?? [];
+    const items: Array<{ id: number; name: string }> = Array.isArray(raw) ? raw : ((raw as { value?: Array<{ id: number; name: string }> })?.value ?? []);
+    // 호출부(RouteForm.tsx, EndpointForm.tsx)가 worktimeId/worktimeName 사용하므로 여기서 변환
+    return items.map((item) => ({ worktimeId: item.id, worktimeName: item.name }));
   },
 
   /**

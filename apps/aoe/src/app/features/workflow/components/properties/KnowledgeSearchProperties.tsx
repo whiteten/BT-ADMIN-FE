@@ -54,6 +54,12 @@ const RagConfigSelect = ({ value, onChange, knowledges, isLoading, tenantId }: R
   const rows = value ?? [];
   const selectedIds = rows.map((r) => r.documentId);
 
+  // 목록(knowledges) 로딩 전에는 options 가 비어 antd Select 가 선택값(ID)을 그대로 라벨로 노출한다.
+  // 노드에 이미 저장된 documentName 으로 폴백 옵션을 만들어 ID 플래시 없이 즉시 이름을 표시한다. (A2AProperties 패턴)
+  const baseOptions = knowledges.map((k) => ({ label: k.documentName, value: k.documentId }));
+  const fallbackOptions = rows.filter((r) => !knowledges.some((k) => k.documentId === r.documentId)).map((r) => ({ label: r.documentName || r.documentId, value: r.documentId }));
+  const options = [...fallbackOptions, ...baseOptions];
+
   const handleChange = (ids: string[]) => {
     const next: RagConfigItem[] = ids.map((id) => {
       const existing = rows.find((r) => r.documentId === id);
@@ -80,7 +86,7 @@ const RagConfigSelect = ({ value, onChange, knowledges, isLoading, tenantId }: R
       placeholder="문서를 선택하세요."
       value={selectedIds}
       onChange={handleChange}
-      options={knowledges.map((k) => ({ label: k.documentName, value: k.documentId }))}
+      options={options}
       maxTagCount="responsive"
       filterOption={(input, option) =>
         String(option?.label ?? '')
@@ -97,7 +103,10 @@ interface KnowledgeSearchPropertiesProps {
 
 export default function KnowledgeSearchProperties({ node }: KnowledgeSearchPropertiesProps) {
   const form = Form.useFormInstance();
-  const { data: knowledges = [], isLoading } = useGetKnowledges();
+  // 패널을 다시 열거나 노드를 옮겨다닐 때마다 재요청하지 않도록 캐싱(5분).
+  const { data: knowledges = [], isLoading } = useGetKnowledges({
+    queryOptions: { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000 },
+  });
   const userInfo = useAuthStore((s) => s.userInfo);
   const tenantId = userInfo?.tenant ?? '';
 

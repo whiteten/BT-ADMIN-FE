@@ -166,6 +166,15 @@ module.exports = [
     },
   },
 
+  // Nx React preset (CRA 유래 범용 JS 안전 규칙 + import/first 등 import 규칙)
+  // 원래 각 remote의 eslint.config.cjs에서만 spread 되어 `nx lint <project>`에서만 적용됐다.
+  // 루트로 승격해 루트 cwd에서 도는 lint-staged(pre-commit)·`eslint .`도 동일하게 enforce.
+  // files: 앱 소스(.ts/.tsx/.js/.jsx)로 스코프 — config용 .cjs/.mjs/.cts/.mts는 제외.
+  ...nx.configs['flat/react'].map((config) => ({
+    ...config,
+    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+  })),
+
   // Prettier configuration (should be last)
   {
     plugins: {

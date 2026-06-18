@@ -33,6 +33,7 @@ export const sipTrunkQueryKeys = createQueryKeys('sip-trunk', {
   trunkDetail: (sipTrunkId?: number) => [sipTrunkId],
   channelUsage: (ids?: number[]) => [ids],
   memberList: (params?: Record<string, unknown>) => [params],
+  dnProfileOptions: (nodeId?: number) => [nodeId],
 });
 
 // ─── 그룹DN ──────────────────────────────────────────────────────────
@@ -119,6 +120,15 @@ export const useGetSipTrunkDetail = (sipTrunkId: number | null | undefined, { qu
     queryKey: sipTrunkQueryKeys.trunkDetail(sipTrunkId ?? undefined).queryKey,
     queryFn: () => sipTrunkApi.getTrunkDetail(sipTrunkId as number),
     enabled: !!sipTrunkId,
+    ...queryOptions,
+  });
+
+/** 내선프로파일 옵션 — 노드 선택 시 TRUNK 타입 목록 로드 (SWAT cbCreate p4DnProfileId 정합, common-trunk 동일 패턴) */
+export const useGetSipTrunkDnProfileOptions = (nodeId: number | null | undefined, { queryOptions }: QueryHookOptions<{ dnProfileId: number; dnProfileName: string }[]> = {}) =>
+  useQuery({
+    queryKey: sipTrunkQueryKeys.dnProfileOptions(nodeId ?? undefined).queryKey,
+    queryFn: () => sipTrunkApi.getDnProfileOptions(nodeId as number),
+    enabled: nodeId != null,
     ...queryOptions,
   });
 

@@ -6,7 +6,7 @@ import type { CtiqRow } from './types';
  * 용도:
  *  - WebSocket 미연결 환경에서 카드 시각화 확인
  *  - 시안/HTML 모형과 픽셀 비교
- *  - 디자인 변경 시 모든 심각도(idle/ok/warn/alert/danger) 한 번에 검증
+ *  - 디자인 변경 시 모든 심각도(정상/주의/위험) 한 번에 검증
  *
  * 운영에는 영향 없음 — 쿼리 파라미터가 없으면 무시된다.
  * KPI 필드(KPI_*)는 레거시와 동일하게 0~1 decimal (표시 시 ×100%).
@@ -27,7 +27,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 180,
     RTS_EXP_LOGIN_AGT: 12,
     SUM_CONN_CNT: 320,
+    SUM_ANSWER_CNT: 280,
     SUM_ANSWER_CNT_TOT: 280,
+    SUM_SLANSW_CNT: 230,
     SUM_ABDN_CNT: 40,
     KPI_ANSWER_RATE: 0.875,
     KPI_SVCLEVEL: 0.72,
@@ -36,7 +38,7 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     AVG_ANSTALK_TIME: 204,
     AVG_ANSWAIT_TIME: 65,
   },
-  // ② alert — 최장 대기 2:36 (임계 120s 초과)
+  // ② warn — 최장 대기 2:36 (주의 임계 60s 초과, 위험 180s 미만)
   {
     CTIQ_ID: 5002,
     CTIQ_NAME: '일반 상담',
@@ -46,7 +48,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 120,
     RTS_EXP_LOGIN_AGT: 20,
     SUM_CONN_CNT: 540,
+    SUM_ANSWER_CNT: 510,
     SUM_ANSWER_CNT_TOT: 510,
+    SUM_SLANSW_CNT: 491,
     SUM_ABDN_CNT: 30,
     KPI_ANSWER_RATE: 0.944,
     KPI_SVCLEVEL: 0.91,
@@ -55,7 +59,7 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     AVG_ANSTALK_TIME: 168,
     AVG_ANSWAIT_TIME: 42,
   },
-  // ③ alert — SLA 78% (목표 90% 미달)
+  // ③ warn — SLA 78% (주의 임계 90% 미달, 위험 70% 초과)
   {
     CTIQ_ID: 5003,
     CTIQ_NAME: '기술지원',
@@ -65,7 +69,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 95,
     RTS_EXP_LOGIN_AGT: 8,
     SUM_CONN_CNT: 210,
+    SUM_ANSWER_CNT: 180,
     SUM_ANSWER_CNT_TOT: 180,
+    SUM_SLANSW_CNT: 164,
     SUM_ABDN_CNT: 25,
     KPI_ANSWER_RATE: 0.857,
     KPI_SVCLEVEL: 0.78,
@@ -84,7 +90,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 50,
     RTS_EXP_LOGIN_AGT: 10,
     SUM_CONN_CNT: 130,
+    SUM_ANSWER_CNT: 122,
     SUM_ANSWER_CNT_TOT: 122,
+    SUM_SLANSW_CNT: 121,
     SUM_ABDN_CNT: 8,
     KPI_ANSWER_RATE: 0.938,
     KPI_SVCLEVEL: 0.93,
@@ -103,7 +111,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 18,
     RTS_EXP_LOGIN_AGT: 15,
     SUM_CONN_CNT: 410,
+    SUM_ANSWER_CNT: 400,
     SUM_ANSWER_CNT_TOT: 400,
+    SUM_SLANSW_CNT: 390,
     SUM_ABDN_CNT: 6,
     KPI_ANSWER_RATE: 0.976,
     KPI_SVCLEVEL: 0.95,
@@ -123,7 +133,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 8,
     RTS_EXP_LOGIN_AGT: 6,
     SUM_CONN_CNT: 250,
+    SUM_ANSWER_CNT: 248,
     SUM_ANSWER_CNT_TOT: 248,
+    SUM_SLANSW_CNT: 245,
     SUM_ABDN_CNT: 2,
     KPI_ANSWER_RATE: 0.992,
     KPI_SVCLEVEL: 0.98,
@@ -142,7 +154,9 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_EWT_TIME: 240,
     RTS_EXP_LOGIN_AGT: 9,
     SUM_CONN_CNT: 180,
+    SUM_ANSWER_CNT: 132,
     SUM_ANSWER_CNT_TOT: 132,
+    SUM_SLANSW_CNT: 104,
     SUM_ABDN_CNT: 48,
     KPI_ANSWER_RATE: 0.733,
     KPI_SVCLEVEL: 0.58,
@@ -150,19 +164,6 @@ const HANDCRAFTED_CTIQS: CtiqRow[] = [
     KPI_WORKREADY_RATIO: 2.67,
     AVG_ANSTALK_TIME: 288,
     AVG_ANSWAIT_TIME: 110,
-  },
-  // ⑧ idle — 인입·대기·로그인 모두 0 (휴면)
-  {
-    CTIQ_ID: 5008,
-    CTIQ_NAME: '야간 큐',
-    GDN_NO: 7008,
-    RTS_WAIT_CNT: 0,
-    RTS_MAXWAIT_TIME: 0,
-    KPI_EWT_TIME: 0,
-    RTS_EXP_LOGIN_AGT: 0,
-    SUM_CONN_CNT: 0,
-    SUM_ANSWER_CNT_TOT: 0,
-    SUM_ABDN_CNT: 0,
   },
 ];
 
@@ -198,24 +199,6 @@ function generateCtiqs(count: number, startId = 6000): CtiqRow[] {
     const id = startId + i;
     const name = `${QUEUE_NAMES[i % QUEUE_NAMES.length]} ${Math.floor(i / QUEUE_NAMES.length) + 1}`;
 
-    // 약 10% 는 휴면(0건) 큐
-    const isIdle = rnd(i + 3, 10) === 0;
-    if (isIdle) {
-      rows.push({
-        CTIQ_ID: id,
-        CTIQ_NAME: name,
-        GDN_NO: 8000 + i,
-        RTS_WAIT_CNT: 0,
-        RTS_MAXWAIT_TIME: 0,
-        KPI_EWT_TIME: 0,
-        RTS_EXP_LOGIN_AGT: 0,
-        SUM_CONN_CNT: 0,
-        SUM_ANSWER_CNT_TOT: 0,
-        SUM_ABDN_CNT: 0,
-      });
-      continue;
-    }
-
     const conn = 30 + rnd(i + 7, 600);
     const abdn = rnd(i + 11, Math.max(1, Math.floor(conn * 0.18)));
     const answered = Math.max(0, conn - abdn - rnd(i + 13, 10));
@@ -239,7 +222,9 @@ function generateCtiqs(count: number, startId = 6000): CtiqRow[] {
       KPI_EWT_TIME: ewt,
       RTS_EXP_LOGIN_AGT: login,
       SUM_CONN_CNT: conn,
+      SUM_ANSWER_CNT: answered,
       SUM_ANSWER_CNT_TOT: answered,
+      SUM_SLANSW_CNT: Math.round(conn * svcLevel),
       SUM_ABDN_CNT: abdn,
       KPI_ANSWER_RATE: answerRate,
       KPI_SVCLEVEL: svcLevel,

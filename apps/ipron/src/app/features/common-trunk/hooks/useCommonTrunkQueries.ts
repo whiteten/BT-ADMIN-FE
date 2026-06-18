@@ -31,6 +31,7 @@ export const commonTrunkQueryKeys = createQueryKeys('common-trunk', {
   gdns: (nodeId?: number, keyword?: string) => [nodeId, keyword],
   gdnDetail: (id?: number) => [id],
   members: (gdnId?: number, nodeId?: number, assignFilter?: AssignFilter) => [gdnId, nodeId, assignFilter],
+  dnProfileOptions: (nodeId?: number) => [nodeId],
 });
 
 // ─── Queries ────────────────────────────────────────────────────────
@@ -168,6 +169,15 @@ export const useDeleteCommonGdns = ({ mutationOptions }: MutationHookOptions<voi
     },
   });
 };
+
+/** 갭1: 내선프로파일 옵션 — 노드 선택 시 TRUNK 타입 목록 로드 (SWAT cbCreate p4DnProfileId 정합) */
+export const useGetCommonTrunkDnProfileOptions = (nodeId: number | null | undefined, { queryOptions }: QueryHookOptions<{ dnProfileId: number; dnProfileName: string }[]> = {}) =>
+  useQuery({
+    queryKey: commonTrunkQueryKeys.dnProfileOptions(nodeId ?? undefined).queryKey,
+    queryFn: () => commonTrunkApi.getDnProfileOptions(nodeId as number),
+    enabled: nodeId != null,
+    ...queryOptions,
+  });
 
 export const useSaveCommonTrunkMembers = ({ mutationOptions }: MutationHookOptions<CommonTrunkMemberSaveResult, CommonTrunkMemberSaveRequest> = {}) => {
   const qc = useQueryClient();

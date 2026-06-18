@@ -1,4 +1,8 @@
-@import 'tailwindcss';
+/* host와 동일한 공용 tailwind 컨텍스트 상속:
+ * tailwindcss + shadcn base(`* { @apply border-border }`) + `--border` 등 토큰을 함께 가져온다.
+ * 자체 `@import 'tailwindcss'`로 preflight를 재생성하면 border base가 빠져
+ * DropdownMenuContent 등 공용 컴포넌트 테두리가 currentColor(검정)로 떨어진다. */
+@import '../../../libs/shared-ui/src/styles/global.css';
 
 @theme {
   /* BT 디자인 시스템 색상 — insight 앱 전용 (03-full-flow.html 기준) */

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { Tag, Tooltip } from 'antd';
 import { BarChart3 } from 'lucide-react';
 import { formatDuration, liveDurationSec, mosLevel, toNum, toStr, totalTalkSec } from '../helpers';
-import { DEFAULT_THRESHOLDS, alarmLevel, statusKey, statusMeta } from '../statusMap';
+import { DEFAULT_THRESHOLDS, agentStatusLabel, alarmLevel, statusKey, statusMeta } from '../statusMap';
 import type { AgentRow, Threshold } from '../types';
 import { MOS_META } from './MosLegend';
 
@@ -14,6 +14,8 @@ export interface AgentCardProps {
   row: AgentRow;
   nowMs: number;
   thresholds?: Record<string, Threshold>;
+  /** 이석 사유명 맵 (`{tenantId}_{reasonCode}` → 사유명) — 이석 상태 라벨에 사유 표시. */
+  reasonNames?: Record<string, string>;
   onActivate?: (row: AgentRow) => void;
   /** 컴팩트 모드 — 큐 컨텍스트·KPI 섹션 숨기고 높이 축소 (더 많은 카드 노출). */
   compact?: boolean;
@@ -31,10 +33,10 @@ const TAG_COLOR_BY_GROUP: Record<string, string> = {
 const TIME_COLOR = 'text-slate-800';
 const TIME_COLOR_OFFLINE = 'text-slate-400';
 
-function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: AgentCardProps) {
+function AgentCardImpl({ row, nowMs, thresholds, reasonNames, onActivate, compact = false }: AgentCardProps) {
   const meta = statusMeta(row.AGENT_STATUS, row.REASON_CODE);
   const dur = liveDurationSec(row, nowMs);
-  const alarm = alarmLevel(row.AGENT_STATUS, row.REASON_CODE, dur, thresholds);
+  const alarm = alarmLevel(row.AGENT_STATUS, row.REASON_CODE, row.TENANT_ID, dur, thresholds);
   const isAlert = alarm === 2;
   const isWarn = alarm === 1;
 
@@ -53,7 +55,8 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
   const talkSec = totalTalkSec(row);
   const avgTalk = toNum(row.AVG_ANSTALK_TIME) ?? 0;
 
-  const statusLabel = meta.label + (isAlert ? ' · 초과' : isWarn && th ? ` · ${formatThresholdMinutes(th.notice)}↑` : '');
+  const baseLabel = agentStatusLabel(row.AGENT_STATUS, row.REASON_CODE, row.TENANT_ID, reasonNames);
+  const statusLabel = baseLabel + (isAlert ? ' · 초과' : isWarn && th ? ` · ${formatThresholdSec(th.warn)}↑` : '');
 
   // 비가시 영역 렌더 스킵 — content-visibility: auto + contain-intrinsic-size 로 placeholder 크기 확보.
   // 가상 리스트 도입 시 보조적으로 작동.
@@ -80,13 +83,12 @@ function AgentCardImpl({ row, nowMs, thresholds, onActivate, compact = false }: 
             <span className="truncate text-[14px] font-bold text-slate-900">{name}</span>
             {!compact && dn && <span className="font-mono text-[11px] text-slate-400 tabular-nums">{dn}</span>}
             {!compact && mosMeta && mosDisplay && (
-              <span
-                className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-1.5 py-0.5 border border-slate-100"
-                title={`MoS ${mosDisplay} · ${mosMeta.label}`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${mosMeta.dotBg}`} />
-                <span className={`font-mono text-[9px] font-bold tabular-nums ${mosMeta.text}`}>{mosDisplay}</span>
-              </span>
+              <Tooltip title={`MoS ${mosDisplay} · ${mosMeta.label} (${mosMeta.range})`} placement="top">
+                <span className="inline-flex shrink-0 cursor-help items-center gap-1 rounded-full bg-slate-50 px-1.5 py-0.5 border border-slate-100">
+                  <span className={`h-1.5 w-1.5 rounded-full ${mosMeta.dotBg}`} />
+                  <span className={`font-mono text-[9px] font-bold tabular-nums ${mosMeta.text}`}>{mosDisplay}</span>
+                </span>
+              </Tooltip>
             )}
           </div>
         </div>
@@ -150,9 +152,12 @@ function Stat({ label, value, valueColor, align }: { label: string; value: strin
 
 // ─── formatter ─────────────────────────────────────────────────
 
-function formatThresholdMinutes(m: number): string {
-  if (m >= 1) return `${m}분`;
-  return `${Math.round(m * 60)}초`;
+function formatThresholdSec(sec: number): string {
+  if (sec >= 60) {
+    const m = sec / 60;
+    return `${Number.isInteger(m) ? m : m.toFixed(1)}분`;
+  }
+  return `${sec}초`;
 }
 
 /**
@@ -164,6 +169,7 @@ export default memo(AgentCardImpl, (prev, next) => {
   if (prev.row !== next.row) return false;
   if (prev.compact !== next.compact) return false;
   if (prev.thresholds !== next.thresholds) return false;
+  if (prev.reasonNames !== next.reasonNames) return false;
 
   // 표시되는 '초' 단위 시간이 변했을 때만 렌더링 허용
   const prevSec = liveDurationSec(prev.row, prev.nowMs);

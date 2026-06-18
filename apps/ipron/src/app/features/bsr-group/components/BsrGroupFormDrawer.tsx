@@ -128,6 +128,7 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
       open={open}
       onClose={onCancel}
       width={700}
+      closable={{ placement: 'end' }}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>
@@ -138,7 +139,7 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
       }
       destroyOnClose
     >
-      <Form form={form} layout="vertical" onFinish={handleFinish}>
+      <Form form={form} layout="vertical" onFinish={handleFinish} style={{ '--ant-form-item-margin-bottom': '12px' } as React.CSSProperties}>
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
@@ -152,70 +153,81 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
                     <InputNumber />
                   </Form.Item>
 
-                  <Form.Item
-                    name="bsrGroupName"
-                    label="BSR 그룹명"
-                    rules={[
-                      { required: true, message: 'BSR 그룹명은 필수입니다' },
-                      { max: 100, message: '최대 100자입니다' },
-                    ]}
-                  >
-                    <Input placeholder="BSR 그룹명 입력" maxLength={100} />
-                  </Form.Item>
+                  {/* 2열 그리드: 좌=그룹명, 우=메소드 */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Form.Item
+                      name="bsrGroupName"
+                      label="BSR 그룹명"
+                      style={{ marginBottom: 12 }}
+                      rules={[
+                        { required: true, message: 'BSR 그룹명은 필수입니다' },
+                        { max: 100, message: '최대 100자입니다' },
+                      ]}
+                    >
+                      <Input placeholder="BSR 그룹명 입력" maxLength={100} />
+                    </Form.Item>
+
+                    <Form.Item name="bsrMethod" label="BSR 그룹 메소드" style={{ marginBottom: 12 }} rules={[{ required: true, message: 'BSR 메소드는 필수입니다' }]}>
+                      <Select placeholder="BSR 메소드 선택" options={BSR_METHOD_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
+                    </Form.Item>
+                  </div>
 
                   <Form.Item
                     name="bsrGroupDesc"
                     label="BSR 그룹 설명"
+                    style={{ marginBottom: 12 }}
                     rules={[
                       { required: true, message: '설명은 필수입니다' },
                       { max: 256, message: '최대 256자입니다' },
                     ]}
                   >
-                    <Input.TextArea placeholder="설명 입력" maxLength={256} rows={3} />
+                    <Input.TextArea placeholder="설명 입력" maxLength={256} rows={2} />
                   </Form.Item>
 
-                  <Form.Item name="bsrMethod" label="BSR 그룹 메소드" rules={[{ required: true, message: 'BSR 메소드는 필수입니다' }]}>
-                    <Select placeholder="BSR 메소드 선택" options={BSR_METHOD_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} />
-                  </Form.Item>
+                  {/* 2열: 활성화여부 + 정렬순서 */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Form.Item name="activateYn" label="활성화여부" style={{ marginBottom: 12 }}>
+                      <Radio.Group>
+                        <Radio value={1}>활성</Radio>
+                        <Radio value={0}>비활성</Radio>
+                      </Radio.Group>
+                    </Form.Item>
 
-                  <Form.Item name="activateYn" label="활성화여부">
-                    <Radio.Group>
-                      <Radio value={1}>활성</Radio>
-                      <Radio value={0}>비활성</Radio>
-                    </Radio.Group>
-                  </Form.Item>
+                    <Form.Item name="sortSeq" label="정렬순서" style={{ marginBottom: 12 }}>
+                      <InputNumber min={1} max={999999} style={{ width: 120 }} />
+                    </Form.Item>
+                  </div>
 
-                  <Form.Item name="sortSeq" label="정렬순서">
-                    <InputNumber min={1} max={999999} style={{ width: 120 }} />
-                  </Form.Item>
+                  {/* 2열: 대기상담원 큐 분배여부 + 라우팅 우선여부 */}
+                  <div className="grid grid-cols-2 gap-x-4">
+                    <Form.Item name="readyAgentQueueRoutingYn" label="대기상담원 큐 분배여부" style={{ marginBottom: 12 }}>
+                      <Radio.Group>
+                        <Radio value={1}>설정</Radio>
+                        <Radio value={0}>해제</Radio>
+                      </Radio.Group>
+                    </Form.Item>
 
-                  <Form.Item name="readyAgentQueueRoutingYn" label="대기상담원 큐 분배여부">
-                    <Radio.Group>
-                      <Radio value={1}>설정</Radio>
-                      <Radio value={0}>해제</Radio>
-                    </Radio.Group>
-                  </Form.Item>
+                    <Form.Item name="readyAgentRoutingYn" label="대기상담원 라우팅 우선여부" style={{ marginBottom: 12 }}>
+                      <Radio.Group>
+                        <Radio value={1}>설정</Radio>
+                        <Radio value={0}>해제</Radio>
+                      </Radio.Group>
+                    </Form.Item>
+                  </div>
 
-                  <Form.Item name="readyAgentRoutingYn" label="대기상담원 라우팅 우선여부">
-                    <Radio.Group>
-                      <Radio value={1}>설정</Radio>
-                      <Radio value={0}>해제</Radio>
-                    </Radio.Group>
-                  </Form.Item>
-
-                  <Form.Item name="serviceLevelTime" label="서비스레벨 기준시간 (초)">
+                  <Form.Item name="serviceLevelTime" label="서비스레벨 기준시간 (초)" style={{ marginBottom: 0 }}>
                     <InputNumber min={20} max={999999} style={{ width: 120 }} addonAfter="초" />
                   </Form.Item>
                 </>
               ),
             },
             {
-              key: 'areacode',
-              label: '지역번호 라우팅',
+              key: 'areacode1',
+              label: '지역 라우팅(수도권·중부)',
               disabled: mode === 'create',
               children: (
                 <>
-                  <Form.Item name="areacodeRoutingYn" label="지역번호 라우팅 우선여부">
+                  <Form.Item name="areacodeRoutingYn" label="지역번호 라우팅 우선여부" style={{ marginBottom: 12 }}>
                     <Radio.Group onChange={(e) => setAreacodeYn(e.target.value as number)}>
                       <Radio value={1}>설정</Radio>
                       <Radio value={0}>해제</Radio>
@@ -224,9 +236,9 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
 
                   <div className="text-xs text-gray-400 mb-3">각 지역의 라우팅 CTI큐를 선택합니다 (BSR 분배 미사용 CTI큐만 표시).</div>
 
-                  <div className="grid grid-cols-2 gap-3 mt-2">
-                    {AREACODE_FIELDS.map((f) => (
-                      <Form.Item key={f.key} name={f.key} label={f.label} className="mb-3">
+                  <div className="grid grid-cols-3 gap-x-3 gap-y-0">
+                    {AREACODE_FIELDS.slice(0, 9).map((f) => (
+                      <Form.Item key={f.key} name={f.key} label={f.label} style={{ marginBottom: 12 }}>
                         <Select
                           placeholder={areacodeYn === 1 ? '지역 CTI큐 선택' : ''}
                           disabled={areacodeYn !== 1}
@@ -241,6 +253,29 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
                     ))}
                   </div>
                 </>
+              ),
+            },
+            {
+              key: 'areacode2',
+              label: '지역 라우팅(영남·호남·제주)',
+              disabled: mode === 'create',
+              children: (
+                <div className="grid grid-cols-3 gap-x-3 gap-y-0">
+                  {AREACODE_FIELDS.slice(9).map((f) => (
+                    <Form.Item key={f.key} name={f.key} label={f.label} style={{ marginBottom: 12 }}>
+                      <Select
+                        placeholder={areacodeYn === 1 ? '지역 CTI큐 선택' : ''}
+                        disabled={areacodeYn !== 1}
+                        allowClear
+                        showSearch
+                        optionFilterProp="label"
+                        options={ctiqOptions}
+                        style={{ width: '100%' }}
+                        notFoundContent={ctiqOptions.length === 0 ? <span className="text-xs text-gray-400">배정된 CTI큐가 없습니다</span> : undefined}
+                      />
+                    </Form.Item>
+                  ))}
+                </div>
               ),
             },
           ]}

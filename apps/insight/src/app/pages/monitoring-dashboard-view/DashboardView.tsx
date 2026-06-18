@@ -5,6 +5,7 @@ import { Button } from 'antd';
 import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { templateWidgetApi } from '../../features/monitoring/api/templateWidgetApi';
 import DashboardHeader from '../../features/monitoring/components/DashboardHeader';
 import DashboardCanvas from '../../features/monitoring/components/canvas/DashboardCanvas';
 import EmptyCanvas from '../../features/monitoring/components/canvas/EmptyCanvas';
@@ -22,7 +23,7 @@ import {
 } from '../../features/monitoring/hooks/useDashboardQueries';
 import { useDashboardSocket } from '../../features/monitoring/hooks/useDashboardSocket';
 import { useWidgetUserSettingsMap } from '../../features/monitoring/hooks/useWidgetSettingQueries';
-import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/types';
+import type { CustomWidgetCatalogItem, TemplateWidgetDefinitionListItem, TemplateWidgetMapping, Widget } from '../../features/monitoring/types';
 import { autoPackPosition } from '../../features/monitoring/utils/autoPackPosition';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -224,15 +225,39 @@ export default function DashboardView() {
     setWidgets(next);
   };
 
-  const handleAddTemplate = () => {
-    const target = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
-    navigate(`/insight/monitoring/dashboards/${dashboardId}/edit/widget/create/template`, {
-      state: {
-        initialMode: 'edit',
-        position: target?.position,
-        replacingWidgetId: replacingWidgetId,
+  // 저장된 템플릿 위젯 정의를 골라 대시보드 인스턴스(kind=TEMPLATE)로 배치.
+  const handleAddTemplate = async (def: TemplateWidgetDefinitionListItem) => {
+    if (isCreating) return;
+    // 매핑은 상세에만 있으므로 선택 시 상세를 조회해 인스턴스로 복제.
+    const detail = await templateWidgetApi.getDetail(def.templateWidgetId);
+
+    const targetWidget = replacingWidgetId ? widgets.find((w) => w.widgetId === replacingWidgetId) : null;
+    const defaultW = detail.layoutW ?? 6;
+    const defaultH = detail.layoutH ?? 6;
+    const basePosition = targetWidget ? targetWidget.position : { row: 0, col: 0, w: defaultW, h: defaultH };
+    const position = {
+      ...basePosition,
+      w: Math.max(basePosition.w, detail.layoutW ?? 1),
+      h: Math.max(basePosition.h, detail.layoutH ?? 1),
+    };
+
+    createWidget({
+      dashboardId,
+      data: {
+        kind: 'TEMPLATE',
+        widgetName: detail.widgetName,
+        datasetId: detail.datasetId,
+        visualizations: detail.visualizations,
+        defaultViz: detail.defaultViz,
+        mapping: (detail.mapping ?? {}) as TemplateWidgetMapping,
+        refreshInterval: detail.refreshInterval ?? 3,
+        position,
       },
     });
+
+    if (replacingWidgetId) {
+      setWidgets((prev) => prev.filter((w) => w.widgetId !== replacingWidgetId));
+    }
   };
 
   const handleAddCustom = (catalogItem: CustomWidgetCatalogItem) => {
@@ -343,6 +368,7 @@ export default function DashboardView() {
             onWidgetsChange={handleWidgetsChange}
             onAddWidgetAt={handleAddWidgetAt}
             customMinSize={customMinSize}
+            widgetUserSettings={widgetUserSettings}
           >
             {isEmpty && (
               <div className="mt-4 flex flex-col gap-4">
@@ -360,6 +386,7 @@ export default function DashboardView() {
             widgetData={widgetData}
             onRequestPause={() => setMonitoringStarted(false)}
             customMinSize={customMinSize}
+            widgetUserSettings={widgetUserSettings}
           />
         )}
 

@@ -33,8 +33,8 @@ const LINE_TYPE_OPTIONS = [
 ];
 
 const REGI_STATUS_LABELS: Record<number, string> = {
-  0: '언레지',
-  1: '레지',
+  0: '미등록',
+  1: '등록',
 };
 
 interface DnScaTabProps {
@@ -294,6 +294,7 @@ export default function DnScaTab({ dnId, nodeId, tenantId }: DnScaTabProps) {
         onClose={() => setDrawerOpen(false)}
         width={560}
         placement="right"
+        closable={{ placement: 'end' }}
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={() => setDrawerOpen(false)}>취소</Button>

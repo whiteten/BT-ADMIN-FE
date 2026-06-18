@@ -15,10 +15,10 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, Copy, Layers, Network, Phone, Plus, Radio, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Copy, Layers, Network, Phone, Plus, Radio, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DidTransDrawer, { type DidTransDrawerRef } from '../../features/did-trans/components/DidTransDrawer';
@@ -26,8 +26,8 @@ import {
   didTransQueryKeys,
   useCopyAniTrans,
   useCopyDnisTrans,
-  useDeleteAniTrans,
-  useDeleteDnisTrans,
+  useDeleteAniTransBatch,
+  useDeleteDnisTransBatch,
   useGetAniTransList,
   useGetDnisTransList,
   useGetNodes,
@@ -37,10 +37,7 @@ import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/did-trans' },
-  { title: 'DID번호변환', path: '/ipron/line/did-trans' },
-];
+const breadcrumb = [{ title: '회선관리' }, { title: '번호 변환' }, { title: 'DID번호변환', path: '/ipron/line/did-trans' }];
 
 const CATEGORY_STYLES: Record<DidTransCategory, { label: string; icon: typeof Phone }> = {
   dnis: { label: 'DNIS', icon: Phone },
@@ -64,6 +61,8 @@ export default function DidTransList() {
   const [category, setCategory] = useState<DidTransCategory>('dnis');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<DidTrans[]>([]);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const didTransDrawerRef = useRef<DidTransDrawerRef>(null);
@@ -149,29 +148,30 @@ export default function DidTransList() {
     [category],
   );
 
-  // DNIS 삭제
-  const { mutate: deleteDnisTrans } = useDeleteDnisTrans({
+  // DNIS 일괄 삭제 (벌크 1콜)
+  const { mutate: deleteDnisTransBatch } = useDeleteDnisTransBatch({
     mutationOptions: { onSuccess: () => invalidateTransList() },
   });
 
-  // ANI 삭제
-  const { mutate: deleteAniTrans } = useDeleteAniTrans({
+  // ANI 일괄 삭제 (벌크 1콜)
+  const { mutate: deleteAniTransBatch } = useDeleteAniTransBatch({
     mutationOptions: { onSuccess: () => invalidateTransList() },
   });
 
-  const handleDelete = useCallback(
-    (trans: DidTrans) => {
-      const deleteFn = category === 'dnis' ? deleteDnisTrans : deleteAniTrans;
-      modal.confirm.execute({
-        onOk: () => deleteFn({ id: trans.transId }),
-        options: {
-          title: '번호변환 삭제',
-          content: `"${trans.transName}" 번호변환을 삭제하시겠습니까?`,
-        },
-      });
-    },
-    [modal, category, deleteDnisTrans, deleteAniTrans],
-  );
+  const handleDeleteSelected = useCallback(() => {
+    if (selectedRows.length === 0) return;
+    const deleteBatchFn = category === 'dnis' ? deleteDnisTransBatch : deleteAniTransBatch;
+    modal.confirm.execute({
+      onOk: () => {
+        deleteBatchFn(selectedRows.map((trans) => trans.transId));
+        setSelectedRows([]);
+      },
+      options: {
+        title: '번호변환 삭제',
+        content: `선택한 ${selectedRows.length}건을 삭제하시겠습니까?`,
+      },
+    });
+  }, [modal, category, deleteDnisTransBatch, deleteAniTransBatch, selectedRows]);
 
   const handleDrawerSuccess = useCallback(() => {
     invalidateTransList();
@@ -213,17 +213,24 @@ export default function DidTransList() {
     return nodes.filter((n) => n.nodeId !== selectedNodeId).map((n) => ({ label: n.nodeName, value: n.nodeId }));
   }, [nodes, selectedNodeId]);
 
+  // ─── Row selection ────────────────────────────────────────────────────────
+  const rowSelection = useMemo<RowSelectionOptions>(
+    () => ({ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
   const columnDefs: ColDef<DidTrans>[] = useMemo(
     () => [
-      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100 },
-      { headerName: '변환명', field: 'transName', flex: 2, minWidth: 140 },
-      { headerName: '원본패턴', field: 'orgPattern', flex: 2, minWidth: 140 },
+      { headerName: '노드명', field: 'nodeName', flex: 1, minWidth: 100, tooltipField: 'nodeName' },
+      { headerName: '변환명', field: 'transName', flex: 2, minWidth: 140, tooltipField: 'transName' },
+      { headerName: '원본패턴', field: 'orgPattern', flex: 2, minWidth: 140, tooltipField: 'orgPattern' },
       {
         headerName: '편집옵션',
         field: 'editOpt',
         flex: 1,
         minWidth: 100,
+        filterValueGetter: (params) => (params.data ? (EDIT_OPT_LABELS[params.data.editOpt] ?? String(params.data.editOpt)) : null),
         cellRenderer: (params: ICellRendererParams<DidTrans>) => {
           if (!params.data) return null;
           const editOpt = params.data.editOpt;
@@ -231,47 +238,25 @@ export default function DidTransList() {
           return <span>{label}</span>;
         },
       },
-      { headerName: 'Digit수', field: 'delCount', flex: 0.7, minWidth: 80 },
+      { headerName: 'Digit 수', field: 'delCount', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
-        headerName: '추가Digit',
+        headerName: '추가 Digit',
         field: 'addDigit',
         flex: 1,
         minWidth: 100,
         valueFormatter: (params) => params.data?.addDigit ?? '-',
       },
-      { headerName: '우선순위', field: 'transPriority', flex: 0.7, minWidth: 80 },
+      { headerName: '우선순위', field: 'transPriority', flex: 0.7, minWidth: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '비고',
         field: 'transDesc',
         flex: 2,
         minWidth: 140,
+        tooltipField: 'transDesc',
         valueFormatter: (params) => params.data?.transDesc ?? '-',
       },
-      {
-        headerName: '',
-        field: 'transId',
-        width: 50,
-        maxWidth: 50,
-        sortable: false,
-        filter: false,
-        cellRenderer: (params: ICellRendererParams<DidTrans>) => {
-          if (!params.data) return null;
-          return (
-            <button
-              type="button"
-              className="flex items-center justify-center w-full h-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDelete(params.data!);
-              }}
-            >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [handleDelete],
+    [],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -320,94 +305,116 @@ export default function DidTransList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          {/* 접기/펼치기 토글 헤더 */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
+            onClick={() => setSliderOpen((v) => !v)}
+          >
+            <span>노드 선택</span>
+            {sliderOpen ? <ChevronsUp className="size-4" /> : <ChevronsDown className="size-4" />}
+          </button>
           {/* Card slider body */}
-          <div className="flex items-center px-4 py-3 h-[170px]">
-            {nodes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">등록된 노드가 없습니다</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {/* 전체 카드 (작은 사이즈) */}
-                  {(() => {
-                    const isAllSelected = selectedNodeId === null;
-                    return (
-                      <div
-                        key="__all__"
-                        className={`border rounded-lg p-3 cursor-pointer transition-all w-[110px] h-[130px] flex-shrink-0 flex flex-col items-center justify-center gap-1.5 ${
-                          isAllSelected
-                            ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-[#c5cbe0] hover:text-[#405189]'
-                        }`}
-                        onClick={() => setSelectedNodeId(null)}
-                      >
-                        <Layers className="size-5" />
-                        <span className="text-sm font-semibold">전체</span>
-                        <span className={`text-[11px] ${isAllSelected ? 'text-white/80' : 'text-gray-400'}`}>{allTransListForCategory.length}건</span>
-                      </div>
-                    );
-                  })()}
-
-                  {/* 노드 카드들 */}
-                  {nodes.map((node) => {
-                    const isSelected = selectedNodeId === node.nodeId;
-                    const count = transCountByNode.get(node.nodeId) ?? 0;
-                    return (
-                      <div
-                        key={node.nodeId}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
-                          isSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={() => handleNodeSelect(node.nodeId)}
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
-                          <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">Node ID: {node.nodeId}</div>
-                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                              count > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            {count > 0 ? `${CATEGORY_STYLES[category].label} ${count}건` : '미등록'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
+          {sliderOpen && (
+            <div className="flex items-center px-4 py-3 h-[170px]">
+              {nodes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <span className="text-sm">등록된 노드가 없습니다</span>
                 </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="relative flex items-center gap-2 w-full">
+                  <Button
+                    type="text"
+                    icon={<ChevronLeft className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                  <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {/* 전체 카드 (작은 사이즈) */}
+                    {(() => {
+                      const isAllSelected = selectedNodeId === null;
+                      return (
+                        <div
+                          key="__all__"
+                          className={`border rounded-lg p-3 cursor-pointer transition-all w-[110px] h-[130px] flex-shrink-0 flex flex-col items-center justify-center gap-1.5 ${
+                            isAllSelected
+                              ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                              : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-[#c5cbe0] hover:text-[#405189]'
+                          }`}
+                          onClick={() => setSelectedNodeId(null)}
+                        >
+                          <Layers className="size-5" />
+                          <span className="text-sm font-semibold">전체</span>
+                          <span className={`text-[11px] ${isAllSelected ? 'text-white/80' : 'text-gray-400'}`}>{allTransListForCategory.length}건</span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* 노드 카드들 */}
+                    {nodes.map((node) => {
+                      const isSelected = selectedNodeId === node.nodeId;
+                      const count = transCountByNode.get(node.nodeId) ?? 0;
+                      return (
+                        <div
+                          key={node.nodeId}
+                          className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                            isSelected
+                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                          }`}
+                          onClick={() => handleNodeSelect(node.nodeId)}
+                        >
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
+                            <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">{node.nodeName}</div>
+                          <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                            <span
+                              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                                count > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                              }`}
+                            >
+                              {count > 0 ? `${CATEGORY_STYLES[category].label} ${count}건` : '미등록'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<ChevronRight className="size-5" />}
+                    onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ===== 하단: DID 번호변환 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            {selectedNodeId && (
-              <Button icon={<Copy className="size-3.5" />} onClick={() => setCopyModalOpen(true)}>
-                노드복사
+            <div className="flex items-center gap-2">
+              <Button
+                danger
+                icon={<IconTrash className="size-3.5" />}
+                disabled={selectedRows.length === 0}
+                title={selectedRows.length === 0 ? '삭제할 항목을 선택하세요' : `선택한 ${selectedRows.length}건 삭제`}
+                onClick={handleDeleteSelected}
+              >
+                삭제
               </Button>
-            )}
+              {selectedNodeId && (
+                <Button icon={<Copy className="size-3.5" />} onClick={() => setCopyModalOpen(true)}>
+                  노드복사
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="flex-1">
@@ -420,11 +427,15 @@ export default function DidTransList() {
                 pagination: false,
                 sideBar: false,
               }}
+              rowSelection={rowSelection}
               loading={isLoading}
               getRowId={(params) => String(params.data.transId)}
-              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
               onRowDoubleClicked={(e) => {
                 if (e.data) handleEdit(e.data);
+              }}
+              onSelectionChanged={(e: SelectionChangedEvent<DidTrans>) => {
+                setSelectedRows(e.api.getSelectedRows());
               }}
             />
           </div>
@@ -437,6 +448,7 @@ export default function DidTransList() {
       {/* ===== 노드간 복사 Drawer ===== */}
       <Drawer
         title={`${CATEGORY_STYLES[category].label} 번호변환 노드간 복사`}
+        closable={{ placement: 'end' }}
         open={copyModalOpen}
         onClose={() => {
           setCopyModalOpen(false);

@@ -13,10 +13,10 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import type { CellStyle, ColDef, GridOptions } from 'ag-grid-community';
+import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Input, Modal, Select, Tag } from 'antd';
-import { ChevronLeft, ChevronRight, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Button, Input, Modal, Select } from 'antd';
+import { ChevronLeft, ChevronRight, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CommonGdnFormDrawer from '../../features/common-trunk/components/CommonGdnFormDrawer';
@@ -39,13 +39,11 @@ import {
   type CommonTrunkResponse,
   getTrunkKindName,
 } from '../../features/common-trunk/types';
+import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const breadcrumb = [
-  { title: '번호자원관리', path: '/ipron/line' },
-  { title: '그룹DN', path: '/ipron/line' },
-  { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' },
-];
+const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' }];
 
 // ─── 채널 게이지 렌더러 ──────────────────────────────────────────────
 function gaugeColor(pct: number): string {
@@ -59,6 +57,8 @@ export default function CommonTrunkList() {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
+
+  const { gridOptions: baseGridOptions } = useAggridOptions();
 
   const nodeTabScrollRef = useRef<HTMLDivElement>(null);
   const gdnGridRef = useRef<AgGridReactType<CommonGdnResponse>>(null);
@@ -177,11 +177,20 @@ export default function CommonTrunkList() {
   // 종류 필터용 — sipTrunkId → 종류(kind) 매핑 (멤버에는 kind 없음 → 마스터 join)
   const trunkKindMap = useMemo(() => new Map(trunks.map((t) => [t.sipTrunkId, t.sipTrunkKind])), [trunks]);
 
+  const trunkRowSelection = useMemo(
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    [],
+  );
+
   // ─── 외부 필터 (배정상태 세그먼트 + 종류) — 멤버 기준 ─────────────────
   const trunkGridOptions = useMemo<GridOptions<CommonTrunkMemberResponse>>(
     () => ({
-      rowSelection: { mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      ...baseGridOptions,
+      statusBar: undefined,
+      sideBar: false,
+      pagination: false,
+      rowNumbers: false,
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.sipTrunkId),
       isExternalFilterPresent: () => assignFilter !== 'all' || kindFilter !== '',
       doesExternalFilterPass: (node) => {
@@ -201,7 +210,7 @@ export default function CommonTrunkList() {
       },
       onSelectionChanged: (e) => setSelectedTrunks(e.api.getSelectedRows()),
     }),
-    [assignFilter, kindFilter, trunkKindMap],
+    [baseGridOptions, assignFilter, kindFilter, trunkKindMap],
   );
 
   useEffect(() => {
@@ -210,8 +219,13 @@ export default function CommonTrunkList() {
 
   const gdnGridOptions = useMemo<GridOptions<CommonGdnResponse>>(
     () => ({
+      ...baseGridOptions,
+      statusBar: undefined,
+      sideBar: false,
+      pagination: false,
+      rowNumbers: false,
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
-      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true },
+      defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.gdnId),
       onRowDoubleClicked: (e) => {
         if (e.data) setGdnDrawer({ open: true, mode: 'edit', detail: e.data });
@@ -221,7 +235,7 @@ export default function CommonTrunkList() {
         setSelectedGdn(rows.length > 0 ? rows[0] : null);
       },
     }),
-    [],
+    [baseGridOptions],
   );
 
   // ─── 컬럼 — 좌 공용 그룹DN (노드 컬럼 없음) ──────────────────────────
@@ -234,56 +248,78 @@ export default function CommonTrunkList() {
         maxWidth: 140,
         cellStyle: { fontFamily: 'monospace', fontWeight: 600, color: '#374151' } as CellStyle,
       },
-      { field: 'gdnName', headerName: '그룹DN 이름', flex: 1, minWidth: 130 },
+      { field: 'gdnName', headerName: '그룹DN 이름', flex: 1, minWidth: 130, tooltipField: 'gdnName' },
       {
         field: 'globalDnYn',
-        headerName: '글로벌',
-        width: 75,
+        headerName: '글로벌여부',
+        minWidth: 90,
+        maxWidth: 100,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value === 1 ? 'O' : 'X'),
+        filterValueGetter: (p) => BOOL_OX_LABEL(p.data?.globalDnYn),
+        valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
       {
         field: 'backUpNodeName',
         headerName: 'DR노드',
-        width: 90,
-        cellStyle: { textAlign: 'center', color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 80,
+        maxWidth: 110,
+        cellStyle: { textAlign: 'center', color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'backUpNodeName',
       },
       {
         field: 'assignedTrunkCount',
         headerName: '배정 트렁크',
         width: 100,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value > 0 ? <Tag color="green">{p.value}건</Tag> : <span className="text-gray-300 italic">—</span>),
+        cellRenderer: (p: { value: number }) =>
+          p.value > 0 ? (
+            <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">{p.value}건</span>
+          ) : (
+            <span className="text-[11px] italic text-gray-400">—</span>
+          ),
       },
       {
         field: 'blockYn',
-        headerName: '블럭',
+        headerName: '블록',
         width: 70,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="red">ON</Tag> : <Tag>OFF</Tag>),
+        filterValueGetter: (p) => ((p.data as CommonGdnResponse | undefined)?.blockYn === 1 ? '사용' : '미사용'),
+        cellRenderer: (p: { value: number }) =>
+          p.value === 1 ? (
+            <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">사용</span>
+          ) : (
+            <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">미사용</span>
+          ),
       },
       // 갭4: 라우팅 이름 3종 (SWAT 그리드 정합)
       {
         field: 'blockRoutingName',
-        headerName: '블럭라우팅',
-        width: 110,
-        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        headerName: '블록라우팅',
+        minWidth: 100,
+        flex: 1,
+        cellStyle: { color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'blockRoutingName',
       },
       {
         field: 'errorRoutingName',
         headerName: '장애라우팅',
-        width: 110,
-        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 100,
+        flex: 1,
+        cellStyle: { color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'errorRoutingName',
       },
       {
         field: 'busyRoutingName',
         headerName: 'Busy라우팅',
-        width: 110,
-        cellStyle: { color: '#9ca3af', fontSize: '11px' } as CellStyle,
-        valueFormatter: (p) => p.value ?? '—',
+        minWidth: 100,
+        flex: 1,
+        cellStyle: { color: '#9ca3af' } as CellStyle,
+        valueFormatter: (p) => p.value ?? '-',
+        tooltipField: 'busyRoutingName',
       },
     ],
     [],
@@ -293,45 +329,63 @@ export default function CommonTrunkList() {
   const trunkColumns = useMemo<ColDef<CommonTrunkMemberResponse>[]>(
     () => [
       {
-        headerCheckboxSelection: true,
-        checkboxSelection: true,
-        width: 44,
-        maxWidth: 44,
-        pinned: 'left',
-        resizable: false,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-      },
-      {
         field: 'assignYn',
         headerName: '배정상태',
-        width: 84,
+        width: 96,
         cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: { value: boolean }) => (p.value ? <Tag color="green">배정중</Tag> : <span className="text-gray-400 italic text-[11px]">미배정</span>),
+        filterValueGetter: (p) => ((p.data as CommonTrunkMemberResponse | undefined)?.assignYn ? '배정중' : '미배정'),
+        cellRenderer: (p: { value: boolean }) =>
+          p.value ? (
+            <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">배정중</span>
+          ) : (
+            <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-px text-[10px] font-semibold italic text-gray-400">미배정</span>
+          ),
       },
       {
         field: 'targetName',
         headerName: 'SIP트렁크 이름',
         flex: 1,
         minWidth: 150,
-        cellStyle: { fontWeight: 600, color: '#374151' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<CommonTrunkMemberResponse>) => (
+          <span className="font-semibold" style={{ color: p.data?.assignYn ? '#405189' : '#374151' }}>
+            {p.value ?? ''}
+          </span>
+        ),
+        tooltipField: 'targetName',
       },
-      { field: 'targetNo', headerName: '번호', width: 80, cellStyle: { fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { field: 'targetNo', headerName: '번호', minWidth: 80, maxWidth: 120, cellStyle: { fontFamily: 'monospace' } as CellStyle },
       {
         headerName: '종류',
         minWidth: 110,
         maxWidth: 140,
         valueGetter: (p) => (p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null),
+        filterValueGetter: (p) => {
+          const kind = p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null;
+          if (kind === 1) return 'IPRON-IE';
+          if (kind === 9) return '외부 교환기(PBX)';
+          return getTrunkKindName(kind);
+        },
+        // 셀이 배지/약식 표기라 호버 시 종류 풀네임을 툴팁으로 노출 (말줄임 방지)
+        tooltipValueGetter: (p) => {
+          const kind = p.data ? (trunkKindMap.get(p.data.sipTrunkId) ?? null) : null;
+          if (kind === 1) return 'IPRON-IE';
+          if (kind === 9) return '외부 교환기(PBX)';
+          return getTrunkKindName(kind);
+        },
         cellRenderer: (p: { value: number | null }) =>
-          p.value === 1 ? <Tag color="blue">IPRON-IE</Tag> : p.value === 9 ? <Tag color="purple">3rd party PBX</Tag> : <span>{getTrunkKindName(p.value)}</span>,
+          p.value === 1 ? (
+            <span className="inline-flex items-center rounded border border-blue-200 bg-blue-50 px-1.5 py-px text-[10px] font-semibold text-blue-700">IPRON-IE</span>
+          ) : p.value === 9 ? (
+            <span className="inline-flex items-center rounded border border-purple-200 bg-purple-50 px-1.5 py-px text-[10px] font-semibold text-purple-700">외부 교환기(PBX)</span>
+          ) : (
+            <span>{getTrunkKindName(p.value)}</span>
+          ),
       },
-      { field: 'chnlCnt', headerName: '채널', width: 64, cellStyle: { textAlign: 'center', fontFamily: 'monospace', fontSize: '12px' } as CellStyle },
+      { field: 'chnlCnt', headerName: '채널', width: 64, filter: 'agNumberColumnFilter', cellStyle: { textAlign: 'center', fontFamily: 'monospace' } as CellStyle },
       {
         headerName: '채널 사용률',
         minWidth: 150,
         sortable: false,
-        filter: false,
         cellRenderer: (p: { data?: CommonTrunkMemberResponse }) => {
           const max = p.data?.chnlCnt ?? 0;
           const used = p.data?.totChannelCount ?? 0;
@@ -342,7 +396,7 @@ export default function CommonTrunkList() {
               <div className="flex-1 h-[5px] bg-gray-200 rounded overflow-hidden min-w-[30px]">
                 <div className="h-full rounded" style={{ width: `${pct}%`, backgroundColor: col }} />
               </div>
-              <span style={{ color: col, fontWeight: 600 }} className="text-[10.5px] whitespace-nowrap tabular-nums">
+              <span className="whitespace-nowrap tabular-nums text-[10.5px] font-semibold" style={{ color: col }}>
                 {used}/{max} ({pct}%)
               </span>
             </div>
@@ -352,16 +406,18 @@ export default function CommonTrunkList() {
       {
         field: 'memberPriority',
         headerName: '우선순위',
-        width: 80,
+        width: 100,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
       {
         field: 'channelLimitCount',
         headerName: '배정채널',
-        width: 84,
+        width: 100,
+        filter: 'agNumberColumnFilter',
         cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (p) => (p.value == null ? '—' : String(p.value)),
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
       },
     ],
     [trunkKindMap],
@@ -375,26 +431,20 @@ export default function CommonTrunkList() {
   }, []);
 
   const handleDeleteGdn = useCallback(() => {
-    if (!selectedGdn) {
-      toast.info('삭제할 그룹DN 을 선택하세요');
-      return;
-    }
+    if (!selectedGdn) return;
     Modal.confirm({
       title: '그룹DN 삭제',
-      content: `${selectedGdn.gdnNo} (${selectedGdn.gdnName}) 을(를) 삭제합니다. 배정된 트렁크 매핑도 함께 해제됩니다.`,
+      content: `"${selectedGdn.gdnNo}" 그룹DN을 삭제하시겠습니까?`,
       okType: 'danger',
       onOk: () => deleteGdns([selectedGdn.gdnId]),
     });
   }, [selectedGdn, deleteGdns]);
 
   const handleDeleteTrunks = useCallback(() => {
-    if (selectedTrunks.length === 0) {
-      toast.info('삭제할 트렁크를 선택하세요');
-      return;
-    }
+    if (selectedTrunks.length === 0) return;
     Modal.confirm({
       title: '트렁크 삭제',
-      content: `선택한 트렁크 ${selectedTrunks.length}건을 삭제합니다.`,
+      content: `선택한 트렁크 ${selectedTrunks.length}건을 삭제하시겠습니까?`,
       okType: 'danger',
       onOk: () => deleteTrunks(selectedTrunks.map((t) => t.sipTrunkId)),
     });
@@ -404,7 +454,7 @@ export default function CommonTrunkList() {
     if (!selectedGdn || selectedTrunks.length === 0) return;
     Modal.confirm({
       title: '배정 해제',
-      content: `선택한 트렁크 ${selectedTrunks.length}건과 그룹DN ${selectedGdn.gdnNo} 의 배정을 해제합니다.`,
+      content: `선택한 트렁크 ${selectedTrunks.length}건의 그룹DN ${selectedGdn.gdnNo} 배정을 해제하시겠습니까?`,
       okType: 'danger',
       onOk: () =>
         saveMembers({
@@ -432,7 +482,7 @@ export default function CommonTrunkList() {
           {/* 공용 고정 아이콘 */}
           <div className="flex-shrink-0 flex flex-col items-center justify-center w-[44px] border-r border-gray-200" title="공용 트렁크: 노드 단위 고정">
             <Network className="size-4" style={{ color: '#0369a1' }} />
-            <span className="text-[8px] font-bold mt-0.5" style={{ color: '#0369a1' }}>
+            <span className="text-[10px] font-bold mt-0.5" style={{ color: '#0369a1' }}>
               공용
             </span>
           </div>
@@ -459,7 +509,7 @@ export default function CommonTrunkList() {
                     type="button"
                     onClick={() => handleSelectNode(n.nodeId as number)}
                     className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-px w-[120px] flex-shrink-0 transition ${
-                      active ? 'bg-[#eff6ff] text-[#1d4ed8] border-b-blue-600' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                      active ? 'bg-blue-50 text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
                     }`}
                   >
                     <Network className="size-3" />
@@ -485,17 +535,13 @@ export default function CommonTrunkList() {
               size="small"
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
-              placeholder="그룹DN / 트렁크 검색"
+              placeholder="트렁크 검색"
               value={trunkSearch}
               onChange={handleTrunkSearch}
               style={{ width: 200 }}
             />
-            <Button size="small" icon={<Download className="size-3.5" />} onClick={() => toast.info('엑셀 다운로드는 준비 중입니다')}>
-              엑셀
-            </Button>
-            <Button size="small" icon={<Upload className="size-3.5" />} onClick={() => toast.info('가져오기는 준비 중입니다')}>
-              가져오기
-            </Button>
+            {/* TODO: 엑셀 다운로드 구현 후 노출 */}
+            {/* TODO: 가져오기 구현 후 노출 */}
           </div>
         </div>
       </div>
@@ -530,26 +576,24 @@ export default function CommonTrunkList() {
                 >
                   등록
                 </Button>
-                <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleDeleteGdn} />
+                <Button
+                  size="small"
+                  danger
+                  icon={<Trash2 className="size-3" />}
+                  onClick={handleDeleteGdn}
+                  disabled={selectedGdn == null}
+                  title={selectedGdn == null ? '삭제할 그룹DN을 선택하세요' : `"${selectedGdn.gdnNo}" 삭제`}
+                />
               </div>
             </div>
 
             <div className="h-[34px] px-3 flex items-center gap-1.5 bg-gray-50 border-b border-gray-100 text-[11.5px] font-semibold text-gray-500 flex-shrink-0">
               <Network className="size-3" />
               <span>{selectedNodeName || '노드 선택'} 노드</span>
-              <span className="ml-auto font-normal text-gray-400 text-[11px]">GDN_TYPE=18</span>
             </div>
 
             <div className="flex-1 min-h-0 ag-theme-quartz">
               <AgGridReact<CommonGdnResponse> ref={gdnGridRef} rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} loading={gdnsLoading} />
-            </div>
-
-            {/* 선택 GDN 요약 */}
-            <div className="flex-shrink-0 px-4 py-2 bg-blue-50 border-t border-blue-100 flex items-center gap-3 text-[11.5px]">
-              <Network className="size-3 text-[#405189]" />
-              <span className="text-gray-500">선택:</span>
-              <strong className="text-[#405189]">{selectedGdn ? `${selectedGdn.gdnNo}  ${selectedGdn.gdnName}` : '— 행 클릭으로 선택'}</strong>
-              <span className="text-gray-400">→ 우측에서 트렁크 배정/해제</span>
             </div>
           </div>
         </Panel>
@@ -588,7 +632,7 @@ export default function CommonTrunkList() {
                   options={[
                     { value: '', label: '전체 종류' },
                     { value: 1, label: 'IPRON-IE' },
-                    { value: 9, label: '3rd party PBX' },
+                    { value: 9, label: '외부 교환기(PBX)' },
                   ]}
                 />
                 <Button
@@ -600,26 +644,19 @@ export default function CommonTrunkList() {
                 >
                   등록
                 </Button>
-                <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleDeleteTrunks} />
+                <Button
+                  size="small"
+                  danger
+                  icon={<Trash2 className="size-3" />}
+                  onClick={handleDeleteTrunks}
+                  disabled={selectedTrunks.length === 0}
+                  title={selectedTrunks.length === 0 ? '삭제할 트렁크를 선택하세요' : `선택한 트렁크 ${selectedTrunks.length}건 삭제`}
+                />
               </div>
             </div>
 
             <div className="h-[34px] px-3 flex items-center gap-2 bg-gray-50 border-b border-gray-100 text-[11.5px] font-semibold text-gray-500 flex-shrink-0">
               <span>{selectedNodeName || '노드 선택'} 노드</span>
-              <span className="ml-auto flex items-center gap-2 font-normal text-[11px]">
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#16a34a' }} />
-                  &lt;60%
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#f59e0b' }} />
-                  60~85%
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-sm" style={{ background: '#dc2626' }} />
-                  &gt;85%
-                </span>
-              </span>
             </div>
 
             <div className="flex-1 min-h-0 ag-theme-quartz">
@@ -629,6 +666,7 @@ export default function CommonTrunkList() {
                   rowData={members}
                   columnDefs={trunkColumns}
                   gridOptions={trunkGridOptions}
+                  rowSelection={trunkRowSelection}
                   quickFilterText={trunkQuickFilter}
                   loading={membersLoading}
                 />
@@ -644,31 +682,39 @@ export default function CommonTrunkList() {
         </Panel>
       </PanelGroup>
 
-      {/* ===== Bulk Action Bar ===== */}
-      {showBulkBar && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-gray-800 text-white rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-[12.5px]">
-          <span className="flex items-center gap-1.5">
-            <Network className="size-3 text-white/60" />
-            <span className="text-white/60 text-xs">그룹DN</span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center">{selectedGdn?.gdnNo}</span>
+      {/* ===== Bulk Action Bar — 항상 렌더, 선택 없을 때 버튼별 disabled + opacity ===== */}
+      <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-slate-700/90 rounded-xl shadow-xl flex items-center gap-3 px-4 py-2.5 text-sm text-[#e2e8f0]">
+        <span className="flex items-center gap-1.5">
+          <Network className="size-3" style={{ color: '#94a3b8' }} />
+          <span className="text-xs" style={{ color: '#94a3b8' }}>
+            그룹DN
           </span>
-          <span className="text-white/35 text-sm">↔</span>
-          <span className="flex items-center gap-1.5">
-            <span className="text-white/60 text-xs">트렁크</span>
-            <span className="bg-[#405189] px-2 py-0.5 rounded-full font-bold min-w-[22px] text-center">{selectedTrunks.length}건</span>
+          <span className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${selectedGdn ? 'bg-[#405189]' : 'bg-slate-600'}`} style={{ color: '#e2e8f0' }}>
+            {selectedGdn?.gdnNo ?? '-'}
           </span>
-          <span className="text-white/40 mx-1">▶</span>
-          <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => setAssignDrawerOpen(true)}>
-            배정
-          </Button>
-          <Button size="small" danger icon={<Trash2 className="size-3" />} onClick={handleRevoke}>
-            해제
-          </Button>
-          <Button size="small" type="text" className="!text-white/60 hover:!text-white" onClick={clearBulkSel}>
-            선택 해제
-          </Button>
-        </div>
-      )}
+        </span>
+        <span style={{ color: '#94a3b8' }}>×</span>
+        <span className="flex items-center gap-1.5">
+          <span className="text-xs" style={{ color: '#94a3b8' }}>
+            트렁크
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded-full font-bold min-w-[28px] text-center ${selectedTrunks.length > 0 ? 'bg-[#405189]' : 'bg-slate-600'}`}
+            style={{ color: '#e2e8f0' }}
+          >
+            {selectedTrunks.length}건
+          </span>
+        </span>
+        <Button type="primary" icon={<Plus className="size-3.5" />} disabled={!showBulkBar} style={{ opacity: showBulkBar ? 1 : 0.38 }} onClick={() => setAssignDrawerOpen(true)}>
+          배정 (우선순위·채널수 입력)
+        </Button>
+        <Button danger icon={<Trash2 className="size-3.5" />} disabled={!showBulkBar} style={{ opacity: showBulkBar ? 1 : 0.38 }} onClick={handleRevoke}>
+          해제
+        </Button>
+        <Button type="text" disabled={!showBulkBar} style={{ color: '#e2e8f0', opacity: showBulkBar ? 1 : 0.38 }} onClick={clearBulkSel} className="hover:!text-white">
+          선택 해제
+        </Button>
+      </div>
 
       {/* ===== Drawers ===== */}
       <CommonGdnFormDrawer

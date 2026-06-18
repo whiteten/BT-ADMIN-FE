@@ -18,7 +18,7 @@ const SUMMARY_CHIP_COLORS = [
 ] as const;
 
 const breadcrumb: BreadcrumbProps['items'] = [
-  { title: 'STT 모니터링', path: '/stt/monitoring' },
+  { title: '모니터링', path: '/stt/monitoring' },
   { title: 'STT 콜별 진행현황', path: '/stt/monitoring/call/list' },
 ];
 

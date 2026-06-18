@@ -161,6 +161,7 @@ const IvrEndpointMasterSheet = forwardRef<IvrEndpointMasterSheetRef, Props>(({ n
   return (
     <Drawer
       title={isEditMode ? 'EndPoint 수정' : 'EndPoint 등록'}
+      closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
       styles={{ wrapper: { width: 560 } }}

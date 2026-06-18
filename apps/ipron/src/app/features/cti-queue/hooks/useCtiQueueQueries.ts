@@ -3,7 +3,7 @@
  *
  * invalidate 매트릭스:
  *  - create/update/delete → getList + getTenants (+ getDetail on update)
- *  - bsr/slt 스케쥴 배정/해제 → 해당 큐 스케쥴 목록
+ *  - bsr/slt 스케줄 배정/해제 → 해당 큐 스케줄 목록
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
@@ -11,11 +11,16 @@ import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions 
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import type {
   AccessCodeProfileOption,
+  CtiQueueBulkResult,
+  CtiQueueBulkUpdateRequest,
   CtiQueueCreateRequest,
   CtiQueueGroupCreateRequest,
+  CtiQueueGroupReorderRequest,
   CtiQueueGroupResponse,
   CtiQueueGroupUpdateRequest,
   CtiQueueMediaOption,
+  CtiQueueMediaSkillBatchRequest,
+  CtiQueueMediaSkillBatchResult,
   CtiQueueMemberReassignRequest,
   CtiQueueOptionItem,
   CtiQueueResponse,
@@ -114,7 +119,7 @@ export const useGetCtiQueueMediaOptions = ({ queryOptions }: QueryHookOptions<Ct
   });
 
 /**
- * BSR 스케쥴 풀 — 배정 후보 전체 목록 (피커 팝업용, SWAT IPR20S3020SIL.do 정합).
+ * BSR 스케줄 풀 — 배정 후보 전체 목록 (피커 팝업용, SWAT IPR20S3020SIL.do 정합).
  * tenantId 가 있을 때만 조회. open 조건은 호출부가 enabled 로 제어.
  */
 export const useGetCtiQueueBsrSchedulePool = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<QuebsrScheduleResponse[]> = {}) =>
@@ -126,7 +131,7 @@ export const useGetCtiQueueBsrSchedulePool = (tenantId: number | null | undefine
   });
 
 /**
- * SLT 스케쥴 풀 — 배정 후보 전체 목록 (피커 팝업용).
+ * SLT 스케줄 풀 — 배정 후보 전체 목록 (피커 팝업용).
  */
 export const useGetCtiQueueSltSchedulePool = (tenantId: number | null | undefined, { queryOptions }: QueryHookOptions<SltScheduleResponse[]> = {}) =>
   useQuery({
@@ -181,10 +186,60 @@ export const useUpdateCtiQueue = ({ mutationOptions }: MutationHookOptions<CtiQu
   });
 };
 
+/**
+ * 일괄 설정 (Bulk Update) — P1.
+ * 성공/부분성공 후 목록 쿼리 invalidate.
+ */
+export const useBulkUpdateCtiQueues = ({ mutationOptions }: MutationHookOptions<CtiQueueBulkResult, CtiQueueBulkUpdateRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.bulkUpdate(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * 미디어 스킬 매트릭스 일괄 저장 — "스킬 배정 보기" 토글.
+ * 성공/부분성공(207) 후 목록 쿼리 invalidate.
+ */
+export const useMediaSkillsBatchCtiQueues = ({ mutationOptions }: MutationHookOptions<CtiQueueMediaSkillBatchResult, CtiQueueMediaSkillBatchRequest> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body) => ctiQueueApi.mediaSkillsBatch(body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
 export const useDeleteCtiQueue = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (ctiqId) => ctiQueueApi.delete(ctiqId),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getTenants.queryKey });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/**
+ * CTI 큐 일괄 삭제 (벌크 1콜) — BSR 배정 시 409 전체 거부.
+ */
+export const useDeleteCtiQueueBatch = ({ mutationOptions }: MutationHookOptions<number, number[]> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ctiqIds) => ctiQueueApi.deleteBatch(ctiqIds),
     ...mutationOptions,
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
@@ -283,6 +338,19 @@ export const useDeleteCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<
     onSuccess: (...args) => {
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
       qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getList._def });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
+/** 업무그룹 트리 D&D 재배치 — BFF flow: cti-queue-group-reorder */
+export const useReorderCtiQueueGroup = ({ mutationOptions }: MutationHookOptions<CtiQueueGroupResponse, { treeId: number; body: CtiQueueGroupReorderRequest }> = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ treeId, body }) => ctiQueueApi.reorderGroup(treeId, body),
+    ...mutationOptions,
+    onSuccess: (...args) => {
+      qc.invalidateQueries({ queryKey: ctiQueueQueryKeys.getGroups._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
