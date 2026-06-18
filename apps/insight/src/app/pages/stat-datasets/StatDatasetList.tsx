@@ -18,14 +18,14 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
 
-// ─── 대분류(상위 그룹) 정의 ─────────────────────────────────────────────────────
+// ─── 솔루션(상위 그룹) 정의 ─────────────────────────────────────────────────────
 // 현재는 프론트 상수. 향후 API 제공 시 이 두 매핑만 동적 로드로 교체.
 const MAJOR_DEFS: { code: string; label: string; productCodes: string[] }[] = [{ code: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] }];
 const PRODUCT_CODE_MAJOR: Record<string, string> = { IE: 'IPRON', IC: 'IPRON', IR: 'IPRON' };
-// 소분류(productCode) 표시 순서 — 미등록 코드는 뒤에 자동 추가
+// 도메인(productCode) 표시 순서 — 미등록 코드는 뒤에 자동 추가
 const MINOR_ORDER = ['IE', 'IC', 'IR'];
 
-// 소분류 액센트 색상 (트리 leaf 점) — antd Tag(DOMAIN_TAG_COLOR)와 톤 일치, 미등록은 primary 폴백
+// 도메인 액센트 색상 (트리 leaf 점) — antd Tag(DOMAIN_TAG_COLOR)와 톤 일치, 미등록은 primary 폴백
 const ACCENT_HEX: Record<string, string> = { IE: '#1677ff', IC: '#52c41a', IR: '#fa8c16' };
 const DEFAULT_ACCENT = 'var(--color-bt-primary)';
 
@@ -136,14 +136,14 @@ export default function StatDatasetList() {
     },
   });
 
-  // 데이터에 존재하는 소분류 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
+  // 데이터에 존재하는 도메인 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
   const presentCodes = [...new Set(datasets.map((d) => d.productCode ?? '').filter(Boolean))];
   const allCodes = [...MINOR_ORDER.filter((c) => presentCodes.includes(c)), ...presentCodes.filter((c) => !MINOR_ORDER.includes(c))];
 
-  // 대분류/소분류 셀렉트로 노출할 소분류 코드
+  // 솔루션/도메인 셀렉트로 노출할 도메인 코드
   const visibleCodes = allCodes.filter((code) => (!majorSel || majorOfCode(code) === majorSel) && (!minorSel || code === minorSel));
 
-  // 트리 데이터 — 소분류 그룹 > 데이터셋
+  // 트리 데이터 — 도메인 그룹 > 데이터셋
   const treeData: DsTreeNode[] = visibleCodes.map((code) => ({
     key: `grp:${code}`,
     label: DOMAIN_LABELS[code] ?? code,
@@ -181,7 +181,7 @@ export default function StatDatasetList() {
 
   const handlePickMajor = (code: string | null) => {
     setMajorSel(code);
-    // 선택한 소분류가 새 대분류에 속하지 않으면 해제
+    // 선택한 도메인이 새 솔루션에 속하지 않으면 해제
     if (minorSel && code && majorOfCode(minorSel) !== code) setMinorSel(null);
     setMajorPopOpen(false);
   };
@@ -287,7 +287,7 @@ export default function StatDatasetList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 대분류/소분류 셀렉트 + 트리 */}
+        {/* 좌측: 검색 + 솔루션/도메인 셀렉트 + 트리 */}
         <div className="w-[340px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 min-h-0">
           <div className="flex items-center gap-2">
             <Input
@@ -303,12 +303,12 @@ export default function StatDatasetList() {
             </Button>
           </div>
 
-          {/* 대분류·소분류 칩 셀렉트 (메뉴 설정 화면과 동일 패턴) */}
+          {/* 솔루션·도메인 칩 셀렉트 (메뉴 설정 화면과 동일 패턴) */}
           <div className="flex flex-wrap gap-2">
             <ChipSelect
               open={majorPopOpen}
               onOpenChange={setMajorPopOpen}
-              label="대분류"
+              label="솔루션"
               valueLabel={majorLabel}
               active={majorSel !== null}
               content={
@@ -330,7 +330,7 @@ export default function StatDatasetList() {
             <ChipSelect
               open={minorPopOpen}
               onOpenChange={setMinorPopOpen}
-              label="소분류"
+              label="도메인"
               valueLabel={minorLabel}
               active={minorSel !== null}
               content={
