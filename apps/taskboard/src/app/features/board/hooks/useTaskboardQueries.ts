@@ -1,13 +1,16 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
+import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
-import type { RollingGroup, TaskboardBg, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
+import type { RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardDisplayLayout, TaskboardDisplayLayoutDetail, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
   getLayoutList: () => [{}],
+  getDisplayList: () => [{}],
+  getDisplayLayoutList: (params?: { displayId?: number; layoutId?: number }) => [params ?? {}],
+  getDisplayLayoutDetail: (displayLayoutId: number) => [{ displayLayoutId }],
   getRollingGroupList: () => [{}],
   getNoticeList: () => [{}],
   getNoticeListByKey: (noticeKey: string) => [{ noticeKey }],
@@ -77,6 +80,73 @@ export const useDeleteTaskboardLayout = ({ mutationOptions }: MutationHookOption
   });
 };
 
+// ── 디스플레이 훅 (레이아웃과 무관한 순수 선택값 그룹핑) ─────────────────────────
+
+export const useGetTaskboardDisplayList = ({ queryOptions }: QueryHookWithParamsOptions<TaskboardDisplay[]> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getDisplayList().queryKey,
+    queryFn: () => taskboardApi.getDisplayList(),
+    ...queryOptions,
+  });
+};
+
+export const useCreateTaskboardDisplay = ({ mutationOptions }: MutationHookOptions<any, { tenantId?: string; displayName: string; selectionJson: string }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.createDisplay,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateTaskboardDisplay = ({ mutationOptions }: MutationHookOptions<any, { displayId: number; displayName?: string; selectionJson?: string }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.updateDisplay,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteTaskboardDisplay = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.deleteDisplay,
+    ...mutationOptions,
+  });
+};
+
+// ── 화면 인스턴스 훅 (디스플레이 그룹핑 × 레이아웃 N:M 연결) ────────────────────────
+
+export const useGetTaskboardDisplayLayoutList = (
+  params?: { displayId?: number; layoutId?: number },
+  { queryOptions }: QueryHookWithParamsOptions<TaskboardDisplayLayout[]> = {},
+) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getDisplayLayoutList(params).queryKey,
+    queryFn: () => taskboardApi.getDisplayLayoutList(params),
+    ...queryOptions,
+  });
+};
+
+export const useGetTaskboardDisplayLayoutDetail = (displayLayoutId: number, { queryOptions }: QueryHookWithParamsOptions<TaskboardDisplayLayoutDetail | undefined> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getDisplayLayoutDetail(displayLayoutId).queryKey,
+    queryFn: () => taskboardApi.getDisplayLayoutDetail(displayLayoutId),
+    enabled: !!displayLayoutId,
+    ...queryOptions,
+  });
+};
+
+export const useCreateTaskboardDisplayLayout = ({ mutationOptions }: MutationHookOptions<any, { displayId: number; layoutId: number }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.createDisplayLayout,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteTaskboardDisplayLayout = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.deleteDisplayLayout,
+    ...mutationOptions,
+  });
+};
+
 // ── 롤링 그룹 훅 ─────────────────────────────────────────────────────────
 
 export const useGetRollingGroupList = ({ queryOptions }: QueryHookWithParamsOptions<RollingGroup[]> = {}) => {
@@ -89,7 +159,7 @@ export const useGetRollingGroupList = ({ queryOptions }: QueryHookWithParamsOpti
 
 export const useCreateRollingGroup = ({
   mutationOptions,
-}: MutationHookOptions<any, { groupName: string; layoutIds: string; intervalSec: number; transitionType?: string; tenantId?: string }> = {}) => {
+}: MutationHookOptions<any, { groupName: string; displayIds: string; intervalSec: number; transitionType?: string; tenantId?: string }> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.createRollingGroup,
     ...mutationOptions,
@@ -98,7 +168,7 @@ export const useCreateRollingGroup = ({
 
 export const useUpdateRollingGroup = ({
   mutationOptions,
-}: MutationHookOptions<any, { groupId: number; groupName: string; layoutIds: string; intervalSec: number; transitionType?: string }> = {}) => {
+}: MutationHookOptions<any, { groupId: number; groupName: string; displayIds: string; intervalSec: number; transitionType?: string }> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.updateRollingGroup,
     ...mutationOptions,
@@ -158,6 +228,10 @@ export const ctiRedisQueryKeys = createQueryKeys('cti-redis', {
   queueList: () => [{}],
   agentList: () => [{}],
   groupList: () => [{}],
+  mediaTypeList: () => [{}],
+  hashKeys: () => [{}],
+  hashFields: (hashKey: string) => [{ hashKey }],
+  hashEntries: (hashKey: string) => [{ hashKey }],
 });
 
 /** 큐 리스트 (TB_IC_CTIQMASTER via Redis) — 5초 자동 갱신 */
@@ -186,6 +260,57 @@ export const useGetCtiGroupList = ({ queryOptions }: QueryHookWithParamsOptions<
     queryKey: ctiRedisQueryKeys.groupList().queryKey,
     queryFn: () => ctiRedisApi.getCtiGroupList(),
     refetchInterval: 5000,
+    ...queryOptions,
+  });
+};
+
+/** 미디어타입 리스트 (TB_IC_MEDIA_USAGE) — 자동 갱신 없음 (정적 마스터) */
+export const useGetCtiMediaTypeList = ({ queryOptions }: QueryHookWithParamsOptions<CtiMediaTypeRow[]> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.mediaTypeList().queryKey,
+    queryFn: () => ctiRedisApi.getCtiMediaTypeList(),
+    staleTime: 10 * 60 * 1000,
+    ...queryOptions,
+  });
+};
+
+/** Redis Hash 타입 키 목록 조회 (서버 기동 시 캐시된 목록) */
+export const useGetRedisHashKeys = ({ queryOptions }: QueryHookWithParamsOptions<string[]> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.hashKeys().queryKey,
+    queryFn: () => ctiRedisApi.getRedisHashKeys(),
+    ...queryOptions,
+  });
+};
+
+/** Redis Hash 키 목록 새로고침 — 서버가 다시 SCAN하여 캐시를 갱신한 결과를 받아 쿼리 캐시에 반영 */
+export const useRefreshRedisHashKeys = ({ mutationOptions }: MutationHookOptions<string[], void> = {}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => ctiRedisApi.getRedisHashKeys(true),
+    onSuccess: (data) => {
+      queryClient.setQueryData(ctiRedisQueryKeys.hashKeys().queryKey, data);
+    },
+    ...mutationOptions,
+  });
+};
+
+/** Redis Hash 키에 해당하는 모든 필드(컬럼)와 값 조회 */
+export const useGetRedisHashFields = (hashKey: string, { queryOptions }: QueryHookWithParamsOptions<Record<string, string>> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.hashFields(hashKey).queryKey,
+    queryFn: () => ctiRedisApi.getRedisHashFields(hashKey),
+    enabled: !!hashKey,
+    ...queryOptions,
+  });
+};
+
+/** Redis Hash 키의 모든 필드(compositeKey)를 원본 그대로(평탄화 없이) 조회 — "해시그룹" compositeKey 선택 UI용 */
+export const useGetRedisHashEntries = (hashKey: string, { queryOptions }: QueryHookWithParamsOptions<Record<string, string>> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.hashEntries(hashKey).queryKey,
+    queryFn: () => ctiRedisApi.getRedisHashEntries(hashKey),
+    enabled: !!hashKey,
     ...queryOptions,
   });
 };

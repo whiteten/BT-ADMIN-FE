@@ -6,6 +6,7 @@ const TaskBg = React.lazy(() => import('./pages/board/TaskBg'));
 const TaskList = React.lazy(() => import('./pages/board/TaskList'));
 const TaskMgmt = React.lazy(() => import('./pages/board/TaskMgmt'));
 const TaskCreate = React.lazy(() => import('./pages/board/TaskCreate'));
+const TaskDisplayManage = React.lazy(() => import('./pages/board/TaskDisplayManage'));
 const TaskView = React.lazy(() => import('./pages/board/TaskView'));
 const TaskNotice = React.lazy(() => import('./pages/board/TaskNotice'));
 
@@ -23,7 +24,8 @@ export const routes = [
           { path: 'task-list', element: <TaskList /> },
           { path: 'task-mgmt', element: <TaskMgmt /> },
           { path: 'task-create', element: <TaskCreate /> },
-          { path: 'task-view', element: <TaskView /> },
+          { path: 'task-display', element: <TaskDisplayManage /> },
+          { path: 'task-view/:displayId', element: <TaskView /> },
           { path: 'task-notice', element: <TaskNotice /> },
         ],
       },
