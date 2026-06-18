@@ -34,6 +34,7 @@ const prodConfig: ModuleFederationConfig = {
     ['ivr', '/remotes/ivr/remoteEntry.js'],
     ['insight', '/remotes/insight/remoteEntry.js'],
     ['taskboard', '/remotes/taskboard/remoteEntry.js'],
+    ['vel', '/remotes/vel/remoteEntry.js'],
   ],
 };
 
