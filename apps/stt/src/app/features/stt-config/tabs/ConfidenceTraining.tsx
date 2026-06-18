@@ -135,6 +135,9 @@ function PlayCellRenderer({ data }: ICellRendererParams<ConfidenceTrainingItem>)
   );
 }
 
+const DEFAULT_START_TIME = dayjs().subtract(2, 'hour').startOf('hour');
+const DEFAULT_END_TIME = dayjs().add(1, 'hour').startOf('hour');
+
 export default function ConfidenceTraining() {
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
@@ -142,26 +145,22 @@ export default function ConfidenceTraining() {
 
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
-  const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().subtract(3, 'hour').startOf('hour'));
-  const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().startOf('hour'));
+  const [startTime, setStartTime] = useState<Dayjs | null>(DEFAULT_START_TIME);
+  const [endTime, setEndTime] = useState<Dayjs | null>(DEFAULT_END_TIME);
   const [dnNo, setDnNo] = useState('');
   const [engineCode, setEngineCode] = useState('');
 
-  const buildParams = (): ConfidenceTrainingSearchParams => ({
-    fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
-    toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    dnNo: dnNo || undefined,
-    engineCode: engineCode || undefined,
-    confidence: CONFIDENCE_THRESHOLD,
-  });
-
   const [searchParams, setSearchParams] = useState<ConfidenceTrainingSearchParams>({
-    fromDateTime: dayjs().subtract(3, 'hour').startOf('hour').format('YYYYMMDDHHmmss'),
-    toDateTime: dayjs().startOf('hour').format('YYYYMMDDHHmmss'),
+    fromDateTime: dayjs().format('YYYYMMDD') + DEFAULT_START_TIME.format('HHmmss'),
+    toDateTime: dayjs().format('YYYYMMDD') + DEFAULT_END_TIME.format('HHmmss'),
     confidence: CONFIDENCE_THRESHOLD,
   });
 
-  const { data: rowData, isLoading } = useGetTrainingList({
+  const {
+    data: rowData,
+    isLoading,
+    refetch,
+  } = useGetTrainingList({
     params: searchParams as Record<string, unknown>,
   });
 
@@ -210,7 +209,16 @@ export default function ConfidenceTraining() {
       return;
     }
 
-    setSearchParams(buildParams());
+    const newParams: ConfidenceTrainingSearchParams = {
+      fromDateTime: startDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
+      toDateTime: endDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
+      dnNo: dnNo || undefined,
+      engineCode: engineCode || undefined,
+      confidence: CONFIDENCE_THRESHOLD,
+    };
+    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(searchParams);
+    setSearchParams(newParams);
+    if (!paramsChanged) void refetch();
   };
 
   const handleAdd = (originData: ConfidenceTrainingItem) => {
@@ -296,7 +304,6 @@ export default function ConfidenceTraining() {
       field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
-      filter: true,
       valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
     },
     {

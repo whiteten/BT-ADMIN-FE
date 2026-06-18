@@ -13,6 +13,10 @@ import type { CustomWidgetCatalogItem, Widget } from '../../features/monitoring/
 import { autoPackPosition } from '../../features/monitoring/utils/autoPackPosition';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
+/**
+ * 커스텀 위젯 카탈로그 페이지.
+ * 왼쪽에는 현재 대시보드 현황(ReadOnly)을, 오른쪽에는 카탈로그 패널을 배치.
+ */
 export default function CustomWidgetCatalogPage() {
   const { dashboardId: param } = useParams<{ dashboardId: string }>();
   const dashboardId = Number(param);
@@ -76,10 +80,7 @@ export default function CustomWidgetCatalogPage() {
     );
   }
 
-  // 카탈로그에서 위젯 선택 → BE 생성 호출 → 성공 시 편집 화면으로 복귀.
-  // 좌측 placeholder는 더 이상 사용 안 함 (실 DB 위젯은 편집 화면의 캔버스에서 렌더).
-  // position 은 autoPackPosition 으로 기존 위젯과 겹치지 않는 첫 빈 슬롯에 자동 배치 (사용자는 이후 드래그/리사이즈로 미세 조정).
-  const handleAdd = (widget: CustomWidgetCatalogItem) => {
+  const handleAdd = (widget: CustomWidgetCatalogItem, size?: { w: number; h: number }) => {
     if (isCreating) return;
     createWidget({
       dashboardId,
@@ -88,7 +89,7 @@ export default function CustomWidgetCatalogPage() {
         widgetName: widget.widgetName,
         widgetTypeId: widget.widgetTypeId,
         options: widget.defaultOptions ?? {},
-        position: autoPackPosition(existingWidgets, widget),
+        position: autoPackPosition(existingWidgets, widget, size),
       },
     });
   };
@@ -114,8 +115,12 @@ export default function CustomWidgetCatalogPage() {
 
       {/* 본문 — 좌: 현재 대시보드 위젯들(읽기 전용) / 우: 카탈로그 패널 */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-hidden">
-          {isEmpty ? <EmptyCanvas dashboardId={dashboardId} /> : <DashboardCanvas dashboardId={dashboardId} widgets={existingWidgets} editMode={false} />}
+        <div className="flex-1 overflow-hidden p-4">
+          {isEmpty ? (
+            <EmptyCanvas onLayoutSelect={() => navigate(`/insight/monitoring/dashboards/${dashboardId}/edit`)} />
+          ) : (
+            <DashboardCanvas dashboardId={dashboardId} widgets={existingWidgets} editMode={false} />
+          )}
         </div>
 
         <CustomWidgetCatalogPanel domainCode={dashboard.domainCode} onAdd={handleAdd} onClose={handleClose} />

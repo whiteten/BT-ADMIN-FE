@@ -29,6 +29,13 @@ const DidRouteForm = React.lazy(() => import('./pages/line/DidRouteForm'));
 const DodTransList = React.lazy(() => import('./pages/line/DodTransList'));
 const CallScreenList = React.lazy(() => import('./pages/line/CallScreenList'));
 const McsDnis = React.lazy(() => import('./pages/line/McsDnis'));
+const SipTrunkList = React.lazy(() => import('./pages/line/SipTrunkList'));
+const CommonTrunkList = React.lazy(() => import('./pages/line/CommonTrunkList'));
+const CtiQueueList = React.lazy(() => import('./pages/line/CtiQueueList'));
+const MentMgmtList = React.lazy(() => import('./pages/line/MentMgmtList'));
+
+// acd-gdn (ACD 그룹DN 관리 — SWAT IPR20S3010 + IPR20S3030, GDN_TYPE=16)
+const AcdGdnList = React.lazy(() => import('./pages/acd-gdn/AcdGdnList'));
 
 // cos
 const CosList = React.lazy(() => import('./pages/cos/CosList'));
@@ -42,10 +49,38 @@ const DnForm = React.lazy(() => import('./pages/dn/DnForm'));
 const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
 const AdnForm = React.lazy(() => import('./pages/adn/AdnForm'));
 
+// agent-adn (상담사 로그인번호 관리 — SWAT IPR20S3011)
+const AgentAdnList = React.lazy(() => import('./pages/agent-adn/AgentAdnList'));
+
+// gdn (그룹DN 통합 관리 — ACD + CTI Queue + SIP TRUNK 3 메뉴 통폐합)
+const GdnList = React.lazy(() => import('./pages/gdn/GdnList'));
+
 // agent-master
 const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
 const AgentMasterForm = React.lazy(() => import('./pages/agent-master/AgentMasterForm'));
 const AgentGroupForm = React.lazy(() => import('./pages/agent-master/AgentGroupForm'));
+
+// cti-code-mgmt (휴식/ACW 사유 — SWAT IPR20S4040 마이그레이션, 상담사 관리 폴더 하위)
+const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
+
+// media-type (미디어타입 관리 — SWAT IPR10S6060, 상담사 관리 > 코드 관리 하위)
+const MediaTypeList = React.lazy(() => import('./pages/media-type/MediaTypeList'));
+
+// skill-assign (스킬배정)
+const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssignList'));
+
+// skillset-master (스킬셋 관리 — SWAT IPR20S5010)
+const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
+
+// device (단말기관리 — SWAT IPR20S2110 + IPR20S2130)
+const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
+const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
+
+// bsr-group (BSR 그룹 관리 — SWAT IPR20S3040)
+const BsrGroupList = React.lazy(() => import('./pages/bsr-group/BsrGroupList'));
+
+// bsr-ctiq-mapping (BSR 그룹별 CTI큐 배정 — SWAT IPR20S3060)
+const BsrCtiqMappingList = React.lazy(() => import('./pages/bsr-ctiq-mapping/BsrCtiqMappingList'));
 
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
@@ -170,6 +205,30 @@ export const routes = [
         ],
       },
       {
+        path: 'gdn',
+        element: <GdnList />,
+      },
+      {
+        path: 'acd-gdn',
+        element: <AcdGdnList />,
+      },
+      {
+        path: 'sip-trunk',
+        element: <SipTrunkList />,
+      },
+      {
+        path: 'common-trunk',
+        element: <CommonTrunkList />,
+      },
+      {
+        path: 'cti-queue',
+        element: <CtiQueueList />,
+      },
+      {
+        path: 'ment-mgmt',
+        element: <MentMgmtList />,
+      },
+      {
         path: 'agent-master',
         element: <Outlet />,
         children: [
@@ -179,6 +238,43 @@ export const routes = [
           { path: 'groups/create', element: <AgentGroupForm /> },
           { path: 'groups/:id/edit', element: <AgentGroupForm /> },
         ],
+      },
+      {
+        path: 'cti-code-mgmt',
+        element: <CtiCodeList />,
+      },
+      {
+        path: 'media-type',
+        element: <MediaTypeList />,
+      },
+      {
+        path: 'skill-assign',
+        element: <SkillAssignList />,
+      },
+      {
+        path: 'agent-adn',
+        element: <AgentAdnList />,
+      },
+      {
+        path: 'skillset-master',
+        element: <SkillsetMasterList />,
+      },
+      {
+        path: 'device',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <DeviceList /> },
+          { path: 'list', element: <DeviceList /> },
+          { path: 'history', element: <DeviceHistoryList /> },
+        ],
+      },
+      {
+        path: 'bsr-group',
+        element: <BsrGroupList />,
+      },
+      {
+        path: 'bsr-ctiq-mapping',
+        element: <BsrCtiqMappingList />,
       },
       {
         path: 'tracking',

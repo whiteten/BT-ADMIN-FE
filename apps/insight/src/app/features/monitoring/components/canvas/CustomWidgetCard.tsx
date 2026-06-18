@@ -7,7 +7,6 @@ interface CustomWidgetCardProps {
   editMode: boolean;
   /** WebSocket DATA 프레임의 `data` (BE 위젯 `computeFromRawData` 반환값). */
   data?: unknown;
-  onSettings?: () => void;
   onDelete?: () => void;
   /** 위젯이 SUBSCRIBE 옵션을 바꾸기 위해 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
@@ -21,12 +20,12 @@ interface CustomWidgetCardProps {
  * - 우선순위 2: 본 파일 내 데모 placeholder (시안 §6 ExtensionStatusGrid / SLA 게이지)
  * - 우선순위 3: GenericCustomPlaceholder (FE 컴포넌트 미구현 widgetType)
  */
-export default function CustomWidgetCard({ widget, editMode, data, onSettings, onDelete, onRequestPause, draggableClass }: CustomWidgetCardProps) {
+export default function CustomWidgetCard({ widget, editMode, data, onDelete, onRequestPause, draggableClass }: CustomWidgetCardProps) {
   const Registered = getCustomWidgetComponent(widget.widgetTypeId);
 
   return (
     <div className="flex flex-col h-full bg-white bt-shadow overflow-hidden">
-      <WidgetCardHeader widget={widget} editMode={editMode} onSettings={onSettings} onDelete={onDelete} draggableClass={draggableClass} />
+      <WidgetCardHeader widget={widget} editMode={editMode} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
         {Registered ? (
           <Registered data={data} options={widget.options} widgetId={widget.widgetId} onRequestPause={onRequestPause} />

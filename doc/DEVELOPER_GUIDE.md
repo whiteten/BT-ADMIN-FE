@@ -931,6 +931,50 @@ import { PageTabs } from '@/components/custom/PageTabs'; // 탭 네비게이션
 
 > 페이지 breadcrumb은 host의 SubHeader가 그립니다. 페이지 컴포넌트는 본문 시작부에서 `useBreadcrumbStore`의 `setBreadcrumb`로 push하고 unmount 시 `clearBreadcrumb`로 정리합니다(상세 절차는 "페이지 레이아웃 가이드" 참조).
 
+### 아이콘 사용 가이드
+
+이 프로젝트는 아이콘 소스를 **lucide**와 **커스텀 SVG** 두 가지로 한정합니다. 화면마다 제각각 다른 아이콘 라이브러리를 끌어오거나, 컴포넌트 JSX에 raw `<svg>...</svg>` 마크업을 직접 박으면 일관성·검색성·번들 측면에서 모두 손해이므로 금지합니다.
+
+#### 1순위 — lucide (`lucide-react`)
+
+검색·추가·삭제·편집·화살표·다운로드 등 **범용 UI 아이콘은 lucide를 우선** 사용합니다. 등록 절차 없이 named import로 바로 씁니다.
+
+```typescript
+import { Search, Plus, Trash2 } from 'lucide-react';
+
+<Button icon={<Plus size={16} />}>추가</Button>
+```
+
+lucide는 [lucide.dev/icons](https://lucide.dev/icons)에서 이름을 검색할 수 있고, 트리쉐이킹되어 사용한 아이콘만 번들에 포함됩니다.
+
+#### 2순위 — 커스텀 SVG (`Icons.tsx`)
+
+디자인팀이 제공한 자산이거나 lucide에 적절한 대체가 없는 **브랜드·도메인 전용 아이콘**만 커스텀 SVG로 추가합니다.
+
+1. SVG 파일을 `libs/shared-ui/src/assets/images/icon/icon-<name>.svg`로 저장합니다. 파일명은 `icon-` 접두사 + kebab-case (예: `icon-chart-line.svg`).
+2. [Icons.tsx](../libs/shared-ui/src/components/custom/Icons.tsx)에 export를 한 줄 추가합니다. svgr 설정에 의해 `ReactComponent`로 가져오면 React 컴포넌트가 됩니다.
+
+   ```typescript
+   export { ReactComponent as IconChartLine } from '../../assets/images/icon/icon-chart-line.svg';
+   ```
+
+3. 사용처에서 import해서 일반 컴포넌트처럼 렌더합니다.
+
+   ```typescript
+   import { IconChartLine } from '@/components/custom/Icons';
+
+   <IconChartLine className="w-4 h-4" />
+   ```
+
+> 컴포넌트명은 `Icon<PascalCase>`, 파일명은 `icon-<kebab-case>.svg`로 일관되게 맞춥니다.
+
+#### 별도 메커니즘을 따르는 두 가지 아이콘
+
+위 규칙은 **일반 UI 아이콘**(버튼·라벨·상태 표시 등 코드에서 직접 배치하는 아이콘) 기준입니다. 아래 두 종류는 운영자가 어드민에서 선택하거나 remote 단위로 관리되는 별도 자산이므로 메커니즘이 다릅니다.
+
+- **메뉴 트리 아이콘** — 사이드바 메뉴 항목 옆 아이콘. 운영자가 메뉴 관리 picker에서 선택하며, DB의 `iconKey`(`custom:IconMenuMain`, `lucide:Activity` 등)로 저장됩니다. picker·사이드바는 [menuIconRegistry.ts](../libs/shared-ui/src/components/custom/menuIconRegistry.ts)에 등록된 아이콘만 해석하므로, 새 메뉴 아이콘이 필요하면 레지스트리에 추가합니다. 상세는 "화면 커스터마이징(Variants) 가이드 → 아이콘 레지스트리도 동일 발상" 참조.
+- **remote 뱃지 아이콘** — 사이드바 가장 왼쪽 60px 컬럼에서 remote 자체를 대표하는 아이콘. `icon-remote-<appId>.svg` 자산을 추가하고 `Icons.tsx` export + `PanelAppBadgeStrip`의 `APP_BADGE_ICONS`에 매핑하는 별도 절차가 있습니다. 상세는 "화면 커스터마이징(Variants) 가이드 → 수동 단계 — remote 앱 뱃지 아이콘 추가" 참조.
+
 ### useMemo / useCallback을 쓰지 마세요
 
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 수동으로 `useMemo`나 `useCallback`을 사용할 필요가 없습니다.

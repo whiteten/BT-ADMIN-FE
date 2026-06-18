@@ -177,8 +177,18 @@ const MenuCreateDrawer = forwardRef<MenuCreateDrawerRef, MenuCreateDrawerProps>(
           </Col>
         </Row>
 
-        <Form.Item label="메뉴키" name="menuKey" rules={[{ required: true, message: '메뉴키를 입력해주세요' }]}>
-          <Input placeholder="예: manager-user" />
+        {/* menuKey 는 PK 이자 수정/삭제 API 의 URL path 변수 — 슬래시/공백 들어가면 라우팅이 깨져 수정·삭제 불가.
+            영문·숫자·_- 슬러그만 허용 (화면 경로는 아래 '화면 경로' path 컬럼에 별도 저장). */}
+        <Form.Item
+          label="메뉴키"
+          name="menuKey"
+          rules={[
+            { required: true, message: '메뉴키를 입력해주세요' },
+            { pattern: /^[A-Za-z0-9_-]+$/, message: '메뉴키는 영문·숫자·_- 만 가능합니다 (슬래시·공백 불가)' },
+          ]}
+          tooltip="고유 식별자(슬러그). 화면 경로(path)와 다름 — 슬래시 사용 불가. 예: insight-report-bsr"
+        >
+          <Input placeholder="예: insight-report-bsr" />
         </Form.Item>
 
         <Form.Item label="라벨" name="label" rules={[{ required: true, message: '라벨을 입력해주세요' }]}>

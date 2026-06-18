@@ -14,6 +14,7 @@ const KnowledgeDetail = React.lazy(() => import('./pages/agent-config/KnowledgeD
 const EvalCreate = React.lazy(() => import('./pages/agent-config/EvalCreate'));
 const EvalDetail = React.lazy(() => import('./pages/agent-config/EvalDetail'));
 const ToolList = React.lazy(() => import('./pages/agent-config/ToolList'));
+const ToolGroupCreate = React.lazy(() => import('./pages/agent-config/ToolGroupCreate'));
 const ToolGroupDetail = React.lazy(() => import('./pages/agent-config/ToolGroupDetail'));
 const A2AList = React.lazy(() => import('./pages/agent-config/A2AList'));
 const A2ACreate = React.lazy(() => import('./pages/agent-config/A2ACreate'));
@@ -21,6 +22,7 @@ const A2ADetail = React.lazy(() => import('./pages/agent-config/A2ADetail'));
 const McpList = React.lazy(() => import('./pages/agent-config/McpList'));
 const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
 const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
+const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
 
 export const routes = [
   {
@@ -74,6 +76,7 @@ export const routes = [
             children: [
               { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <ToolList /> },
+              { path: 'create', element: <ToolGroupCreate /> },
               { path: ':groupId', element: <ToolGroupDetail /> },
             ],
           },
@@ -97,6 +100,14 @@ export const routes = [
               { path: ':mcpId', element: <McpDetail /> },
             ],
           },
+        ],
+      },
+      {
+        path: 'monitoring',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="agent" replace /> },
+          { path: 'agent', element: <MonitoringDashboard /> },
         ],
       },
     ],

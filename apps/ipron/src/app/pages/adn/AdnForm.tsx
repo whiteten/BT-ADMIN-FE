@@ -258,7 +258,7 @@ export default function AdnForm() {
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">초기 상태</dt>
-                <dd>{getDnStatusName('0')} (등록 시)</dd>
+                <dd>{getDnStatusName('9')} (등록 시)</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">기본 상태</dt>

@@ -1,5 +1,4 @@
 export interface KeywordBoostingSearchParams {
-  keyword?: string;
   engineCode?: string;
 }
 
@@ -8,6 +7,7 @@ export interface KeywordBoostingItem {
   keyword: string;
   engineCode?: string;
   workUser: string;
+  workUserName: string;
   workTime: string;
 }
 
@@ -26,6 +26,7 @@ export interface SttDictionaryItem {
   afterWord: string;
   useYn: string;
   workUser: string;
+  workUserName: string;
   workTime: string;
 }
 

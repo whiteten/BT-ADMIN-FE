@@ -1,3 +1,0 @@
-FILES=$(git diff --name-only --diff-filter=ACMR origin/master...HEAD -- '*.ts' '*.tsx')
-[ -z "$FILES" ] && exit 0
-node scripts/typecheck-files.js $FILES

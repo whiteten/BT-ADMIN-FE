@@ -4,7 +4,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { didRouteApi } from '../api/didRouteApi';
+import { type DnGroupOptionItem, type WorktimeOptionItem, didRouteApi } from '../api/didRouteApi';
 import type { DidRoute } from '../types';
 
 export const didRouteQueryKeys = createQueryKeys('didRoutes', {
@@ -12,6 +12,8 @@ export const didRouteQueryKeys = createQueryKeys('didRoutes', {
   getDetail: (params?: Record<string, unknown>) => [params],
   getNodes: null,
   getRoutesByNode: (nodeId?: number) => [nodeId],
+  getDnGroupOptions: (tenantId?: number) => [tenantId],
+  getWorktimeOptions: (tenantId?: number) => [tenantId],
 });
 
 // ─── DID Route Queries ────────────────────────────────────────────────────
@@ -102,6 +104,37 @@ export const useGetRoutesByNode = (nodeId?: number, queryOptions?: QueryHookOpti
     queryKey: didRouteQueryKeys.getRoutesByNode(nodeId).queryKey,
     queryFn: () => didRouteApi.getRoutesByNode(nodeId!),
     enabled: !!nodeId,
+    ...queryOptions,
+  });
+};
+
+// ─── DN 그룹 콤보 옵션 ─────────────────────────────────────────────────────
+
+/**
+ * DN 그룹(IPT 관리 조직) 콤보 옵션
+ * SWAT: treeDnGroupByTenantId.do (IPR20S1036.jsp:14)
+ */
+export const useGetDnGroupOptions = (tenantId: number | null | undefined, queryOptions?: QueryHookOptions<DnGroupOptionItem[]>['queryOptions']) => {
+  return useQuery({
+    queryKey: didRouteQueryKeys.getDnGroupOptions(tenantId ?? undefined).queryKey,
+    queryFn: () => didRouteApi.getDnGroupOptions(tenantId!),
+    enabled: tenantId != null,
+    ...queryOptions,
+  });
+};
+
+// ─── 업무시간 콤보 옵션 ────────────────────────────────────────────────────
+
+/**
+ * 업무시간 콤보 옵션 (WORKTIME_TYPE='IE')
+ * SWAT: common.selWorktimeList (IPR20S1036.jsp:385)
+ * DN그룹 onChange 시 선택된 tenantId 로 재조회.
+ */
+export const useGetWorktimeOptions = (tenantId: number | null | undefined, queryOptions?: QueryHookOptions<WorktimeOptionItem[]>['queryOptions']) => {
+  return useQuery({
+    queryKey: didRouteQueryKeys.getWorktimeOptions(tenantId ?? undefined).queryKey,
+    queryFn: () => didRouteApi.getWorktimeOptions(tenantId!),
+    enabled: tenantId != null,
     ...queryOptions,
   });
 };

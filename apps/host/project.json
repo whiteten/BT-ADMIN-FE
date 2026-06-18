@@ -8,6 +8,7 @@
     "build": {
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
+      "inputs": ["production", "^production", "tailwindSources"],
       "defaultConfiguration": "production",
       "options": {
         "compiler": "babel",

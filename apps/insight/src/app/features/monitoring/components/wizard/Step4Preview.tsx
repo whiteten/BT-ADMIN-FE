@@ -4,11 +4,18 @@ import type { Step2FieldOverride } from './Step2DatasetConfig';
 import { DOMAIN_COLOR_CLASS, VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
 import { useGetMonitoringDataset } from '../../hooks/useDatasetQueries';
 import { generateMockRows } from '../../mocks/mockWidgetData';
-import type { KpiDirection, TemplateWidgetMapping, VizType } from '../../types';
+import type { KpiDirection, TemplateWidgetMapping, VizType, WidgetCategory } from '../../types';
+import { CATEGORY_PRESET } from '../../utils/autoPackPosition';
+import WidgetSizePicker from '../WidgetSizePicker';
 import MiniBar from '../preview/MiniBar';
 import MiniCard from '../preview/MiniCard';
 import MiniGrid from '../preview/MiniGrid';
 import MiniLine from '../preview/MiniLine';
+
+/** 기본 시각화 → 추천 크기 산출용 카테고리. */
+const VIZ_CATEGORY: Record<VizType, WidgetCategory> = { GRID: 'TABLE', BAR: 'CHART', LINE: 'CHART', CARD: 'KPI' };
+/** 템플릿 위젯 최소 크기 (DashboardCanvas 와 동일). */
+const TEMPLATE_MIN = { w: 2, h: 2 };
 
 interface Step4Props {
   datasetId: number;
@@ -18,10 +25,12 @@ interface Step4Props {
   mapping: TemplateWidgetMapping;
   widgetName: string;
   refreshInterval: number;
-  onChange: (patch: { widgetName?: string; refreshInterval?: number }) => void;
+  layoutW?: number;
+  layoutH?: number;
+  onChange: (patch: { widgetName?: string; refreshInterval?: number; layoutW?: number; layoutH?: number }) => void;
 }
 
-export default function Step4Preview({ datasetId, fieldOverrides, visualizations, defaultViz, mapping, widgetName, refreshInterval, onChange }: Step4Props) {
+export default function Step4Preview({ datasetId, fieldOverrides, visualizations, defaultViz, mapping, widgetName, refreshInterval, layoutW, layoutH, onChange }: Step4Props) {
   const { data: detail } = useGetMonitoringDataset({ params: { datasetId }, queryOptions: { enabled: !!datasetId, retry: false } });
 
   // 현재 활성 시각화 (사용자가 토글 가능)
@@ -46,6 +55,8 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
   }
 
   const displayName = widgetName.trim() || detail.datasetName;
+  // 기본 시각화 기준 추천 배치 크기.
+  const rec = CATEGORY_PRESET[VIZ_CATEGORY[defaultViz]];
 
   return (
     <div className="flex flex-1 overflow-hidden bg-[var(--color-bt-bg-canvas)]">
@@ -145,6 +156,19 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
             <p className="mt-1 text-[10px] text-[var(--color-bt-fg-muted)] leading-snug">글로벌 옵션이 더 짧으면 글로벌이 우선 (M7). 일시정지는 사용자 뷰 모드에서.</p>
           </div>
 
+          {/* 캔버스 배치 크기 */}
+          <div>
+            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">캔버스 배치 크기</label>
+            <WidgetSizePicker
+              minW={TEMPLATE_MIN.w}
+              minH={TEMPLATE_MIN.h}
+              recommendedW={rec.w}
+              recommendedH={rec.h}
+              value={layoutW && layoutH ? { w: layoutW, h: layoutH } : undefined}
+              onPick={(w, h) => onChange({ layoutW: w, layoutH: h })}
+            />
+          </div>
+
           {/* 위젯 요약 */}
           <div>
             <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">위젯 요약</div>
@@ -179,6 +203,12 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
               <div className="flex items-center gap-2">
                 <span className="w-16 shrink-0 text-[var(--color-bt-fg-muted)]">갱신주기</span>
                 <span className="flex-1 mono text-[var(--color-bt-fg)]">{refreshInterval}초</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-16 shrink-0 text-[var(--color-bt-fg-muted)]">배치 크기</span>
+                <span className="flex-1 mono text-[var(--color-bt-fg)]">
+                  {layoutW ?? rec.w}×{layoutH ?? rec.h} 칸
+                </span>
               </div>
             </div>
           </div>

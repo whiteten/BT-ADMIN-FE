@@ -42,8 +42,10 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '프로파일 관리', path: '/ipron/profile/emerg-profile' },
-  { title: '긴급코드 프로파일', path: '/ipron/profile/emerg-profile' },
+  { title: 'IPRON', path: '/ipron' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '프로파일', path: '/ipron/numbering/profile' },
+  { title: '긴급코드 프로파일', path: '/ipron/emerg-profile' },
 ];
 
 export default function EmergProfileManage() {
@@ -63,6 +65,10 @@ export default function EmergProfileManage() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  // 긴급코드 그리드 서버사이드 LIKE 검색 (SWAT: sEmergencyCode / sEmergencyCodeName)
+  const [codeSearchCode, setCodeSearchCode] = useState('');
+  const [codeSearchName, setCodeSearchName] = useState('');
+  const [codeSearchParams, setCodeSearchParams] = useState<{ emergencyCode?: string; emergencyCodeName?: string }>({});
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +83,7 @@ export default function EmergProfileManage() {
   const { data: profiles = [] } = useGetProfiles();
   const { data: nodes = [] } = useGetNodes();
   const { data: codes = [], isLoading: isCodesLoading } = useGetCodes({
-    params: selectedProfileId ? { profileId: selectedProfileId } : undefined,
+    params: selectedProfileId ? { profileId: selectedProfileId, ...codeSearchParams } : undefined,
     queryOptions: { enabled: !!selectedProfileId },
   });
   const { data: routes = [] } = useGetRoutesByNode(selectedNodeId);
@@ -137,9 +143,28 @@ export default function EmergProfileManage() {
       if (!selectedNodeId || selectedNodeId !== profile.nodeId) {
         setSelectedNodeId(profile.nodeId);
       }
+      // 프로파일 전환 시 코드 검색 초기화
+      setCodeSearchCode('');
+      setCodeSearchName('');
+      setCodeSearchParams({});
     },
     [selectedNodeId],
   );
+
+  // 긴급코드 그리드 검색 실행 (SWAT sEmergencyCode/sEmergencyCodeName 서버사이드 LIKE)
+  const handleCodeSearch = useCallback(() => {
+    setCodeSearchParams({
+      emergencyCode: codeSearchCode.trim() || undefined,
+      emergencyCodeName: codeSearchName.trim() || undefined,
+    });
+  }, [codeSearchCode, codeSearchName]);
+
+  // 긴급코드 그리드 검색 초기화
+  const handleCodeSearchReset = useCallback(() => {
+    setCodeSearchCode('');
+    setCodeSearchName('');
+    setCodeSearchParams({});
+  }, []);
 
   // ─── Invalidate helpers ─────────────────────────────────────────────────────
   const invalidateProfiles = useCallback(() => {
@@ -148,11 +173,12 @@ export default function EmergProfileManage() {
 
   const invalidateCodes = useCallback(() => {
     if (selectedProfileId) {
+      // 현재 codeSearchParams 포함한 정확한 queryKey로 invalidate
       queryClient.invalidateQueries({
-        queryKey: emergProfileQueryKeys.getCodes({ profileId: selectedProfileId }).queryKey,
+        queryKey: emergProfileQueryKeys.getCodes({ profileId: selectedProfileId, ...codeSearchParams }).queryKey,
       });
     }
-  }, [queryClient, selectedProfileId]);
+  }, [queryClient, selectedProfileId, codeSearchParams]);
 
   const invalidateAll = useCallback(() => {
     invalidateProfiles();
@@ -247,7 +273,17 @@ export default function EmergProfileManage() {
   // ─── Code actions ──────────────────────────────────────────────────────────
   const handleCodeCreate = () => codeDrawerRef.current?.open();
   const handleCodeEdit = (code: EmergCode) => codeDrawerRef.current?.open(code);
+
+  // SWAT: validateCode 배열로 기초데이터 여부 사전 체크 후 alert — 서버 요청 자체를 막음
+  // emergencyCodeProfileId === 2000000001 && emergencyCode in [110,112,113,117,119]
+  const BASE_PROFILE_ID = 2000000001;
+  const BASE_EMERGENCY_CODES = ['110', '112', '113', '117', '119'];
+
   const handleCodeDelete = (code: EmergCode) => {
+    if (code.emergencyCodeProfileId === BASE_PROFILE_ID && BASE_EMERGENCY_CODES.includes(code.emergencyCode)) {
+      modal.show.info('기초 데이터는 삭제할 수 없습니다.', '삭제 불가');
+      return;
+    }
     modal.confirm.execute({
       onOk: () =>
         deleteCode({
@@ -500,10 +536,36 @@ export default function EmergProfileManage() {
           {selectedProfile ? (
             <>
               {/* Grid header */}
-              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-                <span className="text-sm font-semibold text-gray-800">
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-100 gap-3">
+                <span className="text-sm font-semibold text-gray-800 flex-shrink-0">
                   {selectedProfile.emergencyCodeProfileName} 긴급코드 ({codes.length}건)
                 </span>
+                {/* 긴급코드/코드명 서버사이드 LIKE 검색 (SWAT: sEmergencyCode / sEmergencyCodeName) */}
+                <div className="flex items-center gap-2 flex-1 justify-end">
+                  <Input
+                    size="small"
+                    placeholder="긴급코드"
+                    value={codeSearchCode}
+                    onChange={(e) => setCodeSearchCode(e.target.value)}
+                    onPressEnter={handleCodeSearch}
+                    style={{ width: 110 }}
+                    allowClear
+                    onClear={handleCodeSearchReset}
+                  />
+                  <Input
+                    size="small"
+                    placeholder="긴급코드명"
+                    value={codeSearchName}
+                    onChange={(e) => setCodeSearchName(e.target.value)}
+                    onPressEnter={handleCodeSearch}
+                    style={{ width: 130 }}
+                    allowClear
+                    onClear={handleCodeSearchReset}
+                  />
+                  <Button size="small" icon={<Search className="size-3" />} onClick={handleCodeSearch}>
+                    검색
+                  </Button>
+                </div>
                 <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
                   긴급코드 추가
                 </Button>

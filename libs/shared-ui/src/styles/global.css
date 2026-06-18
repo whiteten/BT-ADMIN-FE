@@ -87,6 +87,7 @@
     Custom
   */
   --color-bt-primary: #085fb5;
+  --color-bt-primary-soft: #eaf2fb;
 }
 
 .dark {
@@ -256,4 +257,21 @@
 .ag-header-cell:hover .ag-header-icon-menu,
 .ag-header-cell.ag-header-cell-filtered .ag-header-cell-filter-button {
   opacity: 1;
+}
+
+/* 캠페인 통계: 본인통화 성공률 그룹 헤더 — 1·2·3차 바로 위에 붙이고 가로 중앙 */
+.ag-header-group-cell.campaign-stat-self-call-success-group-header {
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ag-header-group-cell.campaign-stat-self-call-success-group-header .ag-header-group-cell-label {
+  flex: 1;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.ag-header-group-cell.campaign-stat-self-call-success-group-header .ag-header-group-text {
+  text-align: center;
+  width: 100%;
 }

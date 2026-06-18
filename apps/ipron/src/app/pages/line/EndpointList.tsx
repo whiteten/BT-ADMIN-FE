@@ -250,12 +250,24 @@ export default function EndpointList() {
   );
 
   const handleDelete = useCallback(
-    (ep: Endpoint) => {
+    async (ep: Endpoint) => {
+      // SWAT IPR20S1010.jsp doDelete() line 844:
+      // memberCount>0 || regnumCount>0 → '해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다' 후 return
+      try {
+        const [epMembers, epRegnums] = await Promise.all([endpointApi.getMembers({ id: ep.endptId }), endpointApi.getRegnums({ id: ep.endptId })]);
+        if (epMembers.length > 0 || epRegnums.length > 0) {
+          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다.');
+          return;
+        }
+      } catch {
+        toast.error('삭제 가능 여부 확인에 실패했습니다.');
+        return;
+      }
       modal.confirm.execute({
         onOk: () => deleteEndpoint({ id: ep.endptId }),
         options: {
           title: '국선 삭제',
-          content: `"${ep.endptName}" 국선을 삭제하시겠습니까?\n하위 멤버 및 인증번호도 함께 삭제됩니다.`,
+          content: `"${ep.endptName}" 국선을 삭제하시겠습니까?`,
         },
       });
     },

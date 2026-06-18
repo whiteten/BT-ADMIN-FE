@@ -6,12 +6,12 @@
  *   - 그리드 행 더블클릭 / [수정] 아이콘 → mode='edit', agentId 전달
  */
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Drawer, Form, Input, InputNumber, Radio, Row, Select, Spin, Tabs } from 'antd';
+import { Button, Col, Drawer, Form, Input, Row, Select, Spin, Tabs } from 'antd';
 import { toast } from '@/shared-util';
-import AgentMediaCards from './AgentMediaCards';
-import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_MDA_OPT_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
-import { useCreateAgent, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgent } from '../hooks/useAgentMasterQueries';
-import type { AgentCreateRequest, AgentGroupNode, AgentUpdateRequest, AgentMediaMatrix as Matrix } from '../types';
+import { useGetAvailableSkillsets } from '../../skill-assign/hooks/useSkillAssignQueries';
+import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
+import { useCreateAgent, useGetAgentConfig, useGetAgentDetail, useGetAgentGroupTree, useGetAgentTenants, useUpdateAgent } from '../hooks/useAgentMasterQueries';
+import type { AgentCreateRequest, AgentGroupNode, AgentUpdateRequest } from '../types';
 
 interface FormValues {
   tenantId?: number;
@@ -25,7 +25,6 @@ interface FormValues {
   oscomId?: number;
   activateYn?: number;
   retireYn?: number;
-  useGrpMdaOpt?: number;
   useGrpSkill?: number;
   masterCtiqId?: number;
   monitorSvc?: number;
@@ -57,8 +56,11 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   const isEdit = mode === 'edit';
 
   const [form] = Form.useForm<FormValues>();
-  const [matrix, setMatrix] = useState<Matrix | null>(null);
   const [selectedTenantId, setSelectedTenantId] = useState<number | undefined>();
+
+  const { data: agentConfig } = useGetAgentConfig();
+  // passwordValidationRequired 기본값 true — 설정 로드 전에도 필수로 동작
+  const pwdRequired = agentConfig?.passwordValidationRequired ?? true;
 
   const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({});
@@ -92,7 +94,6 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
   useEffect(() => {
     if (!open) return;
     form.resetFields();
-    setMatrix(null);
     if (isEdit && detail) {
       form.setFieldsValue({
         tenantId: detail.tenantId,
@@ -105,20 +106,18 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         oscomId: detail.oscomId ?? undefined,
         activateYn: detail.activateYn ?? 1,
         retireYn: detail.retireYn ?? 0,
-        useGrpMdaOpt: detail.useGrpMdaOpt ?? 0,
         useGrpSkill: detail.useGrpSkill ?? 0,
-        masterCtiqId: detail.masterCtiqId ?? undefined,
+        masterCtiqId: detail.masterCtiqId ?? 0,
         monitorSvc: detail.monitorSvc ?? 0,
         coachingSvc: detail.coachingSvc ?? 0,
       });
       setSelectedTenantId(detail.tenantId);
-      setMatrix(detail.mediaMatrix);
     } else if (!isEdit) {
       const init: FormValues = {
         activateYn: 1,
         retireYn: 0,
-        useGrpMdaOpt: 0,
         useGrpSkill: 0,
+        masterCtiqId: 0,
         monitorSvc: 0,
         coachingSvc: 0,
       };
@@ -131,9 +130,20 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
     }
   }, [open, isEdit, detail, form, initialTenantId, initialGroupId]);
 
-  const useGrpMdaOpt = Form.useWatch('useGrpMdaOpt', form) ?? 0;
-
   const tenantOptions = useMemo(() => tenantStats.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenantStats]);
+
+  // groupId → oscomId 룩업 맵 (SWAT IPR20S4010 L419: 그룹 선택 시 oscomId 자동설정)
+  const groupOscomMap = useMemo(() => {
+    const map = new Map<number, number | null>();
+    const walk = (nodes: AgentGroupNode[]) => {
+      for (const n of nodes) {
+        map.set(n.groupId, n.oscomId ?? null);
+        if (n.children?.length) walk(n.children);
+      }
+    };
+    walk(groupTree);
+    return map;
+  }, [groupTree]);
 
   const groupOptions = useMemo(() => {
     const flat = flattenGroups(groupTree, selectedTenantId);
@@ -142,6 +152,14 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
       label: `${'  '.repeat(Math.max(0, g.grpDepth - 1))}${g.groupName}`,
     }));
   }, [groupTree, selectedTenantId]);
+
+  // 주 업무 스킬(MASTER_CTIQ_ID) — 선택 테넌트의 스킬셋 풀을 재사용(skill-assign 종단)
+  const { data: skillsets = [] } = useGetAvailableSkillsets({
+    params: { tenantId: selectedTenantId },
+    queryOptions: { enabled: selectedTenantId != null },
+  });
+
+  const masterSkillOptions = useMemo(() => [{ value: 0, label: '없음' }, ...skillsets.map((s) => ({ value: s.skillsetId, label: s.skillsetName }))], [skillsets]);
 
   const handleSubmit = async () => {
     try {
@@ -157,12 +175,10 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           oscomId: values.oscomId,
           activateYn: values.activateYn,
           retireYn: values.retireYn,
-          useGrpMdaOpt: values.useGrpMdaOpt,
           useGrpSkill: values.useGrpSkill,
           masterCtiqId: values.masterCtiqId,
           monitorSvc: values.monitorSvc,
           coachingSvc: values.coachingSvc,
-          mediaMatrix: values.useGrpMdaOpt === 1 ? null : matrix,
         };
         updateAgent({ id: agentId, body });
       } else {
@@ -172,18 +188,17 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           agentLoginId: values.agentLoginId!,
           agentName: values.agentName!,
           agentAlias: values.agentAlias!,
-          password: values.password!,
+          // pwdRequired=false 이면 비밀번호 미입력 허용 → undefined 전달 시 BE 에서 encryptPwd 미설정
+          password: values.password?.trim() || (pwdRequired ? '' : undefined),
           agentGrade: values.agentGrade,
           jikgup: values.jikgup,
           oscomId: values.oscomId,
           activateYn: values.activateYn,
           retireYn: values.retireYn,
-          useGrpMdaOpt: values.useGrpMdaOpt,
           useGrpSkill: values.useGrpSkill,
           masterCtiqId: values.masterCtiqId,
           monitorSvc: values.monitorSvc,
           coachingSvc: values.coachingSvc,
-          mediaMatrix: values.useGrpMdaOpt === 1 ? null : matrix,
         };
         createAgent(body);
       }
@@ -249,12 +264,12 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                             disabled={!selectedTenantId}
                             showSearch
                             optionFilterProp="label"
+                            onChange={(v: number) => {
+                              // SWAT IPR20S4010 L419-430 정합: 그룹 선택 시 해당 그룹의 oscomId 자동설정
+                              const grpOscomId = groupOscomMap.get(v);
+                              form.setFieldsValue({ oscomId: grpOscomId != null && grpOscomId > 0 ? grpOscomId : undefined });
+                            }}
                           />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item label="아웃소싱업체" name="oscomId">
-                          <InputNumber style={{ width: '100%' }} min={0} placeholder="0 = 없음" />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -262,7 +277,16 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     <SectionTitle>기본정보</SectionTitle>
                     <Row gutter={16}>
                       <Col span={12}>
-                        <Form.Item label="로그인 ID" name="agentLoginId" rules={[{ required: true, message: '로그인 ID를 입력하세요' }, { max: 64 }]}>
+                        <Form.Item
+                          label="로그인 ID"
+                          name="agentLoginId"
+                          rules={[
+                            { required: true, message: '로그인 ID를 입력하세요' },
+                            { min: 3, message: '3자 이상 입력하세요' },
+                            { max: 20, message: '20자까지 입력 가능합니다' },
+                            { pattern: /^[0-9a-zA-Z\-_.]+$/, message: '영문, 숫자, -, _, . 만 입력 가능합니다' },
+                          ]}
+                        >
                           <Input disabled={isEdit} placeholder="예: agent004" />
                         </Form.Item>
                       </Col>
@@ -286,6 +310,17 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                           <Select options={JIKGUP_OPTIONS} placeholder="직급 선택" allowClear showSearch optionFilterProp="label" />
                         </Form.Item>
                       </Col>
+                      <Col span={12}>
+                        <Form.Item label="주 업무 스킬" name="masterCtiqId">
+                          <Select
+                            options={masterSkillOptions}
+                            placeholder={selectedTenantId ? '스킬셋 선택' : '테넌트를 먼저 선택하세요'}
+                            disabled={!selectedTenantId}
+                            showSearch
+                            optionFilterProp="label"
+                          />
+                        </Form.Item>
+                      </Col>
                     </Row>
 
                     <SectionTitle>상태</SectionTitle>
@@ -306,16 +341,16 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                     <Row gutter={16}>
                       <Col span={12}>
                         <Form.Item
-                          label={isEdit ? '비밀번호 (변경 시 입력)' : '비밀번호'}
+                          label={isEdit ? '비밀번호 (변경 시 입력)' : pwdRequired ? '비밀번호' : '비밀번호 (선택)'}
                           name="password"
-                          rules={isEdit ? [] : [{ required: true, message: '비밀번호를 입력하세요' }]}
+                          rules={isEdit ? [] : pwdRequired ? [{ required: true, message: '비밀번호를 입력하세요' }] : []}
                         >
-                          <Input.Password autoComplete="new-password" placeholder={isEdit ? '미입력 시 유지' : ''} />
+                          <Input.Password autoComplete="new-password" placeholder={isEdit ? '미입력 시 유지' : pwdRequired ? '' : '미입력 시 비밀번호 없음'} />
                         </Form.Item>
                       </Col>
                       <Col span={12}>
                         <Form.Item label="암호화 방식">
-                          <ReadOnly text="SHA-512" hint="(시스템 고정)" />
+                          <ReadOnly text="SHA-512" hint={pwdRequired ? '(시스템 고정)' : '(비밀번호 미사용 시 해싱 안 함)'} />
                         </Form.Item>
                       </Col>
                     </Row>
@@ -331,7 +366,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                           </Col>
                           <Col span={12}>
                             <Form.Item label="작업자">
-                              <ReadOnly text={detail?.workUser ? String(detail.workUser) : '-'} />
+                              <ReadOnly text={detail?.workUserName ?? '-'} />
                             </Form.Item>
                           </Col>
                         </Row>
@@ -343,6 +378,8 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
               {
                 key: 'cti',
                 label: '② CTI 옵션',
+                // SWAT IPR20S4010 L769-775 정합: 신규 등록 모드에서는 최초 저장 전까지 CTI 탭 비활성
+                disabled: !isEdit,
                 children: (
                   <div>
                     <SectionTitle>노드</SectionTitle>
@@ -367,31 +404,6 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                         </Form.Item>
                       </Col>
                     </Row>
-
-                    <div className="flex items-center justify-between mb-3" style={{ marginTop: 8 }}>
-                      <h3 className="text-[13px] font-semibold text-gray-700 m-0">스킬 / 주 업무</h3>
-                      <Form.Item name="useGrpSkill" className="!mb-0">
-                        <Radio.Group options={USE_GRP_SKILL_OPTIONS} optionType="button" buttonStyle="solid" size="small" />
-                      </Form.Item>
-                    </div>
-                    <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item label="주 업무 스킬 ID" name="masterCtiqId">
-                          <InputNumber style={{ width: '100%' }} min={0} placeholder="0 = 없음" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <div className="flex items-center justify-between mb-3" style={{ marginTop: 12 }}>
-                      <h3 className="text-[13px] font-semibold text-gray-700 m-0">미디어 / 통화 옵션</h3>
-                      <Form.Item name="useGrpMdaOpt" className="!mb-0">
-                        <Radio.Group options={USE_GRP_MDA_OPT_OPTIONS} optionType="button" buttonStyle="solid" size="small" />
-                      </Form.Item>
-                    </div>
-                    <p className="text-[12px] text-gray-500 -mt-2 mb-3">
-                      {useGrpMdaOpt === 1 ? '그룹 기본값을 상속합니다. 아래 매트릭스는 비활성화됩니다.' : '아래 매트릭스에 입력된 개별 옵션이 적용됩니다.'}
-                    </p>
-                    <AgentMediaCards value={matrix} onChange={setMatrix} disabled={useGrpMdaOpt === 1} />
 
                     <SectionTitle>운영</SectionTitle>
                     <Row gutter={16}>

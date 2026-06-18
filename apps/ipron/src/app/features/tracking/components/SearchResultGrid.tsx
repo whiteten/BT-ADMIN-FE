@@ -613,7 +613,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         pagination
         paginationPageSize={DEFAULT_PAGE_SIZE}
         paginationPageSizeSelector={[20, 50, 100, 200, 500]}
-        defaultColDef={{ filter: true, sortable: true, resizable: true, floatingFilter: false }}
+        defaultColDef={{ filter: true, sortable: true, resizable: true, floatingFilter: false, suppressHeaderMenuButton: true }}
         getRowId={(p) => p.data.ucid}
         onRowDoubleClicked={(e: RowDoubleClickedEvent<CallSearchResult>) => {
           if (e.data && onRowDoubleClick) onRowDoubleClick(e.data);

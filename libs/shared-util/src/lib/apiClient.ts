@@ -90,9 +90,14 @@ export default class ApiClient {
   };
 
   #setConfig(config: InternalAxiosRequestConfig): ExtendedAxiosRequestConfig {
-    // X-CSRF-TOKEN 헤더 설정
+    // X-CSRF-TOKEN 헤더 설정.
+    // 쿠키가 없을 때(아직 미발급/만료) null 을 그대로 넣으면 잘못된 헤더로 403 이 발생하므로,
+    // 토큰이 존재할 때만 헤더를 설정한다. 누락 시에는 응답 인터셉터의 403 → 토큰 재발급 → 재시도
+    // 복구 로직이 동작한다. (axios 는 withCredentials 시 X-XSRF-TOKEN 도 자동 주입한다.)
     const token = getCookie('XSRF-TOKEN');
-    config.headers['X-CSRF-TOKEN'] = token;
+    if (token) {
+      config.headers['X-CSRF-TOKEN'] = token;
+    }
     const extendedConfig = config as ExtendedAxiosRequestConfig;
     extendedConfig.key = createShortId(); // 로그 트래킹을 위한 key.
     return extendedConfig;

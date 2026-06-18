@@ -73,13 +73,28 @@ pipeline {
                         .replaceAll('^origin/', '')
                         .replaceAll('/', '-')
 
-                    env.PROJECT_VERSION = sh(
-                        script: "git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo '1.0.0'",
+                    env.GIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+
+                    env.GIT_AUTHOR = sh(
+                        script: "git log -1 --pretty=format:'%an <%ae>'",
+                        returnStdout: true
+                    ).trim()
+
+                    env.GIT_AUTHOR_EMAIL = sh(
+                        script: "git log -1 --pretty=format:'%ae'",
+                        returnStdout: true
+                    ).trim()
+
+                    env.GIT_SUBJECT = sh(
+                        script: "git log -1 --pretty=format:'%s'",
                         returnStdout: true
                     ).trim()
 
                     env.PKG_NAME = "btadmin-fe-${env.TAG}-${TODAY_STRING}.tgz"
-                    echo "버전 정보: ${env.TAG}, 프로젝트 버전: ${env.PROJECT_VERSION}, 패키지: ${env.PKG_NAME}"
+                    echo "버전 정보: ${env.TAG}, 커밋: ${env.GIT_SHORT}, 패키지: ${env.PKG_NAME}"
                 }
             }
         }
@@ -221,6 +236,26 @@ pipeline {
             echo "BT-ADMIN FE 빌드 실패"
         }
         always {
+            // 빌드 결과 메일 발송 (성공·실패 모두)
+            emailext(
+                to: "${env.GIT_AUTHOR_EMAIL}, jryoo@bridgetec.co.kr, bingbang2@bridgetec.co.kr, hojaee@bridgetec.co.kr, akdrhtn@bridgetec.co.kr, sm.yang@bridgetec.co.kr, won5972@bridgetec.co.kr, yun99@bridgetec.co.kr",
+                subject: "[${currentBuild.currentResult}]BT-ADMIN-FE ${env.TAG} (#${env.BUILD_NUMBER})",
+                mimeType: 'text/plain',
+                attachLog: true,
+                body: """\
+                    BT-ADMIN FE 빌드 결과 알림
+
+                    - 결과      : ${currentBuild.currentResult}
+                    - 브랜치    : ${env.TAG}
+                    - 커밋      : ${env.GIT_SHORT}
+                    - 커밋 메시지 : ${env.GIT_SUBJECT}
+                    - 커밋자    : ${env.GIT_AUTHOR}
+                    - 패키지    : ${env.PKG_NAME}
+                    - 빌드 번호 : #${env.BUILD_NUMBER}
+                    - 빌드 로그 : ${env.BUILD_URL}console
+                    """.stripIndent()
+            )
+
             // 빌드 실패 시 Change Ownership 스테이지가 스킵되므로 여기서도 한 번 더 복원.
             // docker -u root 로 생성된 파일이 워크스페이스에 남아 cleanWs 권한 에러 나는 문제 방지.
             // 실제 워크스페이스 경로(${WORKSPACE})를 사용 — JENKINS_WORK_PATH 는 실제 워크스페이스와 무관한 잔여 변수.

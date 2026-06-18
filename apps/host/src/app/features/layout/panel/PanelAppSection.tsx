@@ -1,4 +1,5 @@
 import { useMenuStore } from '@/shared-store';
+import { getAppBadgeIcon } from './PanelAppBadgeStrip';
 import { PanelMenuRow } from './PanelMenuPrimitives';
 import { MenuSpinner } from '../components/MenuSpinner';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
@@ -30,16 +31,21 @@ const PanelAppSection = ({ onNavigate }: PanelAppSectionProps) => {
   }
 
   const visibleMenus = config.menus.filter((m) => !m.hide);
+  const Icon = getAppBadgeIcon(config.appId);
 
   return (
     <section className="flex flex-col">
-      <header className="px-3 mb-2">
-        <h3 className="text-sm font-semibold tracking-wider text-[#868e96]">{config.appName}</h3>
+      <header className="px-3 pt-5 pb-4 min-h-[72px] flex items-center gap-2">
+        <span className="flex items-center justify-center size-7 shrink-0 text-[var(--color-bt-primary)]">
+          <Icon className="!size-7" />
+        </span>
+        <h3 className="text-lg font-bold tracking-tight text-[#212529] truncate">{config.appName}</h3>
       </header>
+      <div className="mx-3 border-t border-[#e9ecef]" />
       {visibleMenus.length === 0 ? (
         <p className="text-xs text-[#adb5bd] px-3 py-4">메뉴 정보를 찾을 수 없습니다.</p>
       ) : (
-        <div className="flex flex-col gap-px">
+        <div className="flex flex-col gap-px pt-3">
           {visibleMenus.map((item) => (
             <PanelMenuRow key={item.menuKey} item={item} appId={config.appId} onNavigate={onNavigate} />
           ))}

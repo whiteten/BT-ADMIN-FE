@@ -46,3 +46,19 @@ export interface AgentDeployResponse {
   resultCode: 'S' | 'A';
   message: string;
 }
+
+/** 배포 버전 스냅샷 (배포 이력). 목록 조회 시 aoeJson 은 비어있고 상세에서만 채워진다. */
+export interface AgentVersion {
+  versionId: string;
+  agentId: string;
+  versionNo: number;
+  aoeJson?: string;
+  aoeHash?: string;
+  deployResult?: string;
+  /** 버전 이름/메모. 값이 있으면 자동 정리(보존 개수 제한)에서 제외 = 보존 */
+  memo?: string;
+  /** 내용이 더 이른 버전과 동일하면 그 버전 번호 — "vN 복원" 표시용 */
+  restoredFromVersionNo?: number;
+  workUser?: number;
+  workTime?: string;
+}

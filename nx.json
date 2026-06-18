@@ -17,7 +17,12 @@
       "!{projectRoot}/src/test-setup.[jt]s",
       "!{projectRoot}/test-setup.[jt]s"
     ],
-    "sharedGlobals": []
+    "tailwindSources": [
+      "{workspaceRoot}/apps/**/*.{js,jsx,ts,tsx,html}",
+      "{workspaceRoot}/libs/**/*.{js,jsx,ts,tsx,html}",
+      "{workspaceRoot}/libs/shared-ui/src/styles/global.css"
+    ],
+    "sharedGlobals": ["{workspaceRoot}/tools/webpack/**/*"]
   },
   "plugins": [
     {

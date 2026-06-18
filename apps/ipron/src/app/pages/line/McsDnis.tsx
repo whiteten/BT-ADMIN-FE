@@ -23,7 +23,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/mcs-dnis' },
+  { title: '미디어 관리', path: '/ipron/line/mcs-dnis' },
   { title: 'DNIS관리(MCS)', path: '/ipron/line/mcs-dnis' },
 ];
 
@@ -176,8 +176,8 @@ export default function McsDnis() {
   });
 
   const handleCreateGdn = useCallback(() => {
-    gdnDrawerRef.current?.open();
-  }, []);
+    gdnDrawerRef.current?.open(undefined, selectedOp);
+  }, [selectedOp]);
 
   const handleEditGdn = useCallback((gdn: McsdGdn) => {
     gdnDrawerRef.current?.open(gdn);
@@ -213,14 +213,6 @@ export default function McsDnis() {
     }
     dnisDrawerRef.current?.open(undefined, selectedGdn.mcsdGdnNo, nodes);
   }, [selectedGdn, nodes]);
-
-  const handleEditDnis = useCallback(
-    (dnis: McsdDnis) => {
-      if (!selectedGdn) return;
-      dnisDrawerRef.current?.open(dnis, selectedGdn.mcsdGdnNo, nodes);
-    },
-    [selectedGdn, nodes],
-  );
 
   const handleDeleteDnis = useCallback(
     (dnis: McsdDnis) => {
@@ -397,7 +389,7 @@ export default function McsDnis() {
                 getRowId={(params) => `${params.data.mcsdGdnNo}-${params.data.seq}-${params.data.nodeId}`}
                 defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
-                  if (e.data) handleEditDnis(e.data);
+                  if (e.data) toast.warning('수정은 불가능합니다. 삭제 후 다시 추가하세요.');
                 }}
               />
             ) : (

@@ -2,13 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
+import { Button, Dropdown, Input, Select } from 'antd';
 import dayjs from 'dayjs';
-import { Trash2 } from 'lucide-react';
+import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import { useGetCodes } from '../hooks/useCommonQueries';
-import { dictionaryQueryKeys, useCreateKeywordBoosting, useDeleteKeywordBoosting, useGetKeywordBoostingList, useImportKeywordBoosting } from '../hooks/useDictionaryQueries';
+import {
+  dictionaryQueryKeys,
+  useCreateKeywordBoosting,
+  useDeleteKeywordBoosting,
+  useExportKeywordBoostingTemplate,
+  useGetKeywordBoostingList,
+  useImportKeywordBoosting,
+} from '../hooks/useDictionaryQueries';
 import type { KeywordBoostingItem } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -66,6 +73,8 @@ export default function KeywordBoosting() {
       },
     },
   });
+
+  const { mutate: exportTemplate, isPending: isExporting } = useExportKeywordBoostingTemplate();
 
   const { mutate: importKeywordBoosting, isPending: isImporting } = useImportKeywordBoosting({
     mutationOptions: {
@@ -138,7 +147,7 @@ export default function KeywordBoosting() {
     },
     {
       headerName: '등록자',
-      field: 'workUser',
+      field: 'workUserName',
       flex: 2,
     },
     {
@@ -179,9 +188,39 @@ export default function KeywordBoosting() {
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>
-          <Button variant="solid" onClick={handleClickImport}>
-            Import
-          </Button>
+          <Dropdown
+            trigger={['click']}
+            placement="bottomRight"
+            menu={{
+              items: [
+                {
+                  key: 'import-excel',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <Upload className="size-4" />
+                      엑셀로 일괄추가
+                    </span>
+                  ),
+                  onClick: handleClickImport,
+                },
+                {
+                  key: 'template-download',
+                  label: (
+                    <span className="flex items-center gap-2">
+                      <Download className="size-4" />
+                      템플릿 다운로드
+                    </span>
+                  ),
+                  onClick: () => exportTemplate(undefined),
+                },
+              ],
+            }}
+          >
+            <Button variant="solid" loading={isExporting}>
+              Import
+              <ChevronDown className="size-3.5" />
+            </Button>
+          </Dropdown>
         </div>
       </div>
 

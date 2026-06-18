@@ -119,7 +119,7 @@ const KnowledgeMetadataDrawer = forwardRef<KnowledgeMetadataDrawerRef>((_, ref) 
             {metadata.map((item) => (
               <div
                 key={item.metaId}
-                className="group flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white hover:border-blue-300 hover:bg-blue-50/50 transition-all"
+                className="group flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white hover:border-[var(--color-bt-primary)]/40 hover:bg-[var(--color-bt-primary-soft)]/50 transition-all"
               >
                 <div className="flex items-center gap-3">
                   {getTypeIcon(item.metaType)}

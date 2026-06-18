@@ -4,9 +4,9 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, Empty, Input } from 'antd';
+import { Button, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { adnApi } from '../../features/adn/api/adnApi';
 import AdnCopyDrawer, { type AdnCopyFormValues } from '../../features/adn/components/AdnCopyDrawer';
@@ -35,13 +35,34 @@ export default function AdnList() {
   const modal = useModal();
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
+  /**
+   * ADN 상태 필터 — AS-IS SWAT IPR20S2023 srchAdnStatus 콤보 대응.
+   * TB_CC_COMMONCODE (CLASS_CD='DN_STATUS', ADDCOND1_VALUE='ADN'): '8'=로그인, '9'=로그아웃.
+   * null = 전체.
+   */
+  const [dnStatusFilter, setDnStatusFilter] = useState<string | null>(null);
   const [selectedRows, setSelectedRows] = useState<AdnResponse[]>([]);
   const [copyOpen, setCopyOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(true);
+  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
+  const [cardExpanded, setCardExpanded] = useState(false);
+
+  // ctx 비동기 로드 시 동기화
+  useEffect(() => {
+    if (ctxTenantId != null && selectedTenantId === null) {
+      setSelectedTenantId(ctxTenantId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: adns = [], isLoading } = useGetAdns({});
@@ -81,6 +102,10 @@ export default function AdnList() {
     if (selectedTenantId !== null) {
       rows = rows.filter((r) => r.tenantId === selectedTenantId);
     }
+    // AS-IS srchAdnStatus 콤보 필터: '8'=로그인, '9'=로그아웃 (TB_CC_COMMONCODE ADN 코드)
+    if (dnStatusFilter !== null) {
+      rows = rows.filter((r) => r.dnStatus === dnStatusFilter);
+    }
     const kw = searchText.trim().toLowerCase();
     if (kw) {
       rows = rows.filter((r) => {
@@ -89,7 +114,7 @@ export default function AdnList() {
       });
     }
     return rows;
-  }, [adns, selectedTenantId, searchText]);
+  }, [adns, selectedTenantId, dnStatusFilter, searchText]);
 
   const totalStats = useMemo(() => {
     let totalCnt = 0;
@@ -154,7 +179,10 @@ export default function AdnList() {
 
   const handleExport = async () => {
     try {
-      const blob = await adnApi.exportExcel(selectedTenantId ? { tenantId: selectedTenantId } : undefined);
+      const exportParams: { tenantId?: number; dnStatus?: string } = {};
+      if (selectedTenantId) exportParams.tenantId = selectedTenantId;
+      if (dnStatusFilter) exportParams.dnStatus = dnStatusFilter;
+      const blob = await adnApi.exportExcel(Object.keys(exportParams).length ? exportParams : undefined);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -173,11 +201,28 @@ export default function AdnList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 카드 슬라이더 박스 ===== */}
+      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[44px] border-b border-gray-100">
-          <span className="text-sm font-semibold text-gray-700">테넌트별 ADN 현황</span>
+        <div className="flex items-center px-4 h-[56px]">
+          <span className="text-sm font-semibold text-gray-700">ADN 현황</span>
+          {selectedTenantId !== null && (
+            <span className="ml-3 text-xs text-gray-500">
+              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
+            </span>
+          )}
           <div className="ml-auto flex items-center gap-2">
+            {/* AS-IS srchAdnStatus 콤보 — TB_CC_COMMONCODE CLASS_CD='DN_STATUS' ADDCOND1_VALUE='ADN' */}
+            <Select
+              allowClear
+              placeholder="상태"
+              value={dnStatusFilter ?? undefined}
+              onChange={(val: string | undefined) => setDnStatusFilter(val ?? null)}
+              style={{ width: 110 }}
+              options={[
+                { value: '8', label: '로그인' },
+                { value: '9', label: '로그아웃' },
+              ]}
+            />
             <Input
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
@@ -194,7 +239,10 @@ export default function AdnList() {
             </Button>
           </div>
         </div>
+      </div>
 
+      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스, gap-4 로 분리) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         {cardExpanded ? (
           <div className="flex items-center h-[140px] px-4 py-3">
             <div className="relative flex items-center gap-2 w-full">

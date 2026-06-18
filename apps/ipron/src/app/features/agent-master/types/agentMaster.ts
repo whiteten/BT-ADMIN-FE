@@ -49,6 +49,7 @@ export interface AgentResponse {
   agentGrade: string | null;
   jikgup: string | null;
   oscomId: number | null;
+  oscomName: string | null;
   activateYn: number; // 0/1
   retireYn: number; // 0/1
   agentStatus: string | null;
@@ -59,6 +60,7 @@ export interface AgentResponse {
   coachingSvc: number | null;
   mediaMatrix: AgentMediaMatrix | null;
   workUser: number | null;
+  workUserName: string | null;
   workTime: string | null;
 }
 
@@ -68,7 +70,8 @@ export interface AgentCreateRequest {
   agentLoginId: string;
   agentName: string;
   agentAlias: string;
-  password: string;
+  /** password-validation-required=false 시 미입력 허용 (undefined). BE 에서 encryptPwd 미설정. */
+  password?: string;
   agentGrade?: string;
   jikgup?: string;
   oscomId?: number;
@@ -119,6 +122,14 @@ export interface AgentDuplicateCheckParams {
   excludeAgentId?: number;
 }
 
+/** 상담사 비밀번호 정책 설정 (BE ipron.agent.* 대응). */
+export interface AgentConfig {
+  /** 등록 시 비밀번호 필수 여부. SWAT Globals.AgentPasswordValidation */
+  passwordValidationRequired: boolean;
+  /** 비밀번호 복잡도/길이 정책 사용 여부. SWAT Globals.AgentPasswordPolicyUse */
+  passwordPolicyUse: boolean;
+}
+
 // ─── 상담그룹 ─────────────────────────────────────────────────────────────
 
 export interface AgentGroupNode {
@@ -128,6 +139,7 @@ export interface AgentGroupNode {
   priorGrpId: number | null;
   grpDepth: number;
   groupName: string;
+  oscomId: number | null;
   activateYn: number;
   agentCount: number;
   children: AgentGroupNode[];

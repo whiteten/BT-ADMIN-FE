@@ -140,8 +140,8 @@ export type StatusColor = 'idle' | 'talk' | 'ring' | 'hold' | 'wrap' | 'aux' | '
 /** 알람 단계 — 임계값 평가 결과. */
 export type AlarmLevel = 0 | 1 | 2; // 0: 정상, 1: notice(주의), 2: alarm(임계초과)
 
-/** 위젯 표시 밀도 — 카드(상세) / 행(목록) / 도트(200+ 한 화면) */
-export type Density = 'card' | 'row' | 'dot';
+/** 위젯 표시 밀도 — 카드(상세) / 행(목록) / 도트(200+ 한 화면) / 그리드(ag-Grid 표) */
+export type Density = 'card' | 'row' | 'dot' | 'grid';
 
 /** 그룹화 기준. */
 export type GroupBy = 'queue' | 'state' | 'category' | 'none';

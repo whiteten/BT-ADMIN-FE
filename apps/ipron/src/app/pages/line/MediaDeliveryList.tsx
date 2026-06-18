@@ -33,7 +33,7 @@ import {
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/media-delivery' },
+  { title: '미디어 관리', path: '/ipron/line/media-delivery' },
   { title: '미디어전달관리', path: '/ipron/line/media-delivery' },
 ];
 
@@ -66,7 +66,11 @@ export default function MediaDeliveryList() {
   const mdGrpDrawerRef = useRef<MdGrpDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: mdGrps = [] } = useGetMdGrps();
+  // 갭-2: 그룹명 검색은 서버사이드 LIKE 필터 (SWAT IPR20S1090_SQL.xml search1 파라미터 대응)
+  const grpNameParam = searchText.trim() || undefined;
+  const { data: mdGrps = [] } = useGetMdGrps({
+    params: grpNameParam ? { grpName: grpNameParam } : undefined,
+  });
   const { data: nodes = [] } = useGetNodes();
   const { data: mdItems = [] } = useGetMdItems({
     params: selectedGrpId ? { grpId: selectedGrpId } : undefined,
@@ -144,16 +148,15 @@ export default function MediaDeliveryList() {
   // ─── Derived data ─────────────────────────────────────────────────────────
   const isSearching = searchText.trim().length > 0;
 
-  const searchFilteredMdGrps = useMemo(() => {
-    if (!isSearching) return mdGrps;
-    const kw = searchText.trim().toLowerCase();
-    return mdGrps.filter((g) => [g.grpName, g.nodeName].some((v) => v?.toString().toLowerCase().includes(kw)));
-  }, [mdGrps, isSearching, searchText]);
-
+  // 갭-2: 서버사이드 검색 결과를 그대로 사용.
+  // 검색 중에는 nodeId를 null로 리셋하므로 클라이언트 nodeId 필터만 남김.
   const filteredMdGrps = useMemo(
-    () => (isSearching || selectedNodeId === null ? searchFilteredMdGrps : searchFilteredMdGrps.filter((g) => g.nodeId === selectedNodeId)),
-    [searchFilteredMdGrps, selectedNodeId, isSearching],
+    () => (isSearching || selectedNodeId === null ? mdGrps : mdGrps.filter((g) => g.nodeId === selectedNodeId)),
+    [mdGrps, selectedNodeId, isSearching],
   );
+
+  // 전체 탭 카운터 표시용 (검색 결과 기준)
+  const searchFilteredMdGrps = filteredMdGrps;
 
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
@@ -211,7 +214,7 @@ export default function MediaDeliveryList() {
         onOk: () => deleteMdGrp({ id: grp.grpId }),
         options: {
           title: '미디어전달그룹 삭제',
-          content: `"${grp.grpName}" 그룹을 삭제하시겠습니까?\n할당된 미디어전달이 있으면 삭제할 수 없습니다.`,
+          content: `"${grp.grpName}" 그룹을 삭제하시겠습니까?\n배정된 미디어전달이 있으면 삭제할 수 없습니다.`,
         },
       });
     },
@@ -440,7 +443,7 @@ export default function MediaDeliveryList() {
                             <Network className="size-3 text-gray-400" />
                             <span className="truncate">{grp.nodeName ?? `Node ${grp.nodeId}`}</span>
                           </div>
-                          <div>할당 미디어전달: {grp.itemCount}/2</div>
+                          <div>배정 미디어전달: {grp.itemCount}/2</div>
                         </div>
 
                         {/* Item count tag — pushed to bottom */}
@@ -450,7 +453,7 @@ export default function MediaDeliveryList() {
                               grp.itemCount >= 2 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-blue-700 bg-blue-50 border-blue-200'
                             }`}
                           >
-                            {grp.itemCount >= 2 ? '할당완료' : `${2 - grp.itemCount}건 추가가능`}
+                            {grp.itemCount >= 2 ? '배정완료' : `${2 - grp.itemCount}건 추가가능`}
                           </span>
                         </div>
                       </div>

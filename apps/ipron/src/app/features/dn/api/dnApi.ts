@@ -209,6 +209,33 @@ export const dnApi = {
     return response.data?.data?.value ?? [];
   },
 
+  /**
+   * 갭6: DN 삭제 전 SCA/SNR 연관 건수 조회 (SWAT IPR20S2020S_RelationCount 정합)
+   * @flow ipron-dn-relation-count
+   */
+  getRelationCount: async (dnId: number): Promise<number> => {
+    const response = await apiClient.get<ApiResponse<number>>('/ipron-dn-relation-count', {
+      params: { id: dnId },
+    });
+    return response.data?.data ?? 0;
+  },
+
+  /**
+   * 갭7: 여유번호 검색 (SWAT IPR20S2020_FreeDn.jsp 정합)
+   * startNo~endNo 범위 내 사용 가능한 DN 번호 목록 조회
+   * @flow ipron-dn-range
+   */
+  getFreeDnRange: async (params: {
+    nodeId: number;
+    startNo: string;
+    endNo: string;
+  }): Promise<{ nodeId: number; startNo: string; endNo: string; freeDnNumbers: string[]; freeCount: number }> => {
+    const response = await apiClient.get<ApiResponse<{ nodeId: number; startNo: string; endNo: string; freeDnNumbers: string[]; freeCount: number }>>('/ipron-dn-range', {
+      params,
+    });
+    return response.data?.data;
+  },
+
   // ─── Profile 연동 (DN 일괄 배정) ──────────────────────────────────────────
 
   /**

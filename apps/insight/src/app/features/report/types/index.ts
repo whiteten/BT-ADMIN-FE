@@ -15,6 +15,8 @@ export interface ReportListItem {
   description?: string;
   domain: DomainCode;
   datasetId: number;
+  /** 보고서 패널들이 사용하는 데이터셋명 목록 (distinct, 이름순). v5.0 패널 단위 데이터셋. */
+  datasetNames?: string[];
   isPublished: boolean;
   ownerUserId: number;
   updatedAt: string;
@@ -27,6 +29,7 @@ export interface ReportDetail {
   description?: string;
   domain: DomainCode;
   datasetId: number;
+  iconType?: ReportIconType;
   isPublished: boolean;
   ownerUserId: number;
   createdAt: string;
@@ -62,7 +65,6 @@ export interface SearchBinding {
   bindId: number;
   searchCondId: number;
   title: string;
-  isBundle: boolean;
   bindOrder: number;
   requiredYn: boolean;
   defaultValue?: unknown;
@@ -81,6 +83,9 @@ export interface PanelFieldMap {
   sortDirection?: 'ASC' | 'DESC';
   topN?: number;
   otherGrouping?: boolean;
+  searchCondId?: number;
+  /** FILTER 슬롯 cascade: 이 컬럼이 검색조건의 어느 단계(node)에 매핑되는지 (G4-b). 단일 조건은 미지정. */
+  nodeCode?: string;
 }
 
 export interface PanelLayout {
@@ -116,13 +121,19 @@ export interface RadarChartOptions {
   legend?: boolean;
 }
 
-export type ChartOptions = BarChartOptions | LineChartOptions | PieChartOptions | RadarChartOptions;
+export interface GridOptions {
+  showSumRow?: boolean;
+}
+
+export type ChartOptions = GridOptions | BarChartOptions | LineChartOptions | PieChartOptions | RadarChartOptions;
 
 export interface PanelDetail {
   panelId: number;
   reportId: number;
   panelType: PanelType;
   title: string;
+  /** 패널 데이터셋 (패널마다 다른 데이터셋 가능) */
+  datasetId: number;
   layout: PanelLayout;
   chartOptions?: ChartOptions;
   fieldMap: PanelFieldMap[];
@@ -138,12 +149,16 @@ export interface ReportCreateDatas {
 
 export interface ReportUpdateDatas {
   title: string;
+  domain: DomainCode;
+  datasetId: number;
   description?: string;
+  iconType?: ReportIconType;
 }
 
 export interface PanelCreateDatas {
   panelType: PanelType;
   title: string;
+  datasetId: number;
   layout: PanelLayout;
   chartOptions?: ChartOptions;
   fieldMap: PanelFieldMap[];
@@ -171,10 +186,4 @@ export interface SearchBindingCreateDatas {
   bindOrder: number;
   requiredYn: boolean;
   defaultValue?: unknown;
-}
-
-export interface PublishDatas {
-  menuPath: string;
-  menuName: string;
-  permissionGroups: string[];
 }

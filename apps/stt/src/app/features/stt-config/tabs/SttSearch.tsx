@@ -25,23 +25,19 @@ export default function SttSearch() {
   const [searchParams, setSearchParams] = useState<SttSearchParams>({
     fromDateTime: dayjs().format('YYYYMMDD') + '000000',
     toDateTime: dayjs().format('YYYYMMDD') + '235959',
-    analKindArr: ['R', 'B'],
   });
 
-  const buildParams = (): SttSearchParams => ({
-    fromDateTime: startDate && startTime ? startDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
-    toDateTime: endDate && endTime ? endDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    keyword: keyword || undefined,
-    analKindArr: ['R', 'B'],
-  });
-
-  const { data: rowData, isLoading } = useGetSttSearch({
+  const {
+    data: rowData,
+    isLoading,
+    refetch,
+  } = useGetSttSearch({
     params: searchParams as Record<string, unknown>,
   });
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchItem>) => {
     if (!event.data) return;
-    drawerRef.current?.open(event.data);
+    drawerRef.current?.open(event.data, event.data.engineCode, keyword.trim());
   };
 
   const handleSearch = () => {
@@ -61,7 +57,18 @@ export default function SttSearch() {
       toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
-    setSearchParams(buildParams());
+    if (keyword && endDate.diff(startDate, 'day') > 6) {
+      toast.warning('키워드 검색 시 조회 기간은 최대 7일입니다.');
+      return;
+    }
+    const newParams: SttSearchParams = {
+      fromDateTime: startDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
+      toDateTime: endDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
+      keyword: keyword || undefined,
+    };
+    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(searchParams);
+    setSearchParams(newParams);
+    if (!paramsChanged) void refetch();
   };
 
   const columnDefs: ColDef<SttSearchItem>[] = [

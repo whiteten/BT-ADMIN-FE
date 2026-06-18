@@ -19,6 +19,7 @@ import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   AgentEvent,
   CallDetailHeader,
+  CallQuality,
   CallSearchResult,
   CallSegment,
   CtiRoutingHop,
@@ -445,6 +446,7 @@ function toSearchRequest(c: TrackingSearchCriteria) {
     abandoned: c.abandoned,
     reqAgent: c.reqAgent,
     ivrSelfServiced: c.ivrSelfServiced,
+    purposeOfInquiry: c.purposeOfInquiry,
     requestedMode: c.mode === 'PBX' ? 'PBX_FRONT' : c.mode === 'IVR' ? 'IVR_FRONT' : c.mode === 'CTI' ? 'CTI_FRONT' : c.mode,
     page: c.page,
     size: c.size,
@@ -566,6 +568,49 @@ export const trackingApi = {
   },
 
   // ─── Recording Redirect ───────────────────────────────────────────────────
+
+  /**
+   * Quality 탭 — UCID + HOP 기준 통화품질 데이터 조회.
+   * Backend: ApiResponse<Map<String,Object>> (Oracle 컬럼명 그대로) -> BFF: data:{...}
+   * @flow ipron-tracking-quality
+   *
+   * @param hop HOP 번호 (미지정 시 0)
+   */
+  getQuality: async (ucid: string, hop?: number): Promise<CallQuality> => {
+    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/ipron-tracking-quality', {
+      params: { ucid, hop: hop ?? 0 },
+    });
+    const raw = (response.data?.data ?? {}) as Record<string, unknown>;
+    // Oracle 컬럼명(대문자) → camelCase 매핑
+    const num = (k: string): number | null => {
+      const v = raw[k];
+      if (v == null) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const str = (k: string): string | null => {
+      const v = raw[k];
+      return v != null ? String(v) : null;
+    };
+    return {
+      oType: num('O_TYPE'),
+      tType: num('T_TYPE'),
+      oRemoteAddr: str('O_REMOTE_ADDR'),
+      tRemoteAddr: str('T_REMOTE_ADDR'),
+      oNegoCodec: str('O_NEGO_CODEC'),
+      tNegoCodec: str('T_NEGO_CODEC'),
+      oMos: num('O_MOS'),
+      tMos: num('T_MOS'),
+      oJitterAvg: num('O_JITTER_AVG'),
+      tJitterAvg: num('T_JITTER_AVG'),
+      oRtpMsLost: num('O_RTP_MS_LOST'),
+      tRtpMsLost: num('T_RTP_MS_LOST'),
+      oRFactor: num('O_R_FACTOR'),
+      tRFactor: num('T_R_FACTOR'),
+      oIcmpRtt: num('O_ICMP_RTT'),
+      tIcmpRtt: num('T_ICMP_RTT'),
+    };
+  },
 
   /**
    * 녹취 재생 URL — 외부 미디어 플레이어(Range 헤더 지원) redirect.

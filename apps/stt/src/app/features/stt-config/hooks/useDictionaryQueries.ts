@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import dayjs from 'dayjs';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { dictionaryApi } from '../api/dictionaryApi';
 import type {
   ExcelImportResult,
@@ -79,6 +80,28 @@ export const useImportSttDictionary = ({ mutationOptions }: MutationHookOptions<
 export const useImportKeywordBoosting = ({ mutationOptions }: MutationHookOptions<ExcelImportResult, { engineCode: string; data: File }> = {}) => {
   return useMutation({
     mutationFn: dictionaryApi.importKeywordBoosting,
+    ...mutationOptions,
+  });
+};
+
+export const useExportSttDictionaryTemplate = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await dictionaryApi.exportSttDictionaryTemplate();
+      const fileName = extractFileName(response.headers['content-disposition'], `STT_사전_가져오기_템플릿_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
+    ...mutationOptions,
+  });
+};
+
+export const useExportKeywordBoostingTemplate = ({ mutationOptions }: MutationHookOptions = {}) => {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await dictionaryApi.exportKeywordBoostingTemplate();
+      const fileName = extractFileName(response.headers['content-disposition'], `STT_키워드부스팅_가져오기_템플릿_${dayjs().format('YYYYMMDD')}.xlsx`);
+      downloadBlob(response.data, fileName);
+    },
     ...mutationOptions,
   });
 };

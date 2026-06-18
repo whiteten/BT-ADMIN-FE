@@ -67,6 +67,7 @@ export default function DodTransList() {
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(initTenantId);
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
   const [searchText, setSearchText] = useState('');
+  const [numPatternSearch, setNumPatternSearch] = useState('');
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
@@ -78,8 +79,15 @@ export default function DodTransList() {
   const { data: masters = [] } = useGetMasterList();
   const { data: nodes = [] } = useGetNodes();
   const { data: nodeTenants = [] } = useGetNodeTenants();
+  const itemListParams = useMemo(() => {
+    if (!selectedMasterId) return undefined;
+    const p: Record<string, unknown> = { dodTransId: selectedMasterId };
+    if (numPatternSearch.trim()) p.numPattern = numPatternSearch.trim();
+    return p;
+  }, [selectedMasterId, numPatternSearch]);
+
   const { data: items = [], isLoading: isItemsLoading } = useGetItemList({
-    params: selectedMasterId ? { dodTransId: selectedMasterId } : undefined,
+    params: itemListParams,
     queryOptions: { enabled: !!selectedMasterId },
   });
 
@@ -264,6 +272,7 @@ export default function DodTransList() {
 
   const handleCardSelect = (master: DodTransMaster) => {
     setSelectedMasterId(master.dodTransId);
+    setNumPatternSearch('');
   };
 
   const handleCreateMaster = useCallback(() => {
@@ -661,11 +670,24 @@ export default function DodTransList() {
             <span className="text-sm font-semibold text-gray-800">
               {selectedMaster ? `${selectedMaster.dodTransName} ` : ''}패턴 ({items.length}건)
             </span>
-            {selectedMaster && (
-              <Button icon={<Plus className="size-3.5" />} onClick={handleCreateItem}>
-                패턴 추가
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedMaster && (
+                <Input
+                  allowClear
+                  prefix={<Search className="size-3.5 text-gray-400" />}
+                  placeholder="번호패턴 검색"
+                  value={numPatternSearch}
+                  onChange={(e) => setNumPatternSearch(e.target.value)}
+                  style={{ width: 180 }}
+                  size="small"
+                />
+              )}
+              {selectedMaster && (
+                <Button icon={<Plus className="size-3.5" />} onClick={handleCreateItem}>
+                  패턴 추가
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Grid */}

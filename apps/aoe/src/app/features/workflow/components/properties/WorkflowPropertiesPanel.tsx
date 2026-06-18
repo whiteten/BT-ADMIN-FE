@@ -246,32 +246,12 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
   const [form] = Form.useForm();
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prevNodeIdRef = useRef<string | null>(null);
+  // 디바운스 저장 대기 중인 최신 노드 스냅샷. 키스트로크마다 그래프 캐시를 쓰지 않고 여기에 보관했다가
+  // 입력이 멎은 뒤(또는 노드 전환/언마운트 시) 한 번에 flush → 캔버스 카드가 글자마다 리렌더(깜빡임)되지 않는다.
+  const pendingNodeRef = useRef<FlowNode | null>(null);
 
   const meta = node ? (NODE_KIND_MAP[node.nodeKind] ?? DEFAULT_NODE_KIND) : DEFAULT_NODE_KIND;
   const Icon = meta.icon;
-
-  // 노드 ID 가 바뀐 경우에만 폼 초기화 (같은 노드 내에서 캐시 갱신은 form 보존)
-  useEffect(() => {
-    if (!node) {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-      }
-      prevNodeIdRef.current = null;
-      return;
-    }
-    if (prevNodeIdRef.current === node.nodeId) return;
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-    prevNodeIdRef.current = node.nodeId;
-    form.resetFields();
-    form.setFieldsValue({
-      ...node,
-      data: nodeDataToFormData(node.nodeKind, node.data),
-    });
-  }, [node, form]);
 
   const { mutate: updateNode, isPending } = useUpdateNode({
     mutationOptions: {
@@ -287,9 +267,50 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
     },
   });
 
+  // 디바운스 대기 중인 변경을 즉시 영속화 — 캐시 머지(캔버스 카드 1회 반영) + BE 저장.
+  // pendingNodeRef 스냅샷(노드 id·data 확정)을 쓰므로 노드 전환/언마운트 시 stale closure 없이 직전 노드를 안전 저장.
+  const flushPending = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    const pending = pendingNodeRef.current;
+    if (!pending) return;
+    pendingNodeRef.current = null;
+    queryClient.setQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey, (old) =>
+      old ? { ...old, nodes: (old.nodes ?? []).map((n) => (n.nodeId === pending.nodeId ? pending : n)) } : old,
+    );
+    updateNode({ params: { agentId, nodeId: pending.nodeId }, data: pending });
+  }, [agentId, queryClient, updateNode]);
+
+  // 노드 ID 가 바뀐 경우에만 폼 초기화 (같은 노드 내에서 캐시 갱신은 form 보존).
+  // 전환/해제 직전, 이전 노드의 디바운스 대기 변경을 flush 해 유실 방지.
+  useEffect(() => {
+    if (!node) {
+      flushPending();
+      prevNodeIdRef.current = null;
+      return;
+    }
+    if (prevNodeIdRef.current === node.nodeId) return;
+    flushPending();
+    prevNodeIdRef.current = node.nodeId;
+    form.resetFields();
+    form.setFieldsValue({
+      ...node,
+      data: nodeDataToFormData(node.nodeKind, node.data),
+    });
+  }, [node, form, flushPending]);
+
   const handleSubmit = useCallback(
     (rawValues: unknown) => {
       if (!node) return;
+      // 모델·MCP·도구 변경 등 즉시 저장 경로. 디바운스 대기 중인 키스트로크 변경은 현재 form 값에 이미 포함되므로
+      // pending/타이머를 비워 중복·stale flush 를 막는다.
+      pendingNodeRef.current = null;
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
       const values = rawValues as Partial<FlowNode>;
       const merged: FlowNode = {
         ...node,
@@ -309,8 +330,6 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
           graph.edges,
         ),
       };
-      // form.setFieldValue + form.submit() 경로(모델·MCP·도구 변경 등)는 onValuesChange 가 호출되지 않아
-      // optimistic 캐시 업데이트가 일어나지 않음. handleSubmit 에서 한 번 더 캐시를 머지해 캔버스 즉시 반영.
       queryClient.setQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey, (old) =>
         old ? { ...old, nodes: (old.nodes ?? []).map((n) => (n.nodeId === merged.nodeId ? merged : n)) } : old,
       );
@@ -319,12 +338,13 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
     [agentId, node, updateNode, graph.nodes, graph.edges, queryClient],
   );
 
-  // 폼 변경 시: (1) 캐시 즉시 머지로 입력값 보존, (2) debounce 후 BE 저장
+  // 폼 변경 시: 최신 스냅샷만 pendingNodeRef 에 적재하고 debounce 재설정. 캐시(=캔버스 카드) 반영은
+  // 입력이 멎은 뒤 flushPending 에서 1회만 일어나므로, 키스트로크마다 노드 카드가 리렌더(깜빡임)되지 않는다.
   const handleValuesChange = useCallback(
     (_changed: unknown, allRaw: unknown) => {
       if (!node) return;
       const allValues = allRaw as Partial<FlowNode>;
-      const optimistic: FlowNode = {
+      pendingNodeRef.current = {
         ...node,
         ...allValues,
         nodeId: node.nodeId,
@@ -341,29 +361,19 @@ export default function WorkflowPropertiesPanel({ agentId, node, graph, onClose 
           graph.edges,
         ),
       };
-      queryClient.setQueryData<WorkflowGraph>(workflowQueryKeys.graph(agentId).queryKey, (old) =>
-        old ? { ...old, nodes: (old.nodes ?? []).map((n) => (n.nodeId === optimistic.nodeId ? optimistic : n)) } : old,
-      );
-
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         saveTimeoutRef.current = null;
-        form.submit();
+        flushPending();
       }, SAVE_DEBOUNCE_MS);
     },
-    [agentId, node, queryClient, form, graph.nodes, graph.edges],
+    [node, flushPending, graph.nodes, graph.edges],
   );
 
-  // 패널 닫힐 때 / 컴포넌트 unmount 시 pending 변경 즉시 flush
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = null;
-        form.submit();
-      }
-    };
-  }, [form]);
+  // 언마운트 시 대기 변경 flush — 최신 flushPending 을 ref 로 참조해 effect 재실행 없이 unmount 에서만 동작
+  const flushPendingRef = useRef(flushPending);
+  flushPendingRef.current = flushPending;
+  useEffect(() => () => flushPendingRef.current(), []);
 
   return (
     <aside className="h-full w-full bg-white flex flex-col">

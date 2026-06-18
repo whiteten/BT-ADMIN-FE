@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Tree, type TreeDataNode } from 'antd';
 import { Pencil, X } from 'lucide-react';
@@ -48,8 +48,18 @@ export default function RecogGroupTree({ selection, onSelectEngine, onSelectGrou
   const { data: engines = [], isLoading: isEnginesLoading } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const { data: groupList = [], isLoading: isGroupLoading } = useGetRecogGroupList();
   const [editTarget, setEditTarget] = useState<RecogGroupItem | null>(null);
+  const initialized = useRef(false);
 
   const isLoading = isEnginesLoading || isGroupLoading;
+
+  useEffect(() => {
+    if (isLoading || initialized.current) return;
+    const firstGroup = groupList.find((g) => g.engineCode === engines[0]?.code);
+    if (firstGroup) {
+      initialized.current = true;
+      onSelectGroup(firstGroup);
+    }
+  }, [isLoading, engines, groupList, onSelectGroup]);
 
   const { mutate: deleteGroup } = useDeleteRecogGroup({
     mutationOptions: {

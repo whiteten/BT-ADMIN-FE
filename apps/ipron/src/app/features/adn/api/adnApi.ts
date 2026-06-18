@@ -22,7 +22,7 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 export const adnApi = {
   // ─── List / Detail ────────────────────────────────────────────────────────
 
-  getList: async (params?: { tenantId?: number; dnNo?: string }): Promise<AdnResponse[]> => {
+  getList: async (params?: { tenantId?: number; dnNo?: string; dnStatus?: string }): Promise<AdnResponse[]> => {
     const res = await apiClient.get<ApiResponse<{ items: AdnResponse[] }>>('/ipron-dn-adn-list', { params });
     return res.data?.data?.items ?? [];
   },
@@ -86,7 +86,7 @@ export const adnApi = {
     return res.data?.data;
   },
 
-  exportExcel: async (params?: { tenantId?: number; dnNo?: string }): Promise<Blob> => {
+  exportExcel: async (params?: { tenantId?: number; dnNo?: string; dnStatus?: string }): Promise<Blob> => {
     const res = await apiClient.get('/ipron-dn-adn-excel-export', {
       params,
       responseType: 'blob',

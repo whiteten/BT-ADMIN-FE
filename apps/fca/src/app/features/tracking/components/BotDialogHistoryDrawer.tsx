@@ -940,8 +940,8 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
               <Descriptions.Item label="착신번호">{selectedRow.dnis}</Descriptions.Item>
             </Descriptions>
 
-            {/* 녹취 플레이어 */}
-            {mediaPlayerEnabled && selectedRow.recordYn === 1 && (
+            {/* 녹취 플레이어 — 대화 버블 로딩 끝난 뒤에만 노출(로딩 스피너 중복 방지) */}
+            {mediaPlayerEnabled && selectedRow.recordYn === 1 && !isBubbleLoading && (
               <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 rounded-lg">
                 <Volume2 size={16} className="text-blue-500 shrink-0" />
                 <span className="text-xs font-medium text-gray-600 shrink-0">녹취</span>
@@ -960,13 +960,18 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
           </div>
         )}
 
-        {/* 좌우 분할 영역 */}
-        <div className={cn('flex-1 min-h-0 flex gap-4', !hasNluData && 'flex-col')}>
-          {/* 왼쪽: 대화 흐름 */}
-          <div className={cn('min-h-0 overflow-y-auto overflow-x-hidden pr-1', hasNluData ? 'w-3/5' : 'flex-1')}>
-            {isBubbleLoading ? (
-              <FallbackSpinner />
-            ) : (
+        {/* 🔒 암호화 버블 열람 사유 모달 (드로어 어느 상태에서도 항상 마운트) */}
+        <BubbleDecryptReasonModal open={reasonModalOpen} loading={decryptMutation.isPending} onCancel={handleCancelReason} onConfirm={handleConfirmReason} />
+
+        {/* 본문: 로딩 중이면 drawer 본문 중앙에 단일 spinner, 완료 시 좌우 분할 영역 */}
+        {isBubbleLoading ? (
+          <div className="flex-1 min-h-0 flex items-center justify-center">
+            <FallbackSpinner />
+          </div>
+        ) : (
+          <div className={cn('flex-1 min-h-0 flex gap-4', !hasNluData && 'flex-col')}>
+            {/* 왼쪽: 대화 흐름 */}
+            <div className={cn('min-h-0 overflow-y-auto overflow-x-hidden pr-1', hasNluData ? 'w-3/5' : 'flex-1')}>
               <TrackingDialogView
                 items={items}
                 onItemClick={handleBubbleClick}
@@ -979,44 +984,50 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
                 audioPlayingIdx={audioPlayingIdx}
                 onBubbleRef={setBubbleRef}
               />
+            </div>
+
+            {/* 오른쪽: NLU 분석 결과 */}
+            {hasNluData && (
+              <div className="w-2/5 min-h-0 overflow-y-auto border-l pl-4 pr-1">
+                <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
+                  <Brain className="size-4 text-blue-500" />
+                  <span className="text-xs font-bold">NLU 분석 결과</span>
+                  <span className="text-[10px] text-gray-400">({nluItems.length}건)</span>
+                </div>
+
+                <div className="space-y-3 pb-4">
+                  {nluItems.map((item) => (
+                    <div
+                      key={item.seq}
+                      ref={(el) => setNluCardRef(item.seq, el)}
+                      className={cn(
+                        'transition-all duration-300 rounded-lg hover:bg-slate-50',
+                        highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50',
+                      )}
+                      onClick={(e) => {
+                        // 편집 모드 영역(Select/Input/Save/Cancel 등) 클릭은 버블 하이라이트 트리거 제외
+                        // NluCard가 편집 중인 hop div에 data-retrain-edit 속성을 부여하므로 그걸로 식별
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[data-retrain-edit]')) return;
+                        handleNluCardClick(item.seq);
+                      }}
+                    >
+                      <NluCard
+                        seq={item.seq}
+                        nluResults={item.nluResults!}
+                        onRetrainSuccess={handleRetrainSuccess}
+                        bubbleEncrypted={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.encrypted}
+                        bubbleMasked={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.masked}
+                        bubbleEntityTag={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.entityTag}
+                        revealedQuestionText={Object.entries(revealedBubbles).find(([key]) => key.startsWith(`${item.seq}:`))?.[1] ?? null}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-
-          {/* 🔒 암호화 버블 열람 사유 모달 */}
-          <BubbleDecryptReasonModal open={reasonModalOpen} loading={decryptMutation.isPending} onCancel={handleCancelReason} onConfirm={handleConfirmReason} />
-
-          {/* 오른쪽: NLU 분석 결과 */}
-          {hasNluData && (
-            <div className="w-2/5 min-h-0 overflow-y-auto border-l pl-4 pr-1">
-              <div className="flex items-center gap-2 mb-3 sticky top-0 bg-white pb-2 z-10">
-                <Brain className="size-4 text-blue-500" />
-                <span className="text-xs font-bold">NLU 분석 결과</span>
-                <span className="text-[10px] text-gray-400">({nluItems.length}건)</span>
-              </div>
-
-              <div className="space-y-3 pb-4">
-                {nluItems.map((item) => (
-                  <div
-                    key={item.seq}
-                    ref={(el) => setNluCardRef(item.seq, el)}
-                    className={cn('transition-all duration-300 rounded-lg hover:bg-slate-50', highlightedNluSeq === item.seq && 'ring-2 ring-blue-400 ring-offset-2 bg-blue-50/50')}
-                    onClick={() => handleNluCardClick(item.seq)}
-                  >
-                    <NluCard
-                      seq={item.seq}
-                      nluResults={item.nluResults!}
-                      onRetrainSuccess={handleRetrainSuccess}
-                      bubbleEncrypted={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.encrypted}
-                      bubbleMasked={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.masked}
-                      bubbleEntityTag={items.find((b) => b.seq === item.seq && b.dialogRole === 'CUSTOMER')?.entityTag}
-                      revealedQuestionText={Object.entries(revealedBubbles).find(([key]) => key.startsWith(`${item.seq}:`))?.[1] ?? null}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </Drawer>
   );

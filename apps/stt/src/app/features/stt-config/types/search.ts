@@ -2,13 +2,6 @@
 export interface SttSearchParams {
   fromDateTime?: string; // yyyyMMddHHmmss
   toDateTime?: string; // yyyyMMddHHmmss
-  analKind?: string;
-  analKindArr?: string[];
-  inoutKind?: string;
-  ucidGkey?: string;
-  talkTime?: number;
-  agentName?: string;
-  dnNo?: string;
   keyword?: string;
 }
 
@@ -23,6 +16,7 @@ export interface SttSearchItem {
   agentId: string;
   agentName: string;
   recSystemIp: string;
+  engineCode: string;
   saFilepath: string;
   saFilename: string;
   startSentence: string;
@@ -32,8 +26,6 @@ export interface SttSearchItem {
 export interface SttSearchCallbotParams {
   fromDateTime?: string; // yyyyMMddHHmmss
   toDateTime?: string; // yyyyMMddHHmmss
-  analKind?: string;
-  ucidGkey?: string;
 }
 
 // 음성봇 검색 결과 (SttSearchCallbotResponse)
@@ -60,6 +52,7 @@ export interface SttSearchCallbotDetailItem {
   callDatetime: string;
   talkTime: string;
   recSystemIp: string;
+  engineCode: string;
   saFilepath: string;
   saFilename: string;
   startSentence: string;

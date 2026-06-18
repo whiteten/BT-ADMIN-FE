@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
@@ -45,15 +45,13 @@ export default function McpList() {
     },
   });
 
-  const filteredList = useMemo(() => {
-    if (!searchValue.trim()) return mcpList;
-    const keyword = searchValue.toLowerCase();
-    return mcpList.filter((mcp) => {
-      const value = mcp[filterColumn as keyof typeof mcp];
-      if (value == null) return false;
-      return String(value).toLowerCase().includes(keyword);
-    });
-  }, [mcpList, filterColumn, searchValue]);
+  const filteredList = searchValue.trim()
+    ? mcpList.filter((mcp) => {
+        const value = mcp[filterColumn as keyof typeof mcp];
+        if (value == null) return false;
+        return String(value).toLowerCase().includes(searchValue.toLowerCase());
+      })
+    : mcpList;
 
   const handleColumnChange = (value: string) => {
     setFilterColumn(value);
@@ -84,7 +82,7 @@ export default function McpList() {
           <FallbackSpinner />
         </div>
       ) : filteredList.length ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredList.map((mcp) => (
             <McpCard key={mcp.mcpId} mcp={mcp} onClick={handleClickCard} onDetail={handleClickCard} onDelete={handleDelete} />
           ))}

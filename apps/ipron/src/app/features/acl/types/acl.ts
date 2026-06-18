@@ -20,6 +20,16 @@ export const USE_YN_LABELS: Record<number, string> = {
   0: '해제',
 };
 
+/**
+ * ACL 타입 (ACL_TYPE)
+ * IE_ACL_TYPE 공통코드 기준: 1=허용, 9=금지
+ * SWAT: TB_CC_COMMONCODE CLASS_CD='IE_ACL_TYPE'
+ */
+export const ACL_TYPE_LABELS: Record<number, string> = {
+  1: '허용',
+  9: '금지',
+};
+
 // ─── Backend Response 타입 ──────────────────────────────────────────────────
 
 /**

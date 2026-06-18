@@ -8,7 +8,10 @@ export const fileUploadQueryKeys = createQueryKeys('fileUpload', {
   getFileUploadList: (params?: Record<string, unknown>) => [params],
 });
 
-export const useGetFileUploadList = ({ params, queryOptions }: { params?: FileUploadSearchParams | null; queryOptions?: UseQueryOptions<FileUploadItem[]> } = {}) => {
+export const useGetFileUploadList = ({
+  params,
+  queryOptions,
+}: { params?: FileUploadSearchParams | null; queryOptions?: Omit<UseQueryOptions<FileUploadItem[]>, 'queryKey' | 'queryFn'> } = {}) => {
   return useQuery({
     queryKey: fileUploadQueryKeys.getFileUploadList((params as Record<string, unknown>) ?? undefined).queryKey,
     queryFn: () => fileUploadApi.getFileUploadList(params ?? undefined),
@@ -24,14 +27,16 @@ export const useDeleteFileUpload = ({ mutationOptions }: MutationHookOptions<unk
   });
 };
 
-export const useUploadSttFile = ({ menuId, mutationOptions }: { menuId: string } & MutationHookOptions<string, File> = { menuId: '' }) => {
+export const useUploadSttFile = (
+  { menuId, mutationOptions }: { menuId: string } & MutationHookOptions<{ uploadedFilename: string; uploadPath: string }, File> = { menuId: '' },
+) => {
   return useMutation({
     mutationFn: (file: File) => fileUploadApi.uploadSttFile(file, menuId),
     ...mutationOptions,
   });
 };
 
-export const useRequestStt = ({ mutationOptions }: MutationHookOptions<unknown, string[]> = {}) => {
+export const useRequestStt = ({ mutationOptions }: MutationHookOptions<unknown, { fileName: string; filePath: string }[]> = {}) => {
   return useMutation({
     mutationFn: fileUploadApi.requestStt,
     ...mutationOptions,

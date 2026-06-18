@@ -1,11 +1,15 @@
 /**
  * ADN 도메인 enum / 옵션 — BE 직렬화 코드(string) 기준.
+ *
+ * ADN DN_STATUS 코드는 공통 DnStatus enum 과 다름 (ADN 전용 코드).
+ * TB_CC_COMMONCODE (CLASS_CD='DN_STATUS', ADDCOND1_VALUE='ADN') 실 DB 확인 값:
+ *   '8' = 로그인(Login), '9' = 로그아웃(Logout)
  */
 import type { AdnDefaultStateCode, DnStatusCode } from '../types';
 
 export const DN_STATUS_OPTIONS: ReadonlyArray<{ value: DnStatusCode; label: string }> = [
-  { value: '1', label: '로그인' },
-  { value: '0', label: '로그아웃' },
+  { value: '8', label: '로그인' },
+  { value: '9', label: '로그아웃' },
 ];
 
 export const ADN_DFT_STATE_OPTIONS: ReadonlyArray<{ value: AdnDefaultStateCode; label: string }> = [

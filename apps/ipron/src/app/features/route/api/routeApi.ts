@@ -151,4 +151,71 @@ export const routeApi = {
     });
     return response.data?.data?.value ?? [];
   },
+
+  // ─── Combo Options (발신라우트 폼 동적 Select용) ──────────────────────────
+
+  /**
+   * DOD 번호변환 콤보 옵션 조회
+   * @flow ipron-dodtrans-options
+   * SWAT: cbCreate('#poDodTransId','dodtrans','search1='+nodeId)
+   * BE: GET /api/ipron/dod-trans-masters?nodeId=X
+   */
+  getDodTransOptions: async (nodeId: number): Promise<DodTransOption[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: DodTransOption[] }>>('/ipron-dodtrans-options', {
+      params: { nodeId },
+    });
+    // dod-trans-masters는 전체 DodTransMasterResponse 반환 — value 배열 또는 data 직접
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) {
+      return (raw as DodTransOption[]).map((item) => ({ dodTransId: item.dodTransId, dodTransName: item.dodTransName }));
+    }
+    return (raw as { value?: DodTransOption[] })?.value ?? [];
+  },
+
+  /**
+   * 업무시간 콤보 옵션 조회
+   * @flow ipron-route-worktime-options
+   * SWAT: cbCreate('#poIeWorktimeId','worktime','nodeId='+nodeId+'&tenantId=0')
+   * BE: GET /api/ipron/routes/worktime-options?nodeId=X
+   */
+  getWorktimeOptions: async (nodeId: number): Promise<WorktimeOption[]> => {
+    const response = await apiClient.get<ApiResponse<WorktimeOption[]>>('/ipron-route-worktime-options', {
+      params: { nodeId },
+    });
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) return raw;
+    return (raw as { value?: WorktimeOption[] })?.value ?? [];
+  },
+
+  /**
+   * 안내멘트 콤보 옵션 조회
+   * @flow ipron-ment-options (ipron-ment-mgmt seed에 이미 등록됨)
+   * SWAT: cbCreate('#poWorktimeMentId','ment','nodeId='+nodeId+'&tenantId=0')
+   * BE: GET /api/ipron/ments/options?nodeId=X&tenantId=0
+   */
+  getMentOptions: async (nodeId: number): Promise<MentOption[]> => {
+    const response = await apiClient.get<ApiResponse<MentOption[]>>('/ipron-ment-options', {
+      params: { nodeId, tenantId: 0 },
+    });
+    const raw = response.data?.data;
+    if (Array.isArray(raw)) return raw;
+    return (raw as { value?: MentOption[] })?.value ?? [];
+  },
 };
+
+// ─── Combo Option Types ───────────────────────────────────────────────────────
+
+export interface DodTransOption {
+  dodTransId: number;
+  dodTransName: string;
+}
+
+export interface WorktimeOption {
+  worktimeId: number;
+  worktimeName: string;
+}
+
+export interface MentOption {
+  id: number;
+  name: string;
+}

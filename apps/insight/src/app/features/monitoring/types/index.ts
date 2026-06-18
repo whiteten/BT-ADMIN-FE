@@ -32,6 +32,7 @@ export interface DashboardListItem {
   menuRegistered: boolean;
   templateWidgetCount: number;
   customWidgetCount: number;
+  widgetNames?: string[]; // 대시보드 구성을 한눈에 보기 위한 위젯 명칭 리스트
   layoutWidth: number; // grid cols (12 고정)
   layoutHeight: number; // 사용된 row 수
   createdAt: string;
@@ -56,7 +57,7 @@ export interface DashboardDetail extends DashboardListItem {
 
 // ─── 위젯 (§3~§7) ──────────────────────────────────────────────────────────
 
-export type WidgetKind = 'TEMPLATE' | 'CUSTOM';
+export type WidgetKind = 'TEMPLATE' | 'CUSTOM' | 'PLACEHOLDER';
 
 export interface WidgetPosition {
   row: number;
@@ -102,7 +103,11 @@ export interface CustomWidget extends BaseWidget {
   options: Record<string, unknown>;
 }
 
-export type Widget = TemplateWidget | CustomWidget;
+export interface PlaceholderWidget extends BaseWidget {
+  kind: 'PLACEHOLDER';
+}
+
+export type Widget = TemplateWidget | CustomWidget | PlaceholderWidget;
 
 // ─── 위젯 생성 요청 ──────────────────────────────────────────────────────────
 
@@ -127,10 +132,10 @@ export interface CustomWidgetCreateDatas {
 
 export type WidgetCreateDatas = TemplateWidgetCreateDatas | CustomWidgetCreateDatas;
 
-// ─── 커스텀 위젯 카탈로그 (§4-B) ──────────────────────────────────────────────
+// ─── 위젯 라이브러리 (§4-B) ──────────────────────────────────────────────
 
-/** 자동 배치(auto-pack) 슬롯 룰 분류. 미지정 시 GENERIC 으로 취급. */
-export type WidgetCategory = 'KPI' | 'CHART' | 'TABLE' | 'STATUS' | 'GENERIC';
+/** 위젯 카테고리 분류. */
+export type WidgetCategory = 'KPI' | 'CHART' | 'TABLE' | 'STATUS' | 'GENERIC' | 'MISC';
 
 export interface CustomWidgetCatalogItem {
   widgetTypeId: string;
@@ -144,8 +149,10 @@ export interface CustomWidgetCatalogItem {
   defaultW?: number;
   /** 위젯 추가 시 권장 높이. null/undefined 면 카테고리/minH 기반 폴백. */
   defaultH?: number;
-  /** 슬롯 룰 분류 — auto-pack 배치 힌트. */
-  widgetCategory?: WidgetCategory;
+  /** 카테고리 분류. */
+  widgetCategory: WidgetCategory;
+  /** 위젯 종류 (CUSTOM=커스텀, TEMPLATE=템플릿) */
+  kind: 'CUSTOM' | 'TEMPLATE';
 }
 
 // ─── 데이터셋 (XML 기반) (§1, §1-A) ─────────────────────────────────────────

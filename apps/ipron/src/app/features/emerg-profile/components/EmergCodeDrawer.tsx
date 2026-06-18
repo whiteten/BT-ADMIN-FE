@@ -105,7 +105,26 @@ const EmergCodeDrawer = forwardRef<EmergCodeDrawerRef, EmergCodeDrawerProps>(({ 
             { pattern: /^[0-9]+$/, message: '긴급코드는 숫자만 가능합니다' },
           ]}
         >
-          <Input placeholder="긴급코드를 입력하세요 (숫자)" maxLength={10} disabled={isEditMode} />
+          <Input
+            placeholder="긴급코드를 입력하세요 (숫자)"
+            maxLength={10}
+            disabled={isEditMode}
+            onKeyPress={(e) => {
+              // SWAT: onkeypress="ourKeyPress('number')" — 숫자 외 문자 keypress 단계에서 즉시 차단
+              if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+              }
+            }}
+            onChange={(e) => {
+              // SWAT: onkeyup="checkHangul()" — 한글 등 비숫자 문자 onChange 단계에서 제거
+              const numericOnly = e.target.value.replace(/[^0-9]/g, '');
+              if (numericOnly !== e.target.value) {
+                e.target.value = numericOnly;
+                // Ant Design Form field 값도 동기화
+                form.setFieldValue('emergencyCode', numericOnly);
+              }
+            }}
+          />
         </Form.Item>
 
         <Form.Item

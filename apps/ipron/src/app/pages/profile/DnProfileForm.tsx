@@ -28,7 +28,7 @@ import {
   useUpdateDnProfile,
 } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { DN_PROFILE_INITIAL_VALUES, type DnProfileCreateRequest, type DnProfileUpdateRequest } from '../../features/dn-profile/types';
-import { DN_PROFILE_TYPE_OPTIONS, NAT_OPTION_OPTIONS, getRtpOptions } from '../../features/dn-profile/utils/dnProfileEnums';
+import { DN_PROFILE_TYPE_OPTIONS, NAT_OPTION_OPTIONS, REC_START_CALL_TYPE_OPTIONS, getRtpOptions } from '../../features/dn-profile/utils/dnProfileEnums';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -144,6 +144,9 @@ export default function DnProfileForm() {
   );
   const msGroupOptionsWithUnset = useMemo(() => withUnset((options?.msGroups ?? []).map((o) => ({ label: o.name, value: o.id as number | null }))), [options]);
   const mediaDeliveryOptionsWithUnset = useMemo(() => withUnset((options?.mediaDeliveries ?? []).map((o) => ({ label: o.name, value: o.id as number | null }))), [options]);
+  // DR 노드 기준 옵션 (AS-IS onChangedDrNode)
+  const drMediaDeliveryOptionsWithUnset = useMemo(() => withUnset((options?.drMediaDeliveries ?? []).map((o) => ({ label: o.name, value: o.id as number | null }))), [options]);
+  const drMsGroupOptionsWithUnset = useMemo(() => withUnset((options?.drMsGroups ?? []).map((o) => ({ label: o.name, value: o.id as number | null }))), [options]);
   const recNotifyOptionsWithUnset = useMemo(
     () =>
       withUnset(
@@ -617,10 +620,39 @@ export default function DnProfileForm() {
                       </Col>
                       <Col span={8}>
                         <Form.Item name="recStartCallType" label="녹취 시작 콜 유형" tooltip={recFieldDisabled ? 'TRUNK 유형에서는 사용 불가' : undefined}>
-                          <Input placeholder="예: ALL, INBOUND, OUTBOUND" maxLength={20} disabled={recFieldDisabled} />
+                          <Select
+                            options={[{ label: '미지정', value: null }, ...REC_START_CALL_TYPE_OPTIONS]}
+                            placeholder="콜 유형 선택"
+                            allowClear
+                            disabled={!watchedTenantId || recFieldDisabled}
+                          />
                         </Form.Item>
                       </Col>
                     </Row>
+
+                    {/* ── 섹션 2-2: DR 중개 설정 (DR 노드 지정 시 활성) — AS-IS IPR20S2220 poDrRtpOption/poMsDrGroupId/poDrMediaDeliveryId ── */}
+                    {watchedDrNodeId && (
+                      <>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">DR 중개 설정</h4>
+                        <Row gutter={20}>
+                          <Col span={8}>
+                            <Form.Item name="drRtpOption" label="DR RTP 중개 옵션">
+                              <Select options={rtpOptionList} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item name="msDrGroupId" label="DR MS 그룹">
+                              <Select options={drMsGroupOptionsWithUnset} placeholder="DR MS 그룹 선택" showSearch optionFilterProp="label" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item name="drMediaDeliveryId" label="DR 미디어 전달 그룹">
+                              <Select options={drMediaDeliveryOptionsWithUnset} placeholder="DR 미디어 전달 선택" showSearch optionFilterProp="label" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </>
+                    )}
 
                     {/* ── 섹션 3: AGC 제어 ── */}
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">AGC 제어</h4>

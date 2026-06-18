@@ -5,10 +5,12 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities';
 import type { ColDef, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Checkbox, Divider, Input, Modal, Select, Tag, Tooltip } from 'antd';
+import { App, Button, Checkbox, Divider, Input, Select, Tag, Tooltip } from 'antd';
 import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
+import { format as formatSql } from 'sql-formatter';
 import { toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
+import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
 import { datasetApi } from '../api/datasetApi';
 import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
@@ -120,11 +122,13 @@ export default function WizardStepB({
 }: WizardStepBProps) {
   const [editing, setEditing] = useState<EditingState>({ mode: 'idle' });
   const { gridOptions } = useAggridOptions();
+  const { modal } = App.useApp();
 
   // ─── Validation state ──────────────────────────────────────────────────────
   const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
   const [validationCheckedAt, setValidationCheckedAt] = useState<Date | undefined>();
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationSql, setValidationSql] = useState<string | undefined>();
   const [isChecking, setIsChecking] = useState(false);
 
   const validationStatusRef = useRef<ValidationStatus>('unchecked');
@@ -170,12 +174,14 @@ export default function WizardStepB({
       });
       if (result.valid) {
         setValidationErrors([]);
+        setValidationSql(undefined);
         setValidationCheckedAt(new Date());
         setValidationStatus('valid');
         toast.success(`모든 필드가 유효합니다. (${result.executionMs}ms)`);
       } else {
         const errors = result.errors ?? ['검증 실패'];
         setValidationErrors(errors);
+        setValidationSql(result.executedSql);
         setValidationStatus('invalid');
         errors.forEach((e) => toast.error(e));
       }
@@ -207,10 +213,13 @@ export default function WizardStepB({
   const sourceFields = dbViewPrefix ? previewFields : existingFields;
   const isLoading = dbViewPrefix ? isLoadingPreview : isLoadingExisting;
 
-  // 초기화: 기본값 isVisible = false
+  // 초기화/재가져오기: 기본값 isVisible = false.
+  // CALC(계산필드)는 원천 테이블 컬럼이 아니므로 재로딩 대상에서 제외 — "컬럼 가져오기"로
+  // 비운 뒤 다시 채울 때 저장돼 있던 계산필드가 일반 필드로 되살아나지 않도록 한다.
   useEffect(() => {
-    if (sourceFields.length > 0 && fieldDisplays.length === 0) {
-      const initial: LocalFieldDisplay[] = sourceFields.map((f, i) => ({
+    const tableFields = sourceFields.filter((f) => f.fieldRole !== 'CALC');
+    if (tableFields.length > 0 && fieldDisplays.length === 0) {
+      const initial: LocalFieldDisplay[] = tableFields.map((f, i) => ({
         fieldName: f.fieldName,
         displayName: f.displayName,
         fieldType: f.fieldRole === 'MEASURE' ? 'MSR' : 'DIM',
@@ -248,7 +257,7 @@ export default function WizardStepB({
       onFieldDisplaysChange([]);
     };
     if (fieldDisplays.length > 0) {
-      Modal.confirm({
+      modal.confirm({
         title: '컬럼 가져오기',
         content: '이미 조회한 컬럼정보가 존재합니다. 계속 진행하시겠습니까?',
         okText: '확인',
@@ -306,7 +315,10 @@ export default function WizardStepB({
   // ─── Calc field CRUD + fieldDisplays sync ─────────────────────────────────
   const handleCalcSave = (data: CalcFieldCreateDatas) => {
     if (editing.mode === 'add') {
-      const newId = crypto.randomUUID();
+      const newId =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
       onCalcFieldsChange([...calcFields, { ...data, _localId: newId }]);
       onFieldDisplaysChange([
         ...fieldDisplays,
@@ -365,7 +377,9 @@ export default function WizardStepB({
           <div className="mb-3">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
             <div className="mt-1 flex items-center gap-1.5">
-              <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">{domain}</span>
+              <Tag color={DOMAIN_TAG_COLOR[domain]} className="!mb-0 !mr-0 font-bold">
+                {domain}
+              </Tag>
               <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
             </div>
             <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
@@ -437,7 +451,9 @@ export default function WizardStepB({
         <div className="mb-3">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
           <div className="mt-1 flex items-center gap-1.5">
-            <span className="rounded bg-primary px-1.5 py-0.5 text-xs font-semibold text-white">{domain}</span>
+            <Tag color={DOMAIN_TAG_COLOR[domain]} className="!mb-0 !mr-0 font-bold">
+              {domain}
+            </Tag>
             <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
@@ -522,7 +538,7 @@ export default function WizardStepB({
           <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
             검증 실행
           </Button>
-          <Divider type="vertical" className="mx-0" />
+          <Divider orientation="vertical" className="mx-0" />
           <Button size="small" icon={<Download className="w-3 h-3" />} onClick={handleImportColumns}>
             컬럼 가져오기
           </Button>
@@ -533,8 +549,8 @@ export default function WizardStepB({
 
         {/* 검증 결과 인라인 에러 */}
         {validationStatus === 'invalid' && validationErrors.length > 0 && (
-          <div className="shrink-0 mx-5 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2">
-            <div className="text-xs font-semibold text-red-600 mb-1">검증 실패 — DB에서 반환된 오류</div>
+          <div className="shrink-0 mx-5 mb-2 rounded border border-red-200 bg-red-50 px-3 py-2 space-y-2">
+            <div className="text-xs font-semibold text-red-600">검증 실패 — DB에서 반환된 오류</div>
             <div className="space-y-0.5">
               {validationErrors.map((e, i) => (
                 <div key={i} className="font-mono text-xs text-red-700 break-all">
@@ -542,6 +558,20 @@ export default function WizardStepB({
                 </div>
               ))}
             </div>
+            {validationSql && (
+              <details className="mt-1">
+                <summary className="cursor-pointer text-[11px] text-red-500 hover:text-red-700 select-none">실행된 SQL 보기</summary>
+                <pre className="mt-1 overflow-x-auto rounded bg-red-100 px-2 py-1.5 font-mono text-[11px] text-red-800 whitespace-pre-wrap">
+                  {(() => {
+                    try {
+                      return formatSql(validationSql, { language: 'plsql', keywordCase: 'upper', tabWidth: 2 });
+                    } catch {
+                      return validationSql;
+                    }
+                  })()}
+                </pre>
+              </details>
+            )}
           </div>
         )}
         {/* ag-Grid: flex-1로 공간 채우고 내부 스크롤 — 컬럼 헤더 항상 고정 */}
@@ -650,7 +680,7 @@ export default function WizardStepB({
                 <AgGridReact<LocalFieldDisplay>
                   rowData={sortedRows}
                   columnDefs={columnDefs}
-                  gridOptions={{ ...gridOptions, rowNumbers: false, pagination: false, statusBar: undefined }}
+                  gridOptions={{ ...gridOptions, rowNumbers: true, pagination: false, statusBar: undefined, sideBar: false }}
                   rowHeight={40}
                   getRowId={({ data }) => data.fieldName}
                   getRowClass={({ data }) => {

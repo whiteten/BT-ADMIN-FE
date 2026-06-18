@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, DatePicker } from 'antd';
+import { type BreadcrumbProps, Button, DatePicker, Select, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Trash2 } from 'lucide-react';
+import { Pause, Play, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import FileUploadDrawer, { type FileUploadDrawerRef } from '../../features/stt-config/components/FileUploadDrawer';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../../features/stt-config/components/SttSearchDetailDrawer';
 import { fileUploadQueryKeys, useDeleteFileUpload, useGetFileUploadList } from '../../features/stt-config/hooks/useFileUploadQueries';
 import type { FileUploadItem, FileUploadSearchParams, SttSearchItem } from '../../features/stt-config/types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -20,17 +21,17 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const WORK_KIND_CONFIG: Record<string, { label: string; className: string }> = {
-  진행중: { label: '진행중', className: 'text-blue-600 bg-blue-100' },
+  진행중: { label: '진행중', className: 'text-blue-600 bg-blue-50' },
   대기중: { label: '대기중', className: 'text-gray-500 bg-gray-100' },
-  종료: { label: '종료', className: 'text-emerald-600 bg-emerald-100' },
-  실패: { label: '실패', className: 'text-red-500 bg-red-100' },
+  종료: { label: '종료', className: 'text-emerald-600 bg-emerald-50' },
+  실패: { label: '실패', className: 'text-red-500 bg-red-50' },
 };
 
 const PAGE_SIZE = 20;
 
 function WorkKindCellRenderer({ value }: ICellRendererParams<FileUploadItem>) {
   const config = WORK_KIND_CONFIG[String(value)] ?? { label: String(value ?? ''), className: 'text-gray-500 bg-gray-100' };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${config.className}`}>{config.label}</span>;
+  return <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${config.className}`}>{config.label}</Badge>;
 }
 
 interface ActionCellParams extends ICellRendererParams<FileUploadItem> {
@@ -64,16 +65,31 @@ export default function FileUploadList() {
 
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
   const [toDate, setToDate] = useState<Dayjs | null>(dayjs());
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshSeconds, setRefreshSeconds] = useState(3);
   const [searchParams, setSearchParams] = useState<FileUploadSearchParams | null>({
     fromDate: dayjs().subtract(7, 'day').format('YYYYMMDD'),
     toDate: dayjs().format('YYYYMMDD'),
   });
 
-  const { data: rowData = [], isLoading, refetch } = useGetFileUploadList({ params: searchParams });
+  const { data: rowData = [], isLoading } = useGetFileUploadList({
+    params: searchParams,
+    queryOptions: { refetchInterval: autoRefresh ? refreshSeconds * 1000 : false },
+  });
+
+  useEffect(() => {
+    if (!fromDate || !toDate) return;
+    if (fromDate.isAfter(toDate)) return;
+    setSearchParams({ fromDate: fromDate.format('YYYYMMDD'), toDate: toDate.format('YYYYMMDD') });
+  }, [fromDate, toDate]);
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<FileUploadItem>) => {
     if (!event.data) return;
-    detailDrawerRef.current?.open(event.data as unknown as SttSearchItem);
+    if (event.data.workKind !== '종료') {
+      toast.warning('STT가 완료된 후 청취가 가능합니다.');
+      return;
+    }
+    detailDrawerRef.current?.open(event.data as unknown as SttSearchItem, event.data.engineCode);
   };
 
   const { mutate: deleteFile } = useDeleteFileUpload({
@@ -87,24 +103,6 @@ export default function FileUploadList() {
       },
     },
   });
-
-  const handleSearch = () => {
-    if (!fromDate || !toDate) {
-      toast.warning('검색일자를 선택해주세요.');
-      return;
-    }
-    if (fromDate.isAfter(toDate)) {
-      toast.warning('시작일이 종료일보다 늦을 수 없습니다.');
-      return;
-    }
-    const newFromDate = fromDate.format('YYYYMMDD');
-    const newToDate = toDate.format('YYYYMMDD');
-    if (searchParams?.fromDate === newFromDate && searchParams?.toDate === newToDate) {
-      refetch();
-    } else {
-      setSearchParams({ fromDate: newFromDate, toDate: newToDate });
-    }
-  };
 
   const handleDelete = (data: FileUploadItem) => {
     modal.confirm.delete({ onOk: () => deleteFile(data.ucidGkey) });
@@ -158,9 +156,27 @@ export default function FileUploadList() {
             <DatePicker value={toDate} onChange={setToDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
           </div>
           <div className="flex items-center gap-2 ml-auto">
-            <Button type="primary" onClick={handleSearch}>
-              조회
-            </Button>
+            <span className="text-sm font-medium text-[#495057] shrink-0">모니터링</span>
+            <Select
+              value={refreshSeconds}
+              onChange={setRefreshSeconds}
+              options={[
+                { label: '3초', value: 3 },
+                { label: '5초', value: 5 },
+                { label: '10초', value: 10 },
+                { label: '30초', value: 30 },
+              ]}
+              style={{ width: 72 }}
+            />
+            <Tooltip title={autoRefresh ? '모니터링 중지' : '모니터링 시작'}>
+              <button
+                type="button"
+                onClick={() => setAutoRefresh((v) => !v)}
+                className={`flex items-center justify-center w-9 h-9 rounded border transition-colors ${autoRefresh ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary)] text-white' : 'border-[var(--color-bt-primary)] text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary)]/5'}`}
+              >
+                {autoRefresh ? <Pause className="size-4" /> : <Play className="size-4" />}
+              </button>
+            </Tooltip>
             <Button color="cyan" variant="solid" onClick={() => drawerRef.current?.open()}>
               파일업로드
             </Button>
@@ -183,7 +199,7 @@ export default function FileUploadList() {
         </div>
       </div>
 
-      <FileUploadDrawer ref={drawerRef} menuId="sttfile" />
+      <FileUploadDrawer ref={drawerRef} menuId="sttfile" onRequestSuccess={() => setAutoRefresh(true)} />
       <SttSearchDetailDrawer ref={detailDrawerRef} />
     </div>
   );

@@ -20,17 +20,14 @@ export default function SttSearchCallbot() {
   const [listSearchParams, setListSearchParams] = useState<SttSearchCallbotParams>({
     fromDateTime: dayjs().format('YYYYMMDD') + '000000',
     toDateTime: dayjs().format('YYYYMMDD') + '235959',
-    analKind: 'C',
   });
   const [detailParams, setDetailParams] = useState<SttSearchCallbotDetailParams | undefined>();
 
-  const buildListParams = (): SttSearchCallbotParams => ({
-    fromDateTime: searchDate && startTime ? searchDate.format('YYYYMMDD') + startTime.format('HHmmss') : undefined,
-    toDateTime: searchDate && endTime ? searchDate.format('YYYYMMDD') + endTime.format('HHmmss') : undefined,
-    analKind: 'C',
-  });
-
-  const { data: listData, isLoading: isListLoading } = useGetSttSearchCallbot({
+  const {
+    data: listData,
+    isLoading: isListLoading,
+    refetch: refetchList,
+  } = useGetSttSearchCallbot({
     params: listSearchParams as Record<string, unknown>,
   });
 
@@ -41,7 +38,7 @@ export default function SttSearchCallbot() {
 
   const handleRowDoubleClicked = (event: RowDoubleClickedEvent<SttSearchCallbotDetailItem>) => {
     if (!event.data) return;
-    drawerRef.current?.open(event.data as unknown as SttSearchItem);
+    drawerRef.current?.open(event.data as unknown as SttSearchItem, event.data.engineCode);
   };
 
   const handleSearch = () => {
@@ -61,9 +58,15 @@ export default function SttSearchCallbot() {
       toast.warning('시작일시가 종료일시보다 늦을 수 없습니다.');
       return;
     }
+    const newParams: SttSearchCallbotParams = {
+      fromDateTime: searchDate.format('YYYYMMDD') + (startTime?.format('HHmmss') ?? '000000'),
+      toDateTime: searchDate.format('YYYYMMDD') + (endTime?.format('HHmmss') ?? '235959'),
+    };
+    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(listSearchParams);
     setSelectedOrgUcid(undefined);
     setDetailParams(undefined);
-    setListSearchParams(buildListParams());
+    setListSearchParams(newParams);
+    if (!paramsChanged) void refetchList();
   };
 
   const handleRowClick = (event: RowClickedEvent<SttSearchCallbotItem>) => {

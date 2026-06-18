@@ -1,9 +1,9 @@
 /**
  * DN 관리 ag-Grid 테이블 (IPR20S2020)
- * 17 컬럼 + 체크박스 다건 선택 + 더블클릭 → 수정 페이지
+ * 20 컬럼 + 체크박스 다건 선택 + 더블클릭 → 수정 페이지
  *
- * 컬럼: ☐ | DN번호 | 상태 | 내선프로파일 | COS | DR노드 | Global |
- *      IP | MD5 ID | 전송유형 | 단말기 |
+ * 컬럼: ☐ | DN번호 | 유형 | 상태 | 내선프로파일 | COS | DR노드 | Global |
+ *      IP | MD5 ID | 전송유형 | 단말기 | 로그인ADN | 사용자명 |
  *      블럭 | 착금 | 발금 | 개별발신번호 | [휴지통]
  */
 import { useMemo } from 'react';
@@ -80,6 +80,15 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         },
       },
       {
+        // 갭3: dnTypeName 컬럼 — EDN 전용 화면이므로 항상 '내선' 표시
+        headerName: '유형',
+        field: 'dnTypeName',
+        minWidth: 90,
+        maxWidth: 100,
+        cellStyle: { textAlign: 'center' } as CellStyle,
+        valueFormatter: (params) => params.value ?? '내선',
+      },
+      {
         headerName: '상태',
         field: 'dnStatus',
         minWidth: 140,
@@ -114,14 +123,13 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
       {
         headerName: 'COS',
         field: 'cosName',
-        minWidth: 110,
+        minWidth: 130,
         valueFormatter: (params) => params.value ?? '-',
       },
       {
         headerName: 'DR노드',
         field: 'backUpNodeName',
-        minWidth: 90,
-        maxWidth: 110,
+        minWidth: 100,
         valueFormatter: (params) => params.value ?? '-',
       },
       {
@@ -162,6 +170,20 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         headerName: '단말기',
         field: 'deviceTypeName',
         minWidth: 100,
+        valueFormatter: (params) => params.value ?? '-',
+      },
+      {
+        // 갭1: 로그인ADN 컬럼 — SWAT IPR20S2020 그리드 loginAdn 컬럼
+        headerName: '로그인ADN',
+        field: 'loginAdn',
+        minWidth: 120,
+        valueFormatter: (params) => params.value ?? '-',
+      },
+      {
+        // 갭2: 사용자명 컬럼 — SWAT IPR20S2020 그리드 ieUserName 컬럼
+        headerName: '사용자명',
+        field: 'ieUserName',
+        minWidth: 120,
         valueFormatter: (params) => params.value ?? '-',
       },
       {

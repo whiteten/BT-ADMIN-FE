@@ -52,6 +52,11 @@
   transform: none !important;
 }
 
+/* 캔버스 배경 — 도트 패턴 아래로 깔리는 은은한 수직 그라데이션으로 깊이감 부여 */
+.react-flow {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+}
+
 /* Edge 선택 시 굵고 진한 파란색으로 강조 + hover 도 동일 색 (default 가 회색이라 클릭해도 거의 안 보임) */
 .react-flow__edge .react-flow__edge-path {
   transition: stroke 120ms ease, stroke-width 120ms ease;
@@ -63,7 +68,7 @@
 .react-flow__edge.selected .react-flow__edge-path,
 .react-flow__edge:focus .react-flow__edge-path,
 .react-flow__edge:focus-visible .react-flow__edge-path {
-  stroke: #2563eb !important;
+  stroke: var(--color-bt-primary) !important;
   stroke-width: 2.5 !important;
 }
 
@@ -104,8 +109,8 @@
 }
 
 .react-flow__controls-button.aoe-flow-control-active {
-  background: #dbeafe !important;
-  color: #2563eb;
+  background: color-mix(in srgb, var(--color-bt-primary) 12%, white) !important;
+  color: var(--color-bt-primary);
 }
 
 .react-flow__controls-button svg {

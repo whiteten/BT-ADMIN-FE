@@ -21,6 +21,7 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  DeployTargetSystem,
   DeployedSystem,
   IfeTokenInfo,
   Scenario,
@@ -29,6 +30,9 @@ import type {
   ScenarioUpdateRequest,
   ScenarioVersion,
   ScenarioVersionCreateRequest,
+  ScenarioVersionUpdateRequest,
+  SystemDeployConfigSaveRequest,
+  SystemDeployItem,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -93,6 +97,21 @@ export const scenarioApi = {
   },
 
   /**
+   * 배포 현황 — 시나리오 전체의 모든 DNIS 시스템 풀상세 (버전 무관).
+   *  @flow ivr-scenario-deploy-status
+   */
+  getDeployStatus: async (params: Record<string, unknown>): Promise<DeployedSystem[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: DeployedSystem[] }>>('/ivr-scenario-deploy-status', { params });
+    return response.data?.data?.value ?? [];
+  },
+
+  /** 배포 대상 시스템 조회 — 할당 + HA 백업 포함 (사이드바용). */
+  getDeployTargets: async (params: Record<string, unknown>): Promise<DeployTargetSystem[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: DeployTargetSystem[] }>>('/ivr-scenario-deploy-targets', { params });
+    return response.data?.data?.value ?? [];
+  },
+
+  /**
    * IFE 토큰 발급 (대화편집 버튼 클릭 시 호출).
    * 응답의 redirectUrl을 window.open으로 열어 IFE 진입.
    */
@@ -102,10 +121,19 @@ export const scenarioApi = {
   },
 
   /**
-   * SXML 파일 다운로드 (Blob).
+   * 시나리오 파일 다운로드 (Blob).
    */
   downloadScenario: async (params: Record<string, unknown>) => {
     const response = await apiClient.get<Blob>('/ivr-scenario-download', { params, responseType: 'blob' });
+    return response;
+  },
+
+  /**
+   * 시나리오 첨부 문서 다운로드 (Blob). SXML 다운로드와 좌우 대칭.
+   *  @flow ivr-scenario-document-download
+   */
+  downloadScenarioDocument: async (params: Record<string, unknown>) => {
+    const response = await apiClient.get<Blob>('/ivr-scenario-document-download', { params, responseType: 'blob' });
     return response;
   },
 
@@ -132,8 +160,74 @@ export const scenarioApi = {
     formData.append('serviceVer', data.serviceVer);
     if (data.versionName) formData.append('versionName', data.versionName);
     if (data.versionDesc) formData.append('versionDesc', data.versionDesc);
+    if (data.statVisible !== undefined && data.statVisible !== null) formData.append('statVisible', String(data.statVisible));
+    if (data.charsetType) formData.append('charsetType', data.charsetType);
+    if (data.doScenarioAnal !== undefined && data.doScenarioAnal !== null) formData.append('doScenarioAnal', String(data.doScenarioAnal));
     if (file) formData.append('uploadFile', file);
     const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-create-with-file', formData, { params });
     return response.data?.data;
+  },
+
+  /**
+   * 버전 메타 수정 (파일 제외) — AS-IS SWAT IPR20S6020VU.do 대응.
+   * versionName / versionDesc / statVisible / charsetType 만 수정. null 필드는 기존 값 유지.
+   * @flow ivr-scenario-version-update
+   */
+  updateVersion: async ({ params, data }: { params: Record<string, unknown>; data: ScenarioVersionUpdateRequest }): Promise<ScenarioVersion> => {
+    const response = await apiClient.put<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-update', data, { params });
+    return response.data?.data;
+  },
+
+  /**
+   * 버전 메타 + SXML 재업로드 통합 — AS-IS SWAT IPR20S6020FU.do update 분기 (문서 제외).
+   * multipart. SXML 옵션 — 없으면 메타만 수정.
+   *  ⚠ Content-Type 헤더는 명시하지 않는다.
+   *  ⚠ 시나리오 문서는 별도 호출(uploadDocument) — BFF의 multipart part name 강제 변환 회피용 분리.
+   *  @flow ivr-scenario-version-update-with-file
+   */
+  updateVersionWithFile: async ({ params, data, file }: { params: Record<string, unknown>; data: ScenarioVersionUpdateRequest; file?: File }): Promise<ScenarioVersion> => {
+    const formData = new FormData();
+    if (data.versionName !== undefined) formData.append('versionName', data.versionName);
+    if (data.versionDesc !== undefined) formData.append('versionDesc', data.versionDesc);
+    if (data.statVisible !== undefined && data.statVisible !== null) formData.append('statVisible', String(data.statVisible));
+    if (data.charsetType) formData.append('charsetType', data.charsetType);
+    if (data.doScenarioAnal !== undefined && data.doScenarioAnal !== null) formData.append('doScenarioAnal', String(data.doScenarioAnal));
+    if (file) formData.append('uploadFile', file);
+    const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-update-with-file', formData, { params });
+    return response.data?.data;
+  },
+
+  /**
+   * 시나리오 첨부 문서 업로드 (UPSERT) — AS-IS scenarioDocumentBinary 동등.
+   * multipart 단일 파일. 버전 메타/SXML 업로드와 분리된 독립 호출.
+   *  ⚠ Content-Type 헤더는 명시하지 않는다.
+   *  @flow ivr-scenario-version-document-upload
+   */
+  uploadDocument: async ({ params, file }: { params: Record<string, unknown>; file: File }): Promise<ScenarioVersion> => {
+    const formData = new FormData();
+    formData.append('documentFile', file);
+    const response = await apiClient.post<ApiResponse<ScenarioVersion>>('/ivr-scenario-version-document-upload', formData, { params });
+    return response.data?.data;
+  },
+
+  // ─── 배포 설정 (FCA 봇 'bot-deploy-config' / 'bot-deploy-config-save' 미러링) ───
+
+  /**
+   * 시나리오의 배포 후보 시스템 + 할당 여부 조회.
+   * 백엔드 응답: ApiResponse<PagedResponse<SystemDeployItem>> → data.items[].
+   * @flow ivr-scenario-deploy-config
+   */
+  getDeployConfig: async (params?: Record<string, unknown>): Promise<SystemDeployItem[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: SystemDeployItem[] }>>('/ivr-scenario-deploy-config', { params });
+    return response.data?.data?.items ?? [];
+  },
+
+  /**
+   * 시나리오 배포 설정 저장 — systemIds 리스트 (delta apply).
+   * @flow ivr-scenario-deploy-config-save
+   */
+  saveDeployConfig: async ({ params, data }: { params: Record<string, unknown>; data: SystemDeployConfigSaveRequest }) => {
+    const response = await apiClient.post('/ivr-scenario-deploy-config-save', data, { params });
+    return response;
   },
 };

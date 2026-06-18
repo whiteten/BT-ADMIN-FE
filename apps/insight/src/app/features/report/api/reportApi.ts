@@ -6,7 +6,6 @@ import type {
   PanelCreateDatas,
   PanelDetail,
   PanelLayoutUpdateItem,
-  PublishDatas,
   ReportCreateDatas,
   ReportDetail,
   ReportFullDetail,
@@ -154,33 +153,36 @@ export const reportApi = {
   },
 
   updatePanelLayouts: async (reportId: number, layouts: PanelLayoutUpdateItem[]): Promise<void> => {
-    await apiClient.put('/insight-statistics-panel-layout-update', layouts, { params: { reportId } });
+    // BE DTO(StatPanelLayoutRequest)는 layoutX/Y/W/H 필드 — createPanel 과 동일하게 매핑해서 전송
+    const body = layouts.map((l) => ({ panelId: l.panelId, layoutX: l.x, layoutY: l.y, layoutW: l.w, layoutH: l.h }));
+    await apiClient.put('/insight-statistics-panel-layout-update', body, { params: { reportId } });
   },
 
-  publishReport: async (reportId: number, data: PublishDatas): Promise<{ menuId: number }> => {
-    const response = await apiClient.post<ApiResponse<{ menuId: number }>>('/insight-statistics-publish-on', data, { params: { reportId } });
-    return response.data?.data;
-  },
-
-  unpublishReport: async (reportId: number): Promise<void> => {
-    await apiClient.delete('/insight-statistics-publish-off', { params: { reportId } });
-  },
-
-  getUserFilter: async (reportId: number): Promise<Record<string, unknown>> => {
-    const response = await apiClient.get<ApiResponse<Record<string, unknown>>>('/insight-statistics-user-filter-get', { params: { reportId } });
-    return response.data?.data;
+  getUserFilter: async (reportId: number): Promise<Record<string, unknown> | null> => {
+    const response = await apiClient.get<ApiResponse<{ filterValue?: string }>>('/insight-statistics-user-filter-get', { params: { reportId } });
+    const raw = response.data?.data?.filterValue;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
   },
 
   saveUserFilter: async (reportId: number, data: Record<string, unknown>): Promise<void> => {
-    await apiClient.put('/insight-statistics-user-filter-save', data, { params: { reportId } });
+    await apiClient.put('/insight-statistics-user-filter-save', { filterValue: JSON.stringify(data) }, { params: { reportId } });
   },
 
   getUserLayout: async (reportId: number): Promise<PanelLayoutUpdateItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: PanelLayoutUpdateItem[] }>>('/insight-statistics-user-layout-get', { params: { reportId } });
-    return response.data?.data?.items ?? [];
+    // BE 응답(StatUserLayoutResponse)은 layoutX/Y/W/H — x/y/w/h 로 매핑
+    type UserLayoutRow = { panelId: number; layoutX: number; layoutY: number; layoutW: number; layoutH: number };
+    const response = await apiClient.get<ApiResponse<{ items: UserLayoutRow[] }>>('/insight-statistics-user-layout-get', { params: { reportId } });
+    return (response.data?.data?.items ?? []).map((l) => ({ panelId: l.panelId, x: l.layoutX, y: l.layoutY, w: l.layoutW, h: l.layoutH }));
   },
 
   saveUserLayout: async (reportId: number, layouts: PanelLayoutUpdateItem[]): Promise<void> => {
-    await apiClient.put('/insight-statistics-user-layout-save', layouts, { params: { reportId } });
+    // BE DTO(StatUserLayoutUpsertRequest)는 layoutX/Y/W/H 필드 — 매핑해서 전송
+    const body = layouts.map((l) => ({ panelId: l.panelId, layoutX: l.x, layoutY: l.y, layoutW: l.w, layoutH: l.h }));
+    await apiClient.put('/insight-statistics-user-layout-save', body, { params: { reportId } });
   },
 };

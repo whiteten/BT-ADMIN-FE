@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Col, Form, type FormProps, Input, Modal, Row, Select } from 'antd';
 import { Plus, Settings, X } from 'lucide-react';
 import { Log } from '@/log';
-import ApiClient, { type ApiResponse, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
+import { knowledgeApi } from '../api/knowledgeApi';
 import {
   knowledgeQueryKeys,
   useDeleteKnowledgeEval,
@@ -17,8 +18,6 @@ import type { EvalChunkSetting, EvalGenerateDocItem, EvalQuestionSetting, Knowle
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-
-const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 const DIFFICULTY_OPTIONS = [
   { label: '보통', value: '보통' },
@@ -41,7 +40,7 @@ function ChunkCard({ chunk, selected, onToggle }: { chunk: KnowledgeChunkItem; s
   return (
     <div
       onClick={() => onToggle(chunk.chunkId)}
-      className={`p-3 rounded-lg border cursor-pointer transition-all ${selected ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+      className={`p-3 rounded-lg border cursor-pointer transition-all ${selected ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
     >
       <div className="flex items-start gap-2.5">
         <Checkbox checked={selected} onClick={(e) => e.stopPropagation()} className="mt-0.5 shrink-0" />
@@ -83,7 +82,7 @@ function QuestionPanel({
         {setting.questions.map((q, idx) => (
           <div key={q.id} className="p-3 bg-white rounded-lg border border-gray-200 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-blue-600">질문 {idx + 1}</span>
+              <span className="text-xs font-semibold text-[var(--color-bt-primary)]">질문 {idx + 1}</span>
               {setting.questions.length > 1 && (
                 <button type="button" onClick={() => onDeleteQuestion(chunk.chunkId, q.id)} className="text-gray-400 hover:text-red-500 transition-colors">
                   <X className="size-3.5" />
@@ -116,7 +115,7 @@ function QuestionPanel({
       <button
         type="button"
         onClick={() => onAddQuestion(chunk.chunkId)}
-        className="w-full py-2 border-2 border-dashed border-blue-300 rounded-lg text-xs text-blue-500 hover:bg-blue-50 flex items-center justify-center gap-1 transition-colors"
+        className="w-full py-2 border-2 border-dashed border-[var(--color-bt-primary)]/40 rounded-lg text-xs text-[var(--color-bt-primary)] hover:bg-[var(--color-bt-primary-soft)] flex items-center justify-center gap-1 transition-colors"
       >
         <Plus className="size-3.5" />
         질문 추가
@@ -133,8 +132,6 @@ export default function EvalBasicInfo() {
   const [form] = Form.useForm<FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
 
-  const [availableChunks, setAvailableChunks] = useState<KnowledgeChunkItem[]>([]);
-  const [chunksLoading, setChunksLoading] = useState(false);
   const [selectedChunks, setSelectedChunks] = useState<string[]>([]);
   const [chunkSettings, setChunkSettings] = useState<EvalChunkSetting[]>([]);
   const [llmModalOpen, setLlmModalOpen] = useState(false);
@@ -216,38 +213,34 @@ export default function EvalBasicInfo() {
     }));
   }, [evalData, form]);
 
-  // 파일 선택이 변경될 때 청크 로드
+  const chunkQueries = useQueries({
+    queries: selectedFileIds.map((fileId) => ({
+      queryKey: knowledgeQueryKeys.getKnowledgeChunks({ fileId }).queryKey,
+      queryFn: async () => {
+        const chunks = await knowledgeApi.getKnowledgeChunks({ fileId });
+        return chunks.map((chunk) => ({ ...chunk, fileId }));
+      },
+    })),
+  });
+  const chunksLoading = chunkQueries.some((q) => q.isPending);
+  const availableChunks: KnowledgeChunkItem[] = chunkQueries.flatMap((q) => q.data ?? []);
+  const allChunksLoaded = selectedFileIds.length > 0 && chunkQueries.every((q) => q.isSuccess);
+
+  // 파일 변경 시 선택 초기화 (단, evalData 초기 복원 중이면 건너뜀)
   useEffect(() => {
-    if (selectedFileIds.length === 0) {
-      setAvailableChunks([]);
-      setSelectedChunks([]);
-      setChunkSettings([]);
-      return;
-    }
-    setChunksLoading(true);
-    Promise.all(
-      selectedFileIds.map((fileId) =>
-        apiClient
-          .get<ApiResponse<{ items: KnowledgeChunkItem[] }>>('/aoe-knowledge-chunks', { params: { fileId } })
-          .then((res) => (res.data?.data?.items ?? []).map((chunk) => ({ ...chunk, fileId })))
-          .catch(() => [] as KnowledgeChunkItem[]),
-      ),
-    )
-      .then((results) => {
-        setAvailableChunks(results.flat());
-        // 초기 로드라면 기존 선택 복원
-        if (pendingInit.current) {
-          const init = pendingInit.current;
-          setSelectedChunks(init.map((s) => s.chunkId));
-          setChunkSettings(init);
-          pendingInit.current = null;
-        } else {
-          setSelectedChunks([]);
-          setChunkSettings([]);
-        }
-      })
-      .finally(() => setChunksLoading(false));
+    if (pendingInit.current) return;
+    setSelectedChunks([]);
+    setChunkSettings([]);
   }, [selectedFileIds.join(',')]);
+
+  // 모든 청크 로드 완료 시 pendingInit 복원
+  useEffect(() => {
+    if (!pendingInit.current || !allChunksLoaded) return;
+    const init = pendingInit.current;
+    setSelectedChunks(init.map((s) => s.chunkId));
+    setChunkSettings(init);
+    pendingInit.current = null;
+  }, [allChunksLoaded]);
 
   const handleChunkToggle = (chunkId: string) => {
     const isSelected = selectedChunks.includes(chunkId);

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from 'antd';
-import { Play, Square } from 'lucide-react';
+import { Play, Plus, Square } from 'lucide-react';
 import { DOMAIN_LABELS } from '../constants/monitoringConstants';
 import type { DashboardDetail, WsConnectionState } from '../types';
 
@@ -30,6 +30,8 @@ interface DashboardHeaderProps {
   isSaving?: boolean;
   /** Edit 모드 — 취소 */
   onCancel?: () => void;
+  /** Edit 모드 — 영역(Slot) 추가 */
+  onAddSlot?: () => void;
 
   /** 편집 권한 보유 여부 */
   canEdit?: boolean;
@@ -56,6 +58,7 @@ export default function DashboardHeader({
   onSave,
   isSaving,
   onCancel,
+  onAddSlot,
   canEdit = true,
 }: DashboardHeaderProps) {
   const [name, setName] = useState(dashboard.dashboardName);
@@ -123,6 +126,9 @@ export default function DashboardHeader({
         ) : (
           <div className="flex items-center gap-2">
             <Button onClick={onCancel}>취소</Button>
+            <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={onAddSlot}>
+              영역 추가
+            </Button>
             <Button variant="solid" color="cyan" onClick={onSave} loading={isSaving}>
               저장
             </Button>

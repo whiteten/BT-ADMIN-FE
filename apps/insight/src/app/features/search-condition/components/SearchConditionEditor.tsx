@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { type ComponentProps, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { sql } from '@codemirror/lang-sql';
 import { oneDark } from '@codemirror/theme-one-dark';
-import CodeMirror, { type Extension } from '@uiw/react-codemirror';
+import CodeMirror from '@uiw/react-codemirror';
 import { Button, Checkbox, Drawer, Form, Input, Radio, Select, Tag, Tree, type TreeDataNode } from 'antd';
 
 import { Log } from '@/log';
@@ -54,23 +54,40 @@ function fromDetailNode(n: SearchConditionNode): NodeState {
   };
 }
 
+/**
+ * 노드 로드 시 무효 parentNodeCode 보정.
+ * 자식 단계(depth>0)의 parentNodeCode 가 자기참조이거나 존재하지 않으면 직전 단계 코드로 폴백.
+ * (과거 편집기 버그로 자기참조가 굳은 데이터를 재저장 시 영구 교정)
+ */
+function repairParentCodes(list: NodeState[]): NodeState[] {
+  const codes = new Set(list.map((n) => n.nodeCode));
+  return list.map((n, i) => {
+    if (n.nodeDepth === 0) return n.parentNodeCode ? { ...n, parentNodeCode: null } : n;
+    const pc = n.parentNodeCode;
+    const valid = !!pc && pc !== n.nodeCode && codes.has(pc);
+    if (valid) return n;
+    return { ...n, parentNodeCode: i > 0 ? list[i - 1].nodeCode || null : null };
+  });
+}
+
 /** SqlPreviewResult 배열을 antd Tree가 요구하는 계층 구조로 변환. parent 참조 깨진 항목은 루트로 폴백. */
 function buildTreeData(items: SqlPreviewResult[]): TreeDataNode[] {
   const nodeMap = new Map<string, TreeDataNode & { children: TreeDataNode[] }>();
+  const parentOf = new Map<string, string | null>();
 
+  // value 중복 행은 첫 행만 채택 — antd Tree key 중복 방지.
   items.forEach((item) => {
-    if (item.value != null) {
-      nodeMap.set(item.value, { key: item.value, title: item.label ?? item.value, children: [] });
-    }
+    if (item.value == null || nodeMap.has(item.value)) return;
+    nodeMap.set(item.value, { key: item.value, title: item.label ?? item.value, children: [] });
+    parentOf.set(item.value, item.parent ?? null);
   });
 
   const roots: TreeDataNode[] = [];
 
-  items.forEach((item) => {
-    if (item.value == null) return;
-    const node = nodeMap.get(item.value);
-    if (!node) return;
-    const parentNode = item.parent != null ? nodeMap.get(item.parent) : undefined;
+  // 각 노드는 1회만 배치 (중복 push 방지).
+  nodeMap.forEach((node, value) => {
+    const parent = parentOf.get(value);
+    const parentNode = parent != null ? nodeMap.get(parent) : undefined;
     if (parentNode) {
       parentNode.children.push(node);
     } else {
@@ -94,7 +111,7 @@ function renderPreviewControl(node: NodeState): React.ReactNode {
     return (
       <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
         {options.map((o) => (
-          <Checkbox key={o.value} value={o.value} className="pointer-events-none">
+          <Checkbox key={o.value} className="pointer-events-none">
             {o.label}
           </Checkbox>
         ))}
@@ -118,7 +135,12 @@ function renderPreviewControl(node: NodeState): React.ReactNode {
 
   if (inputType === 'TREE_MULTI_SELECT') {
     const treeData = buildTreeData(previewItems);
-    return <Tree checkable treeData={treeData} defaultExpandAll selectable={false} className="max-h-48 overflow-y-auto pointer-events-none" />;
+    // 스크롤 컨테이너와 pointer-events-none 분리 — 같은 요소에 두면 휠 스크롤이 막힌다.
+    return (
+      <div className="max-h-48 overflow-y-auto">
+        <Tree checkable treeData={treeData} defaultExpandAll selectable={false} className="pointer-events-none" />
+      </div>
+    );
   }
 
   return null;
@@ -141,7 +163,6 @@ const INPUT_TYPE_LABEL: Record<InputType, string> = {
 interface HeaderForm {
   title: string;
   categoryCode?: string;
-  isBundle: boolean;
 }
 
 export default function SearchConditionEditor() {
@@ -153,6 +174,8 @@ export default function SearchConditionEditor() {
   const watchedTitle = Form.useWatch('title', headerForm);
   const [nodes, setNodes] = useState<NodeState[]>([emptyNode()]);
   const [activeIdx, setActiveIdx] = useState(0);
+  // 자식 단계 미리보기용 샘플 상위값 — nodeCode별 보존. 부모 단계 결과에서 선택.
+  const [sampleParentValues, setSampleParentValues] = useState<Record<string, string>>({});
 
   const { data: fetchedDetail, isLoading: loadingDetail } = useGetSearchCondition({
     params: { searchCondId: selectedId as number },
@@ -163,8 +186,8 @@ export default function SearchConditionEditor() {
     const src = editingCondition ?? fetchedDetail;
     if (!isEditorOpen) return;
     if (src) {
-      headerForm.setFieldsValue({ title: src.title, categoryCode: src.categoryCode, isBundle: src.isBundle });
-      setNodes(src.nodes.map(fromDetailNode));
+      headerForm.setFieldsValue({ title: src.title, categoryCode: src.categoryCode });
+      setNodes(repairParentCodes(src.nodes.map(fromDetailNode)));
       setActiveIdx(0);
       if (fetchedDetail && !editingCondition) setEditingCondition(fetchedDetail);
     } else if (!selectedId) {
@@ -176,8 +199,26 @@ export default function SearchConditionEditor() {
 
   const cur = nodes[activeIdx] ?? nodes[0];
   const isTree = cur?.inputType === 'TREE_MULTI_SELECT';
+  // 현재 단계의 부모 노드 (자식 단계일 때만). 샘플 상위값 옵션 출처.
+  const parentNode = cur?.parentNodeCode ? nodes.find((n) => n.nodeCode === cur.parentNodeCode) : undefined;
+  const parentReady = parentNode?.previewStatus === 'success';
+  const parentOptions = (parentNode?.previewItems ?? []).map((i) => ({ value: i.value ?? '', label: i.label ?? i.value ?? '' }));
+  const sampleParentValue = cur?.parentNodeCode ? sampleParentValues[cur.nodeCode] : undefined;
 
   const upd = (idx: number, patch: Partial<NodeState>) => setNodes((prev) => prev.map((n, i) => (i === idx ? { ...n, ...patch } : n)));
+
+  // nodeCode 변경 시, 이 노드를 부모로 참조하던 자식들의 parentNodeCode 도 함께 갱신 (링크 유지).
+  const setNodeCode = (idx: number, raw: string) => {
+    const newCode = raw.toUpperCase();
+    setNodes((prev) => {
+      const oldCode = prev[idx].nodeCode;
+      return prev.map((n, i) => {
+        if (i === idx) return { ...n, nodeCode: newCode };
+        if (oldCode && n.parentNodeCode === oldCode) return { ...n, parentNodeCode: newCode };
+        return n;
+      });
+    });
+  };
 
   const addChild = () => {
     const parent = nodes[activeIdx];
@@ -193,7 +234,22 @@ export default function SearchConditionEditor() {
     setActiveIdx(Math.max(0, idx - 1));
   };
 
-  const insertParam = (param: string) => upd(activeIdx, { optionSql: cur.optionSql + param, previewStatus: 'idle' });
+  type EditorViewInstance = Parameters<NonNullable<ComponentProps<typeof CodeMirror>['onCreateEditor']>>[0];
+  const editorViewRef = useRef<EditorViewInstance | null>(null);
+
+  const insertParam = (param: string) => {
+    const view = editorViewRef.current;
+    if (view) {
+      const { from, to } = view.state.selection.main;
+      view.dispatch({
+        changes: { from, to, insert: param },
+        selection: { anchor: from + param.length },
+      });
+      upd(activeIdx, { optionSql: view.state.doc.toString(), previewStatus: 'idle' });
+    } else {
+      upd(activeIdx, { optionSql: cur.optionSql + param, previewStatus: 'idle' });
+    }
+  };
 
   const { mutate: runPreview, isPending: running } = usePreviewSql({
     mutationOptions: {
@@ -221,6 +277,8 @@ export default function SearchConditionEditor() {
     if (!cur?.optionSql.trim()) return;
     runPreview({
       optionSql: cur.optionSql,
+      // 자식 단계: 부모 결과에서 고른 샘플값을 :parentValue 로 바인딩해 cascade 실제 검증
+      parentValue: cur.parentNodeCode ? (sampleParentValue ?? undefined) : undefined,
       valueColumn: cur.valueColumn || undefined,
       labelColumn: cur.labelColumn || undefined,
       parentColumn: cur.parentColumn ?? undefined,
@@ -264,7 +322,6 @@ export default function SearchConditionEditor() {
         const payload = {
           title: values.title,
           categoryCode: values.categoryCode ?? undefined,
-          isBundle: values.isBundle ?? false,
           nodes: nodes.map(({ previewStatus: _ps, previewItems: _pi, previewError: _pe, detectedColumns: _dc, ...n }) => n),
         };
         if (isEdit && editingCondition) {
@@ -283,7 +340,7 @@ export default function SearchConditionEditor() {
   const footer = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <Tag color={watchedTitle?.trim() ? 'success' : 'error'}>묶음명</Tag>
+        <Tag color={watchedTitle?.trim() ? 'success' : 'error'}>검색조건명</Tag>
         <Tag color={allNodesFilled ? 'success' : 'error'}>조건 코드·이름</Tag>
         <Tag color={allSuccess ? 'success' : 'error'}>SQL 실행</Tag>
         <Tag color={allMapped ? 'success' : 'error'}>컬럼 매핑</Tag>
@@ -302,23 +359,19 @@ export default function SearchConditionEditor() {
       open={isEditorOpen}
       onClose={closeEditor}
       title={isEdit ? '검색조건 수정' : '새 검색조건 추가'}
-      width={960}
       footer={footer}
       destroyOnHidden
-      styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
+      styles={{ wrapper: { width: 960 }, body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >
       {/* 기본 정보 */}
       <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
         <Form form={headerForm} layout="vertical" className="mb-0">
           <div className="flex items-start gap-4">
-            <Form.Item name="title" label="묶음명" rules={[{ required: true, message: '묶음명을 입력하세요.' }]} hasFeedback className="flex-[2] mb-0">
+            <Form.Item name="title" label="검색조건명" rules={[{ required: true, message: '검색조건명을 입력하세요.' }]} hasFeedback className="flex-[2] mb-0">
               <Input placeholder="예) 상담원, 교환기 구분, 통화 유형" />
             </Form.Item>
             <Form.Item name="categoryCode" label="카테고리" className="flex-1 mb-0">
               <Select placeholder="카테고리 선택" allowClear options={CATEGORY_OPTIONS} />
-            </Form.Item>
-            <Form.Item name="isBundle" valuePropName="checked" label="노드 묶음" className="flex-none mb-0">
-              <Checkbox />
             </Form.Item>
           </div>
         </Form>
@@ -403,12 +456,7 @@ export default function SearchConditionEditor() {
                   <div className="grid grid-cols-3 gap-3">
                     <Form layout="vertical" component={false}>
                       <Form.Item label="조건 코드" className="mb-0" required>
-                        <Input
-                          value={cur.nodeCode}
-                          onChange={(e) => upd(activeIdx, { nodeCode: e.target.value.toUpperCase() })}
-                          placeholder="예) AGENT_TYPE"
-                          className="font-mono"
-                        />
+                        <Input value={cur.nodeCode} onChange={(e) => setNodeCode(activeIdx, e.target.value)} placeholder="예) AGENT_TYPE" className="font-mono" />
                       </Form.Item>
                     </Form>
                     <Form layout="vertical" component={false}>
@@ -449,6 +497,27 @@ export default function SearchConditionEditor() {
                     </Button>
                   </div>
 
+                  {/* 자식 단계: 부모 결과에서 샘플 상위값 선택 → :parentValue 바인딩으로 cascade 미리보기 */}
+                  {cur.parentNodeCode && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
+                      <span className="text-xs font-medium text-bt-warn shrink-0">샘플 상위값</span>
+                      <Select
+                        size="small"
+                        value={sampleParentValue || undefined}
+                        onChange={(v) => setSampleParentValues((prev) => ({ ...prev, [cur.nodeCode]: v }))}
+                        options={parentOptions}
+                        disabled={!parentReady}
+                        placeholder={parentReady ? `${parentNode?.nodeLabel || cur.parentNodeCode} 값 선택` : '상위 단계 SQL을 먼저 실행하세요'}
+                        style={{ minWidth: 200 }}
+                        popupMatchSelectWidth={false}
+                        showSearch
+                        optionFilterProp="label"
+                        allowClear
+                      />
+                      <span className="text-xs text-gray-400">→ SQL 실행 시 :parentValue 로 주입</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200">
                     <span className="text-xs text-gray-400">파라미터 삽입:</span>
                     <Button
@@ -476,7 +545,10 @@ export default function SearchConditionEditor() {
                     <CodeMirror
                       value={cur.optionSql}
                       onChange={(val) => upd(activeIdx, { optionSql: val, previewStatus: 'idle' })}
-                      extensions={[sql() as Extension]}
+                      onCreateEditor={(view) => {
+                        editorViewRef.current = view;
+                      }}
+                      extensions={[sql()]}
                       theme={oneDark}
                       height="180px"
                       placeholder={`SELECT col_code AS value, col_name AS label\nFROM TB_MASTER\nWHERE USE_YN = 'Y'\nORDER BY SORT_ORDER`}

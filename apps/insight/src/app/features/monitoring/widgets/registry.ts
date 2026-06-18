@@ -10,7 +10,10 @@
 
 import type { ComponentType } from 'react';
 import AgentStatusWidget from './agent-status/AgentStatusWidget';
+import AlarmCenterWidget from './alarm-center/AlarmCenterWidget';
 import CtiqStatusWidget from './ctiq-status/CtiqStatusWidget';
+import HealthBoardWidget from './health-board/HealthBoardWidget';
+import NodeDetailWidget from './node-detail/NodeDetailWidget';
 
 /** 모든 커스텀 위젯 컴포넌트의 공통 props. */
 export interface CustomWidgetComponentProps {
@@ -121,6 +124,14 @@ const CTIQ_STATUS_FIELDS = [
 const REGISTRY: Record<string, CustomWidgetEntry> = {
   'agent-status-matrix': { component: AgentStatusWidget, fields: AGENT_STATUS_CARD_FIELDS },
   'ctiq-status-matrix': { component: CtiqStatusWidget, fields: CTIQ_STATUS_FIELDS },
+  // 종합 헬스보드 — 허브 위젯. 여러 데이터소스(IC:GROUP/CTIQ/AGENT, IE/IR 시스템)를 BE 가 집계해
+  // 단일 객체로 내려준다. row 필드 화이트리스트 개념이 없어 fields 미지정(전체 수신).
+  'health-board': { component: HealthBoardWidget },
+  // 노드 상세 — 헬스보드 신호등 드릴다운. IO `SYSTEM:STAT`(시스템별 CPU/메모리/디스크/프로세스/모듈)
+  // 을 시스템 단위 객체 배열로 수신. 필드 화이트리스트 없이 전체 수신.
+  'node-detail': { component: NodeDetailWidget },
+  // 알람센터 — 헬스보드 알람 카드 드릴다운. Oracle `TB_CC_ERRHISTORY`(장애 발생 이력) row 배열 수신.
+  'alarm-center': { component: AlarmCenterWidget },
 };
 
 export function getCustomWidgetComponent(widgetTypeId: string): ComponentType<CustomWidgetComponentProps> | null {

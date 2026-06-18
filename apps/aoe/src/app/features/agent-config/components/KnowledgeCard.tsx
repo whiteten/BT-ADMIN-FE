@@ -1,6 +1,6 @@
 import { Card } from 'antd';
 import dayjs from 'dayjs';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Clock, FileText } from 'lucide-react';
 import type { KnowledgeListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
@@ -13,12 +13,12 @@ type KnowledgeCardProps = KnowledgeListItem & {
 
 export default function KnowledgeCard({ documentId, documentName, description, fileCount, updatedAt, onDetail, onDelete }: KnowledgeCardProps) {
   const title = (
-    <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-md bg-blue-500 flex items-center justify-center shrink-0">
-        <BookOpen className="size-4 text-white" />
+    <div className="flex items-center gap-2.5">
+      <div className="w-8 h-8 rounded-lg bg-[var(--color-bt-primary-soft)] flex items-center justify-center shrink-0">
+        <BookOpen className="size-[18px] text-[var(--color-bt-primary)]" />
       </div>
       <span
-        className="hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
+        className="truncate hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
         onClick={(e) => {
           e.stopPropagation();
           onDetail?.(documentId);
@@ -53,21 +53,26 @@ export default function KnowledgeCard({ documentId, documentName, description, f
       title={title}
       extra={extra}
       styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px', minHeight: '148px' } }}
-      className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
+      className="transition-all duration-200 hover:-translate-y-0.5 hover:!border-[var(--color-bt-primary)] hover:shadow-[0px_6px_16px_0px_#38414A1f] hover:cursor-pointer"
       onClick={() => onDetail?.(documentId)}
     >
-      <div className="flex flex-col text-[#495057] gap-2">
-        <div className="flex">
-          <span className="w-[104px] shrink-0">파일 수</span>
-          <span>{fileCount ?? 0}</span>
+      <div className="flex h-full flex-col">
+        <div className="flex flex-col gap-2.5 text-[#495057]">
+          <div className="flex items-center">
+            <span className="w-[72px] shrink-0 text-[#888B9A]">파일 수</span>
+            <span className="inline-flex items-center gap-1.5 font-medium">
+              <FileText className="size-3.5 text-[#888B9A]" />
+              {fileCount ?? 0}
+            </span>
+          </div>
+          <div className="flex items-center">
+            <span className="w-[72px] shrink-0 text-[#888B9A]">설명</span>
+            <span className="min-w-0 flex-1 truncate">{description || '-'}</span>
+          </div>
         </div>
-        <div className="flex">
-          <span className="w-[104px] shrink-0">설명</span>
-          <span className="truncate">{description ?? '-'}</span>
-        </div>
-        <div className="flex">
-          <span className="w-[104px] shrink-0">최종 수정</span>
-          <span>{updatedAt ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
+        <div className="mt-auto flex items-center gap-1.5 border-t border-[#F1F3F5] pt-3 text-xs text-[#888B9A]">
+          <Clock className="size-3.5 shrink-0" />
+          <span>최종 수정 {updatedAt ? dayjs(updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
         </div>
       </div>
     </Card>

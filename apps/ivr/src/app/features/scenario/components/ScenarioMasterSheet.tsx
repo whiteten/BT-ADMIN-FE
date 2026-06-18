@@ -36,6 +36,7 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
   const [editing, setEditing] = useState<Scenario | null>(null);
 
   const isEdit = !!editing;
+  const isAcsType = editing?.serviceType === '20' || editing?.serviceType === '70';
 
   useImperativeHandle(ref, () => ({
     open: (scenario) => {
@@ -83,8 +84,7 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
 
   const handleSubmit = (values: FormValues) => {
     if (isEdit && editing) {
-      // 수정: serviceType, defaultFilename 변경 불가
-      const { serviceType, defaultFilename, ...updateData } = values;
+      const { defaultFilename, ...updateData } = values;
       updateMutate({ params: { serviceId: editing.serviceId }, data: updateData });
     } else {
       createMutate(values);
@@ -114,15 +114,20 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
           label="시나리오명"
           rules={[
             { required: true, message: '시나리오명은 필수입니다' },
-            { max: 100, message: '시나리오명은 100자 이내여야 합니다' },
+            { max: 33, message: '시나리오명은 33자 이내여야 합니다' },
             { pattern: /^[a-zA-Z0-9가-힣_ ]+$/, message: '영문, 숫자, 한글, 밑줄, 공백만 가능합니다' },
           ]}
         >
-          <Input placeholder="예: 신용카드_본인확인" maxLength={100} />
+          <Input placeholder="예: 신용카드_본인확인" maxLength={33} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name="serviceType" label="시나리오 종류" rules={[{ required: true, message: '시나리오 종류는 필수입니다' }]} extra="※ BOT(90)은 FCA 봇운영 관리에서 등록">
-          <Select placeholder="선택" disabled={isEdit} options={SCENARIO_TYPE_OPTIONS.map((o) => ({ label: `${o.label} (${o.code})`, value: o.value }))} />
+        <Form.Item name="serviceType" label="시나리오 종류" initialValue="10" rules={[{ required: true, message: '시나리오 종류는 필수입니다' }]}>
+          <Select
+            placeholder="선택"
+            disabled={isAcsType}
+            style={{ width: '100%' }}
+            options={SCENARIO_TYPE_OPTIONS.filter((o) => !isEdit || !['20', '70'].includes(o.value)).map((o) => ({ label: o.label, value: o.value }))}
+          />
         </Form.Item>
 
         <Form.Item
@@ -135,28 +140,36 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
           ]}
           extra="SXML 파일명 prefix (예: creditcard → creditcard_v1.0.sxml)"
         >
-          <Input placeholder="예: creditcard" maxLength={100} disabled={isEdit} />
+          <Input placeholder="예: creditcard" maxLength={100} disabled={isEdit} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name="mentfilePath" label="멘트 경로" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
-          <Input placeholder="IPRON/ment/" maxLength={256} />
+        <Form.Item
+          name="mentfilePath"
+          label="멘트 경로"
+          initialValue="IPRON/ment/"
+          rules={[
+            { required: true, message: '멘트 경로는 필수입니다' },
+            { max: 256, message: '256자 이내여야 합니다' },
+          ]}
+        >
+          <Input placeholder="IPRON/ment/" maxLength={256} style={{ width: '100%' }} />
         </Form.Item>
 
-        <Form.Item name="commonPath" label="공통 멘트 경로" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
-          <Input placeholder="IPRON/common/" maxLength={256} />
+        <Form.Item
+          name="maxKeepTime"
+          label="최대 유지시간 (초)"
+          initialValue={0}
+          extra="0 ~ 9999999999"
+          rules={[
+            { required: true, message: '최대 유지시간은 필수입니다' },
+            { type: 'number', min: 0, max: 9999999999, message: '0 ~ 9999999999 범위여야 합니다' },
+          ]}
+        >
+          <InputNumber min={0} max={9999999999} precision={0} keyboard style={{ width: '100%' }} />
         </Form.Item>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Form.Item name="maxKeepTime" label="최대 유지시간 (초)" rules={[{ type: 'number', min: 0, message: '0 이상' }]}>
-            <InputNumber min={0} placeholder="600" style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="daemonPeriod" label="데몬 주기 (초)" rules={[{ type: 'number', min: 0, message: '0 이상' }]}>
-            <InputNumber min={0} placeholder="30" style={{ width: '100%' }} />
-          </Form.Item>
-        </div>
 
         <Form.Item name="serviceDesc" label="설명" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
-          <Input.TextArea rows={3} maxLength={256} />
+          <Input.TextArea rows={3} maxLength={256} style={{ width: '100%' }} />
         </Form.Item>
       </Form>
     </Drawer>

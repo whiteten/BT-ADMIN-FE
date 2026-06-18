@@ -51,7 +51,7 @@ export default function AdnCopyDrawer({ open, source, onCancel, onSubmit }: AdnC
       open={open}
       onClose={onCancel}
       width={480}
-      destroyOnClose
+      destroyOnHidden
       extra={
         <div className="flex gap-2">
           <Button onClick={onCancel}>취소</Button>

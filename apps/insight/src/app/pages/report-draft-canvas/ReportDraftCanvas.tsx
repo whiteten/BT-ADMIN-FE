@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Button, Tag } from 'antd';
+import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import CanvasLayout from '../../features/canvas/components/CanvasLayout';
+import CanvasLayout, { type CanvasLayoutRef } from '../../features/canvas/components/CanvasLayout';
 import { reportApi } from '../../features/report/api/reportApi';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useReportEditorStore } from '../../features/report/hooks/useReportEditorStore';
@@ -12,7 +13,6 @@ import type { DomainCode, ReportIconType } from '../../features/report/types';
 interface WizardState {
   title: string;
   domain: DomainCode;
-  datasetId: number;
   iconType?: ReportIconType;
 }
 
@@ -25,6 +25,8 @@ export default function ReportDraftCanvas() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { panels, reset } = useReportEditorStore();
   const [isSaving, setIsSaving] = useState(false);
+  const [panelEditing, setPanelEditing] = useState(false);
+  const canvasRef = useRef<CanvasLayoutRef>(null);
 
   useEffect(() => {
     reset();
@@ -40,7 +42,7 @@ export default function ReportDraftCanvas() {
     };
   }, [reset, setBreadcrumb, clearBreadcrumb]);
 
-  if (!state?.title || !state?.domain || !state?.datasetId) {
+  if (!state?.title || !state?.domain) {
     return <Navigate to="/insight/statistics/reports/new" replace />;
   }
 
@@ -52,13 +54,14 @@ export default function ReportDraftCanvas() {
       const newReport = await reportApi.createReport({
         title: state.title,
         domain: state.domain,
-        datasetId: state.datasetId,
+        datasetId: 0, // 데이터셋은 패널별 선택 — 보고서 단위 데이터셋 미사용
         iconType: state.iconType,
       });
       for (const panel of panels) {
         await reportApi.createPanel(newReport.reportId, {
           panelType: panel.panelType,
           title: panel.title,
+          datasetId: panel.datasetId,
           layout: panel.layout,
           chartOptions: panel.chartOptions,
           fieldMap: panel.fieldMap,
@@ -75,28 +78,33 @@ export default function ReportDraftCanvas() {
 
   return (
     <div className="flex flex-col w-full h-full bg-[var(--color-bt-bg-canvas)]">
-      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base font-semibold truncate">{state.title}</span>
-          <Tag color={DOMAIN_TAG_COLOR[state.domain]} className="!mb-0 shrink-0">
-            {state.domain} · {DOMAIN_LABELS[state.domain] ?? state.domain}
-          </Tag>
-          <Tag color="warning" className="!mb-0 shrink-0">
-            초안
-          </Tag>
+      {!panelEditing && (
+        <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base font-semibold truncate">{state.title}</span>
+            <Tag color={DOMAIN_TAG_COLOR[state.domain]} className="!mb-0 shrink-0">
+              {state.domain} · {DOMAIN_LABELS[state.domain] ?? state.domain}
+            </Tag>
+            <Tag color="warning" className="!mb-0 shrink-0">
+              초안
+            </Tag>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button onClick={handleCancel} disabled={isSaving}>
+              취소
+            </Button>
+            <Button icon={<Plus className="w-3.5 h-3.5" />} onClick={() => canvasRef.current?.openAddArea()}>
+              영역 추가
+            </Button>
+            <Button type="primary" onClick={handleSave} loading={isSaving}>
+              저장
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button onClick={handleCancel} disabled={isSaving}>
-            취소
-          </Button>
-          <Button type="primary" onClick={handleSave} loading={isSaving}>
-            저장
-          </Button>
-        </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-auto">
-        <CanvasLayout reportId={0} mode="edit" isDraft datasetId={state.datasetId} />
+        <CanvasLayout ref={canvasRef} reportId={0} mode="edit" isDraft datasetId={0} onEditorOpenChange={setPanelEditing} />
       </div>
     </div>
   );

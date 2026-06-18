@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Badge, Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
+import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { CheckCircle2, Copy } from 'lucide-react';
 import { Log } from '@/log';
 import { copyToClipboard, toast } from '@/shared-util';
+import FormSummaryPanel from '../../shared/components/FormSummaryPanel';
+import FormSummaryValue from '../../shared/components/FormSummaryValue';
+import AgentUsageSummary from '../components/AgentUsageSummary';
 import { agentQueryKeys, useDeleteAgent, useGetAgent, useGetAgentTypes, useUpdateAgent } from '../hooks/useAgentQueries';
 import type { AgentUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -30,6 +33,22 @@ export default function AgentBasicInfo() {
   const { data: agent, isFetching } = useGetAgent({ params: { agentId } });
   const { data: agentTypeList, isFetching: isFetchingAgentTypes } = useGetAgentTypes({});
   const agentTypeOptions = agentTypeList?.map((type) => ({ label: type.agentTypeName, value: type.agentType })) ?? [];
+
+  // 우측 "수정 정보 요약" 패널 — 폼 입력값을 실시간(useWatch)으로 반영
+  const formValues = Form.useWatch([], form);
+  const agentTypeLabel = agentTypeOptions.find((opt) => opt.value === formValues?.agentType)?.label;
+  const summaryItems = [
+    {
+      key: 'agentName',
+      label: '에이전트 이름',
+      children: <FormSummaryValue value={formValues?.agentName} valid={!!formValues?.agentName} className="font-medium" />,
+    },
+    {
+      key: 'agentType',
+      label: '에이전트 타입',
+      children: <FormSummaryValue value={agentTypeLabel} valid={!!formValues?.agentType} />,
+    },
+  ];
 
   const modal = useModal();
 
@@ -77,61 +96,65 @@ export default function AgentBasicInfo() {
   }, [agent, form]);
 
   return (
-    <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
-      {isFetching || isFetchingAgentTypes ? (
-        <div className="flex items-center justify-center w-full h-full">
-          <FallbackSpinner />
+    <div className="flex w-full flex-1 min-h-0 gap-4">
+      <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
+        <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
+          {isFetching || isFetchingAgentTypes ? (
+            <div className="flex items-center justify-center w-full h-full">
+              <FallbackSpinner />
+            </div>
+          ) : (
+            <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+              <Row gutter={20}>
+                <Col span={9}>
+                  <Form.Item label="에이전트 ID">
+                    <Input
+                      value={agent?.agentId}
+                      disabled
+                      addonAfter={
+                        <span className="cursor-pointer flex items-center gap-1" onClick={() => agent?.agentId && handleCopy(agent.agentId, 'agentId')}>
+                          {copiedField === 'agentId' ? <CheckCircle2 className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                        </span>
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={9}>
+                  <Form.Item label="AOE 사용 Key">
+                    <Input
+                      value={agent?.aoeApiKey ?? '-'}
+                      disabled
+                      addonAfter={
+                        <span className="cursor-pointer flex items-center gap-1" onClick={() => agent?.aoeApiKey && handleCopy(agent.aoeApiKey, 'aoeApiKey')}>
+                          {copiedField === 'aoeApiKey' ? <CheckCircle2 className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                        </span>
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={20}>
+                <Col span={9}>
+                  <Form.Item name="agentName" label="에이전트 이름" required hasFeedback rules={[{ required: true, message: '에이전트 이름을 입력해 주세요.' }]}>
+                    <Input placeholder="에이전트 이름을 입력하세요." />
+                  </Form.Item>
+                </Col>
+                <Col span={9}>
+                  <Form.Item name="agentType" label="에이전트 타입" required hasFeedback rules={[{ required: true, message: '에이전트 타입을 선택해 주세요.' }]}>
+                    <Select options={agentTypeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="에이전트 타입을 선택하세요." />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={20} className="mb-2">
+                <Col span={18}>
+                  <AgentUsageSummary agentId={agentId} />
+                </Col>
+              </Row>
+            </Form>
+          )}
         </div>
-      ) : (
-        <>
-          <Row gutter={20}>
-            <Col span={9}>
-              <Form.Item label="에이전트 ID">
-                <Input
-                  value={agent?.agentId}
-                  disabled
-                  addonAfter={
-                    <span className="cursor-pointer flex items-center gap-1" onClick={() => agent?.agentId && handleCopy(agent.agentId, 'agentId')}>
-                      {copiedField === 'agentId' ? <CheckCircle2 className="size-4 text-green-500" /> : <Copy className="size-4" />}
-                    </span>
-                  }
-                />
-              </Form.Item>
-            </Col>
-            <Col span={9}>
-              <Form.Item label="AOE 사용 Key">
-                <Input
-                  value={agent?.aoeApiKey ?? '-'}
-                  disabled
-                  addonAfter={
-                    <span className="cursor-pointer flex items-center gap-1" onClick={() => agent?.aoeApiKey && handleCopy(agent.aoeApiKey, 'aoeApiKey')}>
-                      {copiedField === 'aoeApiKey' ? <CheckCircle2 className="size-4 text-green-500" /> : <Copy className="size-4" />}
-                    </span>
-                  }
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20}>
-            <Col span={9}>
-              <Form.Item name="agentName" label="에이전트 이름" required hasFeedback rules={[{ required: true, message: '에이전트 이름을 입력해 주세요.' }]}>
-                <Input placeholder="에이전트 이름을 입력하세요." />
-              </Form.Item>
-            </Col>
-            <Col span={9}>
-              <Form.Item name="agentType" label="에이전트 타입" required hasFeedback rules={[{ required: true, message: '에이전트 타입을 선택해 주세요.' }]}>
-                <Select options={agentTypeOptions} allowClear showSearch={{ optionFilterProp: 'label' }} placeholder="에이전트 타입을 선택하세요." />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20}>
-            <Col span={9}>
-              <Form.Item label="RAG 사용여부">
-                <Badge status={agent?.ragUseYn === 'Y' ? 'success' : 'default'} text={agent?.ragUseYn === 'Y' ? '사용' : '미사용'} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
+        <div className="w-full px-7 pb-7 pt-4">
+          <Row gutter={20} justify="center">
             <Col>
               <Button variant="solid" onClick={() => navigate('../list')}>
                 취소
@@ -143,13 +166,14 @@ export default function AgentBasicInfo() {
               </Button>
             </Col>
             <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating}>
+              <Button color="primary" variant="solid" onClick={() => form.submit()} loading={isUpdating}>
                 저장
               </Button>
             </Col>
           </Row>
-        </>
-      )}
-    </Form>
+        </div>
+      </div>
+      <FormSummaryPanel title="수정 정보 요약" loading={isFetching || isFetchingAgentTypes} items={summaryItems} />
+    </div>
   );
 }

@@ -30,8 +30,8 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '회선관리', path: '/ipron/line/ms-group' },
-  { title: 'MS관리', path: '/ipron/line/ms-group' },
+  { title: '미디어 관리', path: '/ipron/line/ms-group' },
+  { title: '미디어 서버 관리', path: '/ipron/line/ms-group' },
 ];
 
 export default function MsGroupList() {
@@ -186,15 +186,21 @@ export default function MsGroupList() {
   };
 
   const handleCreateMsGroup = useCallback(() => {
-    const nodeId = selectedNodeId ?? nodes[0]?.nodeId;
-    if (nodeId) {
-      msGroupDrawerRef.current?.open(undefined, nodeId);
+    if (!selectedNodeId) {
+      toast.warning('검색할 노드를 선택하십시오.');
+      return;
     }
-  }, [selectedNodeId, nodes]);
+    const name = nodeNameMap.get(selectedNodeId) ?? '';
+    msGroupDrawerRef.current?.open(undefined, selectedNodeId, name);
+  }, [selectedNodeId, nodeNameMap]);
 
-  const handleEditMsGroup = useCallback((grp: MsGroup) => {
-    msGroupDrawerRef.current?.open(grp);
-  }, []);
+  const handleEditMsGroup = useCallback(
+    (grp: MsGroup) => {
+      const name = nodeNameMap.get(grp.nodeId) ?? '';
+      msGroupDrawerRef.current?.open(grp, undefined, name);
+    },
+    [nodeNameMap],
+  );
 
   const handleDeleteMsGroup = useCallback(
     (grp: MsGroup) => {
@@ -210,15 +216,22 @@ export default function MsGroupList() {
   );
 
   const handleCreateMediaServer = useCallback(() => {
-    const nodeId = selectedNodeId ?? selectedGroup?.nodeId ?? nodes[0]?.nodeId;
-    if (nodeId) {
-      mediaServerDrawerRef.current?.open(undefined, nodeId);
+    const nodeId = selectedNodeId ?? selectedGroup?.nodeId;
+    if (!nodeId) {
+      toast.warning('검색할 노드를 선택하십시오.');
+      return;
     }
-  }, [selectedNodeId, selectedGroup, nodes]);
+    const name = nodeNameMap.get(nodeId) ?? '';
+    mediaServerDrawerRef.current?.open(undefined, nodeId, name);
+  }, [selectedNodeId, selectedGroup, nodeNameMap]);
 
-  const handleEditMediaServer = useCallback((ms: MediaServer) => {
-    mediaServerDrawerRef.current?.open(ms);
-  }, []);
+  const handleEditMediaServer = useCallback(
+    (ms: MediaServer) => {
+      const name = nodeNameMap.get(ms.nodeId) ?? '';
+      mediaServerDrawerRef.current?.open(ms, undefined, name);
+    },
+    [nodeNameMap],
+  );
 
   const handleMemberManage = useCallback(() => {
     if (selectedGroup) {

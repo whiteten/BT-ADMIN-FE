@@ -1,5 +1,5 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
+import type { SearchCondMeta, SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -29,17 +29,53 @@ export const searchConditionApi = {
   },
 
   /**
-   * SQL 미리보기.
-   * 백엔드는 ApiResponse<List<T>>를 반환 — BFF 단일 스텝 통과 후 data가 배열 직접 노출.
-   * BFF step_id에 따라 data 키가 달라질 수 있어 response.data.data를 수동 추출·캐스팅한다.
+   * 장표 런타임 — 검색조건 단계 메타(stages) 로드.
+   * detail 을 재사용해 optionSql 을 제외한 경량 단계 정보만 추출. depth → sortOrder 순 정렬.
    */
-  previewSql: async (data: SqlPreviewRequest): Promise<SqlPreviewResult[]> => {
-    const response = await apiClient.post<Record<string, unknown>>('/insight-statistics-search-condition-preview', data);
-    // BFF step_id에 따라 data 키가 다를 수 있음 (value / items / 배열 직접)
+  getStages: async (searchCondId: number): Promise<SearchCondMeta> => {
+    const detail = await searchConditionApi.getSearchCondition(searchCondId);
+    const stages = (detail?.nodes ?? [])
+      .map((n) => ({
+        nodeCode: n.nodeCode,
+        nodeLabel: n.nodeLabel,
+        inputType: n.inputType,
+        nodeDepth: n.nodeDepth,
+        parentNodeCode: n.parentNodeCode ?? null,
+        sortOrder: n.sortOrder ?? 0,
+      }))
+      .sort((a, b) => a.nodeDepth - b.nodeDepth || (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    return { searchCondId, title: detail?.title ?? '', stages };
+  },
+
+  /**
+   * 장표 런타임 cascade — 한 단계(node)의 옵션을 부모 선택값 기준으로 조회.
+   * nodeCode null 이면 루트 단계. parentValue 는 단일/다중 모두 배열로 전송 (IN 확장).
+   */
+  resolveStageOptions: async (searchCondId: number, nodeCode: string | null, parentValue?: string | string[] | null): Promise<SqlPreviewResult[]> => {
+    const pv = parentValue == null ? undefined : Array.isArray(parentValue) ? parentValue : [parentValue];
+    const response = await apiClient.post<Record<string, unknown>>(
+      '/insight-statistics-search-condition-resolve',
+      { nodeCode: nodeCode ?? null, parentValue: pv },
+      { params: { searchCondId } },
+    );
     const raw = (response as unknown as { data: { data: unknown } })?.data?.data;
     if (Array.isArray(raw)) return raw as SqlPreviewResult[];
     if (raw && typeof raw === 'object') {
-      // step_id = "value" 또는 "items"
+      const arr = (raw as Record<string, unknown>).value ?? (raw as Record<string, unknown>).items;
+      if (Array.isArray(arr)) return arr as SqlPreviewResult[];
+    }
+    return [];
+  },
+
+  /**
+   * SQL 미리보기.
+   * 백엔드는 ApiResponse<List<T>>를 반환 — BFF 단일 스텝 통과 후 data가 배열 직접 노출.
+   */
+  previewSql: async (data: SqlPreviewRequest): Promise<SqlPreviewResult[]> => {
+    const response = await apiClient.post<Record<string, unknown>>('/insight-statistics-search-condition-preview', data);
+    const raw = (response as unknown as { data: { data: unknown } })?.data?.data;
+    if (Array.isArray(raw)) return raw as SqlPreviewResult[];
+    if (raw && typeof raw === 'object') {
       const arr = (raw as Record<string, unknown>).value ?? (raw as Record<string, unknown>).items;
       if (Array.isArray(arr)) return arr as SqlPreviewResult[];
     }

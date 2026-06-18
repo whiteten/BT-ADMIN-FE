@@ -11,7 +11,7 @@ import { useCreateMsGroup, useUpdateMsGroup } from '../hooks/useMsGroupQueries';
 import { type MsGroup, type MsGroupCreateRequest, ROUTE_TYPE_OPTIONS } from '../types';
 
 export interface MsGroupDrawerRef {
-  open: (data?: MsGroup, nodeId?: number) => void;
+  open: (data?: MsGroup, nodeId?: number, nodeName?: string) => void;
   close: () => void;
 }
 
@@ -24,19 +24,22 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<MsGroup | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
+  const [nodeName, setNodeName] = useState<string>('');
 
   const isEditMode = !!editData;
 
   useImperativeHandle(ref, () => ({
-    open: (data?: MsGroup, initNodeId?: number) => {
+    open: (data?: MsGroup, initNodeId?: number, initNodeName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
+      setNodeName(initNodeName ?? '');
       setVisible(true);
     },
     close: () => {
       setVisible(false);
       setEditData(null);
       setNodeId(null);
+      setNodeName('');
       form.resetFields();
     },
   }));
@@ -59,6 +62,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setVisible(false);
         setEditData(null);
         setNodeId(null);
+        setNodeName('');
         form.resetFields();
         onSuccess();
       },
@@ -72,6 +76,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setVisible(false);
         setEditData(null);
         setNodeId(null);
+        setNodeName('');
         form.resetFields();
         onSuccess();
       },
@@ -109,6 +114,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setVisible(false);
         setEditData(null);
         setNodeId(null);
+        setNodeName('');
         form.resetFields();
       }}
       styles={{ wrapper: { width: 420 } }}
@@ -119,6 +125,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
               setVisible(false);
               setEditData(null);
               setNodeId(null);
+              setNodeName('');
               form.resetFields();
             }}
           >
@@ -132,7 +139,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
     >
       <Form form={form} layout="vertical" initialValues={{ routeType: '2' }}>
         <Form.Item label="노드">
-          <Input value={nodeId ? `Node ${nodeId}` : ''} disabled />
+          <Input value={nodeName} disabled />
         </Form.Item>
 
         <Form.Item

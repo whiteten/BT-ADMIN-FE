@@ -36,12 +36,12 @@ import { getUniqueNodeLabel } from '../utils/getUniqueNodeLabel';
 import { buildLlmToolDecorations, isToolEdgeId, isToolNodeId } from '../utils/llmToolDecorations';
 import { suppressResizeObserverError } from '../utils/suppressResizeObserverError';
 import { buildNodeName, buildOutputVariableFromName } from '../utils/variableTokens';
-
-// NodeResizer 관련 무해한 경고 swallow — install 한 번만.
-suppressResizeObserverError();
 import GenericKindNode from './nodes/GenericKindNode';
 import MemoNode, { MEMO_DEFAULT_HEIGHT, MEMO_DEFAULT_WIDTH, type MemoColor } from './nodes/MemoNode';
 import ToolNode from './nodes/ToolNode';
+
+// NodeResizer 관련 무해한 경고 swallow — install 한 번만.
+suppressResizeObserverError();
 
 const NODES_WITHOUT_OUTPUT = new Set(['start', 'answer', 'error']);
 
@@ -187,6 +187,11 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
   // 노드는 fingerprint(카드에 보이는 데이터)까지 비교해서 reference 보존 폭을 넓힘 — 엣지 깜빡임 방지.
   const rfNodeCacheRef = useRef<{ handlers: NodeActionHandlers | null; map: Map<string, { src: FlowNode; fp: string; rf: Node }> }>({ handlers: null, map: new Map() });
   const rfEdgeCacheRef = useRef<Map<string, { src: FlowEdge; rf: Edge }>>(new Map());
+
+  // 가상 도구 노드 참조 보존 캐시 — fp(위치+라벨+종류+부모) 동일하면 직전 RF Node 재사용.
+  // real 노드와 달리 buildLlmToolDecorations 가 매번 새 position/data 리터럴을 만들어,
+  // 무관한 노드 속성 편집(키스트로크마다 graph.nodes 새 배열)에도 도구 노드가 리렌더(깜빡임)되는 것을 막는다.
+  const rfToolNodeCacheRef = useRef<Map<string, { fp: string; rf: Node }>>(new Map());
 
   // 핸들러용 graph 최신값 참조 — 핸들러 useCallback 이 graph.nodes/edges 를 deps 에 넣으면
   // 키스트로크마다 재생성되어 nodeHandlers → RF 캐시까지 전부 무효화됨. ref 로 빼서 stable identity 유지.
@@ -468,6 +473,17 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     onSelectNode(null);
   }, [onSelectNode]);
 
+  // 클릭이 미세 드래그로 인식되면 ReactFlow 는 노드를 선택(하이라이트/툴바)하지만 onNodeClick 은 발화하지 않아
+  // 속성 패널이 안 열리는 desync 가 생긴다. 드래그 시작 시에도 동일 규칙으로 선택을 동기화해 패널을 연다.
+  const onNodeDragStart = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      if (isToolNodeId(node.id)) return;
+      if (node.type === 'memo') return;
+      onSelectNode(node.id);
+    },
+    [onSelectNode],
+  );
+
   const onNodeDragStop = useCallback(
     (_event: React.MouseEvent, node: Node) => {
       setHelperLineH(undefined);
@@ -647,9 +663,23 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
     const liveIds = new Set((graph.nodes ?? []).map((n) => n.nodeId));
     for (const id of cache.keys()) if (!liveIds.has(id)) cache.delete(id);
     const { toolNodes } = buildLlmToolDecorations(graph.nodes ?? [], toolGroupsMap);
+    // 도구 노드 참조 안정화 — fp 동일하면 직전 RF Node 통째 재사용해 setNodes 재조정의
+    // old.data/position 참조 비교가 성립 → 무관한 편집 시 도구 노드 리렌더(깜빡임) 차단.
+    const toolCache = rfToolNodeCacheRef.current;
+    const stableToolNodes = toolNodes.map((tn) => {
+      const d = tn.data as { label?: string; toolType?: string; parentNodeId?: string };
+      const fp = `${tn.position.x}|${tn.position.y}|${d.label ?? ''}|${d.toolType ?? ''}|${d.parentNodeId ?? ''}`;
+      const cached = toolCache.get(tn.id);
+      if (cached && cached.fp === fp) return cached.rf;
+      toolCache.set(tn.id, { fp, rf: tn });
+      return tn;
+    });
+    // GC — 사라진 도구 노드 캐시 제거
+    const liveToolIds = new Set(toolNodes.map((n) => n.id));
+    for (const id of toolCache.keys()) if (!liveToolIds.has(id)) toolCache.delete(id);
     setNodes((prev) => {
       const prevById = new Map(prev.map((p) => [p.id, p]));
-      return [...real, ...toolNodes].map((n) => {
+      return [...real, ...stableToolNodes].map((n) => {
         const old = prevById.get(n.id);
         const selected = old?.selected ?? false;
         if (old && old === n && old.selected === selected) return old;
@@ -764,6 +794,7 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
@@ -774,9 +805,19 @@ function WorkflowCanvasInner({ agentId, graph, onSelectNode }: WorkflowCanvasInn
         selectionOnDrag={interactionMode === 'select'}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#cbd5e1" />
+        <Background id="wf-grid" variant={BackgroundVariant.Lines} gap={104} lineWidth={1} color="#f1f4f9" />
+        <Background id="wf-dots" variant={BackgroundVariant.Dots} gap={26} size={1.4} color="#cbd5e1" />
         <HelperLines horizontal={helperLineH} vertical={helperLineV} />
-        <MiniMap position="bottom-left" pannable zoomable maskColor="rgba(241, 245, 249, 0.7)" style={{ bottom: 48, width: 160, height: 110 }} />
+        <MiniMap
+          position="bottom-left"
+          pannable
+          zoomable
+          maskColor="rgba(241, 245, 249, 0.6)"
+          nodeColor={(n) => NODE_KIND_MAP[((n.data as { kind?: string })?.kind ?? '') as string]?.color ?? '#cbd5e1'}
+          nodeStrokeColor="transparent"
+          nodeBorderRadius={3}
+          style={{ bottom: 48, width: 160, height: 110 }}
+        />
         <Controls position="bottom-left" orientation="horizontal" showInteractive={false}>
           <ControlButton onClick={() => setInteractionMode('hand')} title="이동 (Hand)" className={interactionMode === 'hand' ? 'aoe-flow-control-active' : ''}>
             <Hand size={14} />

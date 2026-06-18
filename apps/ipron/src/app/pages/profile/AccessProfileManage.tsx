@@ -44,7 +44,9 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [
-  { title: '프로파일 관리', path: '/ipron/profile/access-profile' },
+  { title: 'IPRON', path: '/ipron' },
+  { title: '번호자원관리', path: '/ipron/numbering' },
+  { title: '프로파일', path: '/ipron/numbering/profile' },
   { title: '접근코드 프로파일', path: '/ipron/profile/access-profile' },
 ];
 
@@ -68,6 +70,9 @@ export default function AccessProfileManage() {
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
+  // 하단 접근코드 그리드 서버사이드 검색 (SWAT IPR20S2250 sAccessCode / sAccessCodeName)
+  const [codeSearchCode, setCodeSearchCode] = useState('');
+  const [codeSearchName, setCodeSearchName] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
   const hasInitializedNodeRef = useRef(false);
@@ -96,8 +101,16 @@ export default function AccessProfileManage() {
     return tenants.filter((t) => ids.has(t.tenantId));
   }, [profiles, tenants]);
 
+  const codeSearchParams = useMemo(() => {
+    if (!selectedProfileId) return undefined;
+    const params: Record<string, unknown> = { profileId: selectedProfileId };
+    if (codeSearchCode.trim()) params.accessCode = codeSearchCode.trim();
+    if (codeSearchName.trim()) params.accessCodeName = codeSearchName.trim();
+    return params;
+  }, [selectedProfileId, codeSearchCode, codeSearchName]);
+
   const { data: codes = [], isLoading: isCodesLoading } = useGetCodes({
-    params: selectedProfileId ? { profileId: selectedProfileId } : undefined,
+    params: codeSearchParams,
     queryOptions: { enabled: !!selectedProfileId },
   });
 
@@ -209,6 +222,8 @@ export default function AccessProfileManage() {
 
   const handleCardSelect = useCallback((profile: AccessProfile) => {
     setSelectedProfileId(profile.accessCodeProfileId);
+    setCodeSearchCode('');
+    setCodeSearchName('');
   }, []);
 
   // ─── Invalidate helpers ─────────────────────────────────────────────────────
@@ -627,13 +642,34 @@ export default function AccessProfileManage() {
           {selectedProfile ? (
             <>
               {/* Grid header */}
-              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
-                <span className="text-sm font-semibold text-gray-800">
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0 border-b border-gray-100 gap-3 flex-wrap">
+                <span className="text-sm font-semibold text-gray-800 flex-shrink-0">
                   {selectedProfile.accessCodeProfileName} 접근코드 ({codes.length}건)
                 </span>
-                <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
-                  코드 추가
-                </Button>
+                {/* 접근코드 / 코드명 서버사이드 검색 (SWAT sAccessCode / sAccessCodeName) */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <Input
+                    allowClear
+                    prefix={<Search className="size-3.5 text-gray-400" />}
+                    placeholder="접근코드 검색"
+                    value={codeSearchCode}
+                    onChange={(e) => setCodeSearchCode(e.target.value)}
+                    style={{ width: 160 }}
+                    size="small"
+                  />
+                  <Input
+                    allowClear
+                    prefix={<Search className="size-3.5 text-gray-400" />}
+                    placeholder="코드명 검색"
+                    value={codeSearchName}
+                    onChange={(e) => setCodeSearchName(e.target.value)}
+                    style={{ width: 160 }}
+                    size="small"
+                  />
+                  <Button icon={<Plus className="size-3.5" />} onClick={handleCodeCreate}>
+                    코드 추가
+                  </Button>
+                </div>
               </div>
 
               {/* ag-Grid */}

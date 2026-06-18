@@ -14,7 +14,7 @@ import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 관리', path: '/stt/stt-config' },
-  { title: '정답지 관리', path: '/stt/stt-config/recog/list' },
+  { title: '인식률측정 관리', path: '/stt/stt-config/recog/list' },
 ];
 
 function EngineDetailPanel({ engineCode, onCreated }: { engineCode: string; onCreated: () => void }) {
@@ -63,7 +63,7 @@ function EngineDetailPanel({ engineCode, onCreated }: { engineCode: string; onCr
 
 function GroupDetailPanel({ group }: { group: RecogGroupItem }) {
   const RegisterTab = () => <RecogTargetSearch groupCode={group.groupCode} engineCode={group.engineCode} />;
-  const ListTab = () => <RecogTargetList groupCode={group.groupCode} engineCode={group.engineCode} />;
+  const ListTab = () => <RecogTargetList groupCode={group.groupCode} groupName={group.groupName} engineCode={group.engineCode} />;
 
   const tabs: PageTab[] = [
     { id: 'register', label: '정답지 등록', icon: IconBubble, component: RegisterTab },

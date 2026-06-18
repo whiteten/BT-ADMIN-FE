@@ -368,7 +368,19 @@ export default function MediaDeliveryForm() {
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-4">장비 IP / 포트</h4>
                     <Row gutter={20}>
                       <Col span={8}>
-                        <Form.Item name="ipAddr1" label="A장비 IP" required hasFeedback rules={[{ required: true, message: 'A장비 IP는 필수입니다' }]}>
+                        <Form.Item
+                          name="ipAddr1"
+                          label="A장비 IP"
+                          required
+                          hasFeedback
+                          rules={[
+                            { required: true, message: 'A장비 IP는 필수입니다' },
+                            {
+                              pattern: /^((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$/,
+                              message: 'IPv4 형식이 올바르지 않습니다 (예: 192.168.1.100)',
+                            },
+                          ]}
+                        >
                           <Input placeholder="192.168.1.100" />
                         </Form.Item>
                       </Col>
@@ -386,7 +398,19 @@ export default function MediaDeliveryForm() {
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item name="ipAddr2" label="B장비 IP">
+                        <Form.Item
+                          name="ipAddr2"
+                          label="B장비 IP"
+                          rules={[
+                            {
+                              validator: (_, value) => {
+                                if (!value) return Promise.resolve();
+                                const ipv4Pattern = /^((25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)$/;
+                                return ipv4Pattern.test(value) ? Promise.resolve() : Promise.reject(new Error('IPv4 형식이 올바르지 않습니다 (예: 192.168.1.101)'));
+                              },
+                            },
+                          ]}
+                        >
                           <Input placeholder="192.168.1.101 (HA시)" />
                         </Form.Item>
                       </Col>

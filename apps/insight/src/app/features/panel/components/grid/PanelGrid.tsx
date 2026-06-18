@@ -1,8 +1,7 @@
-import { useMemo } from 'react';
-import type { ColDef, ValueFormatterParams } from 'ag-grid-community';
+import { useCallback, useMemo } from 'react';
+import type { ColDef, RowClassParams, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useGetDataSourceFields } from '../../../dataset/hooks/useDatasetQueries';
-import { useReportEditorStore } from '../../../report/hooks/useReportEditorStore';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { ColumnFormat, PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -39,11 +38,11 @@ function formatValue(value: unknown, format: ColumnFormat | undefined): string {
 
 export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const { gridOptions } = useAggridOptions();
-  const { globalFilter } = useReportViewStore();
-  const { report } = useReportEditorStore();
+  const { committedFilter, queryTrigger } = useReportViewStore();
+  // 데이터셋은 패널별(N:M) — 보고서 단위가 아니라 panel.datasetId 로 표시명 로드
   const { data: fields = [] } = useGetDataSourceFields({
-    params: { datasetId: report?.datasetId ?? 0 },
-    queryOptions: { enabled: !!report?.datasetId },
+    params: { datasetId: panel.datasetId ?? 0 },
+    queryOptions: { enabled: !!panel.datasetId },
   });
   const displayNameMap = useMemo(() => new Map(fields.map((f) => [f.fieldName, f.displayName])), [fields]);
 
@@ -52,15 +51,17 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
   const isDraft = reportId === 0 || panel.panelId < 0;
   const hasMapping = rowFields.length > 0 || valueFields.length > 0;
 
-  const { data: queryResult, isPending } = usePanelData({
+  const { data: queryResult, isFetching } = usePanelData({
     params: {
       reportId,
       panelId: panel.panelId,
-      period: { from: globalFilter.period.from, to: globalFilter.period.to, unit: globalFilter.timeUnit },
-      searchValues: globalFilter.searchValues,
-      comparison: globalFilter.comparison,
+      period: { from: committedFilter.period.from, to: committedFilter.period.to, unit: committedFilter.timeUnit },
+      searchValues: committedFilter.searchValues,
+      comparison: committedFilter.comparison,
+      conditions: committedFilter.conditions,
     },
-    queryOptions: { enabled: !isDraft && hasMapping },
+    queryTrigger,
+    queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },
   });
 
   const columnDefs: ColDef[] = useMemo(() => {
@@ -81,7 +82,52 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     return [...dimCols, ...msrCols];
   }, [rowFields, valueFields, displayNameMap]);
 
-  const rowData = queryResult?.current ?? [];
+  const rowData = useMemo(() => queryResult?.current ?? [], [queryResult]);
+  const showSumRow = (panel.chartOptions as { showSumRow?: boolean } | undefined)?.showSumRow ?? true;
+  const summaryRow = useMemo(() => {
+    if (!showSumRow || rowData.length === 0) return null;
+    const row: Record<string, unknown> = {};
+    rowFields.forEach((f, i) => {
+      row[f.fieldName] = i === 0 ? '합계' : '';
+    });
+    valueFields.forEach((f) => {
+      // aggFunc 미지정(없음)인 컬럼은 합계 행에서 빈칸 처리
+      if (!f.aggFunc) {
+        row[f.fieldName] = null;
+        return;
+      }
+      const vals = rowData.map((r: Record<string, unknown>) => Number(r[f.fieldName])).filter((v: number) => !isNaN(v));
+      if (vals.length === 0) {
+        row[f.fieldName] = null;
+        return;
+      }
+      // 행 데이터는 백엔드에서 이미 그룹별 집계됨 → 컬럼 aggFunc로 그룹 간 롤업
+      switch (f.aggFunc) {
+        // SUM/COUNT: 그룹별 값(합/카운트)을 다시 합산 → 전체 합계/전체 카운트
+        case 'SUM':
+        case 'COUNT':
+          row[f.fieldName] = vals.reduce((a: number, b: number) => a + b, 0);
+          break;
+        // AVG: 그룹별 평균을 다시 평균
+        case 'AVG':
+          row[f.fieldName] = vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
+          break;
+        case 'MAX':
+          row[f.fieldName] = Math.max(...vals);
+          break;
+        case 'MIN':
+          row[f.fieldName] = Math.min(...vals);
+          break;
+        default:
+          row[f.fieldName] = null;
+      }
+    });
+    return row;
+  }, [showSumRow, rowData, rowFields, valueFields]);
+
+  // 안정적인 ref 유지 — 매 렌더 새 배열/함수면 ag-grid가 갱신 루프에 빠짐
+  const pinnedBottomRowData = useMemo(() => (!isDraft && summaryRow ? [summaryRow] : undefined), [isDraft, summaryRow]);
+  const getRowStyle = useCallback((params: RowClassParams) => (params.node.rowPinned === 'bottom' ? { background: '#f6f7f9', fontWeight: '600' } : undefined), []);
 
   if (!hasMapping) {
     return (
@@ -91,5 +137,27 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     );
   }
 
-  return <AgGridReact {...gridOptions} rowData={isDraft ? [] : rowData} columnDefs={columnDefs} loading={!isDraft && isPending} pagination={false} domLayout="autoHeight" />;
+  // 편집 미리보기(draft) → 선택된 컬럼 구조만 깔끔히 표시 (데이터/합계/페이저/상태바 없음, autoHeight)
+  if (isDraft) {
+    return <AgGridReact {...gridOptions} rowData={[]} columnDefs={columnDefs} domLayout="autoHeight" pagination={false} statusBar={undefined} pinnedBottomRowData={undefined} />;
+  }
+
+  // 실제 뷰 → 패널 영역을 꽉 채우는 고정 높이(영역 내부 스크롤) + 페이징(50/page) + 합계 핀
+  // domLayout="normal" 이라 패널 높이를 키우면 보이는 행 수도 늘어남
+  return (
+    <div className="h-full w-full" style={{ minHeight: 220 }}>
+      <AgGridReact
+        {...gridOptions}
+        rowData={rowData}
+        columnDefs={columnDefs}
+        loading={isFetching}
+        pagination
+        paginationPageSize={50}
+        paginationPageSizeSelector={[20, 50, 100, 200]}
+        domLayout="normal"
+        pinnedBottomRowData={pinnedBottomRowData}
+        getRowStyle={getRowStyle}
+      />
+    </div>
+  );
 }

@@ -16,7 +16,7 @@ module.exports = [
 
   // Global ignores
   {
-    ignores: ['**/dist', '**/node_modules', 'e2e/**', '**/webpack.config.ts', '**/module-federation.config.ts'],
+    ignores: ['**/dist', '**/node_modules', 'e2e/**', '**/webpack*.ts', '**/module-federation.config.ts'],
   },
 
   // Nx module boundaries for all files
@@ -48,8 +48,7 @@ module.exports = [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        // project: './tsconfig.base.json',
-        project: ['./apps/*/tsconfig.app.json', './apps/*/tsconfig.spec.json', './libs/*/tsconfig.lib.json', './libs/*/tsconfig.spec.json'],
+        projectService: true,
         tsconfigRootDir: __dirname,
         ecmaVersion: 'latest',
         sourceType: 'module',
@@ -124,6 +123,9 @@ module.exports = [
       import: require('eslint-plugin-import'),
     },
     rules: {
+      // Disallow alert/confirm/prompt — use useModal + toast instead
+      'no-alert': 'warn',
+
       // Import rules
       'import/extensions': 'off',
       'import/no-unresolved': 'off', // TypeScript handles this

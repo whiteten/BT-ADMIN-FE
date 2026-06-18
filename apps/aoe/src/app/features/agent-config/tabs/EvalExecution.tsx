@@ -147,7 +147,7 @@ export default function EvalExecution() {
               resultModalRef.current?.open({ documentId: documentId ?? '', evalId: evalId ?? '', resultId: data.resultId, evalName: data.evalName });
             }}
           >
-            <Search className="size-4 text-[#405189] hover:cursor-pointer" />
+            <Search className="size-4 text-[var(--color-bt-primary)] hover:cursor-pointer" />
           </button>
         );
       },

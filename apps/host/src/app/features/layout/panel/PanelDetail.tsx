@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useMenuStore } from '@/shared-store';
 import PanelControls from './PanelControls';
+import PanelDetailSplit from './PanelDetailSplit';
 import PanelFavoritesSection from './PanelFavoritesSection';
-import { ChildList } from './PanelMenuPrimitives';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { IconStar } from '@/components/custom/Icons';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
@@ -76,9 +76,7 @@ const PanelDetail = ({ onNavigate }: PanelDetailProps) => {
       </header>
       <div className="mx-6 border-t border-[#e9ecef]" />
 
-      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-6">
-        <ChildList items={active.children} appId={config.appId} onNavigate={onNavigate} showDesc />
-      </div>
+      <PanelDetailSplit menu={active} appId={config.appId} appName={config.appName} onNavigate={onNavigate} />
     </div>
   );
 };

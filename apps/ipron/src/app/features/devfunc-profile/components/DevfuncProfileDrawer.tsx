@@ -97,10 +97,10 @@ const DevfuncProfileDrawer = forwardRef<DevfuncProfileDrawerRef, DevfuncProfileD
           name="devfuncCodeProfileName"
           rules={[
             { required: true, message: '프로파일명은 필수입니다' },
-            { max: 30, message: '프로파일명은 30자 이내여야 합니다' },
+            { max: 128, message: '프로파일명은 128자 이내여야 합니다' },
           ]}
         >
-          <Input placeholder="프로파일명을 입력하세요" maxLength={30} />
+          <Input placeholder="프로파일명을 입력하세요" maxLength={128} />
         </Form.Item>
       </Form>
     </Drawer>

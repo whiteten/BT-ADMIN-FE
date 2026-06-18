@@ -10,6 +10,7 @@ interface PaginationState {
   totalPages: number;
   totalRows: number;
   pageSize: number;
+  paginationEnabled: boolean;
 }
 
 const BUTTONS_PER_BLOCK = 5;
@@ -36,6 +37,7 @@ export default function AggridPagination({ api }: CustomStatusPanelProps) {
     totalPages: 0,
     totalRows: 0,
     pageSize: 20,
+    paginationEnabled: true,
   });
 
   useEffect(() => {
@@ -44,26 +46,31 @@ export default function AggridPagination({ api }: CustomStatusPanelProps) {
     const updatePaginationState = () => {
       if (api.isDestroyed?.()) return;
 
+      // 페이징 비활성 그리드는 paginationGetRowCount()가 0 → 표시 행 수로 대체
+      const paginationEnabled = api.getGridOption('pagination') ?? false;
       setState({
         currentPage: api.paginationGetCurrentPage(),
         totalPages: api.paginationGetTotalPages(),
-        totalRows: api.paginationGetRowCount(),
+        totalRows: paginationEnabled ? api.paginationGetRowCount() : api.getDisplayedRowCount(),
         pageSize: api.paginationGetPageSize(),
+        paginationEnabled,
       });
     };
 
     updatePaginationState();
 
     api.addEventListener('paginationChanged', updatePaginationState);
+    api.addEventListener('modelUpdated', updatePaginationState);
 
     return () => {
       if (!api.isDestroyed?.()) {
         api.removeEventListener('paginationChanged', updatePaginationState);
+        api.removeEventListener('modelUpdated', updatePaginationState);
       }
     };
   }, [api]);
 
-  const { currentPage, totalPages, totalRows, pageSize } = state;
+  const { currentPage, totalPages, totalRows, pageSize, paginationEnabled } = state;
   const pageButtons = getPageButtons(totalPages, currentPage);
 
   const startRow = currentPage * pageSize + 1;
@@ -109,12 +116,13 @@ export default function AggridPagination({ api }: CustomStatusPanelProps) {
     handlePageClick(totalPages - 1);
   };
 
-  if (totalRows === 0) {
+  // 페이징 비활성 또는 0건: 페이지 컨트롤 없이 총 건수만 표시
+  if (!paginationEnabled || totalRows === 0) {
     return (
       <nav role="navigation" aria-label="pagination" className="flex items-center justify-start gap-1 py-2">
         <Badge variant="outline" className="gap-1 px-2.5 py-1 text-[13px] font-normal">
           <span className="text-muted-foreground">총</span>
-          <span className="font-semibold">0</span>
+          <span className="font-semibold">{totalRows.toLocaleString()}</span>
           <span className="text-muted-foreground">건</span>
         </Badge>
       </nav>

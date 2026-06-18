@@ -22,6 +22,7 @@
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
+  AgentConfig,
   AgentCreateRequest,
   AgentDuplicateCheckParams,
   AgentGroupCreateRequest,
@@ -38,6 +39,14 @@ import type {
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const agentMasterApi = {
+  // ─── 상담사 설정 ─────────────────────────────────────────────────────────
+
+  /** 비밀번호 정책 설정 조회 — Drawer 비번 필드 required/disabled 동적 제어용 */
+  getConfig: async (): Promise<AgentConfig> => {
+    const res = await apiClient.get<ApiResponse<AgentConfig>>('/ipron-agent-master-config');
+    return res.data?.data;
+  },
+
   // ─── 상담사 조회 ─────────────────────────────────────────────────────────
 
   // BE 가 ApiResponse<List<X>> 반환 → BFF 가 data.value 로 wrap (ADN tenants 동일 패턴)
