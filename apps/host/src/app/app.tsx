@@ -29,6 +29,7 @@ const Stt = React.lazy(() => import('stt/Module').catch(() => ({ default: () => 
 const Ivr = React.lazy(() => import('ivr/Module').catch(() => ({ default: () => <NotFound /> })));
 const Insight = React.lazy(() => import('insight/Module').catch(() => ({ default: () => <NotFound /> })));
 const Taskboard = React.lazy(() => import('taskboard/Module').catch(() => ({ default: () => <NotFound /> })));
+const Vel = React.lazy(() => import('vel/Module').catch(() => ({ default: () => <NotFound /> })));
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -75,6 +76,13 @@ const AppRoutes = () => {
           <Route path="/taskboard" element={<Layout />}>
             <Route index path="*" element={<Taskboard />} />
           </Route>
+          <Route path="/vel" element={<Layout />}>
+            <Route index path="*" element={<Vel />} />
+          </Route>
+          {/* 팝업 라우트 — 인증은 필요하지만 Layout(사이드바/헤더)은 없음 */}
+          {/* /vel-player/*: 통화내역조회 녹취 재생 새창 (2026-06-15 새창 방식으로 환원) */}
+          <Route path="/vel-player/*" element={<Vel />} />
+          <Route path="/vel-eavesdrop/*" element={<Vel />} />
         </Route>
         <Route path="/login" element={<Login />} />
         <Route path="/forbidden" element={<Forbidden useFullScreen />} />
