@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Tag } from 'antd';
 import { Layers, type LucideIcon, Menu, Plus, Search, Server, User } from 'lucide-react';
 import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
+import { fuzzyFilter } from '@/shared-util';
 import ReportRow from '../../features/report/components/ReportRow';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useGetReports } from '../../features/report/hooks/useReportQueries';
@@ -22,8 +23,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
 // 레일 도메인 점 색상 (antd Tag 색과 동일 계열). 미정의 도메인은 회색 fallback.
 const DOMAIN_DOT_COLOR: Record<string, string> = { IE: '#1677ff', IC: '#389e0d', IR: '#d46b08' };
-// 도메인 컬럼 헤더 연한 배경 — 카테고리 영역 구분감 부여. 미정의 도메인은 회색 fallback.
-const DOMAIN_SOFT_BG: Record<string, string> = { IE: '#f0f7ff', IC: '#f6ffed', IR: '#fff7e6' };
+// 도메인 컬럼 헤더 배경 — 카테고리 구분용이되 색감은 최소화(거의 중성에 살짝 도메인 힌트). 미정의 도메인은 회색 fallback.
+const DOMAIN_SOFT_BG: Record<string, string> = { IE: '#f7fafc', IC: '#f7fbf8', IR: '#fcfaf7' };
 
 const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string; icon: LucideIcon }[] = [
   { value: 'ALL', label: '전체', icon: Layers },
@@ -76,16 +77,12 @@ export default function ReportList() {
   const myUserId = useAuthStore((s) => s.userInfo?.userId);
   const isMine = (r: ReportListItem) => myUserId != null && String(r.ownerUserId) === String(myUserId);
 
-  // 1) 가시성 + 검색 적용 (소유/도메인 미적용) — 소유 탭 건수 기준
+  // 1) 가시성 + 검색 적용 (소유/도메인 미적용) — 소유 탭 건수 기준.
+  // 검색은 통합검색/메뉴검색과 동일한 fuzzy 매칭(초성·자모 지원). 제목 + 데이터셋명 통합 대상.
   const visibleBase = useMemo(() => {
-    const kw = searchValue.trim().toLowerCase();
-    return reports.filter((r) => {
-      const registered = registeredReportIds.has(r.reportId);
-      // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표만 노출
-      if (!isMine(r) && !registered && !r.isSystem) return false;
-      if (!kw) return true;
-      return r.title.toLowerCase().includes(kw) || (r.datasetNames ?? []).some((n) => n.toLowerCase().includes(kw));
-    });
+    // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표만 노출
+    const visible = reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem);
+    return fuzzyFilter(searchValue, visible, (r) => `${r.title} ${(r.datasetNames ?? []).join(' ')}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reports, searchValue, registeredReportIds, myUserId]);
 
@@ -242,7 +239,7 @@ export default function ReportList() {
                   <div
                     key={col.key}
                     className="flex min-w-0 flex-col rounded-lg border border-[#e9ebec] bg-white"
-                    style={{ borderTopColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96', borderTopWidth: 3 }}
+                    style={{ borderTopColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96', borderTopWidth: 2 }}
                   >
                     {/* 전체일 때만 컬럼별 도메인 헤더 노출 (필터 시엔 위 합친 헤더가 담당) */}
                     {!domain && (
@@ -263,7 +260,7 @@ export default function ReportList() {
                     )}
                     {/* 컬럼 행 목록 */}
                     {col.items.length > 0
-                      ? col.items.map((report) => <ReportRow key={report.reportId} report={report} />)
+                      ? col.items.map((report) => <ReportRow key={report.reportId} report={report} query={searchValue} />)
                       : !domain && <div className="px-4 py-8 text-center text-xs text-[var(--color-bt-fg-muted)]">조건에 맞는 보고서가 없습니다.</div>}
                   </div>
                 ))}
