@@ -31,6 +31,15 @@ Dark mode: tokens have `.dark` overrides — wrap a subtree in `class="dark"` to
 - **Icons**: brand SVGs are `Icon*` exports (e.g. `IconSearch`, `IconBot`); general UI icons use `lucide-react`.
 - **Toasts**: render `<Toaster />` once; the app's toast util drives it.
 
+## antd components (primary toolkit) — `Ant*` prefix
+
+This project is built primarily with **Ant Design (antd v6)**, with shadcn/custom as the secondary layer. The 39 most-used antd components are bundled under an `Ant` prefix to avoid name clashes with shadcn (`window.BtUI.AntButton`, `AntForm`, `AntSelect`, `AntModal`, `AntDrawer`, `AntDatePicker`, `AntTable`-NOTE: not bundled, see below).
+
+- **Available (39)**: AntButton, AntInput, AntSelect, AntForm, AntDrawer, AntInputNumber, AntCol, AntRow, AntTag, AntModal, AntEmpty, AntTooltip, AntRadio, AntCheckbox, AntDatePicker, AntTimePicker, AntDivider, AntSwitch, AntDropdown, AntSteps, AntAlert, AntTabs, AntCard, AntUpload, AntCollapse, AntSpin, AntSegmented, AntSlider, AntPopover, AntSpace, AntProgress, AntBadge, AntDescriptions, AntApp, AntTypography, AntPopconfirm, AntConfigProvider, AntSkeleton, AntBreadcrumb.
+- **antd styling**: antd v6 is CSS-in-JS — components self-style at runtime, no utility classes needed. Wrap a subtree in `AntConfigProvider` to theme. antd compound parts are reached via the namespace (`AntForm.Item`, `AntSelect.Option`, `AntTypography.Text`, `AntRadio.Group`).
+- **NOT bundled (use the alternative)**: `Table` → use AG-Grid (project table standard); `Transfer`/`Tree`/`TreeSelect`/`AutoComplete`/`Pagination`/`List` and other rarely-used antd parts were dropped to keep the bundle under size limits — if needed, they are still real antd imports in app code.
+- **antd vs shadcn**: forms/data-entry-heavy screens lean antd (`AntForm` + rules); shadcn primitives (`Button`, `Card`, …) for lighter composition. Match the surrounding screen.
+
 ## Where the truth lives
 
 - `styles.css` (+ its `@import` of `_ds_bundle.css`) — all token definitions and utilities.

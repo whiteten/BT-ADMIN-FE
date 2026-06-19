@@ -69,6 +69,28 @@ function analyze(file) {
   return { file, named, hasDefault, base };
 }
 
+// antd inclusion:실제 코드에서 named import 되는 antd 컴포넌트(타입 제외).
+// `--with-antd` 일 때만 번들/타입에 합침. shadcn 과 이름 충돌하므로 `Ant` 접두사로
+// 노출(window.BtUI.AntButton 등). `export *`(전체) 대신 명시 re-export 라 esbuild 가
+// 미사용 antd 를 트리셰이킹 → 번들 용량 억제.
+// antd 기본 포함(--no-antd 로 끔). 실사용 빈도 상위 39개만 — 번들 5MB 한도 안에
+// 들도록 무겁고 저가치인 10개 제외(Table=AG-Grid 표준과 중복, rc-tree 계열,
+// 1~2회 저빈도 꼬리). 측정 근거·드롭 목록은 NOTES.md 참조.
+const WITH_ANTD = !process.argv.includes('--no-antd');
+const ANTD_COMPONENTS = [
+  'Button', 'Input', 'Select', 'Form', 'Drawer', 'InputNumber', 'Col', 'Row', 'Tag',
+  'Modal', 'Empty', 'Tooltip', 'Radio', 'Checkbox', 'DatePicker', 'TimePicker', 'Divider',
+  'Switch', 'Dropdown', 'Steps', 'Alert', 'Tabs', 'Card', 'Upload', 'Collapse', 'Spin',
+  'Segmented', 'Slider', 'Popover', 'Space', 'Progress', 'Badge', 'Descriptions', 'App',
+  'Typography', 'Popconfirm', 'ConfigProvider', 'Skeleton', 'Breadcrumb',
+];
+const ANTD_DROP = new Set((flag('antd-drop', '') || '').split(',').filter(Boolean));
+function antdLines() {
+  if (!WITH_ANTD) return '';
+  return ANTD_COMPONENTS.filter((n) => !ANTD_DROP.has(n))
+    .map((n) => `export { ${n} as Ant${n} } from 'antd';`).join('\n') + '\n';
+}
+
 // ── 2. build re-export barrels (JS uses src paths; DTS uses types/ paths) ────
 function barrel(pathFor) {
   const lines = [];
@@ -81,7 +103,7 @@ function barrel(pathFor) {
       lines.push(`export { default as ${base} } from ${JSON.stringify(spec)};`);
     }
   }
-  return lines.join('\n') + '\n';
+  return lines.join('\n') + '\n' + antdLines();
 }
 
 mkdirSync(OUT, { recursive: true });
@@ -169,6 +191,17 @@ const srcOut = join(OUT, 'src');
 rmSync(srcOut, { recursive: true, force: true });
 cpSync(UI_SRC, srcOut, { recursive: true, filter: (s) => !/\.(test|spec)\./.test(s) });
 
+// antd 그룹용 스텁: 컴포넌트 실체는 index.mjs(번들)에서 오지만, 변환기의 그룹·
+// 발견은 src 경로로 매칭하므로 src/antd/Ant<n>.tsx 빈 스텁을 둬 group='antd' 로
+// 묶이게 함. 번들엔 영향 없음(엔트리는 .entry.tsx → 실제 antd).
+if (WITH_ANTD) {
+  const antdDir = join(srcOut, 'antd');
+  mkdirSync(antdDir, { recursive: true });
+  for (const n of ANTD_COMPONENTS.filter((x) => !ANTD_DROP.has(x))) {
+    writeFileSync(join(antdDir, `Ant${n}.tsx`), `export function Ant${n}() { return null; }\n`);
+  }
+}
+
 const pkgVersion = (() => {
   try { return JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')).version || '0.0.0'; }
   catch { return '0.0.0'; }
@@ -196,6 +229,12 @@ writeFileSync(join(OUT, 'package.json'), JSON.stringify({
     if (hasDefault && /^[A-Z][A-Za-z0-9]*$/.test(base)) names.add(base);
     for (const n of names) {
       if (/^[A-Z][A-Za-z0-9]*$/.test(n) && !(n in map)) map[n] = relSrc;
+    }
+  }
+  // antd 컴포넌트: 그룹 'antd' 로 고정(스텁 경로)
+  if (WITH_ANTD) {
+    for (const n of ANTD_COMPONENTS.filter((x) => !ANTD_DROP.has(x))) {
+      map[`Ant${n}`] = `./src/antd/Ant${n}.tsx`;
     }
   }
   writeFileSync(join(dirname(OUT), 'component-src-map.json'), JSON.stringify(map, null, 2) + '\n');

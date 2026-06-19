@@ -38,6 +38,23 @@ node .ds-sync/package-validate.mjs ./ds-bundle --no-render-check
 - **props**: cva `VariantProps`(예: Button 의 variant/size)는 tsc `.d.ts` 평탄화로 일부 누락된다. 필요 시 `cfg.dtsPropsFor.<Name>` 로 손수 보강.
 - **/tmp 경로 주의**: git-bash `/tmp` ≠ Windows. tsc/tailwind 산출물은 `.design-sync/.cache/` (Windows 경로)에 둘 것.
 
+## antd 포함 (primary 토킷)
+
+이 프로젝트 primary는 antd(앱 546파일·2531회 import). shared-ui엔 antd re-export가
+없어 기본 추출엔 안 잡힘 → build-dist가 **실사용 빈도 상위 antd 39개를 명시 re-export**
+(`export { X as AntX } from 'antd'`)로 번들에 합침. `Ant` 접두사(shadcn 이름 충돌 회피).
+
+- **기본 on** (`--no-antd`로 끔). 목록은 `ANTD_COMPONENTS`(build-dist.mjs).
+- **`export *`(antd 전체) 금지** — 5MB 초과. 명시 re-export라야 esbuild가 트리셰이킹.
+- **용량 측정**: antd 49 전부 = _ds_bundle.js ~5.46MB(초과). 39개 = ~5.0MB(OK, 여유 ~227KB).
+- **제외 10개**(저가치/중복/저빈도): Table(AG-Grid 표준과 중복)·Transfer·Tree·TreeSelect·
+  AutoComplete·Pagination·Result·List·Splitter·FloatButton. 무거운 핵심은 rc-picker(DatePicker·
+  TimePicker)와 Table. 더 넣으려면 5MB 한도 재측정 필수(서버측 제한, 못 늘림).
+- **그룹**: antd는 src 없어 `src/antd/Ant<n>.tsx` 빈 스텁을 생성해 group='antd'로 묶음
+  (스텁은 그룹·발견용, 번들 실체는 index.mjs의 진짜 antd). componentSrcMap에도 antd 포함.
+- **props**: antd 자체 `.d.ts`(node_modules/antd)에서 ts-morph가 추출. 복잡 제네릭은 거칠 수 있음.
+- antd 컴파운드(AntForm.Item·AntSelect.Option 등)는 카드 없지만 네임스페이스로 사용 가능.
+
 ## Known render warns
 
 - `[RENDER_SKIPPED]` — playwright 미설치(사용자 선택). 매 동기화 예상되는 정상 경고.
