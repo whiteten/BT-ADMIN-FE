@@ -1,16 +1,16 @@
 import { useState } from 'react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { type RollingLayout, RollingPlayer, TRANSITION_OPTIONS, TRANSITION_PREVIEW_ANIMATION, TRANSITION_PREVIEW_CSS } from '../../features/board/components/RollingDisplay';
 import {
   useCreateRollingGroup,
   useDeleteRollingGroup,
   useGetRollingGroupList,
-  useGetTaskboardDisplayLayoutList,
   useGetTaskboardDisplayList,
   useGetTaskboardLayoutList,
   useUpdateRollingGroup,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { RollingGroup, TaskboardDisplay, TaskboardDisplayLayout, TaskboardLayout } from '../../features/board/types/taskboard.types';
+import type { RollingGroup, TaskboardDisplay, TaskboardLayout } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const parseIdArray = (raw?: string): number[] => {
@@ -21,7 +21,7 @@ const parseIdArray = (raw?: string): number[] => {
   }
 };
 
-// ─── 실행 옵션(어떤 디스플레이로 보여줄지) — localStorage 기억 (롤링그룹 단위) ──────
+// ─── 실행 옵션(어떤 뷰 그룹으로 보여줄지) — localStorage 기억 (롤링그룹 단위) ──────
 const RUN_OPTIONS_STORAGE_PREFIX = 'taskboard-rolling-run-options:';
 
 interface RunOptions {
@@ -60,7 +60,7 @@ function resolveRollingLayout(layout: TaskboardLayout, display: TaskboardDisplay
   };
 }
 
-// ─── 그룹 편집 뷰 — 전광판(레이아웃)만 순서대로 선택. 디스플레이는 실행 시점에 고른다 ──
+// ─── 그룹 편집 뷰 — 전광판(레이아웃)만 순서대로 선택. 뷰 그룹은 실행 시점에 고른다 ──
 interface GroupEditViewProps {
   group: RollingGroup | null;
   layoutList: TaskboardLayout[];
@@ -78,9 +78,24 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
   const createGroup = useCreateRollingGroup();
   const updateGroup = useUpdateRollingGroup();
 
-  const toggleLayout = (layoutId: number) => setSelectedLayoutIds((prev) => (prev.includes(layoutId) ? prev.filter((id) => id !== layoutId) : [...prev, layoutId]));
+  // 클릭할 때마다 순서 끝에 추가 — 같은 전광판을 여러 번 추가할 수 있다(중복 허용). 제거/순서 변경은 우측 "롤링 순서" 목록에서.
+  const addLayout = (layoutId: number) => setSelectedLayoutIds((prev) => [...prev, layoutId]);
+  const removeLayoutAt = (index: number) => setSelectedLayoutIds((prev) => prev.filter((_, i) => i !== index));
+  const moveLayout = (index: number, direction: -1 | 1) =>
+    setSelectedLayoutIds((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
 
-  const selectedLayouts = selectedLayoutIds.map((id) => layoutList.find((l) => l.layoutId === id)).filter((l): l is TaskboardLayout => l !== undefined);
+  const layoutCounts = new Map<number, number>();
+  selectedLayoutIds.forEach((id) => layoutCounts.set(id, (layoutCounts.get(id) ?? 0) + 1));
+
+  const selectedLayouts = selectedLayoutIds
+    .map((id, originalIndex) => ({ layout: layoutList.find((l) => l.layoutId === id), originalIndex }))
+    .filter((entry): entry is { layout: TaskboardLayout; originalIndex: number } => entry.layout !== undefined);
 
   const handleSave = async () => {
     if (selectedLayouts.length === 0) {
@@ -121,7 +136,8 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
         <div className="px-5 py-4 border-b border-slate-200 bg-white flex-shrink-0">
           <h2 className="text-base font-bold text-slate-800">전광판 선택</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            롤링할 전광판을 클릭한 순서대로 선택하세요. 어떤 디스플레이로 보여줄지는 실행할 때 고릅니다. ({selectedLayouts.length}개 선택됨)
+            롤링할 전광판을 클릭한 순서대로 추가하세요. 같은 전광판을 여러 번 추가할 수 있습니다. 어떤 뷰 그룹으로 보여줄지는 실행할 때 고릅니다. ({selectedLayouts.length}개
+            선택됨)
           </p>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 p-4">
@@ -133,30 +149,29 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
           ) : (
             <div className="grid grid-cols-2 gap-3">
               {layoutList.map((layout) => {
-                const isSelected = selectedLayoutIds.includes(layout.layoutId);
-                const order = selectedLayoutIds.indexOf(layout.layoutId) + 1;
+                const count = layoutCounts.get(layout.layoutId) ?? 0;
                 return (
                   <div
                     key={layout.layoutId}
-                    onClick={() => toggleLayout(layout.layoutId)}
+                    onClick={() => addLayout(layout.layoutId)}
                     className={`relative bg-white rounded-xl border-2 overflow-hidden cursor-pointer transition-all hover:shadow-md ${
-                      isSelected ? 'border-[#0f5b9e] ring-2 ring-[#0f5b9e]/20' : 'border-transparent hover:border-slate-200'
+                      count > 0 ? 'border-[#0f5b9e] ring-2 ring-[#0f5b9e]/20' : 'border-transparent hover:border-slate-200'
                     }`}
                   >
-                    {isSelected && (
-                      <div className="absolute top-1.5 right-1.5 z-20 w-5 h-5 rounded-full bg-[#0f5b9e] text-white text-[10px] font-bold flex items-center justify-center shadow-md">
-                        {order}
+                    {count > 0 && (
+                      <div className="absolute top-1.5 right-1.5 z-20 min-w-5 h-5 px-1 rounded-full bg-[#0f5b9e] text-white text-[10px] font-bold flex items-center justify-center shadow-md">
+                        {count > 1 ? `×${count}` : '✓'}
                       </div>
                     )}
                     <div className="aspect-video bg-slate-100 relative overflow-hidden">
                       {layout.fileName ? (
-                        <img src={layout.fileName} alt={layout.layoutName} className={`w-full h-full object-cover transition-all ${isSelected ? 'scale-105' : ''}`} />
+                        <img src={layout.fileName} alt={layout.layoutName} className={`w-full h-full object-cover transition-all ${count > 0 ? 'scale-105' : ''}`} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-slate-800">
                           <span className="text-slate-500 text-xs">이미지 없음</span>
                         </div>
                       )}
-                      {isSelected && <div className="absolute inset-0 bg-[#0f5b9e]/10 pointer-events-none" />}
+                      {count > 0 && <div className="absolute inset-0 bg-[#0f5b9e]/10 pointer-events-none" />}
                     </div>
                     <div className="px-2 py-1.5">
                       <p className="text-xs font-bold text-slate-800 truncate">{layout.layoutName}</p>
@@ -190,17 +205,38 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
             />
           </div>
 
-          {/* 선택된 전광판 순서 */}
-          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 min-h-[60px]">
+          {/* 선택된 전광판 순서 — 목록이 길어지면 이 박스 안에서만 스크롤(전환효과/간격은 항상 보이게 유지) */}
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 min-h-[60px] flex-shrink-0">
             <p className="text-xs font-semibold text-blue-700 mb-1">롤링 순서 ({selectedLayouts.length}개)</p>
             {selectedLayouts.length === 0 ? (
               <p className="text-xs text-blue-400">왼쪽에서 전광판을 선택해 주세요.</p>
             ) : (
-              <div className="flex flex-col gap-1">
-                {selectedLayouts.map((l, i) => (
-                  <div key={l.layoutId} className="flex items-center gap-2 text-xs text-blue-800">
+              <div className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-1">
+                {selectedLayouts.map(({ layout, originalIndex }, i) => (
+                  <div key={originalIndex} className="flex items-center gap-2 text-xs text-blue-800 bg-white/60 rounded-md px-1.5 py-1">
                     <span className="w-4 h-4 rounded-full bg-[#0f5b9e] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">{i + 1}</span>
-                    <span className="truncate">{l.layoutName}</span>
+                    <span className="flex-1 min-w-0 truncate">{layout.layoutName}</span>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <button
+                        onClick={() => moveLayout(originalIndex, -1)}
+                        disabled={i === 0}
+                        className="p-0.5 text-blue-400 hover:text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="위로"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => moveLayout(originalIndex, 1)}
+                        disabled={i === selectedLayouts.length - 1}
+                        className="p-0.5 text-blue-400 hover:text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="아래로"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                      <button onClick={() => removeLayoutAt(originalIndex)} className="p-0.5 text-blue-400 hover:text-red-500" title="제거">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -277,20 +313,20 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
   );
 }
 
-// ─── 실행 옵션 뷰 — 어떤 디스플레이로 보여줄지 선택(전체 적용 또는 전광판별 개별) ──────
+// ─── 실행 옵션 뷰 — 어떤 뷰 그룹으로 보여줄지 선택(전체 적용 또는 전광판별 개별) ──────
 interface RunOptionsViewProps {
   group: RollingGroup;
   layoutList: TaskboardLayout[];
-  screenList: TaskboardDisplayLayout[];
   displayList: TaskboardDisplay[];
   onStart: (layouts: RollingLayout[]) => void;
   onCancel: () => void;
 }
 
-function RunOptionsView({ group, layoutList, screenList, displayList, onStart, onCancel }: RunOptionsViewProps) {
+function RunOptionsView({ group, layoutList, displayList, onStart, onCancel }: RunOptionsViewProps) {
+  // 자리(occurrence) 인덱스를 key로 둬서 같은 전광판이 여러 번 들어가도 자리마다 다른 뷰 그룹을 고를 수 있게 한다.
   const boardLayouts = parseIdArray(group.displayIds)
-    .map((id) => layoutList.find((l) => l.layoutId === id))
-    .filter((l): l is TaskboardLayout => l !== undefined);
+    .map((id, occurrenceIndex) => ({ occurrenceIndex, layout: layoutList.find((l) => l.layoutId === id) }))
+    .filter((entry): entry is { occurrenceIndex: number; layout: TaskboardLayout } => entry.layout !== undefined);
 
   const stored = loadRunOptions(group.groupId);
   const [applyAll, setApplyAll] = useState(stored.applyAll);
@@ -299,10 +335,10 @@ function RunOptionsView({ group, layoutList, screenList, displayList, onStart, o
 
   const handleStart = () => {
     const layouts: RollingLayout[] = [];
-    for (const layout of boardLayouts) {
-      const displayId = applyAll ? allDisplayId : perLayoutDisplayId[layout.layoutId];
+    for (const { occurrenceIndex, layout } of boardLayouts) {
+      const displayId = applyAll ? allDisplayId : perLayoutDisplayId[occurrenceIndex];
       if (!displayId) {
-        toast.error(applyAll ? '디스플레이를 선택해 주세요.' : `"${layout.layoutName}"에서 보여줄 디스플레이를 선택해 주세요.`);
+        toast.error(applyAll ? '뷰 그룹을 선택해 주세요.' : `"${occurrenceIndex + 1}. ${layout.layoutName}"에서 보여줄 뷰 그룹을 선택해 주세요.`);
         return;
       }
       const display = displayList.find((d) => d.displayId === displayId);
@@ -323,7 +359,7 @@ function RunOptionsView({ group, layoutList, screenList, displayList, onStart, o
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-lg font-bold text-slate-800">실행 옵션</h2>
-            <p className="text-xs text-slate-500 mt-0.5">"{group.groupName}" — 어떤 디스플레이로 보여줄지 선택하세요.</p>
+            <p className="text-xs text-slate-500 mt-0.5">"{group.groupName}" — 어떤 뷰 그룹으로 보여줄지 선택하세요.</p>
           </div>
           <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 text-xl leading-none">
             &times;
@@ -333,18 +369,18 @@ function RunOptionsView({ group, layoutList, screenList, displayList, onStart, o
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
           <label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 rounded-lg border border-slate-200">
             <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} className="w-4 h-4" style={{ accentColor: '#0f5b9e' }} />
-            <span className="text-sm font-semibold text-slate-700">전체 전광판에 같은 디스플레이 적용</span>
+            <span className="text-sm font-semibold text-slate-700">전체 전광판에 같은 뷰 그룹 적용</span>
           </label>
 
           {applyAll ? (
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">디스플레이</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">뷰 그룹</label>
               <select
                 value={allDisplayId ?? ''}
                 onChange={(e) => setAllDisplayId(e.target.value ? Number(e.target.value) : null)}
                 className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#0f5b9e]"
               >
-                <option value="">디스플레이 선택...</option>
+                <option value="">뷰 그룹 선택...</option>
                 {displayList.map((d) => (
                   <option key={d.displayId} value={d.displayId}>
                     {d.displayName}
@@ -354,23 +390,25 @@ function RunOptionsView({ group, layoutList, screenList, displayList, onStart, o
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {boardLayouts.map((layout) => {
-                const linkedDisplays = screenList.filter((s) => s.layoutId === layout.layoutId);
+              {boardLayouts.map(({ occurrenceIndex, layout }) => {
                 return (
-                  <div key={layout.layoutId}>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">{layout.layoutName}</label>
-                    {linkedDisplays.length === 0 ? (
-                      <p className="text-[11px] text-slate-400">연결된 디스플레이가 없습니다. 디스플레이 관리에서 먼저 연결해 주세요.</p>
+                  <div key={occurrenceIndex}>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                      <span className="text-slate-400 font-mono mr-1">{occurrenceIndex + 1}.</span>
+                      {layout.layoutName}
+                    </label>
+                    {displayList.length === 0 ? (
+                      <p className="text-[11px] text-slate-400">등록된 뷰 그룹이 없습니다. 뷰 그룹 관리에서 먼저 등록해 주세요.</p>
                     ) : (
                       <select
-                        value={perLayoutDisplayId[layout.layoutId] ?? ''}
-                        onChange={(e) => setPerLayoutDisplayId((prev) => ({ ...prev, [layout.layoutId]: e.target.value ? Number(e.target.value) : 0 }))}
+                        value={perLayoutDisplayId[occurrenceIndex] ?? ''}
+                        onChange={(e) => setPerLayoutDisplayId((prev) => ({ ...prev, [occurrenceIndex]: e.target.value ? Number(e.target.value) : 0 }))}
                         className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#0f5b9e]"
                       >
-                        <option value="">디스플레이 선택...</option>
-                        {linkedDisplays.map((s) => (
-                          <option key={s.displayLayoutId} value={s.displayId}>
-                            {s.displayName}
+                        <option value="">뷰 그룹 선택...</option>
+                        {displayList.map((d) => (
+                          <option key={d.displayId} value={d.displayId}>
+                            {d.displayName}
                           </option>
                         ))}
                       </select>
@@ -463,7 +501,7 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 그룹 관리</h1>
-          <p className="text-sm text-slate-500 mt-1">전광판 그룹을 만들고 롤링을 실행하세요. 어떤 디스플레이로 보여줄지는 실행할 때 고릅니다.</p>
+          <p className="text-sm text-slate-500 mt-1">전광판 그룹을 만들고 롤링을 실행하세요. 어떤 뷰 그룹으로 보여줄지는 실행할 때 고릅니다.</p>
         </div>
         <button
           onClick={onAdd}
@@ -491,8 +529,8 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
             const layoutCount = parseIdArray(group.displayIds).length;
             return (
               <div key={group.groupId} className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-800 truncate">{group.groupName}</h3>
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-slate-800 truncate min-w-0">{group.groupName}</h3>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => onEdit(group)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded transition-colors" title="수정">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
@@ -561,7 +599,6 @@ export default function TaskMgmt() {
 
   const { data: groupList = [], isLoading, refetch } = useGetRollingGroupList();
   const { data: layoutList = [] } = useGetTaskboardLayoutList();
-  const { data: screenList = [] } = useGetTaskboardDisplayLayoutList();
   const { data: displayList = [] } = useGetTaskboardDisplayList();
   const deleteGroup = useDeleteRollingGroup();
 
@@ -627,7 +664,6 @@ export default function TaskMgmt() {
         <RunOptionsView
           group={runningGroup}
           layoutList={layoutList}
-          screenList={screenList}
           displayList={displayList}
           onStart={(layouts) => {
             setRollingLayouts(layouts);

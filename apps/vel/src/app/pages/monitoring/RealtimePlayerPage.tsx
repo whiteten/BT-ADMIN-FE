@@ -30,6 +30,7 @@ export default function RealtimePlayerPage() {
   const queue = useRef<Uint8Array[]>([]);
   const isPumping = useRef(false);
   const abortController = useRef<AbortController | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
   const lastPacketTime = useRef(Date.now());
   const statusRef = useRef<Status>('LOADING');
 
@@ -47,7 +48,9 @@ export default function RealtimePlayerPage() {
 
   // 수신 방식: 'poll' = 세그먼트 폴링(원래, /vel-realtime-play, BFF aggregation 통과·운영 동작)
   //            'stream' = 무한 스트림(테스트, /vel-realtime-stream, BFF 패스스루 검증용)
-  const mode: 'poll' | 'stream' = searchParams.get('mode') === 'stream' ? 'stream' : 'poll';
+  //            'ws' = WebSocket(/ws/proxy/vel/realtime, BFF 범용 WS 프록시 경유·무한스트림 정식 해법 후보)
+  const modeParam = searchParams.get('mode');
+  const mode: 'poll' | 'stream' | 'ws' = modeParam === 'stream' ? 'stream' : modeParam === 'ws' ? 'ws' : 'poll';
 
   const params = {
     tenant_id: searchParams.get('tenant_id') || '2000000001',
@@ -283,7 +286,54 @@ export default function RealtimePlayerPage() {
         }
       };
 
-      if (mode === 'stream') streamLoop();
+      // [WebSocket] /ws/proxy/vel/realtime 로 BFF 범용 WS 프록시 경유. VEL이 Core 오디오를 BINARY 프레임으로
+      // push → 그대로 MSE에 append. WebSocket은 네이티브 무한 스트림이라 BFF aggregation의 flush 한계가 없음.
+      const wsLoop = () => {
+        setStatus('READY');
+        setMessage('WebSocket 연결 중 (BFF /ws/proxy 패스스루)...');
+        lastPacketTime.current = Date.now();
+
+        const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws = new WebSocket(`${proto}://${window.location.host}/ws/proxy/vel/realtime`);
+        ws.binaryType = 'arraybuffer';
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          // 첫 TEXT 프레임 = JSON body (VEL RealtimeWsHandler 계약, HTTP body와 동일)
+          ws.send(JSON.stringify(requestBody));
+          setMessage('실시간 감청 대기 중 (WS 연결됨)...');
+        };
+
+        ws.onmessage = (ev) => {
+          if (typeof ev.data === 'string') return; // 텍스트 프레임은 무시(상태 메시지 등)
+          const seg = new Uint8Array(ev.data as ArrayBuffer);
+          if (seg.length <= 10) return; // 무음/더미 무시
+          lastPacketTime.current = Date.now();
+          setTimeLeft(SILENCE_TIMEOUT);
+          if (statusRef.current !== 'PLAYING') {
+            setStatus('PLAYING');
+            setMessage('실시간 감청 중 (WS)...');
+          }
+          queue.current.push(seg);
+          pump();
+
+          if (audio.buffered.length > 0) {
+            const lastBuffered = audio.buffered.end(audio.buffered.length - 1);
+            if (lastBuffered - audio.currentTime > 2.5) audio.currentTime = lastBuffered - 0.3;
+          }
+          if (audio.paused) audio.play().catch(() => undefined);
+        };
+
+        ws.onerror = () => {
+          if (!localAbort.signal.aborted) {
+            setStatus('ERROR');
+            setMessage('WebSocket 오류 — BFF /ws/proxy 또는 VEL /ws/realtime 확인 필요.');
+          }
+        };
+      };
+
+      if (mode === 'ws') wsLoop();
+      else if (mode === 'stream') streamLoop();
       else pollLoop();
     };
 
@@ -295,7 +345,16 @@ export default function RealtimePlayerPage() {
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      sendStopSignal(sid); // 이 run이 만든 세션만 정리 (다른 run의 세션은 건드리지 않음)
+      // WS 모드: WebSocket을 닫으면 VEL이 afterConnectionClosed에서 Core 소켓을 정리(좀비 없음).
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {
+          /* ignore */
+        }
+        wsRef.current = null;
+      }
+      sendStopSignal(sid); // 폴링/스트림 세션 정리 (다른 run의 세션은 건드리지 않음)
       localAbort.abort();
       clearInterval(watchdog);
       audio.pause();

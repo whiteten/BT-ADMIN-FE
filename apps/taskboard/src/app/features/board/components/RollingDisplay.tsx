@@ -13,7 +13,7 @@ export interface RollingLayout {
   layoutName: string;
   fileName?: string;
   layoutJson?: string;
-  /** 이 슬라이드의 화면 인스턴스(디스플레이 그룹핑 × 레이아웃 연결) ID — TaskboardDisplayLayout.displayLayoutId */
+  /** 이 슬라이드에 입힐 뷰 그룹(선택값 묶음) ID — TaskboardDisplay.displayId */
   displayId: number;
   selectionJson?: string;
 }
@@ -776,19 +776,19 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
       <div
         className={`absolute top-0 left-0 right-0 z-50 transition-all duration-500 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
       >
-        <div className="flex items-center justify-between px-4 py-2 bg-black/70 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-black/70 backdrop-blur-sm">
+          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
             {onStop && (
-              <button onClick={onStop} className="text-white/70 hover:text-white text-sm font-semibold px-3 py-1 rounded hover:bg-white/10 transition-colors">
+              <button onClick={onStop} className="text-white/70 hover:text-white text-sm font-semibold px-3 py-1 rounded hover:bg-white/10 transition-colors flex-shrink-0">
                 ← 그룹 목록
               </button>
             )}
-            <span className="text-white font-bold text-sm">{current.layoutName}</span>
-            <span className="text-white/40 text-xs">
+            <span className="text-white font-bold text-sm truncate min-w-0">{current.layoutName}</span>
+            <span className="text-white/40 text-xs flex-shrink-0">
               {currentIndex + 1} / {layouts.length}
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <span className="text-white/40 text-xs">{intervalSec}초마다 전환</span>
             <button
               onClick={toggleFullscreen}

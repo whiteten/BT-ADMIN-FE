@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import { LayoutGrid, List, Plus } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { MultiSelectDropdown } from '../../features/board/components/MultiSelectDropdown';
 import {
   useCreateTaskboardDisplay,
-  useCreateTaskboardDisplayLayout,
   useDeleteTaskboardDisplay,
-  useDeleteTaskboardDisplayLayout,
   useGetCtiAgentList,
   useGetCtiGroupList,
   useGetCtiQueueList,
-  useGetTaskboardDisplayLayoutList,
   useGetTaskboardDisplayList,
-  useGetTaskboardLayoutList,
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { TaskboardDisplay, TaskboardDisplayLayout, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
+import type { TaskboardDisplay, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
+import { IconEdit, IconTrash } from '@/components/custom/Icons';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
@@ -27,7 +25,54 @@ function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
   }
 }
 
-// ─── 디스플레이(그룹핑) 등록/수정 폼 ──────────────────────────────────────────
+// ─── 선택값 요약 칩 — 큐/상담그룹/상담사 각각 일부 이름 + 나머지 개수만 간략히 보여준다 ──
+interface SelectionCategory {
+  label: string;
+  color: string;
+  ids: string[];
+  nameMap: Map<string, string>;
+}
+
+function SelectionSummary({
+  selection,
+  nameMaps,
+}: {
+  selection: TaskboardDisplaySelection;
+  nameMaps: { queue: Map<string, string>; group: Map<string, string>; agent: Map<string, string> };
+}) {
+  const categories: SelectionCategory[] = [
+    { label: '큐', color: '#0891b2', ids: selection.queueIds ?? [], nameMap: nameMaps.queue },
+    { label: '상담그룹', color: '#7c3aed', ids: selection.groupIds ?? [], nameMap: nameMaps.group },
+    { label: '상담사', color: '#059669', ids: selection.agentIds ?? [], nameMap: nameMaps.agent },
+  ];
+  const active = categories.filter((c) => c.ids.length > 0);
+
+  if (active.length === 0) {
+    return <span className="text-[11px] text-slate-400 italic">선택된 데이터 없음</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {active.map((c) => {
+        const previewNames = c.ids.slice(0, 2).map((id) => c.nameMap.get(id) ?? id);
+        const restCount = c.ids.length - previewNames.length;
+        return (
+          <span
+            key={c.label}
+            className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full truncate max-w-full"
+            style={{ backgroundColor: `${c.color}14`, color: c.color, border: `1px solid ${c.color}40` }}
+            title={`${c.label}: ${c.ids.map((id) => c.nameMap.get(id) ?? id).join(', ')}`}
+          >
+            {c.label} {previewNames.join(', ')}
+            {restCount > 0 ? ` +${restCount}` : ''}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── 뷰 그룹 등록/수정 폼 ──────────────────────────────────────────
 
 interface DisplayFormProps {
   initial: TaskboardDisplay | null;
@@ -39,7 +84,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   const initialSelection = parseSelection(initial?.selectionJson);
   const userInfo = useAuthStore((s) => s.userInfo);
 
-  const [displayName, setDisplayName] = useState(initial?.displayName ?? '새 디스플레이');
+  const [displayName, setDisplayName] = useState(initial?.displayName ?? '새 뷰 그룹');
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>(initialSelection.queueIds ?? []);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(initialSelection.groupIds ?? []);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(initialSelection.agentIds ?? []);
@@ -80,7 +125,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
 
   const handleSubmit = async () => {
     if (!displayName.trim()) {
-      toast.error('디스플레이 이름을 입력해 주세요.');
+      toast.error('뷰 그룹 이름을 입력해 주세요.');
       return;
     }
     const selectionJson = JSON.stringify({
@@ -92,10 +137,10 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
     try {
       if (initial?.displayId) {
         await updateDisplay.mutateAsync({ displayId: initial.displayId, displayName, selectionJson });
-        toast.success('디스플레이가 수정되었습니다.');
+        toast.success('뷰 그룹이 수정되었습니다.');
       } else {
         await createDisplay.mutateAsync({ tenantId: userInfo?.tenant ?? '', displayName, selectionJson });
-        toast.success('디스플레이가 등록되었습니다.');
+        toast.success('뷰 그룹이 등록되었습니다.');
       }
       onSave();
     } catch {
@@ -109,7 +154,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
     <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 flex flex-col max-h-[90vh]">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-lg font-bold text-slate-800">{initial ? '디스플레이 수정' : '디스플레이 등록'}</h2>
+          <h2 className="text-lg font-bold text-slate-800">{initial ? '뷰 그룹 수정' : '뷰 그룹 등록'}</h2>
           <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 text-xl leading-none">
             &times;
           </button>
@@ -117,7 +162,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
 
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-5">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">디스플레이 이름</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">뷰 그룹 이름</label>
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
@@ -127,7 +172,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 디스플레이에서 보여줄 데이터</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 뷰 그룹에서 보여줄 데이터</label>
             <div className="flex flex-col gap-2.5 p-3 bg-slate-50 rounded-lg border border-slate-200">
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-semibold text-cyan-800 whitespace-nowrap w-14 flex-shrink-0">큐</span>
@@ -200,98 +245,25 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   );
 }
 
-// ─── 레이아웃 연결 칩 + 추가 드롭다운 ─────────────────────────────────────────
-
-interface LayoutLinkSectionProps {
-  displayId: number;
-  links: TaskboardDisplayLayout[];
-  layouts: { layoutId: number; layoutName: string }[];
-  onChanged: () => void;
-}
-
-function LayoutLinkSection({ displayId, links, layouts, onChanged }: LayoutLinkSectionProps) {
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement>(null);
-  const createLink = useCreateTaskboardDisplayLayout({});
-  const deleteLink = useDeleteTaskboardDisplayLayout({});
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) setPickerOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const linkedLayoutIds = new Set(links.map((l) => l.layoutId));
-  const availableLayouts = layouts.filter((l) => !linkedLayoutIds.has(l.layoutId));
-
-  const handleAdd = async (layoutId: number) => {
-    try {
-      await createLink.mutateAsync({ displayId, layoutId });
-      onChanged();
-    } catch {
-      toast.error('전광판 연결에 실패했습니다.');
-    }
-  };
-
-  const handleRemove = async (displayLayoutId: number) => {
-    try {
-      await deleteLink.mutateAsync(displayLayoutId);
-      onChanged();
-    } catch {
-      toast.error('전광판 연결 해제에 실패했습니다.');
-    }
-  };
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {links.length === 0 && <span className="text-[11px] text-slate-400">연결된 전광판 없음</span>}
-      {links.map((link) => (
-        <span key={link.displayLayoutId} className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
-          {link.layoutName ?? `#${link.layoutId}`}
-          <button onClick={() => handleRemove(link.displayLayoutId)} className="text-slate-400 hover:text-red-500 leading-none">
-            &times;
-          </button>
-        </span>
-      ))}
-      <div className="relative" ref={pickerRef}>
-        <button
-          onClick={() => setPickerOpen((v) => !v)}
-          disabled={availableLayouts.length === 0}
-          className="text-[11px] font-semibold text-[#0f5b9e] border border-[#0f5b9e]/40 px-2 py-1 rounded-full hover:bg-[#0f5b9e]/5 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          + 전광판 추가
-        </button>
-        {pickerOpen && (
-          <div className="absolute left-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl z-50 min-w-[200px] max-h-60 overflow-y-auto">
-            {availableLayouts.map((layout) => (
-              <button
-                key={layout.layoutId}
-                onClick={() => {
-                  handleAdd(layout.layoutId);
-                  setPickerOpen(false);
-                }}
-                className="w-full text-left px-3 py-2 text-[11px] text-slate-700 hover:bg-slate-50 truncate"
-              >
-                {layout.layoutName}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── TaskDisplayManage (메인) ─────────────────────────────────────────────────
+// 뷰 그룹(큐/그룹/상담사 선택값)은 전광판(레이아웃)과 매핑되지 않는 독립된 풀이다.
+// 어떤 전광판에든 자유롭게 입혀 쓸 수 있으므로 여기서는 전광판 연결 관리를 하지 않는다.
+type ViewMode = 'grid' | 'list';
 
 export default function TaskDisplayManage() {
   const { data: displays = [], isLoading, refetch } = useGetTaskboardDisplayList();
-  const { data: layouts = [] } = useGetTaskboardLayoutList({});
-  const { data: links = [], refetch: refetchLinks } = useGetTaskboardDisplayLayoutList();
   const [formOpen, setFormOpen] = useState(false);
   const [editingDisplay, setEditingDisplay] = useState<TaskboardDisplay | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
+  const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+  const { data: agentRows = [] } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
+  const nameMaps = {
+    queue: new Map(queueRows.map((q) => [q.ctiqId, q.ctiqName])),
+    group: new Map(groupRows.map((g) => [g.groupId, g.groupName])),
+    agent: new Map(agentRows.map((a) => [a.agentId, a.agentName])),
+  };
 
   const deleteDisplay = useDeleteTaskboardDisplay({});
   const modal = useModal();
@@ -320,7 +292,6 @@ export default function TaskDisplayManage() {
       await deleteDisplay.mutateAsync(display.displayId);
       toast.success('삭제되었습니다.');
       refetch();
-      refetchLinks();
     } catch {
       toast.error('삭제에 실패했습니다.');
     }
@@ -330,59 +301,84 @@ export default function TaskDisplayManage() {
     <div className="p-6 bg-slate-50 min-h-screen font-sans">
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">디스플레이 관리</h1>
-          <p className="text-sm text-slate-500 mt-1">큐/그룹/상담사 선택값(그룹핑)을 만들고, 여러 전광판(레이아웃)에 그대로 재사용할 수 있습니다.</p>
+          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">뷰 그룹 관리</h1>
+          <p className="text-sm text-slate-500 mt-1">큐/그룹/상담사 선택값(뷰 그룹)을 만들고, 어떤 전광판(레이아웃)에든 그대로 입혀 재사용할 수 있습니다.</p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82] transition-colors shadow-sm flex items-center gap-1.5"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          디스플레이 등록
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border border-slate-200 rounded-md overflow-hidden flex-shrink-0">
+            <button
+              onClick={() => setViewMode('grid')}
+              title="카드형으로 보기"
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              title="목록형으로 보기"
+              className={`p-2 transition-colors border-l border-slate-200 ${viewMode === 'list' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={handleAdd}
+            className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82] transition-colors shadow-sm flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />뷰 그룹 등록
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="py-24 text-center text-slate-400">불러오는 중...</div>
       ) : displays.length === 0 ? (
         <div className="py-24 text-center text-slate-400 border-2 border-dashed border-slate-300 rounded-xl bg-white">
-          <p className="text-lg font-medium">등록된 디스플레이가 없습니다.</p>
-          <p className="text-sm mt-1">오른쪽 상단의 &quot;디스플레이 등록&quot; 버튼을 눌러 추가하세요.</p>
+          <p className="text-lg font-medium">등록된 뷰 그룹이 없습니다.</p>
+          <p className="text-sm mt-1">오른쪽 상단의 &quot;뷰 그룹 등록&quot; 버튼을 눌러 추가하세요.</p>
         </div>
-      ) : (
-        <div className="flex flex-col gap-3">
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {displays.map((d) => (
-            <div key={d.displayId} className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col gap-3 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="font-bold text-slate-800">{d.displayName}</div>
-                  <div className="text-xs text-slate-400">#{d.displayId}</div>
+            <div key={d.displayId} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
+                  <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleEdit(d)}
-                    className="px-3 py-1.5 text-xs font-semibold border border-slate-200 rounded-md text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    수정
+                <div className="flex gap-1 flex-shrink-0">
+                  <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
+                    <IconEdit className="w-3.5 h-3.5" />
                   </button>
-                  <button
-                    onClick={() => handleDelete(d)}
-                    className="px-3 py-1.5 text-xs font-semibold border border-red-200 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    삭제
+                  <button onClick={() => handleDelete(d)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" title="삭제">
+                    <IconTrash className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-              <div>
-                <div className="text-[11px] font-semibold text-slate-500 mb-1.5">연결된 전광판</div>
-                <LayoutLinkSection
-                  displayId={d.displayId}
-                  links={links.filter((l) => l.displayId === d.displayId)}
-                  layouts={layouts.map((l) => ({ layoutId: l.layoutId, layoutName: l.layoutName }))}
-                  onChanged={() => refetchLinks()}
-                />
+              <div className="pt-2 border-t border-slate-100">
+                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {displays.map((d) => (
+            <div key={d.displayId} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="min-w-0 w-44 flex-shrink-0">
+                <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
+                <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} />
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
+                  <IconEdit className="w-3.5 h-3.5" />
+                </button>
+                <button onClick={() => handleDelete(d)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" title="삭제">
+                  <IconTrash className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           ))}
