@@ -30,7 +30,7 @@ function SearchResultCard({ result }: { result: KnowledgeSearchChunk }) {
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
         <div className="flex items-center gap-2.5">
           <span className="text-xs font-bold text-gray-500 bg-white border border-gray-200 rounded px-1.5 py-0.5">#{result.chunkIndex}</span>
-          <span className="text-xs text-gray-400">{result.chunkCharacters.toLocaleString()}자</span>
+          {result.chunkCharacters != null && <span className="text-xs text-gray-400">{result.chunkCharacters.toLocaleString()}자</span>}
         </div>
         <span
           className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${

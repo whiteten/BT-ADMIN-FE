@@ -522,6 +522,12 @@ importers:
 
   apps/taskboard: {}
 
+  apps/vel:
+    dependencies:
+      wavesurfer.js:
+        specifier: ^7.12.7
+        version: 7.12.8
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
@@ -9689,6 +9695,9 @@ packages:
   watchpack@2.4.4:
     resolution: {integrity: sha512-c5EGNOiyxxV5qmTtAB7rbiXxi1ooX1pQKMLX/MIabJjRA0SJBQOjKF+KSVfHkr9U1cADPon0mRiVe/riyaiDUA==}
     engines: {node: '>=10.13.0'}
+
+  wavesurfer.js@7.12.8:
+    resolution: {integrity: sha512-G3nxzcC4X+ZWrLtcIV17kCWHVq3ysJCS4dS0YkGKILrQ2esAb8cScw965zKNKYxUvpiZsPK93KLWgWTYdIBQiw==}
 
   wbuf@1.7.3:
     resolution: {integrity: sha512-O84QOnr0icsbFGLS0O3bI5FswxzRr8/gHwWkDlQFskhSPryQXvrTMxjxGP4+iWYoauLoBvfDpkrOauZ+0iZpDA==}
@@ -20703,6 +20712,8 @@ snapshots:
     dependencies:
       glob-to-regexp: 0.4.1
       graceful-fs: 4.2.11
+
+  wavesurfer.js@7.12.8: {}
 
   wbuf@1.7.3:
     dependencies:

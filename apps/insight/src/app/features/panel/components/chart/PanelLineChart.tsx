@@ -45,6 +45,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
   const options = (panel.chartOptions ?? {}) as LineChartOptions;
   const showDataLabel = options.dataLabel ?? false;
   const goalLine = options.goalLine;
+  const avgLine = options.avgLine ?? false;
   // 시리즈 슬롯(그룹 분리 디멘션) — 있으면 그 값별로 라인 분리
   const seriesField = panel.fieldMap.find((f) => f.slotType === 'SERIES');
   // Top N(LIMIT 슬롯) — BE 후처리(시간축 제외 디멘션 그룹별 상위 N)가 누락된 경계 대비.
@@ -103,7 +104,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       };
     };
 
-    let series;
+    let series: Record<string, unknown>[];
     let lineCount: number;
     if (seriesField) {
       // SERIES 디멘션 값별 라인 분리(측정값은 첫 Y 필드). 빈 슬롯은 0.
@@ -164,6 +165,35 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       );
     }
 
+    // 범례(아래)에 표시할 이름 — 측정 라인만(인입·발신 등). 평균 라인은 범례 제외.
+    const legendNames = series.map((s) => String(s.name));
+
+    // 평균 라인: 표시된 라인들의 구간별 평균을 별도 라인 하나로(핫핑크). 인입·발신 + 평균 = 3선.
+    if (avgLine && series.length > 0) {
+      const n = series.length;
+      const avgValues = catKeys.map((_, idx) => {
+        let sum = 0;
+        for (const s of series) sum += Number((s.data as number[])[idx] ?? 0);
+        return sum / n;
+      });
+      const firstY = yFields[0];
+      series.push({
+        type: 'line',
+        name: '평균',
+        smooth: true,
+        showSymbol: false,
+        symbolSize: 7,
+        lineStyle: { width: 2.5, color: '#ec4899' },
+        itemStyle: { color: '#ec4899' },
+        areaStyle: undefined,
+        emphasis: { focus: 'series' as const },
+        label: { show: false },
+        tooltip: { valueFormatter: (v: unknown) => formatCell(v, firstY ? fmtMap.get(firstY.fieldName) : undefined, firstY?.columnFormat) },
+        markLine: undefined,
+        data: avgValues,
+      });
+    }
+
     const legendOn = options.legend ?? lineCount > 1;
     // boundaryGap:false 라 마지막 점이 grid 오른쪽 경계에 붙고, X축 마지막 일자 라벨은 가운데 정렬돼
     // 오른쪽 절반이 grid 밖으로 잘린다. 마지막 라벨 절반폭(≈글자수×6.2px/2)만큼 right 여백을 확보한다.
@@ -175,7 +205,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       color: [...PANEL_PALETTE],
       grid: { ...baseGrid(legendOn), right: rightPad },
       tooltip: { trigger: 'axis', ...baseTooltip },
-      legend: baseLegend(legendOn),
+      legend: { ...baseLegend(legendOn), data: legendNames },
       xAxis: {
         type: 'category',
         boundaryGap: false,
@@ -187,7 +217,7 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
       yAxis: { type: 'value', axisLabel: axisLabelStyle, splitLine: splitLineStyle },
       series,
     };
-  }, [xField, yFields, seriesField, limitField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, displayNameMap]);
+  }, [xField, yFields, seriesField, limitField, isDraft, queryResult, committedFilter, options.legend, showDataLabel, goalLine, avgLine, displayNameMap]);
 
   if (!hasMapping) {
     return (
@@ -205,5 +235,5 @@ export default function PanelLineChart({ panel, reportId }: PanelLineChartProps)
     );
   }
 
-  return <PanelEChart option={option} />;
+  return <PanelEChart option={option} panelId={panel.panelId} />;
 }

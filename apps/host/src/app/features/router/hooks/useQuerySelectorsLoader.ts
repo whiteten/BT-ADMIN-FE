@@ -20,6 +20,7 @@ const SELECTOR_LOADERS: Record<string, () => Promise<SelectorsModule>> = {
   insight: () => import('insight/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   taskboard: () => import('taskboard/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
   campaign: () => import('campaign/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
+  vel: () => import('vel/QuerySelectors').catch(() => ({ querySelectors: {} })) as Promise<SelectorsModule>,
 };
 
 /**

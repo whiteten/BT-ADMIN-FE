@@ -78,23 +78,31 @@ const MentFileBatchSheet = forwardRef<MentFileBatchSheetRef>((_, ref) => {
     close: () => setVisible(false),
   }));
 
-  // 멘트 파일 다중 추가 — 확장자/크기 검증, 같은 파일명은 skip
-  const addFiles = (files: File[]) => {
-    setFileRows((prev) => {
-      const existing = new Set(prev.map((r) => r.fileName));
-      const next = [...prev];
-      for (const f of files) {
-        const err = validateMentFile(f);
-        if (err) {
-          toast.error(err);
-          continue;
-        }
-        if (existing.has(f.name)) continue;
-        existing.add(f.name);
-        next.push({ uid: `${f.name}-${f.size}-${f.lastModified}`, file: f, fileName: f.name, size: f.size, mentDesc: '' });
+  // 멘트 파일 다중 추가 — 확장자/크기 검증, 같은 파일명은 skip.
+  // ⚠ 선택 즉시 arrayBuffer 로 바이트를 메모리에 복사한 새 File 을 저장한다.
+  //   antd Upload 가 넘기는 File 은 OS 파일 참조라, 여러 파일을 담아뒀다 나중에 제출하면
+  //   그 사이 input 리셋으로 참조가 무효화되어 전송 시 net::ERR_FILE_NOT_FOUND 가 발생한다.
+  //   메모리 스냅샷이면 OS 파일과 무관하므로 구조적으로 재발 불가.
+  const addFiles = async (files: File[]) => {
+    for (const f of files) {
+      const err = validateMentFile(f);
+      if (err) {
+        toast.error(err);
+        continue;
       }
-      return next;
-    });
+      let memFile: File;
+      try {
+        const buf = await f.arrayBuffer();
+        memFile = new File([buf], f.name, { type: f.type, lastModified: f.lastModified });
+      } catch {
+        toast.error(`파일을 읽지 못했습니다: ${f.name}`);
+        continue;
+      }
+      setFileRows((prev) => {
+        if (prev.some((r) => r.fileName === memFile.name)) return prev; // 같은 파일명 skip
+        return [...prev, { uid: `${memFile.name}-${memFile.size}-${memFile.lastModified}`, file: memFile, fileName: memFile.name, size: memFile.size, mentDesc: '' }];
+      });
+    }
   };
 
   const removeRow = (uid: string) => setFileRows((prev) => prev.filter((r) => r.uid !== uid));
@@ -229,9 +237,8 @@ const MentFileBatchSheet = forwardRef<MentFileBatchSheetRef>((_, ref) => {
         <Upload
           multiple
           beforeUpload={(f) => {
-            // 각 파일마다 호출 — 현재 file 파라미터(실제 블롭)를 건별 추가.
-            // (fileList 파라미터를 첫 호출에 통째로 캡처하면 2번째+ 파일 블롭이 미준비라 ERR_FILE_NOT_FOUND 발생)
-            addFiles([f as File]);
+            // 각 파일마다 호출 — addFiles 가 선택 즉시 바이트를 메모리로 스냅샷(arrayBuffer)해 저장한다.
+            void addFiles([f as File]);
             return false;
           }}
           showUploadList={false}

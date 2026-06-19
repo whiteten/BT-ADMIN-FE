@@ -21,6 +21,7 @@ import BackupCompareDrawer, { type BackupCompareDrawerRef } from './BackupCompar
 import { sleeConfigQueryKeys, useGetBackups, useGetHistory } from '../hooks/useSleeConfigQueries';
 import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, RT_RESV_KIND_LABELS, SET_STATUS_LABELS, type SleeConfigBackupHeader, type SleeConfigHistoryRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const { RangePicker } = DatePicker;
 
@@ -126,6 +127,7 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
           if (k == null) return '-';
           return <Tag color={k === 1 ? 'blue' : 'purple'}>{RT_RESV_KIND_LABELS[k] ?? k}</Tag>;
         },
+        ...codeFilter<SleeConfigHistoryRow>('rtResvKind', RT_RESV_KIND_LABELS),
       },
       {
         headerName: '범위',
@@ -136,6 +138,7 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
           if (s == null) return '-';
           return <Tag color="default">{SET_STATUS_LABELS[s] ?? s}</Tag>;
         },
+        ...codeFilter<SleeConfigHistoryRow>('setStatus', SET_STATUS_LABELS),
       },
       { headerName: '시스템', field: 'systemName', flex: 1, minWidth: 130 },
       { headerName: '환경파일', field: 'configFile', flex: 1, minWidth: 140 },
@@ -161,6 +164,7 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
           const color = s === 50 ? 'green' : s === 55 ? 'red' : 'gold';
           return <Tag color={color}>{APPLY_STATUS_LABELS[s] ?? s}</Tag>;
         },
+        ...codeFilter<SleeConfigHistoryRow>('applyStatus', APPLY_STATUS_LABELS),
       },
       {
         headerName: '결과',
@@ -175,6 +179,7 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
           const color = r === 1 ? 'green' : r === 2 ? 'red' : 'default';
           return <Tag color={color}>{APPLY_RESULT_LABELS[r] ?? r}</Tag>;
         },
+        ...codeFilter<SleeConfigHistoryRow>('applyResult', APPLY_RESULT_LABELS),
       },
       { headerName: '작업자', field: 'workUserName', width: 110 },
       { headerName: '사유', field: 'applyReason', flex: 1.2, minWidth: 150, tooltipField: 'applyReason' },

@@ -34,6 +34,7 @@ import { type IrDnGroup, type IrSubDnGroup, SUB_DN_KIND_LABELS, getDnGroupTagLis
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: 'IVR DN 그룹관리', path: '/ivr/line/dn-group' }];
 
@@ -257,6 +258,7 @@ export default function IvrDnGroupList() {
             </span>
           );
         },
+        ...codeFilter<IrSubDnGroup>('subDnGroupKind', SUB_DN_KIND_LABELS),
       },
       {
         headerName: '채널 수',

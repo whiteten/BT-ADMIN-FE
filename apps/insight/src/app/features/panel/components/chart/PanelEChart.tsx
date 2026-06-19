@@ -1,8 +1,11 @@
 import { useEffect, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { registerChart, unregisterChart } from '../../utils/chartCaptureRegistry';
 
 interface PanelEChartProps {
   option: Record<string, unknown>;
+  /** 차트 캡처(PNG) 대상 식별용 패널 ID. 지정 시 캡처 레지스트리에 인스턴스 등록. */
+  panelId?: number;
 }
 
 /**
@@ -16,9 +19,16 @@ interface PanelEChartProps {
  * 또한 height 를 컨테이너(100%)에만 의존시키고 minHeight 강제값을 두지 않아,
  * 높이가 작은 좁은 패널에서 차트가 콘텐츠 영역을 넘기지 않도록 한다.
  */
-export default function PanelEChart({ option }: PanelEChartProps) {
+export default function PanelEChart({ option, panelId }: PanelEChartProps) {
   const chartRef = useRef<ReactECharts>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+
+  // 차트 캡처(PNG) 레지스트리 등록/해제 — 캡처 시점에 getEchartsInstance().getDataURL() 사용.
+  useEffect(() => {
+    if (panelId == null) return;
+    registerChart(panelId, () => chartRef.current?.getEchartsInstance());
+    return () => unregisterChart(panelId);
+  }, [panelId]);
 
   useEffect(() => {
     const box = boxRef.current;

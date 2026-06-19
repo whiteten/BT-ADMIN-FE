@@ -102,6 +102,7 @@ export default function SttMasterTab({ onEdit, onCountChange }: Props) {
         flex: 1,
         minWidth: 110,
         valueFormatter: (params) => (params.value === 1 ? '사용' : '미사용'),
+        filterValueGetter: (params) => (params.data?.sttInterface === 1 ? '사용' : '미사용'),
       },
       { headerName: 'IP', field: 'sttIp', flex: 1, minWidth: 120 },
       { headerName: 'PORT', field: 'sttPort', maxWidth: 90 },

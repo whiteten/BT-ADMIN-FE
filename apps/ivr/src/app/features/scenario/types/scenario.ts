@@ -88,6 +88,29 @@ export const APPLY_RESULT_LABELS: Record<number, string> = {
   [APPLY_RESULT.FAIL]: '실패',
 };
 
+// ─── 실시간/예약 구분 (RT_RESV_KIND) — 1=즉시, 2=예약 ───────────────────────
+export const RT_RESV_KIND_LABELS: Record<number, string> = { 1: '즉시', 2: '예약' };
+
+// ─── 시스템별 시나리오 할당 현황 (AS-IS IPR20S6020) ─────────────────────────
+/** 현재(TB_IR_DNIS_SERVICE)/이력(TB_IR_SERVICE_HISTORY) 공통 행. 코드값은 라벨 맵과 1:1. */
+export interface ScenarioAssignedStatusRow {
+  serviceId: number;
+  serviceName?: string | null;
+  systemId: number;
+  systemName?: string | null;
+  serviceVer?: string | null;
+  priorVer?: string | null;
+  applyVer?: string | null;
+  rtResvKind?: number | null;
+  applyStatus?: number | null;
+  applyResult?: number | null;
+  applyDatetime?: string | null;
+  svcResvId?: string | null;
+  updateTime?: string | null;
+  workUser?: number | null;
+  workUserName?: string | null;
+}
+
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
 
 export interface Scenario {
@@ -175,6 +198,7 @@ export interface ScenarioVersionUpdateRequest {
 export interface ScenarioPublishRequest {
   rtResvKind: ApplyTimingKind;
   applyDatetime?: string; // ISO 8601, RESERVED 시 필수
+  systemIds?: number[]; // 체크박스로 선택한 배포 대상 시스템 (미지정이면 할당 시스템 전체)
 }
 
 export interface DeployedSystem {
@@ -205,6 +229,7 @@ export interface DeployTargetSystem {
   haGroupId?: number | null;
   haGroupName?: string | null;
   assignSystem: number; // 1=할당, 0=HA 백업
+  reserved?: boolean; // 활성 예약(대기) 여부 — true 면 체크박스 disabled + "예약중"
 }
 
 // ─── 시나리오 배포 결과 (publish 응답) ──────────────────────────────────────

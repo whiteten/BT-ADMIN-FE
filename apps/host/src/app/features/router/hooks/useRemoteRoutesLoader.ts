@@ -17,6 +17,7 @@ const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
   insight: () => import('insight/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   taskboard: () => import('taskboard/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   campaign: () => import('campaign/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
+  vel: () => import('vel/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
 };
 
 const PARAM_KEY_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;

@@ -66,6 +66,9 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
   const [inputValue, setInputValue] = useState('');
   const [threadId, setThreadId] = useState('');
   const [serviceId, setServiceId] = useState('');
+  // welcomeMessage(firstYn:'Y') 로드는 메시지가 없을 수도 있으므로 타이핑 인디케이터를 띄우지 않음.
+  // (있으면 메시지가 그대로 뜨고, 없으면 조용히 빈 상태 유지 — 사용자 메시지 응답에만 '...' 노출)
+  const [isWelcomePending, setIsWelcomePending] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(600);
   const inputRef = useRef<InputRef>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -77,6 +80,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
       onSuccess: (data) => {
         // BE 응답 변경: data 가 단계별 결과 객체 (`{ execute: {result}, run: {result}, ... }`).
         // 옛 단일 result(`{ result: string }`) 도 호환. 우선순위: run > execute > 객체 마지막 키 > 최상위 result
+        setIsWelcomePending(false);
         const text = pickAnswerText(data);
         if (text != null && text.trim() !== '') {
           addMessage({ id: Date.now(), type: 'response', content: { result: text }, timestamp: dayjs().format('HH:mm') });
@@ -85,6 +89,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
       },
       onError: (error) => {
         Log.warn('testAgent error', error);
+        setIsWelcomePending(false);
         addMessage({ id: Date.now(), type: 'response', content: { error: '오류가 발생했습니다.' }, timestamp: dayjs().format('HH:mm') });
         requestAnimationFrame(() => inputRef.current?.focus());
       },
@@ -95,6 +100,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
     mutationOptions: {
       onError: (error) => {
         Log.warn('refreshAgent error', error);
+        setIsWelcomePending(false);
       },
     },
   });
@@ -108,6 +114,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
       setThreadId(newThreadId);
       setMessages([]);
       setInputValue('');
+      setIsWelcomePending(true);
       setState({ open: true, agentId, agentName });
       testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
     },
@@ -185,6 +192,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
     setServiceId(newServiceId);
     setThreadId(newThreadId);
     setMessages([]);
+    setIsWelcomePending(true);
     // AS-IS 와 동일한 시퀀스: refresh(세션 초기화) → test(firstYn='Y') 호출로 welcomeMessage 재수신
     refreshAgent(
       { agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } },
@@ -281,7 +289,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
             </div>
           );
         })}
-        {isTesting && (
+        {isTesting && !isWelcomePending && (
           <div className="flex items-start gap-2.5 max-w-[80%]">
             <div className="shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
               <Bot size={14} className="text-blue-600" />

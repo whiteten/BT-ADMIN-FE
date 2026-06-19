@@ -1,0 +1,8 @@
+{
+  "name": "@bridgetec/ui-remote-vel",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "wavesurfer.js": "^7.12.7"
+  }
+}
