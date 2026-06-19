@@ -59,7 +59,7 @@ export const REPORT_ICON_SVG: Record<ReportIconType, React.ReactNode> = {
 };
 
 export const DOMAIN_LABELS: Record<string, string> = {
-  IE: '교환기',
+  IE: 'PBX',
   IC: 'CTI',
   IR: 'IVR',
 };

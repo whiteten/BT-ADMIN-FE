@@ -9,22 +9,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Drawer, Empty, Input, Radio, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import {
-  Building2,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardList,
-  Download,
-  FileCog,
-  FileText,
-  History,
-  Info,
-  Search,
-  Server,
-  Settings,
-  Trash2,
-  Upload as UploadIcon,
-} from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, ClipboardList, Download, FileCog, History, Info, Search, Server, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PropertyEditDrawer, { type PropertyEditDrawerRef } from '../../features/slee-config/components/PropertyEditDrawer';
@@ -556,7 +541,7 @@ export default function SleeConfigList() {
                       (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                     }}
                   >
-                    <FileText className="size-3.5 flex-shrink-0" />
+                    <Building2 className="size-3.5 flex-shrink-0" />
                     <span className="truncate">{tenant.tenantName}</span>
                     <span className="text-[11px] text-gray-400 flex-shrink-0">({tenant.configFileCount})</span>
                   </button>
@@ -843,7 +828,15 @@ export default function SleeConfigList() {
             {/* 적용 방식 + 예약 시각 인라인. DatePicker 는 실시간 모드에서도 자리 점유 (disabled). */}
             <div className="mb-3 flex items-center gap-3 flex-wrap">
               <span className="text-[12px] text-slate-600 flex-shrink-0">적용 방식</span>
-              <Radio.Group value={applyTiming} onChange={(e) => setApplyTiming(e.target.value)}>
+              <Radio.Group
+                value={applyTiming}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setApplyTiming(v);
+                  // 예약 선택 시 기본 예약시각 = 현재 +1시간 (레거시 setApplyStatus 동등)
+                  if (v === 'RESERVED' && !reservationAt) setReservationAt(dayjs().add(1, 'hour'));
+                }}
+              >
                 <Radio value="REALTIME">실시간</Radio>
                 <Radio value="RESERVED">예약(대기)</Radio>
               </Radio.Group>

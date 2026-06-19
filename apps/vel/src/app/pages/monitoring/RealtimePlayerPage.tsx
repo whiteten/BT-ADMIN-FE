@@ -45,6 +45,10 @@ export default function RealtimePlayerPage() {
     statusRef.current = status;
   }, [status]);
 
+  // 수신 방식: 'poll' = 세그먼트 폴링(원래, /vel-realtime-play, BFF aggregation 통과·운영 동작)
+  //            'stream' = 무한 스트림(테스트, /vel-realtime-stream, BFF 패스스루 검증용)
+  const mode: 'poll' | 'stream' = searchParams.get('mode') === 'stream' ? 'stream' : 'poll';
+
   const params = {
     tenant_id: searchParams.get('tenant_id') || '2000000001',
     agent_dn: searchParams.get('agent_dn') || '4408',
@@ -234,7 +238,53 @@ export default function RealtimePlayerPage() {
           }
         }
       };
-      pollLoop();
+
+      // [테스트] 무한 스트림: /vel-realtime-stream 에 한 번 연결하고 흘러오는 MP3 청크를 reader로 받아
+      // 그대로 MSE에 append. BFF가 무한 audio/mpeg를 flush(패스스루)하면 동작, 못하면 0바이트로 막힘.
+      const streamLoop = async () => {
+        setStatus('READY');
+        setMessage('실시간 스트림 연결 중 (BFF 패스스루 테스트)...');
+        lastPacketTime.current = Date.now();
+        try {
+          const response = await fetch(`/api/bff/vel-realtime-stream`, {
+            method: 'POST',
+            signal: localAbort.signal,
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCookie('XSRF-TOKEN') ?? '' },
+            body: JSON.stringify(requestBody),
+          });
+          if (!response.ok || !response.body) throw new Error('stream request failed');
+
+          const reader = response.body.getReader();
+          while (!localAbort.signal.aborted) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value && value.length > 1) {
+              lastPacketTime.current = Date.now();
+              setTimeLeft(SILENCE_TIMEOUT);
+              if (statusRef.current !== 'PLAYING') {
+                setStatus('PLAYING');
+                setMessage('실시간 감청 중 (스트림)...');
+              }
+              queue.current.push(value);
+              pump();
+
+              if (audio.buffered.length > 0) {
+                const lastBuffered = audio.buffered.end(audio.buffered.length - 1);
+                if (lastBuffered - audio.currentTime > 2.5) audio.currentTime = lastBuffered - 0.3;
+              }
+              if (audio.paused) audio.play().catch(() => undefined);
+            }
+          }
+        } catch {
+          if (!localAbort.signal.aborted) {
+            setStatus('ERROR');
+            setMessage('스트림 연결 실패 — BFF 패스스루 미지원일 수 있음 (폴링 모드 사용 권장).');
+          }
+        }
+      };
+
+      if (mode === 'stream') streamLoop();
+      else pollLoop();
     };
 
     // beforeunload 핸들러는 이벤트 인자가 sid로 새지 않도록 이 run의 sid로 바인딩
@@ -274,7 +324,7 @@ export default function RealtimePlayerPage() {
         {/* 헤더 */}
         <div className="bg-red-700 text-white px-4 py-2.5 text-sm font-semibold flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full bg-white ${isMonitoring ? 'animate-pulse' : 'opacity-40'}`} />
-          실시간 감청 (데모)
+          실시간 감청 {mode === 'stream' ? '(스트림 테스트)' : '(폴링)'}
           <span className="ml-auto flex items-center gap-1 text-xs font-normal opacity-90">
             자동종료
             <span className={`font-mono ${timeLeft < 60 ? 'text-yellow-300' : ''}`}>{formatTime(timeLeft)}</span>

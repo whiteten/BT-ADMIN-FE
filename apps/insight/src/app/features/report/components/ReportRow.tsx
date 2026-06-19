@@ -6,12 +6,15 @@ import { toast } from '@/shared-util';
 import { REPORT_ICON_SVG } from '../constants/reportIconConstants';
 import { reportKeys, useDeleteReport, useSetReportSystemFlag } from '../hooks/useReportQueries';
 import type { ReportIconType, ReportListItem } from '../types';
+import { Highlight } from '@/components/custom/Highlight';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { cn } from '@/lib/utils';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface ReportRowProps {
   report: ReportListItem;
+  /** 검색어 — 제목 매치 글자 하이라이트(통합검색과 동일). 미전달 시 강조 없음. */
+  query?: string;
 }
 
 // 도메인 뱃지(antd Tag) 색과 동일한 조합 — 아이콘칩 배경/글자/테두리. 미정의 도메인은 primary fallback.
@@ -25,7 +28,7 @@ const DOMAIN_ICON_COLOR: Record<string, { bg: string; fg: string; border: string
  * 보고서 목록 행 — 좌측 필터 레일 + 행 리스트 레이아웃용.
  * 권한(편집/삭제/시스템 승격)·네비게이션 로직은 ReportCard 와 동일 정책을 따른다.
  */
-export default function ReportRow({ report }: ReportRowProps) {
+export default function ReportRow({ report, query }: ReportRowProps) {
   const navigate = useNavigate();
   const modal = useModal();
   const queryClient = useQueryClient();
@@ -146,7 +149,9 @@ export default function ReportRow({ report }: ReportRowProps) {
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[13px] font-semibold group-hover:!text-[var(--color-bt-primary)]">{report.title}</span>
+          <span className="truncate text-[13px] font-semibold group-hover:!text-[var(--color-bt-primary)]">
+            <Highlight text={report.title} query={query ?? ''} />
+          </span>
           {report.isSystem && (
             <Tag color="purple" className="!mb-0 !mr-0 shrink-0 !px-1 !py-0 !text-[10px] !leading-4">
               시스템
@@ -154,22 +159,16 @@ export default function ReportRow({ report }: ReportRowProps) {
           )}
         </div>
         <span className={cn('truncate text-xs', report.description ? 'text-[var(--color-bt-fg-muted)]' : 'italic text-gray-300')}>{report.description || '설명 없음'}</span>
-        {datasetNames.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-1">
-            {datasetNames.slice(0, 3).map((name) => (
-              <span key={name} className="inline-flex h-[18px] items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]">
-                {name}
-              </span>
-            ))}
-            {datasetNames.length > 3 && <span className="text-[11px] text-[var(--color-bt-fg-muted)]">외 {datasetNames.length - 3}</span>}
-          </div>
-        )}
+        {/* 칩 영역은 항상 고정 높이로 예약 — 칩 유무에 따른 행 높이 들쭉날쭉 방지 */}
+        <div className="mt-0.5 flex h-[18px] items-center gap-1 overflow-hidden">
+          {datasetNames.slice(0, 3).map((name) => (
+            <span key={name} className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]">
+              {name}
+            </span>
+          ))}
+          {datasetNames.length > 3 && <span className="shrink-0 text-[11px] text-[var(--color-bt-fg-muted)]">외 {datasetNames.length - 3}</span>}
+        </div>
       </div>
-
-      {/* 시스템 식별은 제목 옆 태그가 담당 — 우측은 소유(내 보고서)만 표기 */}
-      {isOwner && !report.isSystem && (
-        <span className="inline-flex h-[17px] shrink-0 items-center rounded border border-[#86efac] bg-[#ecfdf5] px-1.5 text-[11px] font-medium text-[#15803d]">내 보고서</span>
-      )}
 
       <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
         <Button
