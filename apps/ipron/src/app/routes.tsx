@@ -54,9 +54,6 @@ const AdnList = React.lazy(() => import('./pages/adn/AdnList'));
 // agent-adn (상담사 로그인번호 관리 — SWAT IPR20S3011)
 const AgentAdnList = React.lazy(() => import('./pages/agent-adn/AgentAdnList'));
 
-// gdn (그룹DN 통합 관리 — ACD + CTI Queue + SIP TRUNK 3 메뉴 통폐합)
-const GdnList = React.lazy(() => import('./pages/gdn/GdnList'));
-
 // agent-master
 const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
 
@@ -202,10 +199,6 @@ export const routes = [
       {
         path: 'adn',
         element: pv('adn', AdnList),
-      },
-      {
-        path: 'gdn',
-        element: pv('gdn', GdnList),
       },
       {
         path: 'acd-gdn',
