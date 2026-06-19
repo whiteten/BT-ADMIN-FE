@@ -3,18 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardDisplayLayoutList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
+import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardDisplayList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
 import { type TaskboardLayout, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
 
 const getWidgetCount = (layoutJson?: string): number => parseLayoutWidgets(layoutJson).length;
 
-// ─── 디스플레이 선택 팝오버 — 같은 레이아웃을 어느 디스플레이(선택값)로 열지 고른다 ───────
+// ─── 뷰 그룹 선택 팝오버 — 전광판(레이아웃)과 뷰 그룹은 매핑되지 않는 별개 풀이라, 전체 뷰 그룹 중 아무거나 즉시 선택해 실행한다 ───
 function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; onClose: () => void }) {
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
-  const { data: displays = [], isLoading } = useGetTaskboardDisplayLayoutList({ layoutId: layout.layoutId });
+  const { data: displays = [], isLoading } = useGetTaskboardDisplayList();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -29,22 +29,22 @@ function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; on
       <div ref={ref} className="bg-white rounded-xl shadow-2xl w-[340px] overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h3 className="text-sm font-bold text-slate-800 truncate">{layout.layoutName}</h3>
-          <p className="text-xs text-slate-400 mt-0.5">실행할 디스플레이(표시값 세트)를 선택하세요.</p>
+          <p className="text-xs text-slate-400 mt-0.5">실행할 뷰 그룹(표시값 세트)을 선택하세요.</p>
         </div>
         <div className="max-h-72 overflow-y-auto">
           {isLoading ? (
             <div className="py-8 text-center text-sm text-slate-400">불러오는 중...</div>
           ) : displays.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400 px-5">등록된 디스플레이가 없습니다.</div>
+            <div className="py-8 text-center text-sm text-slate-400 px-5">등록된 뷰 그룹이 없습니다.</div>
           ) : (
             displays.map((d) => (
               <button
-                key={d.displayLayoutId}
-                onClick={() => navigate(`/taskboard/board/task-view/${d.displayLayoutId}`)}
+                key={d.displayId}
+                onClick={() => navigate(`/taskboard/board/task-view/${layout.layoutId}/${d.displayId}`)}
                 className="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"
               >
                 <span className="text-sm font-semibold text-slate-700 truncate">{d.displayName}</span>
-                <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">#{d.displayLayoutId}</span>
+                <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">#{d.displayId}</span>
               </button>
             ))
           )}
@@ -54,7 +54,7 @@ function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; on
             취소
           </button>
           <button onClick={() => navigate('/taskboard/board/task-display')} className="flex-1 py-3 text-sm font-bold text-[#0f5b9e] hover:bg-blue-50 transition-colors">
-            디스플레이 관리
+            뷰 그룹 관리
           </button>
         </div>
       </div>
@@ -94,14 +94,14 @@ export default function TaskList() {
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 목록</h1>
-          <p className="text-sm text-slate-500 mt-1">저장된 전광판 레이아웃 목록입니다. 이미지 위 ▷ 버튼으로 디스플레이를 선택해 실행하세요.</p>
+          <p className="text-sm text-slate-500 mt-1">저장된 전광판 레이아웃 목록입니다. 이미지 위 ▷ 버튼으로 뷰 그룹을 선택해 실행하세요.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/taskboard/board/task-display')}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-md text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm"
           >
-            디스플레이 관리
+            뷰 그룹 관리
           </button>
           <button
             onClick={() => navigate('/taskboard/board/task-bg')}
@@ -159,7 +159,7 @@ export default function TaskList() {
                   {/* 배경 이미지 */}
                   <img src={item.fileName} alt={item.layoutName} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
 
-                  {/* 중앙 플레이 버튼 — 디스플레이 선택 팝오버 */}
+                  {/* 중앙 플레이 버튼 — 뷰 그룹 선택 팝오버 */}
                   <button onClick={() => setPickerTarget(item)} className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-10">
                     <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center hover:bg-black/80 hover:scale-110 transition-all shadow-2xl">
                       <svg viewBox="0 0 24 24" fill="white" className="w-7 h-7 ml-1">
@@ -196,7 +196,7 @@ export default function TaskList() {
         </div>
       )}
 
-      {/* 디스플레이 선택 팝오버 */}
+      {/* 뷰 그룹 선택 팝오버 */}
       {pickerTarget && <DisplayPickerPopover layout={pickerTarget} onClose={() => setPickerTarget(null)} />}
 
       {/* 삭제 확인 모달 */}

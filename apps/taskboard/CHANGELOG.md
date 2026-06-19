@@ -22,6 +22,75 @@
 - `useCtiqWebSocket.ts`: 단일 hashKey 구독 → `subscriptions: {hashKey, ids}[]` 배열을 한 연결로 동시 구독하도록 재작성(`CtiWsSubscription`, `CtiWsDataByHashKey` 신규 export, 기존 `CtiqQueueRecord`는 `CtiqRecord`로 이름 변경). 큐/그룹/상담사(상담사는 그룹별로 `IC:AGENT:{groupId}:{mediaType}` hashKey가 갈라짐)를 React Hook 규칙(동적 개수만큼 훅 호출 불가) 위반 없이 한 훅으로 처리하기 위함.
 - `ctiRedisApi.ts`: `CtiAgentRow`에 `groupId` 필드 추가(BE `CtiAgentDto`엔 이미 있었으나 FE 타입에 누락돼 있었음) — 상담사 WS hashKey(`IC:AGENT:{groupId}:{mediaType}`) 합성에 필요.
 
+## 2026-06-19 세션5
+
+### TaskMgmt 그룹 편집 "롤링 순서" 박스 — 길어지면 자체 스크롤
+**증상**: 같은 전광판 여러 번 추가가 가능해진 뒤로, 순서를 4개 이상 등록하면 박스가 높이 제한 없이 계속 늘어나 우측 패널을 밀어내고 그 아래 "전환 효과"/"롤링 간격"이 화면 밖으로 가려지는 문제.
+- 두 가지 방식(① 순서 박스만 내부 스크롤 ② 전체 패널을 계속 늘려서 패널 자체 스크롤) 중 ①을 선택 — 전환효과/간격이 항상 보이는 쪽이 더 안정적인 UX라서.
+- `GroupEditView`의 "선택된 전광판 순서" 리스트 wrapper에 `max-h-52 overflow-y-auto` 추가, 바깥 박스는 `flex-shrink-0`으로 고정해 더 이상 무한정 늘어나지 않게 함
+- 관련 파일: `pages/board/TaskMgmt.tsx`
+- 검증: `npx eslint`(신규 에러 없음, 기존 경고만) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). **브라우저 실측 미실시**
+
+## 2026-06-19 세션4
+
+### TaskMgmt 롤링 그룹 — 같은 전광판 여러 번 추가 지원
+**배경**: 롤링 순서를 만들 때 좌측 썸네일 클릭이 토글(`includes`면 제거)이라 같은 전광판을 두 번 이상 넣을 수 없었음.
+- `GroupEditView`: `toggleLayout` → `addLayout`(클릭 시 항상 끝에 추가, 중복 허용)으로 교체. 제거/순서 변경은 우측 "롤링 순서" 목록에서만 — `removeLayoutAt(index)`, `moveLayout(index, ±1)` 신규(`lucide` `ChevronUp/ChevronDown/X` 아이콘 버튼)
+- 좌측 썸네일의 단일 순번 뱃지(`indexOf+1`, 중복 시 첫 항목만 표시되던 한계)를 `layoutCounts` 기반 "추가된 횟수" 뱃지(`✓` 또는 `×N`)로 교체
+- `selectedLayouts` 계산을 `{ layout, originalIndex }`로 바꿔, 화면에 보이는 목록 인덱스와 실제 `selectedLayoutIds` 배열 인덱스가 어긋나지 않도록(레이아웃이 삭제돼 못 찾는 항목이 필터링되는 경우도 안전)
+- `RunOptionsView`("개별 선택" 모드): `perLayoutDisplayId`를 `layoutId` 키 → **자리(occurrence) 인덱스** 키로 변경 — 같은 전광판이 여러 자리에 들어가도 자리마다 다른 뷰 그룹을 고를 수 있게 함. select 라벨에 `N.` 자리 번호 표기 추가해 어떤 자리인지 구분
+- `RollingGroup.displayIds`(실제로는 레이아웃ID 순서 배열, 컬럼명은 레거시)는 이미 일반 JSON 배열이라 중복값 저장 자체엔 문제 없었음 — DB/BE 변경 불필요, FE 선택 UI만 수정
+- ⚠️ localStorage `taskboard-rolling-run-options:{groupId}`의 `perLayoutDisplayId` 키 의미가 layoutId→occurrence index로 바뀌어, 기존에 저장된 값은 새 의미로 잘못 해석될 수 있음(서버 데이터 영향 없음, 실행 옵션 모달에서 다시 고르면 정정됨 — 무시 가능한 수준)
+- 관련 파일: `pages/board/TaskMgmt.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음, 기존 경고만 남음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). **브라우저 실측 미실시** — 사용자가 직접 확인 필요
+
+## 2026-06-19 세션3
+
+### 뷰 그룹 관리 화면(TaskDisplayManage) UI 개선
+- **카드/목록 보기 모드 추가**: 헤더에 `LayoutGrid`/`List`(lucide) 토글 버튼 신규, `viewMode` state(grid 기본값)로 카드형 그리드 ↔ 한 줄 목록 전환
+- **저장된 선택값 요약 표시**: `SelectionSummary` 컴포넌트 신규 — 큐/상담그룹/상담사 각 카테고리에서 선택된 값이 있을 때만 색상 칩으로 노출, 이름 최대 2개 미리보기 + 나머지는 `+N`으로 축약(`title` 속성에 전체 목록 hover 툴팁). 이름 매핑은 `useGetCtiQueueList/GroupList/AgentList`를 메인 컴포넌트로 끌어올려 `Map<id,name>` 3개 구성 후 카드/목록 양쪽에 prop으로 전달
+- 목록 행/카드의 편집·삭제 버튼을 텍스트 버튼 → `IconEdit`/`IconTrash`(TaskList.tsx와 동일 아이콘) 아이콘 버튼으로 통일
+- 카드 본문에 `truncate` 누락돼 있던 이름 표시도 함께 보강(저번 세션 overflow 수정과 같은 패턴)
+
+### MultiSelectDropdown 공용 컴포넌트 비주얼 개선 (TaskDisplayManage/TaskCreate/TaskView 표시값 설정 패널 전체 적용)
+- 트리거 버튼: 텍스트 화살표(▲▼) → lucide `ChevronDown`(열림 시 회전), 선택 개수를 원형 뱃지로 좌측에 고정 표시
+- 버튼 라벨에서 선택된 항목 이름을 콤마로 길게 이어붙이던 방식 제거 → `"N개 선택됨"` / `"전체 선택됨"`으로 단순화(긴 이름 합쳐질 때 잘리던 문제도 같이 해소)
+- 드롭다운 패널: 네이티브 체크박스 → shadcn `Checkbox`(Radix 기반)로 교체하면서도, 큐(cyan)/그룹(violet)/상담사(emerald) 카테고리별 색상 아이덴티티는 유지 — Tailwind v4의 `bg-(--css-var)` 화살표 구문으로 인라인 CSS 변수(`--ms-accent`)를 체크 상태 배경색에 연결
+- 검색 입력에 lucide `Search` 아이콘 추가, rounded-xl + shadow-xl로 패널 깊이감 보강
+- 관련 파일: `pages/board/TaskDisplayManage.tsx`, `features/board/components/MultiSelectDropdown.tsx`
+- 검증: `npx eslint`(신규 경고/에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). **브라우저 실측 미실시** — 사용자가 직접 확인 필요
+
+## 2026-06-19 세션2
+
+### 전체 화면 "텍스트 삐져나옴" 버그 일괄 수정 — `min-w-0` 누락 패턴
+**원인**: flex row 안에서 `truncate`(또는 `flex-1 truncate`)를 쓴 자식 요소에 `min-w-0`을 같이 안 주면, flex item의 기본 `min-width: auto`(콘텐츠 크기) 때문에 브라우저가 실제로는 줄여주지 않아 텍스트가 ellipsis 없이 옆 버튼/뱃지를 밀어내거나 박스 밖으로 삐져나간다(Tailwind `truncate`의 잘 알려진 함정). 사용자가 보고한 "이름: AI생성_커스텀 레이아웃_FHD_1098" 같은 긴 자동생성 이름이 대표 사례.
+- `TaskBg.tsx`: 배경 카드 제목(`item.pageName`) 줄 — 제목 wrapper에 `min-w-0`, "사용중/미사용" 뱃지에 `flex-shrink-0` 추가
+- `TaskMgmt.tsx`: 그룹 편집 화면 "롤링 순서" 리스트 항목(`l.layoutName`)에 `flex-1 min-w-0`, 그룹 카드 제목(`group.groupName`)에 `min-w-0` 추가
+- `TaskNotice.tsx`: 공지 목록 제목(`notice.title`)에 `flex-1 min-w-0` 추가
+- `TaskDisplayManage.tsx`: 뷰 그룹 카드 이름(`d.displayName`) — wrapper에 `min-w-0`, 이름 자체에 `truncate` 추가(원래 truncate 자체가 없었음)
+- `MultiSelectDropdown.tsx`: 버튼 라벨(`btnLabel`)·드롭다운 항목 이름(`item.name`)에 `min-w-0` 추가 — 큐/그룹/상담사 다중선택 시 이름이 길게 합쳐지면(`selectedIds.map(...).join(', ')`) 버튼 폭(`w-[180px]`)을 넘어가던 문제
+- `TaskCreate.tsx`: 좌측 콜데이터 팔레트 항목 라벨, Redis Hash 트리 노드 라벨, 계산식 위젯 변수 드롭존 라벨, 우측 패널 선택 위젯 제목, 테이블 컬럼 라벨 — 총 5곳에 `min-w-0` 추가
+- `TaskView.tsx` / `RollingDisplay.tsx`: 전광판 실행 화면 상단 컨트롤 바 — `표시 이름(displayName) (레이아웃 이름)` 텍스트가 길면 우측 톱니바퀴/전체화면 아이콘과 겹치던 문제. 좌측 그룹에 `min-w-0 overflow-hidden`, 이름에 `truncate`, 우측 아이콘 그룹에 `flex-shrink-0` 추가
+- 위 패턴이 아닌 `flex-col` 컨테이너 안의 `truncate`(예: `TableWidget`/`AnnouncementWidget`의 위젯 제목)는 cross-axis stretch로 폭이 이미 100%라 버그 없음 — 확인만 하고 변경 안 함
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). **브라우저 실측은 미실시**(로그인 정보 없어 스크린샷 못 찍음) — 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/{TaskBg,TaskMgmt,TaskNotice,TaskDisplayManage,TaskCreate,TaskView}.tsx`, `features/board/components/{MultiSelectDropdown,RollingDisplay}.tsx`
+
+## 2026-06-19
+
+### "뷰 그룹" 매핑 구조 완전 제거 — 전광판(레이아웃)과 뷰 그룹(선택값)을 독립된 두 풀로 분리
+**배경**: 2026-06-17~18에 만든 `TaskboardDisplayLayout`(레이아웃↔디스플레이 N:M 연결 테이블) 구조가, 실제로는 "전광판마다 디스플레이를 미리 연결해 둬야만 실행 시 선택지에 나타나는" 1:N 귀속 UX가 되어버림(task-list 플레이 버튼, task-mgmt 롤링 실행의 "개별" 모드 둘 다 동일 증상). 사용자 피드백: "전광판과 디스플레이관리는 맵핑되는 구조가 아니어야 한다 — 전광판은 전광판대로 가고 거기에 디스플레이 그룹 리스트가 입혀지는 형식". 결정: 연결 테이블/조인 개념을 FE에서 완전히 제거하고, task-view URL이 `layoutId`+`displayId`를 직접 받아 그 자리에서 두 풀을 조합하도록 변경. 같은 세션에서 "디스플레이"라는 용어도 "뷰 그룹"으로 전면 변경(사용자가 "디스플레이"는 화면/모니터로 오해하기 쉽다고 지적).
+
+- **routes.tsx**: `task-view/:displayId` → `task-view/:layoutId/:displayId`로 변경(기존에 모니터에 띄워둔 task-view URL이 있다면 새로 발급 필요 — 변경 전 사용자에게 확인받음)
+- **TaskView.tsx**: `useGetTaskboardDisplayLayoutDetail` 조인 조회 제거 → `useGetTaskboardLayoutList()`/`useGetTaskboardDisplayList()` 두 목록을 직접 fetch해서 `layoutId`/`displayId`로 각각 find. "디스플레이 설정" 톱니바퀴 패널 저장 후 refetch 대상도 displayList로 변경
+- **TaskList.tsx**: `DisplayPickerPopover`가 `useGetTaskboardDisplayLayoutList({layoutId})`(레이아웃에 연결된 것만) 대신 `useGetTaskboardDisplayList()`(전체 풀) 사용. 선택 즉시 `/task-view/${layoutId}/${displayId}`로 이동(사전 연결/자동생성 단계 없음)
+- **TaskMgmt.tsx**: `RunOptionsView`의 "개별 선택" 모드에서 `screenList`(조인 목록) 필터링 제거 → 전체 `displayList`를 모든 레이아웃에 동일하게 노출. `screenList`/`useGetTaskboardDisplayLayoutList` 의존성 전부 제거
+- **TaskDisplayManage.tsx**: "연결된 전광판" 칩 + `LayoutLinkSection`(전광판 추가/해제 UI) 전체 삭제. 레이아웃 목록 조회도 더 이상 필요 없어 제거
+- **dead code 정리**: `taskboardApi.ts`/`useTaskboardQueries.ts`/`taskboard.types.ts`에서 `TaskboardDisplayLayout`/`TaskboardDisplayLayoutDetail` 타입, `getDisplayLayoutList/Detail`·`createDisplayLayout`·`deleteDisplayLayout` API 함수, `useGetTaskboardDisplayLayoutList/Detail`·`useCreate/DeleteTaskboardDisplayLayout` 훅 전부 삭제(FE에서 더 이상 호출하는 곳이 없어짐)
+- **용어 변경**: 사용자 노출 텍스트의 "디스플레이" → "뷰 그룹"으로 전부 교체(TaskList/TaskMgmt/TaskDisplayManage/TaskCreate/TaskView). 단, 코드 식별자(`TaskboardDisplay`, `displayId`, `/taskboard-display-*` 엔드포인트 등)는 BE 스키마와의 호환을 위해 그대로 유지 — 표시 라벨만 변경
+- **⚠️ BE 미정리 항목**: `TB_TK_TASKBOARD_DISPLAY_LAYOUT` 테이블/`TaskboardDisplayLayout` 엔티티/`/taskboard-display-layout-*` BFF 엔드포인트(V89 마이그레이션)는 이번 FE 변경으로 더 이상 호출되지 않지만, BE 코드/DB는 그대로 남겨둠(마이그레이션 변경은 사전 확인 필요 사항이라 미진행). 필요 시 별도로 정리 논의
+- 관련 파일: `routes.tsx`, `pages/board/{TaskView,TaskList,TaskMgmt,TaskDisplayManage,TaskCreate}.tsx`, `features/board/{api/taskboardApi.ts,hooks/useTaskboardQueries.ts,types/taskboard.types.ts,components/RollingDisplay.tsx}`
+- 검증: `npx eslint --fix`(대상 파일 전체, 기존 경고 외 신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). 브라우저 수동 확인은 미실시 — 다음 세션에서 실제 모니터 URL 재발급 + task-list/task-mgmt 양쪽 실행 확인 필요
+
 ### 전광판 "디스플레이(보기 인스턴스)" 분리 — 레이아웃(위젯 디자인) : 디스플레이(선택값) = 1:N
 **배경**: BE와 동일(`BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참조). 상세 설계: `C:\Users\KTK\.claude\plans\lazy-forging-coral.md`.
 

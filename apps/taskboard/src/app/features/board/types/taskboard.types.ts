@@ -187,7 +187,7 @@ export interface RollingGroup {
   groupId: number;
   tenantId?: string;
   groupName: string;
-  /** 포함 디스플레이 ID 배열 JSON 문자열 "[1,2,3]" — 각 디스플레이가 레이아웃+선택값을 함께 가짐 */
+  /** 포함 전광판(레이아웃) ID 배열 JSON 문자열 "[1,2,3]" — 어떤 뷰 그룹으로 보여줄지는 실행 시점에 별도로 고름 */
   displayIds: string;
   intervalSec: number;
   transitionType?: string;
@@ -196,7 +196,7 @@ export interface RollingGroup {
 }
 
 /**
- * 디스플레이 선택값 — 큐/그룹/상담사. 향후 신규 Redis 타입은 키만 추가.
+ * 뷰 그룹 선택값 — 큐/그룹/상담사. 향후 신규 Redis 타입은 키만 추가.
  * 미디어타입은 여기 없음 — 위젯(CallDataItem.mediaType)에 위젯 등록 시점에 고정.
  */
 export interface TaskboardDisplaySelection {
@@ -205,7 +205,7 @@ export interface TaskboardDisplaySelection {
   agentIds?: string[];
 }
 
-/** 디스플레이 — 레이아웃과 무관한 순수 선택값 그룹핑 (DB: TB_TK_TASKBOARD_DISPLAY) */
+/** 뷰 그룹 — 전광판(레이아웃)과 매핑되지 않는 독립된 순수 선택값 묶음. 어떤 레이아웃에든 자유롭게 입혀 쓴다 (DB: TB_TK_TASKBOARD_DISPLAY) */
 export interface TaskboardDisplay {
   displayId: number;
   tenantId?: string;
@@ -213,26 +213,6 @@ export interface TaskboardDisplay {
   selectionJson?: string;
   useYn: string;
   regDt: string;
-}
-
-/** 화면 인스턴스 — 디스플레이(그룹핑) × 레이아웃 N:M 연결 (DB: TB_TK_TASKBOARD_DISPLAY_LAYOUT) */
-export interface TaskboardDisplayLayout {
-  displayLayoutId: number;
-  displayId: number;
-  displayName?: string; // display 테이블에서 조인 (목록 표시용)
-  selectionJson?: string; // display 테이블에서 조인 (RollingDisplay 실데이터용)
-  layoutId: number;
-  layoutName?: string; // layout 테이블에서 조인 (목록 표시용)
-  regDt: string;
-}
-
-/** TaskView 등 실행 화면에서 한 번에 받는 화면 인스턴스 상세(레이아웃+선택값) */
-export interface TaskboardDisplayLayoutDetail {
-  displayLayoutId: number;
-  displayId: number;
-  displayName: string;
-  selectionJson?: string;
-  layout: TaskboardLayout;
 }
 
 /** 레이아웃 존 */
