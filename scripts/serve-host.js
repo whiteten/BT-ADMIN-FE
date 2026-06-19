@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const readline = require('readline');
 
-const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard'];
+const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard', 'vel'];
 
 /**
  * LAN IPv4 주소를 자동 감지합니다.

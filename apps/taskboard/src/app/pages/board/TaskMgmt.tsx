@@ -5,13 +5,15 @@ import {
   useCreateRollingGroup,
   useDeleteRollingGroup,
   useGetRollingGroupList,
+  useGetTaskboardDisplayLayoutList,
+  useGetTaskboardDisplayList,
   useGetTaskboardLayoutList,
   useUpdateRollingGroup,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { RollingGroup, TaskboardLayout } from '../../features/board/types/taskboard.types';
+import type { RollingGroup, TaskboardDisplay, TaskboardDisplayLayout, TaskboardLayout } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-const parseLayoutIds = (raw?: string): number[] => {
+const parseIdArray = (raw?: string): number[] => {
   try {
     return raw ? (JSON.parse(raw) as number[]) : [];
   } catch {
@@ -19,7 +21,46 @@ const parseLayoutIds = (raw?: string): number[] => {
   }
 };
 
-// ─── 그룹 편집 뷰 ─────────────────────────────────────────────────────────────
+// ─── 실행 옵션(어떤 디스플레이로 보여줄지) — localStorage 기억 (롤링그룹 단위) ──────
+const RUN_OPTIONS_STORAGE_PREFIX = 'taskboard-rolling-run-options:';
+
+interface RunOptions {
+  applyAll: boolean;
+  allDisplayId: number | null;
+  perLayoutDisplayId: Record<number, number>;
+}
+
+function loadRunOptions(groupId: number): RunOptions {
+  try {
+    const raw = localStorage.getItem(`${RUN_OPTIONS_STORAGE_PREFIX}${groupId}`);
+    if (!raw) return { applyAll: false, allDisplayId: null, perLayoutDisplayId: {} };
+    const parsed = JSON.parse(raw) as Partial<RunOptions>;
+    return { applyAll: !!parsed.applyAll, allDisplayId: parsed.allDisplayId ?? null, perLayoutDisplayId: parsed.perLayoutDisplayId ?? {} };
+  } catch {
+    return { applyAll: false, allDisplayId: null, perLayoutDisplayId: {} };
+  }
+}
+
+function saveRunOptions(groupId: number, options: RunOptions) {
+  try {
+    localStorage.setItem(`${RUN_OPTIONS_STORAGE_PREFIX}${groupId}`, JSON.stringify(options));
+  } catch {
+    /* storage 사용 불가 환경 — 무시 */
+  }
+}
+
+function resolveRollingLayout(layout: TaskboardLayout, display: TaskboardDisplay): RollingLayout {
+  return {
+    layoutId: layout.layoutId,
+    layoutName: layout.layoutName,
+    fileName: layout.fileName,
+    layoutJson: layout.layoutJson,
+    displayId: display.displayId,
+    selectionJson: display.selectionJson,
+  };
+}
+
+// ─── 그룹 편집 뷰 — 전광판(레이아웃)만 순서대로 선택. 디스플레이는 실행 시점에 고른다 ──
 interface GroupEditViewProps {
   group: RollingGroup | null;
   layoutList: TaskboardLayout[];
@@ -28,7 +69,7 @@ interface GroupEditViewProps {
 }
 
 function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewProps) {
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => parseLayoutIds(group?.layoutIds));
+  const [selectedLayoutIds, setSelectedLayoutIds] = useState<number[]>(() => parseIdArray(group?.displayIds));
   const [groupName, setGroupName] = useState(group?.groupName ?? '새 그룹');
   const [intervalSec, setIntervalSec] = useState(group?.intervalSec ?? 5);
   const [transitionType, setTransitionType] = useState(group?.transitionType ?? 'fade');
@@ -37,13 +78,13 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
   const createGroup = useCreateRollingGroup();
   const updateGroup = useUpdateRollingGroup();
 
-  const toggleSelect = (id: number) => setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleLayout = (layoutId: number) => setSelectedLayoutIds((prev) => (prev.includes(layoutId) ? prev.filter((id) => id !== layoutId) : [...prev, layoutId]));
 
-  const selectedLayouts = selectedIds.map((id) => layoutList.find((l) => l.layoutId === id)).filter(Boolean) as TaskboardLayout[];
+  const selectedLayouts = selectedLayoutIds.map((id) => layoutList.find((l) => l.layoutId === id)).filter((l): l is TaskboardLayout => l !== undefined);
 
   const handleSave = async () => {
     if (selectedLayouts.length === 0) {
-      toast.error('레이아웃을 1개 이상 선택해 주세요.');
+      toast.error('전광판을 1개 이상 선택해 주세요.');
       return;
     }
     if (!groupName.trim()) {
@@ -54,7 +95,7 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
     try {
       const payload = {
         groupName: groupName.trim(),
-        layoutIds: JSON.stringify(selectedIds),
+        displayIds: JSON.stringify(selectedLayoutIds),
         intervalSec,
         transitionType,
       };
@@ -75,27 +116,29 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
 
   return (
     <div className="flex h-full bg-slate-50 font-sans overflow-hidden">
-      {/* 왼쪽: 레이아웃 선택 리스트 */}
+      {/* 왼쪽: 전광판 선택 */}
       <div className="w-1/2 flex flex-col border-r border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-200 bg-white flex-shrink-0">
-          <h2 className="text-base font-bold text-slate-800">레이아웃 선택</h2>
-          <p className="text-xs text-slate-500 mt-0.5">롤링할 레이아웃을 클릭하여 선택하세요. ({selectedIds.length}개 선택됨)</p>
+          <h2 className="text-base font-bold text-slate-800">전광판 선택</h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            롤링할 전광판을 클릭한 순서대로 선택하세요. 어떤 디스플레이로 보여줄지는 실행할 때 고릅니다. ({selectedLayouts.length}개 선택됨)
+          </p>
         </div>
         <div className="flex-1 overflow-y-auto min-h-0 p-4">
           {layoutList.length === 0 ? (
             <div className="py-16 text-center text-slate-400">
-              <p>레이아웃이 없습니다.</p>
+              <p>등록된 전광판이 없습니다.</p>
               <p className="text-xs mt-1">전광판 목록에서 먼저 레이아웃을 만들어 주세요.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3">
-              {layoutList.map((item) => {
-                const isSelected = selectedIds.includes(item.layoutId);
-                const order = selectedIds.indexOf(item.layoutId) + 1;
+              {layoutList.map((layout) => {
+                const isSelected = selectedLayoutIds.includes(layout.layoutId);
+                const order = selectedLayoutIds.indexOf(layout.layoutId) + 1;
                 return (
                   <div
-                    key={item.layoutId}
-                    onClick={() => toggleSelect(item.layoutId)}
+                    key={layout.layoutId}
+                    onClick={() => toggleLayout(layout.layoutId)}
                     className={`relative bg-white rounded-xl border-2 overflow-hidden cursor-pointer transition-all hover:shadow-md ${
                       isSelected ? 'border-[#0f5b9e] ring-2 ring-[#0f5b9e]/20' : 'border-transparent hover:border-slate-200'
                     }`}
@@ -106,8 +149,8 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
                       </div>
                     )}
                     <div className="aspect-video bg-slate-100 relative overflow-hidden">
-                      {item.fileName ? (
-                        <img src={item.fileName} alt={item.layoutName} className={`w-full h-full object-cover transition-all ${isSelected ? 'scale-105' : ''}`} />
+                      {layout.fileName ? (
+                        <img src={layout.fileName} alt={layout.layoutName} className={`w-full h-full object-cover transition-all ${isSelected ? 'scale-105' : ''}`} />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-slate-800">
                           <span className="text-slate-500 text-xs">이미지 없음</span>
@@ -116,7 +159,7 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
                       {isSelected && <div className="absolute inset-0 bg-[#0f5b9e]/10 pointer-events-none" />}
                     </div>
                     <div className="px-2 py-1.5">
-                      <p className="text-xs font-bold text-slate-800 truncate">{item.layoutName}</p>
+                      <p className="text-xs font-bold text-slate-800 truncate">{layout.layoutName}</p>
                     </div>
                   </div>
                 );
@@ -147,11 +190,11 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
             />
           </div>
 
-          {/* 선택된 레이아웃 순서 */}
+          {/* 선택된 전광판 순서 */}
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 min-h-[60px]">
             <p className="text-xs font-semibold text-blue-700 mb-1">롤링 순서 ({selectedLayouts.length}개)</p>
             {selectedLayouts.length === 0 ? (
-              <p className="text-xs text-blue-400">왼쪽에서 레이아웃을 선택해 주세요.</p>
+              <p className="text-xs text-blue-400">왼쪽에서 전광판을 선택해 주세요.</p>
             ) : (
               <div className="flex flex-col gap-1">
                 {selectedLayouts.map((l, i) => (
@@ -234,9 +277,133 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
   );
 }
 
+// ─── 실행 옵션 뷰 — 어떤 디스플레이로 보여줄지 선택(전체 적용 또는 전광판별 개별) ──────
+interface RunOptionsViewProps {
+  group: RollingGroup;
+  layoutList: TaskboardLayout[];
+  screenList: TaskboardDisplayLayout[];
+  displayList: TaskboardDisplay[];
+  onStart: (layouts: RollingLayout[]) => void;
+  onCancel: () => void;
+}
+
+function RunOptionsView({ group, layoutList, screenList, displayList, onStart, onCancel }: RunOptionsViewProps) {
+  const boardLayouts = parseIdArray(group.displayIds)
+    .map((id) => layoutList.find((l) => l.layoutId === id))
+    .filter((l): l is TaskboardLayout => l !== undefined);
+
+  const stored = loadRunOptions(group.groupId);
+  const [applyAll, setApplyAll] = useState(stored.applyAll);
+  const [allDisplayId, setAllDisplayId] = useState<number | null>(stored.allDisplayId);
+  const [perLayoutDisplayId, setPerLayoutDisplayId] = useState<Record<number, number>>(stored.perLayoutDisplayId);
+
+  const handleStart = () => {
+    const layouts: RollingLayout[] = [];
+    for (const layout of boardLayouts) {
+      const displayId = applyAll ? allDisplayId : perLayoutDisplayId[layout.layoutId];
+      if (!displayId) {
+        toast.error(applyAll ? '디스플레이를 선택해 주세요.' : `"${layout.layoutName}"에서 보여줄 디스플레이를 선택해 주세요.`);
+        return;
+      }
+      const display = displayList.find((d) => d.displayId === displayId);
+      if (!display) continue;
+      layouts.push(resolveRollingLayout(layout, display));
+    }
+    if (layouts.length === 0) {
+      toast.error('실행할 전광판이 없습니다.');
+      return;
+    }
+    saveRunOptions(group.groupId, { applyAll, allDisplayId, perLayoutDisplayId });
+    onStart(layouts);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 flex flex-col max-h-[85vh]">
+        <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">실행 옵션</h2>
+            <p className="text-xs text-slate-500 mt-0.5">"{group.groupName}" — 어떤 디스플레이로 보여줄지 선택하세요.</p>
+          </div>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 text-xl leading-none">
+            &times;
+          </button>
+        </div>
+
+        <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+          <label className="flex items-center gap-2 cursor-pointer p-3 bg-slate-50 rounded-lg border border-slate-200">
+            <input type="checkbox" checked={applyAll} onChange={(e) => setApplyAll(e.target.checked)} className="w-4 h-4" style={{ accentColor: '#0f5b9e' }} />
+            <span className="text-sm font-semibold text-slate-700">전체 전광판에 같은 디스플레이 적용</span>
+          </label>
+
+          {applyAll ? (
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">디스플레이</label>
+              <select
+                value={allDisplayId ?? ''}
+                onChange={(e) => setAllDisplayId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#0f5b9e]"
+              >
+                <option value="">디스플레이 선택...</option>
+                {displayList.map((d) => (
+                  <option key={d.displayId} value={d.displayId}>
+                    {d.displayName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {boardLayouts.map((layout) => {
+                const linkedDisplays = screenList.filter((s) => s.layoutId === layout.layoutId);
+                return (
+                  <div key={layout.layoutId}>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">{layout.layoutName}</label>
+                    {linkedDisplays.length === 0 ? (
+                      <p className="text-[11px] text-slate-400">연결된 디스플레이가 없습니다. 디스플레이 관리에서 먼저 연결해 주세요.</p>
+                    ) : (
+                      <select
+                        value={perLayoutDisplayId[layout.layoutId] ?? ''}
+                        onChange={(e) => setPerLayoutDisplayId((prev) => ({ ...prev, [layout.layoutId]: e.target.value ? Number(e.target.value) : 0 }))}
+                        className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:border-[#0f5b9e]"
+                      >
+                        <option value="">디스플레이 선택...</option>
+                        {linkedDisplays.map((s) => (
+                          <option key={s.displayLayoutId} value={s.displayId}>
+                            {s.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
+          <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-md transition-colors">
+            취소
+          </button>
+          <button
+            onClick={handleStart}
+            className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82] transition-colors shadow-sm flex items-center gap-1.5"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+            시작
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── 그룹 카드 썸네일 (최대 3장 겹치기) ──────────────────────────────────────
 function GroupThumbnails({ group, layoutList }: { group: RollingGroup; layoutList: TaskboardLayout[] }) {
-  const ids = parseLayoutIds(group.layoutIds);
+  const ids = parseIdArray(group.displayIds);
   const thumbs = ids
     .slice(0, 3)
     .map((id) => layoutList.find((l) => l.layoutId === id)?.fileName)
@@ -296,7 +463,7 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 그룹 관리</h1>
-          <p className="text-sm text-slate-500 mt-1">레이아웃 그룹을 만들고 롤링을 실행하세요.</p>
+          <p className="text-sm text-slate-500 mt-1">전광판 그룹을 만들고 롤링을 실행하세요. 어떤 디스플레이로 보여줄지는 실행할 때 고릅니다.</p>
         </div>
         <button
           onClick={onAdd}
@@ -321,7 +488,7 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {groups.map((group) => {
-            const layoutCount = parseLayoutIds(group.layoutIds).length;
+            const layoutCount = parseIdArray(group.displayIds).length;
             return (
               <div key={group.groupId} className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -352,7 +519,7 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
                       <rect x={3} y={3} width={18} height={18} rx={2} />
                       <path strokeLinecap="round" d="M3 9h18M9 21V9" />
                     </svg>
-                    {layoutCount}개
+                    전광판 {layoutCount}개
                   </span>
                   <span className="flex items-center gap-1">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
@@ -384,39 +551,19 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
 }
 
 // ─── 메인 ────────────────────────────────────────────────────────────────────
-type ViewMode = 'list' | 'edit' | 'rolling';
+type ViewMode = 'list' | 'edit' | 'run-options' | 'rolling';
 
 export default function TaskMgmt() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingGroup, setEditingGroup] = useState<RollingGroup | null>(null);
+  const [runningGroup, setRunningGroup] = useState<RollingGroup | null>(null);
   const [rollingLayouts, setRollingLayouts] = useState<RollingLayout[]>([]);
-  const [rollingInterval, setRollingInterval] = useState(5);
-  const [rollingTransitionType, setRollingTransitionType] = useState('fade');
 
   const { data: groupList = [], isLoading, refetch } = useGetRollingGroupList();
   const { data: layoutList = [] } = useGetTaskboardLayoutList();
+  const { data: screenList = [] } = useGetTaskboardDisplayLayoutList();
+  const { data: displayList = [] } = useGetTaskboardDisplayList();
   const deleteGroup = useDeleteRollingGroup();
-
-  const handleRun = (group: RollingGroup) => {
-    const ids = parseLayoutIds(group.layoutIds);
-    const layouts: RollingLayout[] = ids
-      .map((id) => layoutList.find((l) => l.layoutId === id))
-      .filter((l): l is TaskboardLayout => l !== undefined)
-      .map((l) => ({
-        layoutId: l.layoutId,
-        layoutName: l.layoutName,
-        fileName: l.fileName,
-        layoutJson: l.layoutJson,
-      }));
-    if (layouts.length === 0) {
-      toast.error('선택된 레이아웃이 없습니다. 그룹을 수정해 주세요.');
-      return;
-    }
-    setRollingLayouts(layouts);
-    setRollingInterval(group.intervalSec ?? 5);
-    setRollingTransitionType(group.transitionType ?? 'fade');
-    setViewMode('rolling');
-  };
 
   const handleDelete = async (group: RollingGroup) => {
     if (!window.confirm(`"${group.groupName}" 그룹을 삭제하시겠습니까?`)) return;
@@ -429,8 +576,15 @@ export default function TaskMgmt() {
     }
   };
 
-  if (viewMode === 'rolling') {
-    return <RollingPlayer layouts={rollingLayouts} intervalSec={rollingInterval} transitionType={rollingTransitionType} onStop={() => setViewMode('list')} />;
+  if (viewMode === 'rolling' && runningGroup) {
+    return (
+      <RollingPlayer
+        layouts={rollingLayouts}
+        intervalSec={runningGroup.intervalSec ?? 5}
+        transitionType={runningGroup.transitionType ?? 'fade'}
+        onStop={() => setViewMode('list')}
+      />
+    );
   }
 
   if (viewMode === 'edit') {
@@ -450,20 +604,38 @@ export default function TaskMgmt() {
   }
 
   return (
-    <GroupListView
-      groups={groupList}
-      layoutList={layoutList}
-      isLoading={isLoading}
-      onAdd={() => {
-        setEditingGroup(null);
-        setViewMode('edit');
-      }}
-      onEdit={(g) => {
-        setEditingGroup(g);
-        setViewMode('edit');
-      }}
-      onRun={handleRun}
-      onDelete={handleDelete}
-    />
+    <>
+      <GroupListView
+        groups={groupList}
+        layoutList={layoutList}
+        isLoading={isLoading}
+        onAdd={() => {
+          setEditingGroup(null);
+          setViewMode('edit');
+        }}
+        onEdit={(g) => {
+          setEditingGroup(g);
+          setViewMode('edit');
+        }}
+        onRun={(g) => {
+          setRunningGroup(g);
+          setViewMode('run-options');
+        }}
+        onDelete={handleDelete}
+      />
+      {viewMode === 'run-options' && runningGroup && (
+        <RunOptionsView
+          group={runningGroup}
+          layoutList={layoutList}
+          screenList={screenList}
+          displayList={displayList}
+          onStart={(layouts) => {
+            setRollingLayouts(layouts);
+            setViewMode('rolling');
+          }}
+          onCancel={() => setViewMode('list')}
+        />
+      )}
+    </>
   );
 }

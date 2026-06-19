@@ -12,7 +12,17 @@
  *   - ivr-mentfile-apply               POST   즉시/예약 적용 통합
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { MentApplyRequest, MentApplyResponse, MentApplyTarget, MentFile, MentFileCreateRequest, MentFileHistoryRow, MentFileUpdateRequest } from '../types';
+import type {
+  MentApplyRequest,
+  MentApplyResponse,
+  MentApplyTarget,
+  MentDescRow,
+  MentFile,
+  MentFileBatchResult,
+  MentFileCreateRequest,
+  MentFileHistoryRow,
+  MentFileUpdateRequest,
+} from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -43,6 +53,59 @@ export const mentFileApi = {
     formData.append('uploadFile', file);
     const response = await apiClient.post<ApiResponse<MentFile>>('/ivr-mentfile-create', formData);
     return response.data?.data;
+  },
+
+  /**
+   * 멘트파일 다량추가 — multipart. AS-IS IPR30S3020M.do.
+   *  files 와 mentDescs 는 인덱스 정렬 (i번째 파일 ↔ i번째 설명). comma escape 불필요 (레거시 버그 회피).
+   *  @flow ivr-mentfile-batch-create
+   */
+  createMentFilesBatch: async ({
+    emsFilePath,
+    irFilePath,
+    files,
+    mentDescs,
+  }: {
+    emsFilePath: string;
+    irFilePath: string;
+    files: File[];
+    mentDescs: string[];
+  }): Promise<MentFileBatchResult> => {
+    const formData = new FormData();
+    formData.append('emsFilePath', emsFilePath);
+    formData.append('irFilePath', irFilePath);
+    // BFF 는 모든 파일 파트를 'uploadFile' 로 전달하므로 part 이름은 uploadFile.
+    files.forEach((f) => formData.append('uploadFile', f));
+    // BFF 폼필드는 key 당 단일값 → 설명은 파일명→설명 JSON map 한 필드로 전송 (인덱스 정렬 → 파일명 매칭).
+    const descMap: Record<string, string> = {};
+    files.forEach((f, i) => {
+      const d = mentDescs[i];
+      if (d && d.trim()) descMap[f.name] = d;
+    });
+    formData.append('mentDescs', JSON.stringify(descMap));
+    const response = await apiClient.post<ApiResponse<MentFileBatchResult>>('/ivr-mentfile-batch-create', formData);
+    return response.data?.data;
+  },
+
+  /**
+   * 멘트설명 Excel/CSV 파싱 — multipart. DB 저장 없이 파일명↔설명 매핑 rows 반환.
+   *  @flow ivr-mentfile-parse-desc
+   */
+  parseMentDesc: async (file: File): Promise<MentDescRow[]> => {
+    const formData = new FormData();
+    formData.append('uploadFile', file); // BFF 가 파일 파트를 uploadFile 로 전달 → 백엔드 part 이름과 일치
+    const response = await apiClient.post<ApiResponse<{ value: MentDescRow[] }>>('/ivr-mentfile-parse-desc', formData);
+    return response.data?.data?.value ?? [];
+  },
+
+  /** 멘트파일 목록 엑셀 내보내기 (Blob). @flow ivr-mentfile-export */
+  exportMentFiles: async () => {
+    return await apiClient.get<Blob>('/ivr-mentfile-export', { responseType: 'blob', silent: true });
+  },
+
+  /** 멘트설명 입력 양식(xlsx) 다운로드 (Blob). @flow ivr-mentfile-desc-template */
+  downloadDescTemplate: async () => {
+    return await apiClient.get<Blob>('/ivr-mentfile-desc-template', { responseType: 'blob', silent: true });
   },
 
   /** 메타 수정 (JSON, null IGNORE). */

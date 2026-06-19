@@ -9,6 +9,15 @@ export interface MediaTypeItem {
   mediaAlias: string; // VOIP, CHAT, VIDEO_VOICE
 }
 
+// ─── 상담사 이석 사유 코드 (TB_IC_REASONCODE, CODE_TYPE=30) ──────
+
+export interface AgentReasonCodeItem {
+  tenantId: number;
+  tenantName: string;
+  reasonCode: number;
+  reasonName: string;
+}
+
 // ─── 사용자별 위젯 설정 (D55) ─────────────────────────────────────
 
 /** WS SUBSCRIBE options 에 머지될 임의 키/값 맵. */
@@ -26,6 +35,12 @@ export const widgetSettingApi = {
   /** 미디어 타입 목록 — 시스템 전역 lookup. */
   getMediaTypes: async (): Promise<MediaTypeItem[]> => {
     const response = await apiClient.get<ApiResponse<{ items: MediaTypeItem[] }>>('/media-type-list');
+    return response.data?.data?.items ?? [];
+  },
+
+  /** 상담사 이석 사유 코드 목록 — 현재 테넌트 컨텍스트 스코프. */
+  getAgentReasonCodes: async (): Promise<AgentReasonCodeItem[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: AgentReasonCodeItem[] }>>('/agent-reason-code-list');
     return response.data?.data?.items ?? [];
   },
 

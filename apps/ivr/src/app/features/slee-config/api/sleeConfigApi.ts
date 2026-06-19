@@ -14,6 +14,7 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type {
   SleeConfigApplyResult,
+  SleeConfigApplyResultRow,
   SleeConfigBackupCompareRow,
   SleeConfigBackupHeader,
   SleeConfigBackupRestoreResponse,
@@ -56,6 +57,11 @@ export const sleeConfigApi = {
     return response.data?.data?.value ?? [];
   },
 
+  /** 환경변수 cfg ZIP Export (Blob) — AS-IS IPR30S3030EX. @flow ivr-slee-config-export */
+  exportConfig: async (params: { tenantId: number; configFile: string }) => {
+    return await apiClient.get<Blob>('/ivr-slee-config-export', { params, responseType: 'blob', silent: true });
+  },
+
   getConfigFiles: async (params?: Record<string, unknown>): Promise<SleeConfigFile[]> => {
     const response = await apiClient.get<ApiResponse<{ value: SleeConfigFile[] }>>('/ivr-slee-config-files', { params });
     return response.data?.data?.value ?? [];
@@ -88,6 +94,12 @@ export const sleeConfigApi = {
       throw new Error('예약 적용 응답이 비어있습니다');
     }
     return response.data.data;
+  },
+
+  /** 예약 적용 결과 조회 — AS-IS IPR30S3030L3 / selectApplyList. ApiResponse<List<T>> → data.value[]. */
+  getApplyResults: async (params: { tenantId: number; configFile: string }): Promise<SleeConfigApplyResultRow[]> => {
+    const response = await apiClient.get<ApiResponse<{ value: SleeConfigApplyResultRow[] }>>('/ivr-slee-config-apply-results', { params });
+    return response.data?.data?.value ?? [];
   },
 
   /** 속성 사전 중복 체크 — ApiResponse<Boolean> → BFF: data.value, 프론트: data?.value */

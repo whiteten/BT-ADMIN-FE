@@ -17,6 +17,7 @@ import { type IrTtsMaster, TTS_TEXT_FORMAT_LABELS, TTS_VENDOR_LABELS, TTS_VOICE_
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 interface Props {
   onEdit: (row: IrTtsMaster) => void;
@@ -107,6 +108,7 @@ export default function TtsMasterTab({ onEdit, onCountChange }: Props) {
           const code = params.data?.ttsVendor;
           return code ? (TTS_VENDOR_LABELS[code] ?? code) : '-';
         },
+        ...codeFilter<IrTtsMaster>('ttsVendor', TTS_VENDOR_LABELS),
       },
       { headerName: 'IP', field: 'ttsIp', flex: 1, minWidth: 120 },
       { headerName: 'PORT', field: 'ttsPort', maxWidth: 90 },
@@ -121,6 +123,7 @@ export default function TtsMasterTab({ onEdit, onCountChange }: Props) {
           const code = params.data?.ttsVoiceFormat;
           return code ? (TTS_VOICE_FORMAT_LABELS[code] ?? code) : '-';
         },
+        ...codeFilter<IrTtsMaster>('ttsVoiceFormat', TTS_VOICE_FORMAT_LABELS),
       },
       {
         headerName: 'TEXT 포맷',
@@ -130,6 +133,7 @@ export default function TtsMasterTab({ onEdit, onCountChange }: Props) {
           const code = params.data?.ttsTextFormat;
           return code ? (TTS_TEXT_FORMAT_LABELS[code] ?? code) : '-';
         },
+        ...codeFilter<IrTtsMaster>('ttsTextFormat', TTS_TEXT_FORMAT_LABELS),
       },
       {
         headerName: '작업일시',

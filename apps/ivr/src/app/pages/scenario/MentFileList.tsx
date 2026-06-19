@@ -12,14 +12,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Input, Tag } from 'antd';
-import { CheckCircle, History, Pause, Play, Plus, Search, Upload as UploadIcon, XCircle } from 'lucide-react';
+import { CheckCircle, Download, FilePlus2, History, Pause, Play, Plus, Search, Upload as UploadIcon, XCircle } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MentFileApplyModal, { type MentFileApplyModalRef } from '../../features/mentfile/components/MentFileApplyModal';
+import MentFileBatchSheet, { type MentFileBatchSheetRef } from '../../features/mentfile/components/MentFileBatchSheet';
 import MentFileHistoryModal, { type MentFileHistoryModalRef } from '../../features/mentfile/components/MentFileHistoryModal';
 import MentFileSheet, { type MentFileSheetRef } from '../../features/mentfile/components/MentFileSheet';
 import { useMentFilePlayer } from '../../features/mentfile/hooks/useMentFilePlayer';
-import { mentFileQueryKeys, useDeleteMentFile, useGetMentFiles } from '../../features/mentfile/hooks/useMentFileQueries';
+import { mentFileQueryKeys, useDeleteMentFile, useExportMentFiles, useGetMentFiles } from '../../features/mentfile/hooks/useMentFileQueries';
 import type { MentFile } from '../../features/mentfile/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -45,6 +46,7 @@ export default function MentFileList() {
 
   // ─── Refs ─────────────────────────────────────────────────────────────
   const sheetRef = useRef<MentFileSheetRef>(null);
+  const batchSheetRef = useRef<MentFileBatchSheetRef>(null);
   const applyModalRef = useRef<MentFileApplyModalRef>(null);
   const historyModalRef = useRef<MentFileHistoryModalRef>(null);
 
@@ -86,6 +88,16 @@ export default function MentFileList() {
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value);
 
   const handleCreate = () => sheetRef.current?.openCreate();
+  const handleBatchCreate = () => batchSheetRef.current?.open();
+
+  const { mutate: exportExcel, isPending: isExporting } = useExportMentFiles();
+  const handleExport = () => {
+    if (rows.length === 0) {
+      toast.warning('내보낼 데이터가 없습니다.');
+      return;
+    }
+    exportExcel(undefined);
+  };
 
   const handleEdit = useCallback((row: MentFile) => {
     sheetRef.current?.openEdit(row);
@@ -264,11 +276,17 @@ export default function MentFileList() {
                 onChange={handleSearchChange}
                 style={{ width: 240 }}
               />
-              <Button icon={<UploadIcon className="size-3.5" />} disabled={checkedIds.length === 0} onClick={handleApply}>
+              <Button color="purple" variant="solid" icon={<UploadIcon className="size-3.5" />} disabled={checkedIds.length === 0} onClick={handleApply}>
                 일괄적용{checkedIds.length > 0 ? ` (${checkedIds.length})` : ''}
               </Button>
-              <Button icon={<History className="size-3.5" />} onClick={() => historyModalRef.current?.open({ checkedMentfileIds: checkedIds })}>
+              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} onClick={() => historyModalRef.current?.open({ checkedMentfileIds: checkedIds })}>
                 이력{checkedIds.length > 0 ? ` (${checkedIds.length}건 선택)` : ''}
+              </Button>
+              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport}>
+                Excel
+              </Button>
+              <Button variant="solid" icon={<FilePlus2 className="size-3.5" />} onClick={handleBatchCreate}>
+                다량추가
               </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
@@ -311,6 +329,7 @@ export default function MentFileList() {
 
       {/* ===== Drawer / Modal ===== */}
       <MentFileSheet ref={sheetRef} />
+      <MentFileBatchSheet ref={batchSheetRef} />
       <MentFileApplyModal ref={applyModalRef} />
       <MentFileHistoryModal ref={historyModalRef} />
     </div>

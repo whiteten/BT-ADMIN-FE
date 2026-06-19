@@ -1,4 +1,4 @@
-import { formatColumnValue } from '../../../../utils/columnFormat';
+import { formatCell } from '../../../../utils/columnFormat';
 import { useReportViewStore } from '../../../report/hooks/useReportViewStore';
 import type { PanelDetail } from '../../../report/types';
 import { usePanelData } from '../../hooks/usePanelQueries';
@@ -36,9 +36,10 @@ export default function PanelKpiCard({ panel, reportId }: PanelKpiCardProps) {
     );
   }
 
+  const fmtMeta = queryResult?.columns?.find((c) => c.name === valueField.fieldName)?.format;
   const row = queryResult?.current?.[0];
   const rawValue = row ? row[valueField.fieldName] : undefined;
-  const displayValue = rawValue !== undefined && rawValue !== null ? formatColumnValue(rawValue, valueField.columnFormat) : '—';
+  const displayValue = rawValue !== undefined && rawValue !== null ? formatCell(rawValue, fmtMeta, valueField.columnFormat) : '—';
 
   return (
     <div className="flex h-full flex-col items-start justify-center gap-1 p-2">
@@ -47,7 +48,7 @@ export default function PanelKpiCard({ panel, reportId }: PanelKpiCardProps) {
       </p>
       <p className="font-mono text-3xl font-bold text-[var(--color-bt-fg)]">{isDraft || isFetching ? '—' : displayValue}</p>
       {queryResult?.compare?.[0] && (
-        <p className="text-xs text-[var(--color-bt-fg-muted)]">비교: {formatColumnValue(queryResult.compare[0][valueField.fieldName] ?? 0, valueField.columnFormat)}</p>
+        <p className="text-xs text-[var(--color-bt-fg-muted)]">비교: {formatCell(queryResult.compare[0][valueField.fieldName] ?? 0, fmtMeta, valueField.columnFormat)}</p>
       )}
     </div>
   );

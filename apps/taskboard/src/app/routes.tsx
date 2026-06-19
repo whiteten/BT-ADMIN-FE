@@ -7,6 +7,7 @@ const TaskBg = React.lazy(() => import('./pages/board/TaskBg'));
 const TaskList = React.lazy(() => import('./pages/board/TaskList'));
 const TaskMgmt = React.lazy(() => import('./pages/board/TaskMgmt'));
 const TaskCreate = React.lazy(() => import('./pages/board/TaskCreate'));
+const TaskDisplayManage = React.lazy(() => import('./pages/board/TaskDisplayManage'));
 const TaskView = React.lazy(() => import('./pages/board/TaskView'));
 const TaskNotice = React.lazy(() => import('./pages/board/TaskNotice'));
 
@@ -27,7 +28,8 @@ export const routes = [
           { path: 'task-list', element: pv('board/task-list', TaskList) },
           { path: 'task-mgmt', element: pv('board/task-mgmt', TaskMgmt) },
           { path: 'task-create', element: pv('board/task-create', TaskCreate) },
-          { path: 'task-view', element: pv('board/task-view', TaskView) },
+          { path: 'task-display', element: pv('board/task-display', TaskDisplayManage) },
+          { path: 'task-view/:displayId', element: pv('board/task-view/:displayId', TaskView) },
           { path: 'task-notice', element: pv('board/task-notice', TaskNotice) },
         ],
       },

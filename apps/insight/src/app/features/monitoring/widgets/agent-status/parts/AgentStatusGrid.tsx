@@ -3,7 +3,7 @@ import type { ColDef, ValueFormatterParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Tag } from 'antd';
 import { answerRatePct, formatDuration, liveDurationSec, serviceLevelPct, toNum, toStr } from '../helpers';
-import { statusMeta } from '../statusMap';
+import { agentStatusLabel, statusMeta } from '../statusMap';
 import type { AgentRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -19,6 +19,8 @@ export interface AgentStatusGridProps {
   rows: AgentRow[];
   /** 상태유지시간 실시간 계산 기준 시각 (ms). */
   nowMs: number;
+  /** 이석 사유명 맵 (`{tenantId}_{reasonCode}` → 사유명). */
+  reasonNames?: Record<string, string>;
 }
 
 /** statusMeta.group → antd Tag 색상 (AgentCard 와 동일 매핑). */
@@ -66,7 +68,7 @@ const durationFormatter = (p: ValueFormatterParams) => {
 
 const percentFormatter = (p: ValueFormatterParams) => (p.value == null ? '—' : `${p.value}%`);
 
-export default function AgentStatusGrid({ rows, nowMs }: AgentStatusGridProps) {
+export default function AgentStatusGrid({ rows, nowMs, reasonNames }: AgentStatusGridProps) {
   const { gridOptions } = useAggridOptions();
 
   const rowData = useMemo<GridRow[]>(
@@ -82,7 +84,7 @@ export default function AgentStatusGrid({ rows, nowMs }: AgentStatusGridProps) {
           agentName: toStr(r.AGENT_NAME) || toStr(r.AGENT_LOGIN_ID),
           loginId: toStr(r.AGENT_LOGIN_ID),
           dn: toStr(r.LOGIN_DN_NO),
-          statusName: statusMeta(r.AGENT_STATUS, r.REASON_CODE).label,
+          statusName: agentStatusLabel(r.AGENT_STATUS, r.REASON_CODE, r.TENANT_ID, reasonNames),
           durationSec: isOffline ? null : liveDurationSec(r, nowMs),
           connCnt: toNum(r.SUM_CONN_CNT) ?? 0,
           answCnt: toNum(r.SUM_ANSW_CNT) ?? 0,
@@ -94,7 +96,7 @@ export default function AgentStatusGrid({ rows, nowMs }: AgentStatusGridProps) {
           svcLevel: serviceLevelPct(r),
         };
       }),
-    [rows, nowMs],
+    [rows, nowMs, reasonNames],
   );
 
   const columnDefs = useMemo<ColDef<GridRow>[]>(

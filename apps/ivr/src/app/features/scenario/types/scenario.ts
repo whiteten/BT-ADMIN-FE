@@ -88,6 +88,29 @@ export const APPLY_RESULT_LABELS: Record<number, string> = {
   [APPLY_RESULT.FAIL]: '실패',
 };
 
+// ─── 실시간/예약 구분 (RT_RESV_KIND) — 1=즉시, 2=예약 ───────────────────────
+export const RT_RESV_KIND_LABELS: Record<number, string> = { 1: '즉시', 2: '예약' };
+
+// ─── 시스템별 시나리오 할당 현황 (AS-IS IPR20S6020) ─────────────────────────
+/** 현재(TB_IR_DNIS_SERVICE)/이력(TB_IR_SERVICE_HISTORY) 공통 행. 코드값은 라벨 맵과 1:1. */
+export interface ScenarioAssignedStatusRow {
+  serviceId: number;
+  serviceName?: string | null;
+  systemId: number;
+  systemName?: string | null;
+  serviceVer?: string | null;
+  priorVer?: string | null;
+  applyVer?: string | null;
+  rtResvKind?: number | null;
+  applyStatus?: number | null;
+  applyResult?: number | null;
+  applyDatetime?: string | null;
+  svcResvId?: string | null;
+  updateTime?: string | null;
+  workUser?: number | null;
+  workUserName?: string | null;
+}
+
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
 
 export interface Scenario {

@@ -249,11 +249,31 @@ export const routes = [
         path: 'device',
         element: <Outlet />,
         children: [
-          // index와 'list'는 같은 화면의 별칭 라우트 — 같은 키를 공유한다
-          { index: true, element: pv('device/list', DeviceList) },
-          { path: 'list', element: pv('device/list', DeviceList) },
-          { path: 'history', element: pv('device/history', DeviceHistoryList) },
-          { path: 'model', element: pv('device/model', DeviceModelList) },
+          { index: true, element: <Navigate to="device-config/list" replace /> },
+          {
+            path: 'device-config',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: pv('device/device-config/list', DeviceList) },
+            ],
+          },
+          {
+            path: 'device-history',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: pv('device/device-history/list', DeviceHistoryList) },
+            ],
+          },
+          {
+            path: 'device-model',
+            element: <Outlet />,
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: pv('device/device-model/list', DeviceModelList) },
+            ],
+          },
         ],
       },
       {

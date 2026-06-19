@@ -1,9 +1,10 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQueries, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import { type MediaTypeItem, type WidgetUserSettingDetail, type WidgetUserSettings, widgetSettingApi } from '../api/widgetSettingApi';
+import { type AgentReasonCodeItem, type MediaTypeItem, type WidgetUserSettingDetail, type WidgetUserSettings, widgetSettingApi } from '../api/widgetSettingApi';
 
 export const widgetSettingKeys = createQueryKeys('monitoring-widget-setting', {
   mediaTypes: () => ['media-types'],
+  agentReasonCodes: () => ['agent-reason-codes'],
   userSetting: (widgetId: number) => [widgetId],
 });
 
@@ -14,6 +15,16 @@ export const useGetMediaTypes = ({ queryOptions }: { queryOptions?: Omit<UseQuer
     ...widgetSettingKeys.mediaTypes(),
     queryFn: () => widgetSettingApi.getMediaTypes(),
     staleTime: 5 * 60 * 1000, // 5분 — 거의 변하지 않는 시스템 코드
+    ...queryOptions,
+  });
+
+// ─── 상담사 이석 사유 코드 ───────────────────────────────────────
+
+export const useGetAgentReasonCodes = ({ queryOptions }: { queryOptions?: Omit<UseQueryOptions<AgentReasonCodeItem[]>, 'queryKey' | 'queryFn'> } = {}) =>
+  useQuery({
+    ...widgetSettingKeys.agentReasonCodes(),
+    queryFn: () => widgetSettingApi.getAgentReasonCodes(),
+    staleTime: 5 * 60 * 1000, // 5분 — 마스터성 참조 데이터
     ...queryOptions,
   });
 

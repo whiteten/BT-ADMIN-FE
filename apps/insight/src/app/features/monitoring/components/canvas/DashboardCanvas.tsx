@@ -45,6 +45,8 @@ interface DashboardCanvasProps {
   onAddWidgetAt?: (widgetId: number) => void;
   /** 커스텀 위젯 타입별 최소 크기 (카탈로그 MIN_W/MIN_H). 리사이즈 최소값 가드에 사용. */
   customMinSize?: Record<string, { minW: number; minH: number }>;
+  /** 위젯 인스턴스별 사용자 설정 (TB_BT_IS_MON_WIDGET_USER_SETTING). 위젯 options 에 머지해 FE 표시에 반영. */
+  widgetUserSettings?: Record<string, Record<string, unknown>>;
   /** 커스텀 위젯이 설정 변경 등으로 모니터링 일시정지를 요청할 때 호출. */
   onRequestPause?: () => void;
   children?: React.ReactNode;
@@ -60,6 +62,7 @@ export default function DashboardCanvas({
   onAddWidgetAt,
   onRequestPause,
   customMinSize,
+  widgetUserSettings,
   children,
 }: DashboardCanvasProps) {
   const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null);
@@ -168,6 +171,7 @@ export default function DashboardCanvas({
                 widget={widget as CustomWidget}
                 editMode={editMode}
                 data={widgetData?.[String(widget.widgetId)]?.rows}
+                userSettings={widgetUserSettings?.[String(widget.widgetId)]}
                 onDelete={() => setDeleteTarget(widget)}
                 onRequestPause={onRequestPause}
                 draggableClass={DRAG_HANDLE_CLASS}

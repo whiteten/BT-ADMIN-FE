@@ -176,12 +176,12 @@ export interface HealthBoardData {
   serverTs?: number;
 }
 
-/** 위젯 옵션 — 임계값 오버라이드 (없으면 기본값 사용). */
+/** 위젯 옵션 — 임계값 오버라이드 (없으면 기본값 사용). warn=주의 경계, danger=위험 경계. */
 export interface HealthBoardThresholds {
-  /** 응대율·SL: 이상이면 정상 / 이상이면 주의 / 미만 위험 (higher-better) */
-  answerRate?: { good: number; warn: number };
-  serviceLevel?: { good: number; warn: number };
-  /** 포기율·대기: 이하면 정상 / 이하면 주의 / 초과 위험 (lower-better) */
-  abandonRate?: { good: number; warn: number };
-  waiting?: { good: number; warn: number };
+  /** 응대율·SL: warn 이상 정상 / danger 이상 주의 / 미만 위험 (higher-better) */
+  answerRate?: { warn: number; danger: number };
+  serviceLevel?: { warn: number; danger: number };
+  /** 포기율·대기: warn 이하 정상 / danger 이하 주의 / 초과 위험 (lower-better) */
+  abandonRate?: { warn: number; danger: number };
+  waiting?: { warn: number; danger: number };
 }

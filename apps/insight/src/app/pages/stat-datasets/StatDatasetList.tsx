@@ -5,28 +5,27 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Popover, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Database, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { fuzzyScore, toast } from '@/shared-util';
-import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets } from '../../features/dataset/hooks/useDatasetQueries';
+import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem, FieldMetaItem } from '../../features/dataset/types';
-import { DOMAIN_DESCRIPTIONS, DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Highlight } from '@/components/custom/Highlight';
-import NoData from '@/components/custom/NoData';
-import { TreeCaret, TreeLabel, TreeRow } from '@/components/custom/TreeView';
+import { TreeCaret, TreeRow } from '@/components/custom/TreeView';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
 
-// ─── 대분류(상위 그룹) 정의 ─────────────────────────────────────────────────────
+// ─── 솔루션(상위 그룹) 정의 ─────────────────────────────────────────────────────
 // 현재는 프론트 상수. 향후 API 제공 시 이 두 매핑만 동적 로드로 교체.
 const MAJOR_DEFS: { code: string; label: string; productCodes: string[] }[] = [{ code: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] }];
 const PRODUCT_CODE_MAJOR: Record<string, string> = { IE: 'IPRON', IC: 'IPRON', IR: 'IPRON' };
-// 소분류(productCode) 표시 순서 — 미등록 코드는 뒤에 자동 추가
+// 도메인(productCode) 표시 순서 — 미등록 코드는 뒤에 자동 추가
 const MINOR_ORDER = ['IE', 'IC', 'IR'];
 
-// 소분류 액센트 색상 (트리 leaf 점) — antd Tag(DOMAIN_TAG_COLOR)와 톤 일치, 미등록은 primary 폴백
+// 도메인 액센트 색상 (트리 leaf 점) — antd Tag(DOMAIN_TAG_COLOR)와 톤 일치, 미등록은 primary 폴백
 const ACCENT_HEX: Record<string, string> = { IE: '#1677ff', IC: '#52c41a', IR: '#fa8c16' };
 const DEFAULT_ACCENT = 'var(--color-bt-primary)';
 
@@ -137,14 +136,14 @@ export default function StatDatasetList() {
     },
   });
 
-  // 데이터에 존재하는 소분류 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
+  // 데이터에 존재하는 도메인 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
   const presentCodes = [...new Set(datasets.map((d) => d.productCode ?? '').filter(Boolean))];
   const allCodes = [...MINOR_ORDER.filter((c) => presentCodes.includes(c)), ...presentCodes.filter((c) => !MINOR_ORDER.includes(c))];
 
-  // 대분류/소분류 셀렉트로 노출할 소분류 코드
+  // 솔루션/도메인 셀렉트로 노출할 도메인 코드
   const visibleCodes = allCodes.filter((code) => (!majorSel || majorOfCode(code) === majorSel) && (!minorSel || code === minorSel));
 
-  // 트리 데이터 — 소분류 그룹 > 데이터셋
+  // 트리 데이터 — 도메인 그룹 > 데이터셋
   const treeData: DsTreeNode[] = visibleCodes.map((code) => ({
     key: `grp:${code}`,
     label: DOMAIN_LABELS[code] ?? code,
@@ -152,7 +151,7 @@ export default function StatDatasetList() {
     children: datasets.filter((d) => d.productCode === code).map((d) => ({ key: `ds:${d.datasetId}`, label: d.datasourceName, data: d, children: [] })),
   }));
 
-  const { items, rootProps } = useTreeView<DsTreeNode>({
+  const { items, rootProps, allExpanded, toggleAll } = useTreeView<DsTreeNode>({
     data: treeData,
     getId: (n) => n.key,
     getChildren: (n) => n.children,
@@ -170,7 +169,10 @@ export default function StatDatasetList() {
   const selected = selectedId != null ? (datasets.find((d) => d.datasetId === selectedId) ?? null) : null;
 
   const handleSelectNode = (node: DsTreeNode) => {
-    if (node.data) setSelectedId(node.data.datasetId);
+    if (!node.data) return;
+    // 화면지정 페이지처럼 토글 — 선택된 데이터셋 재클릭 시 해제하여 현황 전광판으로 복귀
+    const id = node.data.datasetId;
+    setSelectedId((prev) => (prev === id ? null : id));
   };
 
   const handleCreate = () => navigate('/insight/statistics/datasets/new');
@@ -179,7 +181,7 @@ export default function StatDatasetList() {
 
   const handlePickMajor = (code: string | null) => {
     setMajorSel(code);
-    // 선택한 소분류가 새 대분류에 속하지 않으면 해제
+    // 선택한 도메인이 새 솔루션에 속하지 않으면 해제
     if (minorSel && code && majorOfCode(minorSel) !== code) setMinorSel(null);
     setMajorPopOpen(false);
   };
@@ -189,32 +191,46 @@ export default function StatDatasetList() {
   };
 
   const majorLabel = majorSel ? (MAJOR_DEFS.find((m) => m.code === majorSel)?.label ?? majorSel) : '전체';
-  const minorLabel = minorSel ? (DOMAIN_LABELS[minorSel] ?? minorSel) : '전체';
+  const minorLabel = minorSel ? `${minorSel} · ${DOMAIN_LABELS[minorSel] ?? minorSel}` : '전체';
 
   const renderRow = (item: TreeViewItem<DsTreeNode>) => {
     const node = item.node;
     const isGroup = !!node.code;
     const isSelected = node.key === selectedKey;
     const count = isGroup ? datasets.filter((d) => d.productCode === node.code).length : 0;
+    // prefix 보조 표기 — 검색 중이고 이름은 안 걸렸는데 DB 뷰 Prefix 로 매칭된 leaf 만
+    const kw = search.trim();
+    const prefix = node.data?.dbViewPrefix ?? '';
+    const prefixMatched = !isGroup && !!kw && !!prefix && fuzzyScore(kw, prefix) >= 0 && fuzzyScore(kw, node.label) < 0;
     return (
       <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)} className={isGroup ? 'cursor-default' : undefined}>
         <TreeCaret item={item} />
         {isGroup ? (
-          <Tag color={DOMAIN_TAG_COLOR[node.code!]} className="!mb-0 !mr-0 font-bold">
-            {node.code}
-          </Tag>
-        ) : (
-          <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
-        )}
-        {isGroup ? (
-          <TreeLabel selected={isSelected}>
-            <Highlight text={node.label} query={search} />
-          </TreeLabel>
-        ) : (
-          // leaf 데이터셋명 — 그룹 라벨보다 키워(13.5px·medium) 대표 데이터 느낌으로 위계 부여
-          <span className={`flex-1 truncate text-[13.5px] font-medium ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
-            <Highlight text={node.label} query={search} />
+          // 그룹(도메인) — 보고서 관리와 동일하게 "코드 · 라벨"을 단일 뱃지로 표기 (IE · 교환기)
+          <span className="flex-1 min-w-0">
+            <Tag color={DOMAIN_TAG_COLOR[node.code!]} className="!mb-0 !mr-0 font-bold">
+              {node.code} · {DOMAIN_LABELS[node.code!] ?? node.code}
+            </Tag>
           </span>
+        ) : (
+          <>
+            <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
+            <span className="flex-1 min-w-0 flex flex-col">
+              {/* leaf 데이터셋명 — 그룹 뱃지보다 작고 일반 굵기(13px·normal)로 낮춰 위계 구분 */}
+              <span className={`truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
+                <Highlight text={node.label} query={search} />
+              </span>
+              {/* DB 뷰 Prefix 보조 표기 — 이름이 아닌 prefix 로 검색 매칭됐을 때만 노출 + 하이라이트 */}
+              {prefixMatched && (
+                <span className="flex items-center gap-1 text-[11px] font-mono text-gray-400 leading-tight">
+                  <Database className="size-3 flex-shrink-0" />
+                  <span className="truncate">
+                    <Highlight text={node.data!.dbViewPrefix ?? ''} query={search} />
+                  </span>
+                </span>
+              )}
+            </span>
+          </>
         )}
         {isGroup ? (
           <span className="ml-auto h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{count}</span>
@@ -223,7 +239,7 @@ export default function StatDatasetList() {
             {/* 뱃지 — hover 시 숨김 (카드와 동일 명칭) */}
             <span className="h-5 inline-flex items-center gap-1 group-hover:hidden">
               {node.data!.isSystem && (
-                <Tag color="blue" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
+                <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
                   시스템
                 </Tag>
               )}
@@ -271,7 +287,7 @@ export default function StatDatasetList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 대분류/소분류 셀렉트 + 트리 */}
+        {/* 좌측: 검색 + 솔루션/도메인 셀렉트 + 트리 */}
         <div className="w-[340px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 min-h-0">
           <div className="flex items-center gap-2">
             <Input
@@ -287,12 +303,12 @@ export default function StatDatasetList() {
             </Button>
           </div>
 
-          {/* 대분류·소분류 칩 셀렉트 (메뉴 설정 화면과 동일 패턴) */}
+          {/* 솔루션·도메인 칩 셀렉트 (메뉴 설정 화면과 동일 패턴) */}
           <div className="flex flex-wrap gap-2">
             <ChipSelect
               open={majorPopOpen}
               onOpenChange={setMajorPopOpen}
-              label="대분류"
+              label="솔루션"
               valueLabel={majorLabel}
               active={majorSel !== null}
               content={
@@ -314,7 +330,7 @@ export default function StatDatasetList() {
             <ChipSelect
               open={minorPopOpen}
               onOpenChange={setMinorPopOpen}
-              label="소분류"
+              label="도메인"
               valueLabel={minorLabel}
               active={minorSel !== null}
               content={
@@ -327,7 +343,7 @@ export default function StatDatasetList() {
                     .map((code) => (
                       <ChipOption key={code} active={minorSel === code} onClick={() => handlePickMinor(code)}>
                         <span className="size-1.5 rounded-full" style={{ background: ACCENT_HEX[code] ?? DEFAULT_ACCENT }} />
-                        {DOMAIN_LABELS[code] ?? code} <span className="opacity-70">{datasets.filter((d) => d.productCode === code).length}</span>
+                        {code} · {DOMAIN_LABELS[code] ?? code} <span className="opacity-70">{datasets.filter((d) => d.productCode === code).length}</span>
                       </ChipOption>
                     ))}
                 </>
@@ -340,10 +356,29 @@ export default function StatDatasetList() {
           <div className="flex-1 overflow-auto -mx-1">
             {isLoading ? (
               <FallbackSpinner />
-            ) : treeData.length > 0 ? (
-              <div {...rootProps}>{items.map(renderRow)}</div>
             ) : (
-              <div className="px-3 py-6 text-center text-[11px] text-gray-400">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
+              <>
+                {/* 트리 최상단 루트 행 — 데이터셋 라벨 + 총 갯수 + 모두 펼치기/접기 (메뉴 트리 패턴) */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 select-none border-l-[3px] border-transparent cursor-default hover:bg-gray-50 transition">
+                  <span className="text-[12.5px] truncate text-gray-700 font-semibold">데이터셋</span>
+                  <span className="text-[11px] text-gray-400">{treeData.reduce((sum, g) => sum + g.children.length, 0)}</span>
+                  <Tooltip title={allExpanded ? '모두 접기' : '모두 펼치기'} {...TOOLTIP_PROPS}>
+                    <button
+                      type="button"
+                      onClick={() => toggleAll()}
+                      className="ml-auto w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition flex-shrink-0"
+                    >
+                      {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
+                    </button>
+                  </Tooltip>
+                </div>
+
+                {treeData.length > 0 ? (
+                  <div {...rootProps}>{items.map(renderRow)}</div>
+                ) : (
+                  <div className="px-3 py-6 text-center text-[11px] text-gray-400">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -358,8 +393,25 @@ export default function StatDatasetList() {
               onDelete={() => modal.confirm.delete({ onOk: () => deleteDataset(selected.datasetId) })}
             />
           ) : (
-            <div className="h-full flex items-center justify-center">
-              <NoData message="좌측 트리에서 데이터셋을 선택해주세요" />
+            // 경로 미선택 — 도메인별 데이터셋 건수 전광판 (화면지정 페이지 현황 카드 패턴)
+            <div className="h-full flex flex-col items-center justify-center gap-8 p-6">
+              <div className="text-[18px] font-bold">데이터셋 현황</div>
+              {allCodes.length > 0 && (
+                <div className="flex flex-wrap gap-4 justify-center">
+                  {allCodes.map((code) => (
+                    <div key={code} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 px-10 py-5 min-w-[140px]">
+                      <span className="text-[26px] font-bold" style={{ color: ACCENT_HEX[code] ?? DEFAULT_ACCENT }}>
+                        {datasets.filter((d) => d.productCode === code).length}
+                        <span className="text-sm font-normal text-gray-500 ml-1">건</span>
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {code} · {DOMAIN_LABELS[code] ?? code}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="text-sm text-gray-400">좌측 트리에서 데이터셋을 선택해주세요</div>
             </div>
           )}
         </div>
@@ -429,11 +481,35 @@ function ChipOption({ active, onClick, children }: { active: boolean; onClick: (
 // ─── 상세 패널 (선택 데이터셋 1건 — datasetId 로 remount) ─────────────────────────
 
 function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetListItem; onEdit: () => void; onDelete: () => void }) {
+  const modal = useModal();
   const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
   const canDelete = !listItem.isSystem || isSystemAdmin;
   const { gridOptions } = useAggridOptions();
 
   const { data: detail, isLoading } = useGetDataset({ params: { datasetId: listItem.datasetId } });
+
+  // 시스템 데이터셋 승격/해제 — 시스템 관리자 전용 (편집 화면에서 이관)
+  const { mutate: setSystemFlag, isPending: isFlagPending } = useSetDatasetSystemFlag({
+    mutationOptions: {
+      onSuccess: (_, { toSystem }) => toast.success(toSystem ? '시스템 데이터셋으로 승격되었습니다.' : '시스템 데이터셋 승격이 해제되었습니다.'),
+      onError: () => toast.error('처리 중 오류가 발생했습니다.'),
+    },
+  });
+
+  const handleToggleSystem = () => {
+    const toSystem = !listItem.isSystem;
+    modal.confirm.execute({
+      onOk: () => setSystemFlag({ datasetId: listItem.datasetId, toSystem }),
+      options: {
+        title: toSystem ? '시스템 데이터셋 승격' : '시스템 데이터셋 승격 해제',
+        content: toSystem
+          ? '시스템 데이터셋으로 승격하면 모든 사용자에게 노출되며, 수정/삭제는 관리자만 가능합니다. 계속하시겠습니까?'
+          : '승격을 해제하면 등록 테넌트 소유의 일반 데이터셋으로 복귀합니다. 계속하시겠습니까?',
+        okText: '확인',
+        cancelText: '취소',
+      },
+    });
+  };
 
   const code = listItem.productCode;
   const units: string[] = Array.isArray(listItem.availableUnits) ? listItem.availableUnits : [];
@@ -452,13 +528,15 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
       {/* 헤더 */}
       <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-bt-border">
         <div className="flex items-center gap-2 min-w-0">
-          <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
-            {code}
-          </Tag>
-          <span className="text-sm font-semibold text-bt-fg truncate">{DOMAIN_LABELS[code] ?? code}</span>
-          {DOMAIN_DESCRIPTIONS[code] && <span className="text-xs text-bt-fg-muted truncate hidden xl:block">{DOMAIN_DESCRIPTIONS[code]}</span>}
+          {/* 데이터셋 명칭 — 타이틀 (카테고리·유형은 본문 요약 그리드에 표기) */}
+          <span className="text-lg font-semibold text-bt-fg truncate">{listItem.datasourceName}</span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {isSystemAdmin && (
+            <Button loading={isFlagPending} onClick={handleToggleSystem}>
+              {listItem.isSystem ? '시스템 승격 해제' : '시스템 데이터셋으로 승격'}
+            </Button>
+          )}
           <Button icon={<Pencil className="size-3.5" />} onClick={onEdit}>
             편집
           </Button>
@@ -472,25 +550,19 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
 
       {/* 본문 */}
       <div className="flex-1 min-h-0 flex flex-col px-6 py-5">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-lg font-semibold text-bt-fg">{listItem.datasourceName}</span>
-          {listItem.isSystem && (
-            <Tag color="blue" className="!mb-0 !mr-0">
-              시스템
-            </Tag>
-          )}
-          {!listItem.isActive && (
-            <Tag color="default" className="!mb-0 !mr-0">
-              비활성
-            </Tag>
-          )}
-        </div>
-        <p className="mt-1 text-sm text-bt-fg-muted">{listItem.description || '설명 없음'}</p>
-
         {/* 데이터셋 요약 — 필드 구성 표 윗쪽 */}
-        <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+          {/* 설명 — 맨 윗줄 전체 폭 */}
+          <DetailField className="col-span-2 md:col-span-3" label="설명" value={listItem.description || '-'} />
           <DetailField label="데이터셋 ID" value={<span className="font-mono">{listItem.datasetId}</span>} />
-          <DetailField label="카테고리" value={`${DOMAIN_LABELS[code] ?? code} (${code})`} />
+          <DetailField
+            label="카테고리"
+            value={
+              <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
+                {code} · {DOMAIN_LABELS[code] ?? code}
+              </Tag>
+            }
+          />
           <DetailField
             label="상태"
             value={
@@ -505,7 +577,20 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
               )
             }
           />
-          <DetailField label="유형" value={listItem.isSystem ? '시스템' : '사용자'} />
+          <DetailField
+            label="유형"
+            value={
+              listItem.isSystem ? (
+                <Tag color="purple" className="!mb-0 !mr-0">
+                  시스템
+                </Tag>
+              ) : (
+                <Tag color="default" className="!mb-0 !mr-0">
+                  사용자
+                </Tag>
+              )
+            }
+          />
           <DetailField label="DB 뷰 Prefix" value={<span className="font-mono">{listItem.dbViewPrefix || '-'}</span>} />
           <DetailField
             label="지원 단위"
@@ -513,7 +598,7 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
               units.length ? (
                 <span className="flex flex-wrap gap-1">
                   {units.map((u) => (
-                    <span key={u} className="rounded border border-bt-border bg-bt-bg-muted px-1.5 py-0.5 text-[10px] font-mono text-bt-fg-muted">
+                    <span key={u} className="rounded border border-bt-border bg-bt-bg-muted px-2 py-0.5 text-xs font-mono text-bt-fg-muted">
                       {UNIT_LABEL[u] ?? u}
                     </span>
                   ))}
@@ -556,9 +641,9 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
   );
 }
 
-function DetailField({ label, value }: { label: string; value: ReactNode }) {
+function DetailField({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
-    <div>
+    <div className={className}>
       <div className="text-[11px] font-semibold uppercase tracking-wide text-bt-fg-muted mb-1">{label}</div>
       <div className="text-sm text-bt-fg">{value}</div>
     </div>

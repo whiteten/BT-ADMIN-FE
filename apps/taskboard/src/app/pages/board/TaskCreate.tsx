@@ -3,18 +3,28 @@ import ReactGridLayout, { type LayoutItem as RglItem, type Layout as RglLayout, 
 import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
+import { MultiSelectDropdown } from '../../features/board/components/MultiSelectDropdown';
 import {
   taskboardQueryKeys,
   useCreateTaskboardLayout,
   useGetCtiAgentList,
   useGetCtiGroupList,
+  useGetCtiMediaTypeList,
   useGetCtiQueueList,
   useGetNoticeList,
+  useGetRedisHashEntries,
+  useGetRedisHashKeys,
+  useRefreshRedisHashKeys,
   useUpdateLayout,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { CallDataItem, DroppedWidget, TableColumn, TaskboardBg, TaskboardLayout, WidgetStyle } from '../../features/board/types/taskboard.types';
+import type { CalcConfig, CalcOperand, CallDataItem, ChartConfig, DroppedWidget, TaskboardBg, TaskboardLayout, WidgetStyle } from '../../features/board/types/taskboard.types';
+import { CALC_WIDGET_ITEM, getCalcDisplayValue } from '../../features/board/utils/redisValue';
+import { SHADOW_PRESETS, getWidgetVisualStyle, isTransparentBg } from '../../features/board/utils/widgetVisualStyle';
+import { Spinner } from '@/components/ui/spinner';
 
 // ─── 전역 상수 ───────────────────────────────────────────────────────────────
 const GRID_COLS = 24;
@@ -61,13 +71,6 @@ const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight'
   { label: '보통', value: 'normal' },
   { label: '중간', value: '600' },
   { label: '굵게', value: 'bold' },
-];
-
-const SHADOW_PRESETS: { label: string; value: NonNullable<WidgetStyle['shadow']>; css: string }[] = [
-  { label: '없음', value: 'none', css: 'none' },
-  { label: '부드럽게', value: 'soft', css: '0 4px 14px rgba(0,0,0,0.35)' },
-  { label: '강하게', value: 'hard', css: '4px 4px 0 rgba(0,0,0,0.55)' },
-  { label: '발광', value: 'glow', css: '0 0 16px rgba(255,255,255,0.55)' },
 ];
 
 const DESIGN_WIDTH = 1024;
@@ -135,22 +138,12 @@ const formatWidgetValue = (value: string | number, useThousandSep?: boolean): st
   return String(value);
 };
 
-function getWidgetVisualStyle(style: WidgetStyle, fontScale = 1): React.CSSProperties {
-  const shadowCss = SHADOW_PRESETS.find((s) => s.value === (style.shadow ?? 'soft'))?.css ?? SHADOW_PRESETS[1].css;
-  const border = (style.borderWidth ?? 0) > 0 ? `${style.borderWidth}px ${style.borderStyle ?? 'solid'} ${style.borderColor ?? '#ffffff'}` : undefined;
-  return {
-    fontSize: Math.round(style.fontSize * fontScale),
-    fontFamily: style.fontFamily,
-    fontWeight: style.fontWeight ?? 'normal',
-    color: style.color,
-    backgroundColor: style.bgColor,
-    border,
-    borderRadius: `${style.borderRadius ?? 8}px`,
-    opacity: (style.opacity ?? 100) / 100,
-    boxShadow: shadowCss,
-    overflow: 'hidden',
-  };
-}
+// flex 컨테이너에서는 textAlign이 자식 정렬에 영향을 주지 않으므로 justifyContent로도 매핑
+const ALIGN_TO_JUSTIFY: Record<'left' | 'center' | 'right', React.CSSProperties['justifyContent']> = {
+  left: 'flex-start',
+  center: 'center',
+  right: 'flex-end',
+};
 
 // ─── 그리드 변환 유틸 ────────────────────────────────────────────────────────
 function toGridItem(widget: DroppedWidget): RglItem {
@@ -176,145 +169,7 @@ function fromGridItem(item: RglItem): Pick<DroppedWidget, 'x' | 'y' | 'w' | 'h'>
   };
 }
 
-// ─── 카테고리별 콜데이터 ─────────────────────────────────────────────────────
-const CALL_DATA_CATEGORIES: Record<string, CallDataItem[]> = {
-  IVR: [
-    { id: 'ivr-waiting', category: 'IVR', label: '대기 호수', unit: '건', sampleValue: 42, color: '#2563eb' },
-    { id: 'ivr-processing', category: 'IVR', label: '처리 중 호수', unit: '건', sampleValue: 15, color: '#2563eb' },
-    { id: 'ivr-abandon', category: 'IVR', label: '포기 호수', unit: '건', sampleValue: 7, color: '#2563eb' },
-    { id: 'ivr-avg-wait', category: 'IVR', label: '평균 대기시간', unit: '초', sampleValue: 38, color: '#2563eb' },
-  ],
-  CTI: [
-    { id: 'cti-agents', category: 'CTI', label: '총 상담원 수', unit: '명', sampleValue: 24, color: '#7c3aed' },
-    { id: 'cti-talking', category: 'CTI', label: '통화 중', unit: '명', sampleValue: 18, color: '#7c3aed' },
-    { id: 'cti-ready', category: 'CTI', label: '대기 중', unit: '명', sampleValue: 4, color: '#7c3aed' },
-    { id: 'cti-away', category: 'CTI', label: '이석 중', unit: '명', sampleValue: 2, color: '#7c3aed' },
-  ],
-  Agent: [
-    { id: 'agent-name', category: 'Agent', label: '상담원명', unit: '', sampleValue: '김상담', color: '#059669' },
-    { id: 'agent-calls', category: 'Agent', label: '처리 호수', unit: '건', sampleValue: 23, color: '#059669' },
-    { id: 'agent-talk-time', category: 'Agent', label: '총 통화시간', unit: '분', sampleValue: 142, color: '#059669' },
-    { id: 'agent-status', category: 'Agent', label: '현재 상태', unit: '', sampleValue: '통화 중', color: '#059669' },
-  ],
-  Group: [
-    { id: 'group-name', category: 'Group', label: '그룹명', unit: '', sampleValue: 'VIP그룹', color: '#d97706' },
-    { id: 'group-calls', category: 'Group', label: '처리 호수', unit: '건', sampleValue: 85, color: '#d97706' },
-    { id: 'group-waiting', category: 'Group', label: '대기 호수', unit: '건', sampleValue: 12, color: '#d97706' },
-  ],
-  Skill: [
-    { id: 'skill-name', category: 'Skill', label: '스킬명', unit: '', sampleValue: '영어상담', color: '#dc2626' },
-    { id: 'skill-connect', category: 'Skill', label: '연결 호수', unit: '건', sampleValue: 33, color: '#dc2626' },
-    { id: 'skill-rate', category: 'Skill', label: '처리율', unit: '%', sampleValue: 94, color: '#dc2626' },
-  ],
-  Tenant: [
-    { id: 'tenant-name', category: 'Tenant', label: '테넌트명', unit: '', sampleValue: 'BT Corp', color: '#0891b2' },
-    { id: 'tenant-total', category: 'Tenant', label: '총 호수', unit: '건', sampleValue: 320, color: '#0891b2' },
-    { id: 'tenant-success', category: 'Tenant', label: '성공율', unit: '%', sampleValue: 91, color: '#0891b2' },
-  ],
-  etc: [
-    { id: 'etc-date', category: 'etc', label: '현재 날짜 (yyyymmdd)', unit: '', sampleValue: '20260424', color: '#64748b' },
-    { id: 'etc-time', category: 'etc', label: '현재 시각 (hh24miss)', unit: '', sampleValue: '143205', color: '#64748b' },
-    { id: 'etc-datetime', category: 'etc', label: '날짜+시각', unit: '', sampleValue: '20260424 143205', color: '#64748b' },
-    { id: 'etc-announcement', category: 'etc', label: '공지 메시지', unit: '', sampleValue: '시스템 정상 운영 중', color: '#64748b' },
-  ],
-  List: [
-    {
-      id: 'list-cti-work',
-      category: 'List',
-      label: 'CTI 업무 리스트',
-      sampleValue: '',
-      color: '#7c3aed',
-      displayType: 'table',
-      tableConfig: {
-        columns: [
-          { key: 'agent', label: '상담원', width: '30%' },
-          { key: 'calls', label: '처리', width: '20%' },
-          { key: 'wait', label: '대기', width: '20%' },
-          { key: 'status', label: '상태', width: '30%' },
-        ] as TableColumn[],
-        sampleRows: [
-          { agent: '김상담', calls: 23, wait: 2, status: '통화중' },
-          { agent: '이상담', calls: 18, wait: 0, status: '대기중' },
-          { agent: '박상담', calls: 31, wait: 5, status: '이석중' },
-        ],
-      },
-    },
-    {
-      id: 'list-agent',
-      category: 'List',
-      label: '상담사별 리스트',
-      sampleValue: '',
-      color: '#059669',
-      displayType: 'table',
-      tableConfig: {
-        columns: [
-          { key: 'name', label: '상담원명', width: '30%' },
-          { key: 'calls', label: '처리호수', width: '20%' },
-          { key: 'talkTime', label: '통화시간', width: '25%' },
-          { key: 'rate', label: '처리율', width: '25%' },
-        ] as TableColumn[],
-        sampleRows: [
-          { name: '김상담', calls: 23, talkTime: '142분', rate: '95%' },
-          { name: '이상담', calls: 18, talkTime: '98분', rate: '89%' },
-          { name: '박상담', calls: 31, talkTime: '187분', rate: '98%' },
-        ],
-      },
-    },
-    {
-      id: 'list-group',
-      category: 'List',
-      label: '상담그룹별 리스트',
-      sampleValue: '',
-      color: '#d97706',
-      displayType: 'table',
-      tableConfig: {
-        columns: [
-          { key: 'group', label: '그룹명', width: '30%' },
-          { key: 'calls', label: '처리호수', width: '23%' },
-          { key: 'wait', label: '대기호수', width: '23%' },
-          { key: 'rate', label: '처리율', width: '24%' },
-        ] as TableColumn[],
-        sampleRows: [
-          { group: 'VIP그룹', calls: 85, wait: 3, rate: '97%' },
-          { group: '일반그룹', calls: 142, wait: 8, rate: '91%' },
-          { group: '영어상담', calls: 33, wait: 1, rate: '94%' },
-        ],
-      },
-    },
-    {
-      id: 'list-ivr-queue',
-      category: 'List',
-      label: 'IVR 대기큐 리스트',
-      sampleValue: '',
-      color: '#2563eb',
-      displayType: 'table',
-      tableConfig: {
-        columns: [
-          { key: 'queue', label: '큐명', width: '35%' },
-          { key: 'waiting', label: '대기호수', width: '30%' },
-          { key: 'avgWait', label: '평균대기', width: '35%' },
-        ] as TableColumn[],
-        sampleRows: [
-          { queue: '일반대기', waiting: 12, avgWait: '38초' },
-          { queue: 'VIP대기', waiting: 3, avgWait: '12초' },
-        ],
-      },
-    },
-  ],
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  IVR: 'IVR 연동',
-  CTI: 'CTI 연동',
-  Agent: 'Agent 연동',
-  Group: 'Group 연동',
-  Skill: 'Skill 연동',
-  Tenant: 'Tenant 연동',
-  etc: '기타',
-  List: '리스트/테이블',
-};
-
-type DragInfo = { type: 'source'; item: CallDataItem };
+type DragInfo = { type: 'source'; item: CallDataItem } | { type: 'widget-ref'; widgetId: string; label: string };
 type LayoutMode = 'free' | 'grid';
 
 // ─── DraggableSourceItem ─────────────────────────────────────────────────────
@@ -337,9 +192,10 @@ function DraggableSourceItem({ item }: { item: CallDataItem }) {
     >
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
       <span className="text-xs font-medium text-slate-700 truncate flex-1">{item.label}</span>
-      {item.isRealtime && <span className="text-[9px] bg-cyan-100 text-cyan-600 px-1 py-0.5 rounded font-bold">실시간</span>}
+      {item.category === 'notice' && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold flex-shrink-0">공지</span>}
+      {item.isRealtime && item.category !== 'Redis' && <span className="text-[9px] bg-cyan-100 text-cyan-600 px-1 py-0.5 rounded font-bold">실시간</span>}
       {item.displayType === 'table' && !item.isRealtime && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
-      {item.unit && !item.displayType && <span className="text-[10px] text-slate-400 flex-shrink-0">{item.unit}</span>}
+      {item.unit && !item.displayType && item.category !== 'notice' && <span className="text-[10px] text-slate-400 flex-shrink-0">{item.unit}</span>}
     </div>
   );
 }
@@ -397,39 +253,555 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
   );
 }
 
-// ─── 공지사항 위젯 ───────────────────────────────────────────────────────────
-function AnnouncementWidget({ widget }: { widget: DroppedWidget }) {
-  const { data: notices } = useGetNoticeList();
-  const active = (notices ?? []).filter((n) => n.useYn === 'Y');
-  const filtered = widget.noticeKey ? active.filter((n) => n.noticeKey === widget.noticeKey) : active;
-  const notice = filtered.sort((a, b) => a.sortOrder - b.sortOrder)[0];
-  const showTitle = widget.showTitle !== false;
+const CHART_COLORS_LIST = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
-  if (!notice) {
+// ─── 표시 방식: 차트 종류 옵션 (테이블형 위젯의 우측 패널 전환용) ────────────
+const CHART_TYPE_OPTIONS: { label: string; value: ChartConfig['chartType'] }[] = [
+  { label: '막대', value: 'bar' },
+  { label: '선', value: 'line' },
+  { label: '파이', value: 'pie' },
+  { label: '도넛', value: 'donut' },
+];
+
+// 테이블형 위젯의 sampleRows에서 차트 표시용 sampleData를 도출
+function buildChartSampleData(tableConfig?: CallDataItem['tableConfig']): Array<{ name: string; value: number }> {
+  if (!tableConfig || tableConfig.columns.length < 2) return [];
+  const nameKey = tableConfig.columns[0].key;
+  const valueKey = tableConfig.columns.slice(1).find((col) => typeof tableConfig.sampleRows[0]?.[col.key] === 'number')?.key ?? tableConfig.columns[1].key;
+  return tableConfig.sampleRows.map((row) => ({
+    name: String(row[nameKey] ?? ''),
+    value: Number(row[valueKey]) || 0,
+  }));
+}
+
+// ─── ChartWidget ──────────────────────────────────────────────────────────────
+function ChartWidget({ widget }: { widget: DroppedWidget }) {
+  const cfg: ChartConfig | undefined = widget.item.chartConfig;
+  if (!cfg) return null;
+  const showTitle = widget.showTitle !== false;
+  const displayTitle = widget.customTitle ?? widget.item.label;
+  const data = cfg.sampleData ?? [];
+  const color = widget.style.color;
+
+  // 색상 모드: rainbow(기본 팔레트) | custom(직접 선택). custom인데 색상이 비어있으면 기본 팔레트로 폴백.
+  const customColors = cfg.colors ?? [];
+  const getColor = (idx: number, fallback: string) => (cfg.colorMode === 'custom' && customColors.length > 0 ? customColors[idx % customColors.length] : fallback);
+
+  const renderChart = () => {
+    switch (cfg.chartType) {
+      case 'bar':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={`${color}25`} />
+              <XAxis dataKey="name" tick={{ fontSize: 8, fill: color, opacity: 0.7 }} />
+              <YAxis tick={{ fontSize: 8, fill: color, opacity: 0.7 }} />
+              <Bar dataKey="value" fill={getColor(0, CHART_COLORS_LIST[0])} radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      case 'line':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={`${color}25`} />
+              <XAxis dataKey="name" tick={{ fontSize: 8, fill: color, opacity: 0.7 }} />
+              <YAxis tick={{ fontSize: 8, fill: color, opacity: 0.7 }} />
+              <Line type="monotone" dataKey="value" stroke={getColor(0, CHART_COLORS_LIST[1])} strokeWidth={2} dot={{ r: 2, fill: getColor(0, CHART_COLORS_LIST[1]) }} />
+            </LineChart>
+          </ResponsiveContainer>
+        );
+      case 'pie':
+      case 'donut':
+        return (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={data} cx="50%" cy="50%" innerRadius={cfg.chartType === 'donut' ? '38%' : 0} outerRadius="65%" dataKey="value" nameKey="name">
+                {data.map((_, idx) => (
+                  <Cell key={`cell-${idx}`} fill={getColor(idx, CHART_COLORS_LIST[idx % CHART_COLORS_LIST.length])} />
+                ))}
+              </Pie>
+              <Legend iconSize={7} wrapperStyle={{ fontSize: 8, color }} />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {showTitle && (
+        <div
+          className="truncate font-semibold px-1 flex-shrink-0"
+          style={{
+            fontSize: '0.65em',
+            textAlign: widget.style.titleAlign ?? 'left',
+            color,
+            fontFamily: widget.style.fontFamily,
+          }}
+        >
+          {displayTitle}
+        </div>
+      )}
+      <div className="flex-1 min-h-0">{renderChart()}</div>
+    </div>
+  );
+}
+
+// ─── Redis Hash 탐색기 — HashKey별 아이템 (필드를 DraggableSourceItem으로 렌더) ──
+// ─── Redis Hash 탐색기 — 트리 데이터 구조 ──────────────────────────────────────
+interface RedisKeyNode {
+  label: string;
+  fullKey?: string; // 실제 Redis Hash 키 (리프 노드)
+  children: RedisKeyNode[];
+  leafCount: number;
+}
+
+const REDIS_TREE_MAX_DEPTH = 3;
+
+function groupRedisKeys(keys: string[], prefix: string, depth: number): RedisKeyNode[] {
+  // 최대 깊이 도달 시 나머지를 플랫 리프로 처리
+  if (depth >= REDIS_TREE_MAX_DEPTH) {
+    return keys
+      .slice()
+      .sort()
+      .map((key) => ({
+        label: key,
+        fullKey: prefix ? `${prefix}:${key}` : key,
+        children: [],
+        leafCount: 1,
+      }));
+  }
+
+  const segMap = new Map<string, { isLeaf: boolean; childKeys: string[] }>();
+  for (const key of keys) {
+    const idx = key.indexOf(':');
+    if (idx === -1) {
+      const e = segMap.get(key) ?? { isLeaf: false, childKeys: [] };
+      e.isLeaf = true;
+      segMap.set(key, e);
+    } else {
+      const seg = key.slice(0, idx);
+      const rest = key.slice(idx + 1);
+      const e = segMap.get(seg) ?? { isLeaf: false, childKeys: [] };
+      e.childKeys.push(rest);
+      segMap.set(seg, e);
+    }
+  }
+
+  return Array.from(segMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([seg, { isLeaf, childKeys }]) => {
+      const fullKey = prefix ? `${prefix}:${seg}` : seg;
+      const children = childKeys.length > 0 ? groupRedisKeys(childKeys, fullKey, depth + 1) : [];
+      return {
+        label: seg,
+        fullKey: isLeaf || children.length === 0 ? fullKey : undefined,
+        children,
+        leafCount: (isLeaf ? 1 : 0) + children.reduce((s, c) => s + c.leafCount, 0),
+      };
+    });
+}
+
+// ─── Redis Hash 탐색기 — JSON 필드 드래그 아이템 ────────────────────────────
+// "해시그룹"(예: IC:GROUP:0처럼 한 hashKey 안에 compositeKey가 여러 개, 값이 각각 JSON인 구조)이어도
+// 디자인 시점에는 "어떤 메트릭(JSON 컬럼)"을 쓸지만 고르면 되고, "어떤 그룹"을 보여줄지는 디스플레이
+// 설정에서 결정한다 — 그래서 compositeKey 선택 UI는 두지 않고 첫 번째 entry를 컬럼 목록 샘플로만 사용한다.
+function RedisHashFieldItems({ hashKey, siblingKeys }: { hashKey: string; siblingKeys?: string[] }) {
+  const { data: hashEntries = {}, isLoading } = useGetRedisHashEntries(hashKey, {
+    queryOptions: { enabled: true },
+  });
+
+  if (isLoading) {
     return (
-      <div className="opacity-50 italic leading-tight truncate" style={{ fontSize: '0.8em', textAlign: widget.style.valueAlign ?? 'left', fontFamily: widget.style.fontFamily }}>
-        {widget.noticeKey ? '공지사항 없음' : '공지 키를 선택하세요'}
+      <div className="ml-4 pl-3 border-l-2 border-rose-100 py-2 flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-rose-200 animate-pulse flex-shrink-0" />
+        <span className="text-[10px] text-slate-400">로딩 중...</span>
       </div>
     );
   }
 
+  const entries = Object.entries(hashEntries).filter(([field]) => field.trim().toLowerCase() !== 'sample');
+  if (entries.length === 0) {
+    return <div className="ml-4 pl-3 border-l-2 border-rose-100 py-2 text-[10px] text-slate-400">필드 없음</div>;
+  }
+
+  const [firstField, firstRaw] = entries[0];
+  let parsed: Record<string, unknown> | null = null;
+  try {
+    const candidate = JSON.parse(firstRaw) as unknown;
+    parsed = typeof candidate === 'object' && candidate !== null && !Array.isArray(candidate) ? (candidate as Record<string, unknown>) : null;
+  } catch {
+    /* JSON 아님 */
+  }
+
+  const displayItems: Array<{ field: string; col: string; sampleValue: string | number }> = parsed
+    ? Object.entries(parsed)
+        .filter(([col]) => col.trim().toLowerCase() !== 'sample')
+        .map(([col, val]) => ({ field: firstField, col, sampleValue: typeof val === 'number' ? val : String(val ?? '') }))
+    : entries.map(([field, value]) => ({ field, col: field, sampleValue: value }));
+
   return (
-    <>
-      {showTitle && notice.title && (
-        <div
-          className="truncate mb-0.5 opacity-80 leading-tight"
-          style={{ fontSize: '0.65em', textAlign: widget.style.titleAlign ?? 'left', fontFamily: widget.style.fontFamily, fontWeight: widget.style.fontWeight ?? 'normal' }}
+    <div className="ml-4 border-l-2 border-rose-100 pl-0 py-1.5 flex flex-col gap-1">
+      {displayItems.map(({ field, col, sampleValue }) => {
+        const callItem: CallDataItem = {
+          id: `redis-${hashKey}-${field}-${col}`,
+          category: 'Redis',
+          label: col,
+          unit: '',
+          sampleValue,
+          color: '#e11d48',
+          isRealtime: true,
+          redisHashKey: hashKey,
+          redisField: field,
+          redisJsonField: col !== field ? col : undefined,
+          hashSiblingKeys: siblingKeys?.length ? siblingKeys : undefined,
+        };
+        return (
+          <div key={`${field}-${col}`} className="pl-2 pr-2">
+            <DraggableSourceItem item={callItem} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Redis Hash 탐색기 — 트리 노드 ───────────────────────────────────────────
+function RedisTreeNode({ node, depth }: { node: RedisKeyNode; depth: number }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasChildren = node.children.length > 0;
+  const isLeaf = !!node.fullKey && !hasChildren;
+
+  // 자식이 모두 리프 = "해시 그룹" — 가변 키를 숨기고 JSON 컬럼을 바로 표시
+  const isHashGroup = hasChildren && node.children.every((c) => !!c.fullKey && c.children.length === 0);
+  const representativeKey = isHashGroup ? (node.children[0]?.fullKey ?? '') : (node.fullKey ?? '');
+  const siblingKeys = isHashGroup ? node.children.map((c) => c.fullKey).filter((k): k is string => !!k) : undefined;
+  const canExpand = isLeaf || hasChildren;
+
+  // depth별 들여쓰기 (px)
+  const indentPx = 8 + depth * 16;
+
+  return (
+    <div>
+      <button
+        onClick={() => {
+          if (canExpand) setIsExpanded((v) => !v);
+        }}
+        title={isHashGroup ? `${node.leafCount}개 해시 키 (대표: ${representativeKey})` : (node.fullKey ?? node.label)}
+        className={`w-full flex items-center gap-2 py-1.5 text-left transition-all duration-100
+          ${isHashGroup ? `hover:bg-rose-50 ${isExpanded ? 'bg-rose-50/60' : ''}` : 'hover:bg-slate-50'}`}
+        style={{ paddingLeft: `${indentPx}px`, paddingRight: 8 }}
+      >
+        {/* 펼침 화살표 or 리프 점 */}
+        {canExpand ? (
+          <svg
+            className={`w-3 h-3 flex-shrink-0 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''} ${isHashGroup ? 'text-rose-400' : 'text-slate-400'}`}
+            fill="none"
+            viewBox="0 0 12 12"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M4 2l4 4-4 4" />
+          </svg>
+        ) : (
+          <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0 ml-0.5" />
+        )}
+
+        {/* 레이블 */}
+        <span
+          className={`font-mono truncate flex-1 leading-none ${
+            isHashGroup ? 'text-[11px] text-rose-700 font-semibold' : depth === 0 ? 'text-[11px] text-slate-700 font-semibold' : 'text-[10px] text-slate-600'
+          }`}
         >
-          {notice.title}
+          {node.label}
+        </span>
+
+        {/* 뱃지 */}
+        {isHashGroup && (
+          <span className="flex-shrink-0 text-[9px] font-bold text-rose-500 bg-rose-100 border border-rose-200 px-1.5 py-0.5 rounded-full leading-none whitespace-nowrap">
+            HASH ×{node.leafCount}
+          </span>
+        )}
+        {hasChildren && !isHashGroup && <span className="flex-shrink-0 text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none">{node.leafCount}</span>}
+      </button>
+
+      {/* 일반 부모: 자식 재귀 */}
+      {hasChildren && !isHashGroup && isExpanded && (
+        <div className="border-l border-slate-100 ml-4">
+          {node.children.map((child) => (
+            <RedisTreeNode key={child.label} node={child} depth={depth + 1} />
+          ))}
         </div>
       )}
-      <div
-        className="leading-tight truncate"
-        style={{ textAlign: widget.style.valueAlign ?? 'left', fontFamily: widget.style.fontFamily, fontWeight: widget.style.fontWeight ?? 'normal' }}
-      >
-        {notice.content}
+
+      {/* 해시 그룹 / 단독 리프: JSON 필드 드래그 아이템 */}
+      {(isHashGroup || isLeaf) && isExpanded && representativeKey && <RedisHashFieldItems hashKey={representativeKey} siblingKeys={siblingKeys} />}
+    </div>
+  );
+}
+
+// ─── 고정 위젯 항목 (시계 · 테이블) ─────────────────────────────────────────
+
+const CLOCK_WIDGET_ITEMS: CallDataItem[] = [
+  {
+    id: 'etc-date',
+    category: 'etc',
+    label: '날짜',
+    sampleValue: '20250605',
+    color: '#8b5cf6',
+    isRealtime: true,
+  },
+  {
+    id: 'etc-time',
+    category: 'etc',
+    label: '시간',
+    sampleValue: '14:30:22',
+    color: '#8b5cf6',
+    isRealtime: true,
+  },
+  {
+    id: 'etc-datetime',
+    category: 'etc',
+    label: '날짜+시간',
+    sampleValue: '20250605 14:30:22',
+    color: '#8b5cf6',
+    isRealtime: true,
+  },
+];
+
+const TABLE_WIDGET_ITEMS: CallDataItem[] = [
+  {
+    id: 'table-queue',
+    category: 'List',
+    label: '큐 현황표',
+    sampleValue: '',
+    color: '#3b82f6',
+    displayType: 'table',
+    isRealtime: true,
+    tableConfig: {
+      columns: [
+        { key: 'name', label: '큐명' },
+        { key: 'wait', label: '대기' },
+        { key: 'talk', label: '통화' },
+      ],
+      sampleRows: [
+        { name: '일반상담', wait: 3, talk: 12 },
+        { name: 'VIP상담', wait: 1, talk: 5 },
+      ],
+    },
+  },
+  {
+    id: 'table-agent',
+    category: 'List',
+    label: '상담사 현황표',
+    sampleValue: '',
+    color: '#10b981',
+    displayType: 'table',
+    isRealtime: true,
+    tableConfig: {
+      columns: [
+        { key: 'name', label: '이름' },
+        { key: 'status', label: '상태' },
+        { key: 'count', label: '건수' },
+      ],
+      sampleRows: [
+        { name: '홍길동', status: '통화중', count: 8 },
+        { name: '김영희', status: '대기', count: 15 },
+      ],
+    },
+  },
+  {
+    id: 'table-group',
+    category: 'List',
+    label: '그룹 현황표',
+    sampleValue: '',
+    color: '#8b5cf6',
+    displayType: 'table',
+    isRealtime: true,
+    tableConfig: {
+      columns: [
+        { key: 'name', label: '그룹명' },
+        { key: 'agents', label: '인원' },
+        { key: 'talk', label: '통화' },
+        { key: 'rts_ready', label: 'RTS준비' },
+      ],
+      sampleRows: [
+        { name: '1팀', agents: 10, talk: 4, rts_ready: 3 },
+        { name: '2팀', agents: 8, talk: 2, rts_ready: 1 },
+      ],
+    },
+  },
+];
+
+function FixedItemsSection() {
+  const [isOpen, setIsOpen] = useState(true);
+  const { data: notices = [], isLoading: noticesLoading } = useGetNoticeList();
+  const activeNotices = notices.filter((n) => n.useYn === 'Y').sort((a, b) => a.sortOrder - b.sortOrder);
+
+  return (
+    <div className="flex-shrink-0 border-t border-slate-200 bg-white">
+      <div className="flex items-center justify-between px-3 py-2 bg-slate-50/60 border-b border-slate-100">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0" />
+          <span className="text-[11px] font-semibold text-slate-700">위젯 항목</span>
+        </div>
+        <button
+          onClick={() => setIsOpen((v) => !v)}
+          className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+        >
+          <svg
+            className={`w-3 h-3 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
+            fill="none"
+            viewBox="0 0 12 12"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+          >
+            <path d="M2 4l4 4 4-4" />
+          </svg>
+        </button>
       </div>
-    </>
+
+      {isOpen && (
+        <div className="px-2 py-2 space-y-2">
+          {/* 공지사항 — DB에서 가져온 항목별 개별 드래그 */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항{activeNotices.length > 0 && ` (${activeNotices.length})`}</p>
+            {noticesLoading ? (
+              <div className="text-[10px] text-slate-400 text-center py-1">로딩 중...</div>
+            ) : activeNotices.length === 0 ? (
+              <div className="text-[10px] text-slate-400 text-center py-1">등록된 공지사항 없음</div>
+            ) : (
+              <div className="space-y-1">
+                {activeNotices.map((notice) => {
+                  const item: CallDataItem = {
+                    id: `notice-${notice.noticeId}`,
+                    category: 'notice',
+                    label: notice.title ?? notice.content.slice(0, 20),
+                    sampleValue: '',
+                    color: '#f59e0b',
+                    noticeId: notice.noticeId,
+                  };
+                  return <DraggableSourceItem key={notice.noticeId} item={item} />;
+                })}
+              </div>
+            )}
+          </div>
+          {/* 시계 */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">시계</p>
+            <div className="space-y-1">
+              {CLOCK_WIDGET_ITEMS.map((item) => (
+                <DraggableSourceItem key={item.id} item={item} />
+              ))}
+            </div>
+          </div>
+          {/* 테이블 */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">테이블</p>
+            <div className="space-y-1">
+              {TABLE_WIDGET_ITEMS.map((item) => (
+                <DraggableSourceItem key={item.id} item={item} />
+              ))}
+            </div>
+          </div>
+          {/* 계산식 — 캔버스에 배치된 위젯을 드래그해 변수로 연결하는 수식 위젯 */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">계산식</p>
+            <div className="space-y-1">
+              <DraggableSourceItem item={CALC_WIDGET_ITEM} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Redis Hash 탐색기 — 메인 섹션 (진입 시 자동 로드) ─────────────────────
+function RedisHashSection() {
+  const [isOpen, setIsOpen] = useState(true);
+
+  const { data: hashKeys = [], isLoading: keysLoading } = useGetRedisHashKeys({
+    queryOptions: { enabled: true },
+  });
+  const { mutate: refreshHashKeys, isPending: isRefreshing } = useRefreshRedisHashKeys();
+
+  const tree = hashKeys.length > 0 ? groupRedisKeys(hashKeys, '', 0) : [];
+  const isLoading = keysLoading || isRefreshing;
+
+  return (
+    <div className="flex flex-col">
+      {/* 섹션 헤더 */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/60 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading ? 'bg-rose-300 animate-pulse' : 'bg-rose-500'}`} />
+          <span className="text-[11px] font-semibold text-slate-700">Redis 해시 키</span>
+          {!isLoading && hashKeys.length > 0 && <span className="text-[9px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full font-mono">{hashKeys.length}</span>}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => refreshHashKeys()}
+            disabled={isRefreshing}
+            title="새로고침 (Redis에서 해시 키 목록 다시 조회)"
+            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors text-xs font-bold disabled:opacity-50"
+          >
+            <span className={isRefreshing ? 'animate-spin inline-block' : 'inline-block'}>↻</span>
+          </button>
+          <button
+            onClick={() => setIsOpen((v) => !v)}
+            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
+              fill="none"
+              viewBox="0 0 12 12"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+            >
+              <path d="M2 4l4 4 4-4" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* 로딩 바 */}
+      {isLoading && (
+        <>
+          <style>{`@keyframes redis-loading-slide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}`}</style>
+          <div className="h-0.5 flex-shrink-0 bg-rose-100 overflow-hidden">
+            <div className="h-full w-1/4 bg-rose-400 rounded-full" style={{ animation: 'redis-loading-slide 1.1s ease-in-out infinite' }} />
+          </div>
+        </>
+      )}
+
+      {/* 트리 */}
+      {isOpen && (
+        <div className="py-1">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-8">
+              <Spinner variant="circle" size={20} className="text-rose-400" />
+              <span className="text-[10px] text-slate-400">불러오는 중...</span>
+            </div>
+          ) : tree.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                <span className="text-slate-300 text-lg">∅</span>
+              </div>
+              <p className="text-[10px] text-slate-400 text-center">Hash 타입 키가 없습니다</p>
+            </div>
+          ) : (
+            tree.map((node) => <RedisTreeNode key={node.label} node={node} depth={0} />)
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -457,7 +829,7 @@ function NoticeKeyPanel({ noticeKey, onChange }: { noticeKey?: string; onChange:
 // ─── 위젯 콘텐츠 (공유) ──────────────────────────────────────────────────────
 const ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
 
-function WidgetContent({ widget }: { widget: DroppedWidget }) {
+function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: DroppedWidget[] }) {
   const isEtcClock = widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
 
@@ -482,12 +854,15 @@ function WidgetContent({ widget }: { widget: DroppedWidget }) {
   };
 
   const isTable = widget.item.displayType === 'table';
+  const isCalc = widget.item.category === 'Calc';
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
-  const displayValue = isEtcClock ? getLiveValue() : widget.item.sampleValue;
+  const displayValue = isEtcClock ? getLiveValue() : isCalc ? getCalcDisplayValue(widget, widgets) : widget.item.sampleValue;
 
+  const isChart = widget.item.displayType === 'chart';
   if (isTable) return <TableWidget widget={widget} />;
-  if (widget.item.id === 'etc-announcement') return <AnnouncementWidget widget={widget} />;
+  if (isChart) return <ChartWidget widget={widget} />;
+  if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
 
   return (
     <>
@@ -500,12 +875,17 @@ function WidgetContent({ widget }: { widget: DroppedWidget }) {
         </div>
       )}
       <div
-        className="leading-tight truncate"
-        style={{ textAlign: widget.style.valueAlign ?? 'left', fontFamily: widget.style.fontFamily, fontWeight: widget.style.fontWeight ?? 'normal' }}
+        className="leading-tight truncate flex items-baseline gap-1"
+        style={{
+          textAlign: widget.style.valueAlign ?? 'left',
+          justifyContent: ALIGN_TO_JUSTIFY[widget.style.valueAlign ?? 'left'],
+          fontFamily: widget.style.fontFamily,
+          fontWeight: widget.style.fontWeight ?? 'normal',
+        }}
       >
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {widget.item.unit && (
-          <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: '0.65em' }}>
+          <span className="font-normal opacity-70" style={{ fontSize: '0.65em' }}>
             {widget.item.unit}
           </span>
         )}
@@ -514,9 +894,99 @@ function WidgetContent({ widget }: { widget: DroppedWidget }) {
   );
 }
 
+// ─── 위젯 참조 드래그 핸들 — 계산식 위젯의 변수에 캔버스 위젯을 연결할 때 사용 ──────────
+function WidgetRefHandle({ widgetId, label }: { widgetId: string; label: string }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `widget-ref-${widgetId}`,
+    data: { type: 'widget-ref', widgetId, label } satisfies DragInfo,
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={(e) => e.stopPropagation()}
+      className={`w-5 h-5 bg-violet-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
+      title="계산식 위젯의 변수로 드래그하여 연결"
+    >
+      🔗
+    </button>
+  );
+}
+
+// ─── 계산식 위젯 변수(operand) 집계 방식 선택 — source(Redis 직접 참조)에 hashSiblingKeys가 있을 때만 표시 ──
+const OPERAND_AGGREGATION_OPTIONS = [
+  { label: '없음', value: 'none' as const },
+  { label: '∑', value: 'sum' as const },
+  { label: '↑', value: 'max' as const },
+  { label: '↓', value: 'min' as const },
+  { label: '⌀', value: 'avg' as const },
+];
+
+// ─── 계산식 위젯 변수(operand) 바인딩 영역 — 🔗 드래그 핸들 / 좌측 Redis 항목의 드롭 타겟 ────────────
+function CalcOperandDropZone({
+  calcWidgetId,
+  operand,
+  label,
+  onRemove,
+  onAggregationChange,
+}: {
+  calcWidgetId: string;
+  operand: CalcOperand;
+  label?: string;
+  onRemove: () => void;
+  onAggregationChange: (aggregation: 'none' | 'sum' | 'max' | 'min' | 'avg') => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `calc-operand-${calcWidgetId}-${operand.var}` });
+  const siblingCount = operand.source?.hashSiblingKeys?.length ?? 0;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <span className="w-5 h-5 flex items-center justify-center rounded bg-violet-100 text-violet-600 text-[10px] font-bold flex-shrink-0">{operand.var}</span>
+        <div
+          ref={setNodeRef}
+          className={`flex-1 h-7 flex items-center px-2 rounded border text-[10px] truncate transition-colors ${
+            isOver ? 'border-[#0f5b9e] bg-[#0f5b9e]/10' : label ? 'border-slate-200 bg-white text-slate-700' : 'border-dashed border-slate-300 bg-slate-50 text-slate-400'
+          }`}
+        >
+          {label ?? '🔗 위젯 또는 Redis 항목을 여기로 드래그'}
+        </div>
+        <button
+          onClick={onRemove}
+          className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 text-xs font-bold"
+          title="변수 삭제"
+        >
+          ×
+        </button>
+      </div>
+      {siblingCount > 0 && (
+        <div className="flex items-center gap-1 pl-[26px]">
+          <span className="text-[9px] text-slate-400 flex-shrink-0">집계({siblingCount}개 키)</span>
+          <div className="flex gap-1">
+            {OPERAND_AGGREGATION_OPTIONS.map(({ label: aggLabel, value }) => (
+              <button
+                key={value}
+                onClick={() => onAggregationChange(value)}
+                className={`px-1.5 py-0.5 rounded border text-[9px] font-semibold transition-colors ${
+                  (operand.aggregation ?? 'none') === value ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                }`}
+              >
+                {aggLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── 자유 모드 캔버스 위젯 ───────────────────────────────────────────────────
 interface CanvasWidgetFreeProps {
   widget: DroppedWidget;
+  widgets: DroppedWidget[];
   isSelected: boolean;
   onSelect: (shiftKey: boolean) => void;
   onRemove: () => void;
@@ -526,10 +996,10 @@ interface CanvasWidgetFreeProps {
   fontScale?: number;
 }
 
-function CanvasWidgetFree({ widget, isSelected, onSelect, onRemove, onDuplicate, onDragStart, onResizeStart, fontScale = 1 }: CanvasWidgetFreeProps) {
+function CanvasWidgetFree({ widget, widgets, isSelected, onSelect, onRemove, onDuplicate, onDragStart, onResizeStart, fontScale = 1 }: CanvasWidgetFreeProps) {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
-  const isTransparentBg = widget.style.bgColor === 'rgba(0,0,0,0)' || widget.style.bgColor === 'transparent';
+  const widgetIsTransparentBg = isTransparentBg(widget.style);
 
   return (
     <div
@@ -546,20 +1016,23 @@ function CanvasWidgetFree({ widget, isSelected, onSelect, onRemove, onDuplicate,
         e.stopPropagation();
         onSelect(e.shiftKey);
       }}
-      className={`group ${isTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
+      className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
     >
       {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) */}
       <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-20 pointer-events-none group-hover:pointer-events-auto">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate();
-          }}
-          className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-          title="복사"
-        >
-          ⧉
-        </button>
+        <div className="flex gap-1">
+          {widget.item.category !== 'Calc' && <WidgetRefHandle widgetId={widget.id} label={widget.customTitle ?? widget.item.label} />}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+            className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
+            title="복사"
+          >
+            ⧉
+          </button>
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -586,7 +1059,7 @@ function CanvasWidgetFree({ widget, isSelected, onSelect, onRemove, onDuplicate,
           onDragStart(widget.id, e);
         }}
       >
-        <WidgetContent widget={widget} />
+        <WidgetContent widget={widget} widgets={widgets} />
       </div>
 
       {/* SE 핸들 */}
@@ -624,6 +1097,7 @@ function CanvasWidgetFree({ widget, isSelected, onSelect, onRemove, onDuplicate,
 // ─── 그리드 모드 캔버스 위젯 ─────────────────────────────────────────────────
 interface CanvasWidgetGridProps {
   widget: DroppedWidget;
+  widgets: DroppedWidget[];
   isSelected: boolean;
   onSelect: () => void;
   onRemove: () => void;
@@ -631,10 +1105,10 @@ interface CanvasWidgetGridProps {
   fontScale?: number;
 }
 
-function CanvasWidgetGrid({ widget, isSelected, onSelect, onRemove, onDuplicate, fontScale = 1 }: CanvasWidgetGridProps) {
+function CanvasWidgetGrid({ widget, widgets, isSelected, onSelect, onRemove, onDuplicate, fontScale = 1 }: CanvasWidgetGridProps) {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
-  const isTransparentBg = widget.style.bgColor === 'rgba(0,0,0,0)' || widget.style.bgColor === 'transparent';
+  const widgetIsTransparentBg = isTransparentBg(widget.style);
 
   return (
     <div
@@ -648,20 +1122,23 @@ function CanvasWidgetGrid({ widget, isSelected, onSelect, onRemove, onDuplicate,
         position: 'relative',
         ...getWidgetVisualStyle(widget.style, fontScale),
       }}
-      className={`group ${isTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
+      className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
     >
       {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) */}
       <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-[2] pointer-events-none group-hover:pointer-events-auto">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDuplicate();
-          }}
-          className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-          title="복사"
-        >
-          ⧉
-        </button>
+        <div className="flex gap-1">
+          {widget.item.category !== 'Calc' && <WidgetRefHandle widgetId={widget.id} label={widget.customTitle ?? widget.item.label} />}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate();
+            }}
+            className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
+            title="복사"
+          >
+            ⧉
+          </button>
+        </div>
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -684,7 +1161,7 @@ function CanvasWidgetGrid({ widget, isSelected, onSelect, onRemove, onDuplicate,
         className="drag-handle cursor-grab active:cursor-grabbing w-full h-full flex flex-col justify-center"
         style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
       >
-        <WidgetContent widget={widget} />
+        <WidgetContent widget={widget} widgets={widgets} />
       </div>
     </div>
   );
@@ -782,122 +1259,6 @@ function DroppableBoard({
   );
 }
 
-// ─── 멀티선택 드롭다운 (공용) ────────────────────────────────────────────────
-interface MultiSelectDropdownProps {
-  label: string;
-  color: string;
-  isFetching: boolean;
-  items: { id: string; name: string }[];
-  selectedIds: string[];
-  isOpen: boolean;
-  dropdownRef: React.RefObject<HTMLDivElement | null>;
-  onToggleOpen: () => void;
-  onToggleItem: (id: string) => void;
-  onToggleAll: () => void;
-  emptyText?: string;
-}
-
-function MultiSelectDropdown({ label, color, isFetching, items, selectedIds, isOpen, dropdownRef, onToggleOpen, onToggleItem, onToggleAll, emptyText }: MultiSelectDropdownProps) {
-  const [search, setSearch] = useState('');
-
-  useEffect(() => {
-    if (!isOpen) setSearch('');
-  }, [isOpen]);
-
-  const filteredItems = search.trim()
-    ? items.filter((item) => item.name.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase()))
-    : items;
-
-  const btnLabel =
-    isFetching && items.length === 0
-      ? '로딩 중...'
-      : selectedIds.length === 0
-        ? `${label} 선택...`
-        : selectedIds.length === items.length && items.length > 0
-          ? '전체'
-          : selectedIds.map((id) => items.find((i) => i.id === id)?.name ?? id).join(', ');
-
-  return (
-    <div className="relative flex-shrink-0" ref={dropdownRef}>
-      <button
-        onClick={onToggleOpen}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border rounded-md text-[11px] font-semibold hover:brightness-95 transition-colors w-[180px]"
-        style={{ borderColor: `${color}50`, color }}
-      >
-        <span className="flex-1 text-left truncate">{btnLabel}</span>
-        {selectedIds.length > 0 && (
-          <span className="flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white leading-none" style={{ backgroundColor: color }}>
-            {selectedIds.length}/{items.length}
-          </span>
-        )}
-        <span className="text-slate-400 text-[9px] flex-shrink-0">{isOpen ? '▲' : '▼'}</span>
-      </button>
-
-      {isOpen && (
-        <div
-          className="fixed bg-white border border-cyan-200 rounded-lg shadow-2xl z-[9999] min-w-[220px] max-h-72 overflow-y-auto"
-          style={{
-            top: dropdownRef.current ? dropdownRef.current.getBoundingClientRect().bottom + 4 : 0,
-            left: dropdownRef.current ? dropdownRef.current.getBoundingClientRect().left : 0,
-          }}
-        >
-          {/* 검색 입력 */}
-          <div className="px-3 py-2 border-b border-slate-100 sticky top-0 bg-white z-10">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="검색..."
-              className="w-full text-[11px] border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-cyan-400"
-              autoFocus
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-          {/* 전체 선택 */}
-          <label className="flex items-center gap-2.5 px-3 py-2 hover:bg-cyan-50 cursor-pointer border-b border-slate-100 sticky top-[41px] bg-white z-10">
-            <input
-              type="checkbox"
-              checked={filteredItems.length > 0 && filteredItems.every((item) => selectedIds.includes(item.id))}
-              onChange={() => {
-                const allFilteredSelected = filteredItems.length > 0 && filteredItems.every((item) => selectedIds.includes(item.id));
-                if (search.trim()) {
-                  filteredItems.forEach((item) => {
-                    const isSelected = selectedIds.includes(item.id);
-                    if (allFilteredSelected ? isSelected : !isSelected) onToggleItem(item.id);
-                  });
-                } else {
-                  onToggleAll();
-                }
-              }}
-              className="w-3.5 h-3.5 flex-shrink-0"
-              style={{ accentColor: color }}
-            />
-            <span className="text-[11px] font-bold text-slate-700">전체 선택</span>
-            <span className="text-[10px] text-slate-400 ml-auto font-mono">{filteredItems.length}개</span>
-          </label>
-          {filteredItems.length === 0 ? (
-            <div className="px-3 py-3 text-[10px] text-slate-400 text-center">{isFetching ? '로딩 중...' : search ? '검색 결과 없음' : (emptyText ?? '데이터 없음')}</div>
-          ) : (
-            filteredItems.map((item) => (
-              <label key={item.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-cyan-50 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(item.id)}
-                  onChange={() => onToggleItem(item.id)}
-                  className="w-3.5 h-3.5 flex-shrink-0"
-                  style={{ accentColor: color }}
-                />
-                <span className="text-[11px] text-slate-700 flex-1 truncate">{item.name}</span>
-                <span className="text-[9px] text-slate-400 font-mono">#{item.id}</span>
-              </label>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── TaskCreate (메인) ────────────────────────────────────────────────────────
 export default function TaskCreate() {
   const location = useLocation();
@@ -935,10 +1296,12 @@ export default function TaskCreate() {
 
   // ── 기본 상태 ────────────────────────────────────────────────────────────
   const [boardTitle, setBoardTitle] = useState(layout?.layoutName ?? bg?.pageName ?? '새 전광판');
-  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(['IVR']));
   const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitleText, setEditingTitleText] = useState('');
+  const [newColKey, setNewColKey] = useState('');
+  const [newColLabel, setNewColLabel] = useState('');
   const [imageRatio, setImageRatio] = useState<string>('16/9');
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(savedMeta?.layoutMode ?? 'free');
   const [gridMargin, setGridMargin] = useState<[number, number]>(savedMeta?.gridMargin ?? [4, 4]);
@@ -961,6 +1324,9 @@ export default function TaskCreate() {
   const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
   const groupDropdownRef = useRef<HTMLDivElement>(null);
   const { data: groupRows = [], isFetching: groupFetching } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+
+  // 미디어타입은 디스플레이 선택값이 아니라 위젯(테이블/차트) 단위 설정으로 옮김 — 목록만 여기서 가져와 위젯 설정 패널 옵션으로 사용
+  const { data: mediaTypeRows = [] } = useGetCtiMediaTypeList({ queryOptions: { refetchInterval: false } });
 
   // 외부 클릭 닫기 (큐/상담사/그룹 드롭다운)
   useEffect(() => {
@@ -1084,13 +1450,6 @@ export default function TaskCreate() {
       unblockNavRef.current = null;
     };
   }, [isDirty, navigator]);
-
-  // ── 뒤로가기 (변경사항 확인) ─────────────────────────────────────────
-  const handleBack = () => {
-    if (isDirty && !window.confirm('저장하지 않은 변경사항이 있습니다.\n페이지를 나가시겠습니까?')) return;
-    unblockNavRef.current?.();
-    navigate(-1);
-  };
 
   const boardContainerRef = useRef<HTMLDivElement>(null);
 
@@ -1388,16 +1747,6 @@ export default function TaskCreate() {
     );
   };
 
-  // ── DnD 소스 드래그/드랍 ────────────────────────────────────────────
-  const toggleCategory = (cat: string) => {
-    setOpenCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
-      return next;
-    });
-  };
-
   const handleDragStart = (event: DragStartEvent) => {
     setActiveDrag(event.active.data.current as DragInfo);
   };
@@ -1405,12 +1754,50 @@ export default function TaskCreate() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDrag(null);
+    const info = active.data.current as DragInfo;
+
+    // 계산식 위젯의 변수(operand) 바인딩 영역에 드롭 — 🔗 위젯 참조 또는 좌측 팔레트의 Redis 항목 모두 지원
+    if (typeof over?.id === 'string' && over.id.startsWith('calc-operand-')) {
+      const rest = over.id.slice('calc-operand-'.length);
+      const sepIdx = rest.lastIndexOf('-');
+      const calcWidgetId = rest.slice(0, sepIdx);
+      const varName = rest.slice(sepIdx + 1);
+
+      // 🔗 드래그 핸들 → 캔버스에 배치된 위젯을 변수로 연결
+      if (info.type === 'widget-ref') {
+        if (calcWidgetId === info.widgetId) return;
+        pushUndo(droppedWidgets, guides);
+        setDroppedWidgets((prev) =>
+          prev.map((w) =>
+            w.id === calcWidgetId && w.calc
+              ? { ...w, calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, widgetId: info.widgetId } : op)) } }
+              : w,
+          ),
+        );
+        return;
+      }
+
+      // 좌측 팔레트의 Redis 항목 → 캔버스 배치 없이 직접 변수로 연결
+      if (info.type === 'source' && info.item.category === 'Redis' && info.item.redisHashKey) {
+        pushUndo(droppedWidgets, guides);
+        setDroppedWidgets((prev) =>
+          prev.map((w) =>
+            w.id === calcWidgetId && w.calc
+              ? { ...w, calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: 'none' } : op)) } }
+              : w,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 위젯 참조(🔗) 드래그가 계산식 변수 영역이 아닌 곳에 드롭되면 무시
+    if (info.type === 'widget-ref') return;
+
     if (over?.id !== 'board-canvas') return;
     const boardRect = over.rect;
     const activeRect = active.rect.current.translated;
     if (!activeRect) return;
-    const info = active.data.current as DragInfo;
-    if (info.type !== 'source') return;
 
     const xPct = ((activeRect.left - boardRect.left) / boardRect.width) * 100;
     const yPct = ((activeRect.top - boardRect.top) / boardRect.height) * 100;
@@ -1431,16 +1818,16 @@ export default function TaskCreate() {
     }
 
     pushUndo(droppedWidgets, guides);
-    const isTable = info.item.displayType === 'table';
+    const isLargeWidget = info.item.displayType === 'table' || info.item.displayType === 'chart';
 
     let finalX = Math.max(0, Math.min(99, xPct));
     let finalY = Math.max(0, Math.min(99, yPct));
-    let finalW = isTable ? (DEFAULT_TABLE_GRID_W / GRID_COLS) * 100 : DEFAULT_W;
-    let finalH = isTable ? (DEFAULT_TABLE_GRID_H / GRID_ROWS) * 100 : DEFAULT_H;
+    let finalW = isLargeWidget ? (DEFAULT_TABLE_GRID_W / GRID_COLS) * 100 : DEFAULT_W;
+    let finalH = isLargeWidget ? (DEFAULT_TABLE_GRID_H / GRID_ROWS) * 100 : DEFAULT_H;
 
     if (layoutMode === 'grid') {
-      const gw = isTable ? DEFAULT_TABLE_GRID_W : DEFAULT_GRID_W;
-      const gh = isTable ? DEFAULT_TABLE_GRID_H : DEFAULT_GRID_H;
+      const gw = isLargeWidget ? DEFAULT_TABLE_GRID_W : DEFAULT_GRID_W;
+      const gh = isLargeWidget ? DEFAULT_TABLE_GRID_H : DEFAULT_GRID_H;
       const gridX = Math.min(GRID_COLS - gw, Math.max(0, Math.round((xPct / 100) * GRID_COLS)));
       const gridY = Math.min(GRID_ROWS - gh, Math.max(0, Math.round((yPct / 100) * GRID_ROWS)));
       finalX = (gridX / GRID_COLS) * 100;
@@ -1470,6 +1857,7 @@ export default function TaskCreate() {
       h: finalH,
       showTitle: true,
       style: { ...DEFAULT_STYLE },
+      ...(info.item.category === 'Calc' ? { calc: { formula: '', operands: [] } } : {}),
     };
     setDroppedWidgets((prev) => [...prev, newWidget]);
     setSelectedWidgetIds([newWidget.id]);
@@ -1501,8 +1889,102 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, ...patch } } : w)));
   };
 
-  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey'>>) => {
+  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey' | 'aggregation'>>) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
+  };
+
+  // 계산식 위젯 설정 변경 (수식, 소수점 자릿수 등)
+  const updateWidgetCalc = (id: string, patch: Partial<CalcConfig>) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, calc: { formula: '', operands: [], ...w.calc, ...patch } } : w)));
+  };
+
+  // 계산식 위젯에 새 변수(A, B, C ...) 추가 — 이미 쓰인 알파벳 다음 글자를 자동 할당
+  const addCalcOperand = (id: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.calc) return w;
+        const usedVars = new Set(w.calc.operands.map((op) => op.var));
+        const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
+        return { ...w, calc: { ...w.calc, operands: [...w.calc.operands, { var: nextVar }] } };
+      }),
+    );
+  };
+
+  // 계산식 위젯의 변수 제거
+  const removeCalcOperand = (id: string, varName: string) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id && w.calc ? { ...w, calc: { ...w.calc, operands: w.calc.operands.filter((op) => op.var !== varName) } } : w)));
+  };
+
+  // Redis 항목을 직접 참조하는 변수의 집계 방식 변경 (해시 그룹일 때만 의미 있음)
+  const updateCalcOperandAggregation = (id: string, varName: string, aggregation: CalcOperand['aggregation']) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => (w.id === id && w.calc ? { ...w, calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { ...op, aggregation } : op)) } } : w)),
+    );
+  };
+
+  // 표시 방식 전환 — 테이블형 위젯을 표/차트로 전환 (item.tableConfig가 있는 위젯 전용)
+  const updateWidgetDisplayType = (id: string, displayType: 'table' | 'chart') => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        if (displayType === 'chart') {
+          const chartConfig: ChartConfig = w.item.chartConfig ?? { chartType: 'bar', sampleData: buildChartSampleData(w.item.tableConfig) };
+          return { ...w, item: { ...w.item, displayType, chartConfig } };
+        }
+        return { ...w, item: { ...w.item, displayType } };
+      }),
+    );
+  };
+
+  // 테이블형 위젯(table-queue/group/agent) 컬럼 추가/삭제 — 여기서 추가한 필드가 그대로 WS 구독 columns로 사용됨
+  const addWidgetTableColumn = (id: string, key: string, label: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const exists = w.item.tableConfig.columns.some((c) => c.key.toLowerCase() === key.toLowerCase());
+        if (exists) return w;
+        const columns = [...w.item.tableConfig.columns, { key, label }];
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const removeWidgetTableColumn = (id: string, key: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.filter((c) => c.key !== key);
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  // 미디어타입 변경 — table-queue/table-group/table-agent/chart-bar-queue/chart-line-trend 위젯이 어느 IC:XXX:{미디어타입} 해시를 볼지 결정
+  const updateWidgetMediaType = (id: string, mediaType: string) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, mediaType } } : w)));
+  };
+
+  // 차트 종류 변경 (막대/선/파이/도넛)
+  const updateWidgetChartType = (id: string, chartType: ChartConfig['chartType']) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id && w.item.chartConfig ? { ...w, item: { ...w.item, chartConfig: { ...w.item.chartConfig, chartType } } } : w)));
+  };
+
+  // 차트 색상 모드/색상 변경 (무지개 ↔ 직접 선택)
+  const updateWidgetChartConfig = (id: string, patch: Partial<ChartConfig>) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id && w.item.chartConfig ? { ...w, item: { ...w.item, chartConfig: { ...w.item.chartConfig, ...patch } } } : w)));
+  };
+
+  // 차트 색상 배열 중 특정 인덱스만 변경 (배열 길이가 부족하면 기본 팔레트로 채움)
+  const updateWidgetChartColorAt = (id: string, idx: number, color: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.chartConfig) return w;
+        const next = [...(w.item.chartConfig.colors ?? [])];
+        while (next.length <= idx) next.push(CHART_COLORS_LIST[next.length % CHART_COLORS_LIST.length]);
+        next[idx] = color;
+        return { ...w, item: { ...w.item, chartConfig: { ...w.item.chartConfig, colors: next } } };
+      }),
+    );
   };
 
   const updateWidgetPosition = (id: string, patch: Partial<Pick<DroppedWidget, 'x' | 'y' | 'w' | 'h'>>) => {
@@ -1595,14 +2077,14 @@ export default function TaskCreate() {
       toast.error('배경 정보가 없습니다.');
       return;
     }
+    // 큐/그룹/상담사/미디어타입 선택값은 더 이상 레이아웃에 저장하지 않는다.
+    // 위젯 디자인(레이아웃)과 분리되어 디스플레이(TaskboardDisplay)별로 따로 저장된다 —
+    // 위 상단 셀렉터는 이 에디터 내 캔버스 미리보기 용도로만 쓰인다.
     const layoutJson = JSON.stringify({
       version: 2,
       layoutMode,
       gridMargin,
       containerPadding,
-      selectedQueueIds,
-      selectedGroupIds,
-      selectedAgentIds,
       guides,
       showGuides,
       widgets: droppedWidgets,
@@ -1699,48 +2181,21 @@ export default function TaskCreate() {
   const queueItems = queueRows.map((q) => ({ id: q.ctiqId, name: q.ctiqName }));
   const agentItems = agentRows.map((a) => ({ id: a.agentId, name: a.agentName }));
   const groupItems = groupRows.map((g) => ({ id: g.groupId, name: g.groupName }));
+  const mediaTypeItems = mediaTypeRows.map((m) => ({ id: m.mediaType, name: `${m.mediaAlias} (:${m.mediaType})` }));
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
-        {/* ── 왼쪽 패널: 콜데이터 리스트 ── */}
-        <div className="w-60 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100 flex-shrink-0">
-            <button onClick={handleBack} className="text-xs text-slate-400 hover:text-slate-600 mb-2 block">
-              {isDirty ? '← 돌아가기 ⚠' : '← 돌아가기'}
-            </button>
-            <h2 className="text-sm font-bold text-slate-800">콜데이터 리스트</h2>
-            <p className="text-xs text-slate-400 mt-0.5">항목을 가운데 배경에 드래그하세요</p>
-          </div>
-
+        {/* ── 왼쪽 패널: 데이터 소스 ── */}
+        <div className="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden relative z-10">
           <div className="flex-1 overflow-y-auto min-h-0">
-            {Object.keys(CALL_DATA_CATEGORIES).map((cat) => (
-              <div key={cat} className="border-b border-slate-100">
-                <button
-                  onClick={() => toggleCategory(cat)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CALL_DATA_CATEGORIES[cat][0].color }} />
-                    {CATEGORY_LABELS[cat]}
-                    <span className="text-[10px] text-slate-400 font-normal">({CALL_DATA_CATEGORIES[cat].length})</span>
-                  </div>
-                  <span className={`text-slate-400 text-xs transition-transform duration-200 ${openCategories.has(cat) ? 'rotate-90' : ''}`}>▶</span>
-                </button>
-                {openCategories.has(cat) && (
-                  <div className="px-3 pb-3 flex flex-col gap-1.5 bg-slate-50/60">
-                    {CALL_DATA_CATEGORIES[cat].map((item) => (
-                      <DraggableSourceItem key={item.id} item={item} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            <RedisHashSection />
+            <FixedItemsSection />
           </div>
         </div>
 
         {/* ── 가운데 패널: 캔버스 ── */}
-        <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 relative z-[1]">
           {/* 메인 헤더 */}
           <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between flex-shrink-0 overflow-hidden">
             <div className="flex-1 min-w-0 mr-4">
@@ -1921,8 +2376,12 @@ export default function TaskCreate() {
             </div>
           </div>
 
-          {/* ── 큐리스트/상담그룹/상담사 멀티선택 바 ── */}
+          {/* ── 큐리스트/상담그룹/상담사 멀티선택 바 — 캔버스 미리보기 전용, 저장 안 됨 ── */}
           <div className="px-3 py-2 bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-cyan-200 flex items-center gap-2 flex-shrink-0">
+            <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap flex-shrink-0 px-1.5 py-0.5 bg-white/70 rounded border border-slate-200">
+              미리보기 전용 — 실제 표시값은 디스플레이 관리에서 설정
+            </span>
+            <div className="w-px h-4 bg-cyan-200 flex-shrink-0 mx-1" />
             {/* 큐리스트 */}
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse flex-shrink-0" />
             <span className="text-[11px] font-semibold text-cyan-800 whitespace-nowrap flex-shrink-0">큐리스트</span>
@@ -1995,10 +2454,10 @@ export default function TaskCreate() {
               {showGuides && (
                 <>
                   {/* 모서리 채우기 */}
-                  <div className="absolute top-0 left-0 w-4 h-4 bg-slate-900 z-[201] pointer-events-none" />
+                  <div className="absolute top-0 left-0 w-4 h-4 bg-slate-900 z-[11] pointer-events-none" />
                   {/* 상단 눈금자 (드래그 → 수평 가이드) */}
                   <div
-                    className="absolute top-0 left-4 right-0 h-4 bg-slate-800 z-[200] overflow-hidden select-none cursor-ns-resize"
+                    className="absolute top-0 left-4 right-0 h-4 bg-slate-800 z-[10] overflow-hidden select-none cursor-ns-resize"
                     style={{ borderBottom: '1px solid #334155' }}
                     onPointerDown={(e) => handleRulerPointerDown('h', e)}
                   >
@@ -2025,7 +2484,7 @@ export default function TaskCreate() {
                   </div>
                   {/* 좌측 눈금자 (드래그 → 수직 가이드) */}
                   <div
-                    className="absolute top-4 left-0 w-4 bottom-0 bg-slate-800 z-[200] overflow-hidden select-none cursor-ew-resize"
+                    className="absolute top-4 left-0 w-4 bottom-0 bg-slate-800 z-[10] overflow-hidden select-none cursor-ew-resize"
                     style={{ borderRight: '1px solid #334155' }}
                     onPointerDown={(e) => handleRulerPointerDown('v', e)}
                   >
@@ -2220,6 +2679,7 @@ export default function TaskCreate() {
                             <CanvasWidgetFree
                               key={widget.id}
                               widget={widget}
+                              widgets={droppedWidgets}
                               isSelected={selectedWidgetIds.includes(widget.id)}
                               onSelect={(shiftKey) => {
                                 if (lastDragOccurredRef.current) return;
@@ -2240,6 +2700,7 @@ export default function TaskCreate() {
                             <div key={widget.id}>
                               <CanvasWidgetGrid
                                 widget={widget}
+                                widgets={droppedWidgets}
                                 isSelected={selectedWidgetIds.includes(widget.id)}
                                 onSelect={() => setSelectedWidgetIds([widget.id])}
                                 onRemove={() => removeWidget(widget.id)}
@@ -2336,23 +2797,33 @@ export default function TaskCreate() {
                       <div className="flex gap-1">
                         <input
                           autoFocus
-                          defaultValue={selectedWidget.customTitle ?? selectedWidget.item.label}
+                          value={editingTitleText}
+                          onChange={(e) => setEditingTitleText(e.currentTarget.value)}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              updateWidgetMeta(selectedWidget.id, { customTitle: e.currentTarget.value || undefined });
+                              updateWidgetMeta(selectedWidget.id, { customTitle: editingTitleText || undefined });
                               setEditingTitleId(null);
                             } else if (e.key === 'Escape') setEditingTitleId(null);
                           }}
                           className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
                           placeholder={selectedWidget.item.label}
                         />
-                        <button onClick={() => setEditingTitleId(null)} className="text-[10px] px-2 py-1 bg-slate-200 rounded hover:bg-slate-300">
+                        <button
+                          onClick={() => {
+                            updateWidgetMeta(selectedWidget.id, { customTitle: editingTitleText || undefined });
+                            setEditingTitleId(null);
+                          }}
+                          className="text-[10px] px-2 py-1 bg-[#0f5b9e] text-white rounded hover:bg-[#0d4f8a]"
+                        >
                           완료
                         </button>
                       </div>
                     ) : (
                       <button
-                        onClick={() => setEditingTitleId(selectedWidget.id)}
+                        onClick={() => {
+                          setEditingTitleId(selectedWidget.id);
+                          setEditingTitleText(selectedWidget.customTitle ?? selectedWidget.item.label);
+                        }}
                         className="w-full text-left text-xs px-2 py-1.5 bg-white border border-slate-200 rounded hover:border-[#0f5b9e] text-slate-600 truncate"
                       >
                         {selectedWidget.customTitle ?? selectedWidget.item.label}
@@ -2385,8 +2856,177 @@ export default function TaskCreate() {
                   </div>
                 )}
 
+                {/* 표시 방식 — 테이블형 위젯 전용 (표 ↔ 차트 전환) */}
+                {selectedWidget.item.tableConfig && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">표시 방식</label>
+                    <div className="flex gap-1">
+                      {(
+                        [
+                          { label: '표', value: 'table' as const },
+                          { label: '차트', value: 'chart' as const },
+                        ] as const
+                      ).map(({ label, value }) => (
+                        <button
+                          key={value}
+                          onClick={() => updateWidgetDisplayType(selectedWidget.id, value)}
+                          className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            (selectedWidget.item.displayType ?? 'table') === value
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 테이블 컬럼 — table-queue/table-group/table-agent 전용. 여기서 추가한 필드명이 그대로 WS 구독 컬럼으로 쓰여 그 컬럼만 받아온다. */}
+                {['table-queue', 'table-group', 'table-agent'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                      테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
+                    </label>
+                    <div className="space-y-1 mb-1.5">
+                      {selectedWidget.item.tableConfig.columns.map((col) => (
+                        <div key={col.key} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded px-2 py-1">
+                          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
+                          <span className="text-[10px] text-slate-700 flex-1 truncate">{col.label}</span>
+                          {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                            <button
+                              onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
+                              className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
+                              title="컬럼 삭제"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value={newColKey}
+                        onChange={(e) => setNewColKey(e.target.value)}
+                        placeholder="필드명 (RTS_LOGIN)"
+                        className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                      />
+                      <input
+                        type="text"
+                        value={newColLabel}
+                        onChange={(e) => setNewColLabel(e.target.value)}
+                        placeholder="표시명 (로그인)"
+                        className="w-1/2 px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                      />
+                      <button
+                        onClick={() => {
+                          if (!newColKey.trim()) return;
+                          addWidgetTableColumn(selectedWidget.id, newColKey.trim(), newColLabel.trim() || newColKey.trim());
+                          setNewColKey('');
+                          setNewColLabel('');
+                        }}
+                        className="flex-shrink-0 px-2 py-1 text-[10px] font-bold bg-[#0f5b9e] text-white rounded hover:bg-[#0c4a82]"
+                      >
+                        + 추가
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 미디어타입 — table-queue/table-group/table-agent + 큐 차트 전용. 위젯이 볼 IC:XXX:{미디어타입} 해시를 고정한다. */}
+                {['table-queue', 'table-group', 'table-agent', 'chart-bar-queue', 'chart-line-trend'].includes(selectedWidget.item.id) && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">미디어타입</label>
+                    <select
+                      value={selectedWidget.item.mediaType ?? '0'}
+                      onChange={(e) => updateWidgetMediaType(selectedWidget.id, e.target.value)}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
+                    >
+                      {mediaTypeItems.length === 0 ? (
+                        <option value="0">VOIP (:0)</option>
+                      ) : (
+                        mediaTypeItems.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                )}
+
+                {/* 차트 종류 — 표시 방식이 차트일 때만 */}
+                {selectedWidget.item.tableConfig && selectedWidget.item.displayType === 'chart' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">차트 종류</label>
+                    <div className="flex gap-1">
+                      {CHART_TYPE_OPTIONS.map(({ label, value }) => (
+                        <button
+                          key={value}
+                          onClick={() => updateWidgetChartType(selectedWidget.id, value)}
+                          className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            (selectedWidget.item.chartConfig?.chartType ?? 'bar') === value
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 차트 색상 — 표시 방식이 차트일 때만 */}
+                {selectedWidget.item.tableConfig && selectedWidget.item.displayType === 'chart' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">차트 색상</label>
+                    <div className="flex gap-1 mb-1.5">
+                      {(
+                        [
+                          { label: '무지개', value: 'rainbow' as const },
+                          { label: '직접 선택', value: 'custom' as const },
+                        ] as const
+                      ).map(({ label, value }) => (
+                        <button
+                          key={value}
+                          onClick={() => updateWidgetChartConfig(selectedWidget.id, { colorMode: value })}
+                          className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            (selectedWidget.item.chartConfig?.colorMode ?? 'rainbow') === value
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedWidget.item.chartConfig?.colorMode === 'custom' && (
+                      <div className="flex gap-1 flex-wrap">
+                        {(selectedWidget.item.chartConfig.chartType === 'pie' || selectedWidget.item.chartConfig.chartType === 'donut'
+                          ? (selectedWidget.item.chartConfig.sampleData ?? [])
+                          : [{ name: '값' }]
+                        ).map((d, idx) => (
+                          <div key={idx} className="flex-1 min-w-[48px]">
+                            <span className="text-[9px] text-slate-400 block truncate mb-0.5">{d.name}</span>
+                            <input
+                              type="color"
+                              value={selectedWidget.item.chartConfig?.colors?.[idx] ?? CHART_COLORS_LIST[idx % CHART_COLORS_LIST.length]}
+                              onChange={(e) => updateWidgetChartColorAt(selectedWidget.id, idx, e.target.value)}
+                              className="w-full h-7 rounded border border-slate-200 cursor-pointer"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 값 정렬 */}
-                {selectedWidget.item.displayType !== 'table' && (
+                {selectedWidget.item.displayType !== 'table' && selectedWidget.item.displayType !== 'chart' && (
                   <div>
                     <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">값 정렬</label>
                     <div className="flex gap-1">
@@ -2404,7 +3044,7 @@ export default function TaskCreate() {
                 )}
 
                 {/* 1000단위 콤마 */}
-                {selectedWidget.item.displayType !== 'table' && (
+                {selectedWidget.item.displayType !== 'table' && selectedWidget.item.displayType !== 'chart' && (
                   <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
                     <div>
                       <span className="text-[10px] text-slate-600 font-semibold">1000단위 콤마</span>
@@ -2421,11 +3061,111 @@ export default function TaskCreate() {
                   </div>
                 )}
 
-                {/* 공지 키 선택 (공지 위젯 전용) */}
-                {selectedWidget.item.id === 'etc-announcement' && (
+                {/* 공지 키 선택 — noticeId 없는 공지 위젯(전체/키 필터) 전용 */}
+                {isAnnouncementWidget(selectedWidget) && !selectedWidget.item.noticeId && (
                   <div>
                     <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">공지 키</label>
                     <NoticeKeyPanel noticeKey={selectedWidget.noticeKey} onChange={(key) => updateWidgetMeta(selectedWidget.id, { noticeKey: key })} />
+                  </div>
+                )}
+
+                {/* 집계 방식 — Redis 위젯 전용 (해시 그룹이 없으면 자기 자신 값만으로 집계) */}
+                {selectedWidget.item.category === 'Redis' && !!selectedWidget.item.redisHashKey && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                      집계 방식{' '}
+                      <span className="text-slate-300 font-normal normal-case">
+                        ({selectedWidget.item.hashSiblingKeys?.length ? `${selectedWidget.item.hashSiblingKeys.length}개 키` : '1개 키'})
+                      </span>
+                    </label>
+                    <div className="flex gap-1">
+                      {(
+                        [
+                          { label: '없음', value: 'none' as const },
+                          { label: '∑ 합계', value: 'sum' as const },
+                          { label: '↑ 최대', value: 'max' as const },
+                          { label: '↓ 최소', value: 'min' as const },
+                          { label: '⌀ 평균', value: 'avg' as const },
+                        ] as const
+                      ).map(({ label, value }) => (
+                        <button
+                          key={value}
+                          onClick={() => updateWidgetMeta(selectedWidget.id, { aggregation: value })}
+                          className={`flex-1 py-1 rounded border text-[9px] font-semibold transition-colors ${
+                            (selectedWidget.aggregation ?? 'none') === value
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 계산식 위젯 설정 — 수식 입력 + 캔버스 위젯을 드래그해 변수(A,B,C...)에 연결 */}
+                {selectedWidget.item.category === 'Calc' && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">수식</label>
+                      <input
+                        type="text"
+                        value={selectedWidget.calc?.formula ?? ''}
+                        onChange={(e) => updateWidgetCalc(selectedWidget.id, { formula: e.target.value })}
+                        placeholder="예: A * 1.5 + B"
+                        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                        변수 <span className="text-slate-300 font-normal normal-case">(캔버스 위젯의 🔗 또는 좌측 Redis 항목을 드래그해서 연결)</span>
+                      </label>
+                      <div className="space-y-1">
+                        {(selectedWidget.calc?.operands ?? []).map((op) => {
+                          let label: string | undefined;
+                          if (op.widgetId) {
+                            const boundWidget = droppedWidgets.find((w) => w.id === op.widgetId);
+                            label = boundWidget ? (boundWidget.customTitle ?? boundWidget.item.label) : '(삭제된 위젯)';
+                          } else if (op.source) {
+                            label = op.source.label;
+                          }
+                          return (
+                            <CalcOperandDropZone
+                              key={op.var}
+                              calcWidgetId={selectedWidget.id}
+                              operand={op}
+                              label={label}
+                              onRemove={() => removeCalcOperand(selectedWidget.id, op.var)}
+                              onAggregationChange={(aggregation) => updateCalcOperandAggregation(selectedWidget.id, op.var, aggregation)}
+                            />
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => addCalcOperand(selectedWidget.id)}
+                        disabled={(selectedWidget.calc?.operands.length ?? 0) >= 26}
+                        className="mt-1.5 w-full py-1 rounded border border-dashed border-slate-300 text-[10px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                      >
+                        + 변수 추가
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">소수점 자릿수</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={6}
+                        value={selectedWidget.calc?.decimals ?? 1}
+                        onChange={(e) => updateWidgetCalc(selectedWidget.id, { decimals: Math.max(0, Math.min(6, Number(e.target.value) || 0)) })}
+                        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                      />
+                    </div>
+                    {!!selectedWidget.calc?.formula.trim() && (
+                      <div className="text-[10px] text-slate-400">
+                        결과 미리보기: <span className="font-mono text-slate-600">{getCalcDisplayValue(selectedWidget, droppedWidgets)}</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2751,7 +3491,13 @@ export default function TaskCreate() {
       </div>
 
       <DragOverlay>
-        {activeDrag && (
+        {activeDrag && activeDrag.type === 'widget-ref' && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-violet-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
+            <span className="text-xs">🔗</span>
+            <span className="text-xs font-medium text-slate-700">{activeDrag.label}</span>
+          </div>
+        )}
+        {activeDrag && activeDrag.type === 'source' && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeDrag.item.color }} />
             <span className="text-xs font-medium text-slate-700">{activeDrag.item.label}</span>

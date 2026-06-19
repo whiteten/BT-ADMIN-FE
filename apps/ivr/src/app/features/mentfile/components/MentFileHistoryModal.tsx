@@ -19,6 +19,7 @@ import { Search } from 'lucide-react';
 import { useGetMentFileHistory } from '../hooks/useMentFileQueries';
 import { MENT_HIST_KIND_LABELS, MENT_HIST_STATUS_LABELS, type MentFileHistoryRow } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const { RangePicker } = DatePicker;
 
@@ -120,6 +121,7 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
           if (k == null) return '-';
           return <Tag color={k === 0 ? 'blue' : 'purple'}>{MENT_HIST_KIND_LABELS[k] ?? k}</Tag>;
         },
+        ...codeFilter<MentFileHistoryRow>('rtServKindCode', MENT_HIST_KIND_LABELS),
       },
       { headerName: '멘트명', field: 'mentName', flex: 1, minWidth: 140 },
       { headerName: '파일명', field: 'mentFile', flex: 1, minWidth: 160, tooltipField: 'mentFile' },
@@ -149,6 +151,7 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
           const color = c === 50 || c === 20 || c === 30 ? 'green' : c === 55 || c === 25 || c === 35 ? 'red' : c === 9 ? 'orange' : 'gold';
           return <Tag color={color}>{MENT_HIST_STATUS_LABELS[c] ?? c}</Tag>;
         },
+        ...codeFilter<MentFileHistoryRow>('applyStatusCode', MENT_HIST_STATUS_LABELS),
       },
       { headerName: '작업자', field: 'workUserName', width: 110 },
     ],

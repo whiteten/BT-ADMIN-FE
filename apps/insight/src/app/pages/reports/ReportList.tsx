@@ -1,22 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Input, Segmented, Select, Tag } from 'antd';
+import { type BreadcrumbProps, Button, Input, Tag } from 'antd';
+import { Layers, type LucideIcon, Menu, Plus, Search, Server, User } from 'lucide-react';
 import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
-import ReportCard from '../../features/report/components/ReportCard';
+import { fuzzyFilter } from '@/shared-util';
+import ReportRow from '../../features/report/components/ReportRow';
 import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useGetReports } from '../../features/report/hooks/useReportQueries';
 import type { DomainCode, ReportListItem } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
+import { cn } from '@/lib/utils';
 
-type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED';
+type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED' | 'SYSTEM';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/insight/statistics' },
   { title: '보고서 관리', path: '/insight/statistics/reports' },
 ];
 
+// 도메인 섹션 순서 — 추후 도메인 확장 시 이 배열만 늘리면 레일·그룹이 함께 확장된다.
 const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
+// 레일 도메인 점 색상 (antd Tag 색과 동일 계열). 미정의 도메인은 회색 fallback.
+const DOMAIN_DOT_COLOR: Record<string, string> = { IE: '#1677ff', IC: '#389e0d', IR: '#d46b08' };
+// 도메인 컬럼 헤더 배경 — 카테고리 구분용이되 색감은 최소화(거의 중성에 살짝 도메인 힌트). 미정의 도메인은 회색 fallback.
+const DOMAIN_SOFT_BG: Record<string, string> = { IE: '#f7fafc', IC: '#f7fbf8', IR: '#fcfaf7' };
+
+const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string; icon: LucideIcon }[] = [
+  { value: 'ALL', label: '전체', icon: Layers },
+  { value: 'MINE', label: '내 보고서', icon: User },
+  { value: 'PUBLISHED', label: '메뉴 등록', icon: Menu },
+  { value: 'SYSTEM', label: '시스템', icon: Server },
+];
 
 /**
  * 메뉴로 등록된 보고서 reportId 집합 추출.
@@ -60,120 +75,232 @@ export default function ReportList() {
 
   // 내 userId — 소유 판정 기준
   const myUserId = useAuthStore((s) => s.userInfo?.userId);
+  const isMine = (r: ReportListItem) => myUserId != null && String(r.ownerUserId) === String(myUserId);
 
-  const byDomain = useMemo<Record<DomainCode, ReportListItem[]>>(() => {
-    const kw = searchValue.trim().toLowerCase();
-    const grouped: Record<DomainCode, ReportListItem[]> = { IE: [], IC: [], IR: [] };
-    reports
-      .filter((r) => {
-        const isMine = myUserId != null && String(r.ownerUserId) === String(myUserId);
-        const isRegistered = registeredReportIds.has(r.reportId);
-        // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표(전체 공개 readonly)만 노출
-        if (!isMine && !isRegistered && !r.isSystem) return false;
-        // 조회 조건: 내 보고서(MINE) / 메뉴 등록(PUBLISHED) / 전체(ALL)
-        if (ownership === 'PUBLISHED' && !isRegistered) return false;
-        if (ownership === 'MINE' && !isMine) return false;
-        if (!kw) return true;
-        return r.title.toLowerCase().includes(kw) || (r.datasetNames ?? []).some((n) => n.toLowerCase().includes(kw));
-      })
-      .forEach((r) => {
-        if (grouped[r.domain]) grouped[r.domain].push(r);
-      });
+  // 1) 가시성 + 검색 적용 (소유/도메인 미적용) — 소유 탭 건수 기준.
+  // 검색은 통합검색/메뉴검색과 동일한 fuzzy 매칭(초성·자모 지원). 제목 + 데이터셋명 통합 대상.
+  const visibleBase = useMemo(() => {
+    // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표만 노출
+    const visible = reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem);
+    return fuzzyFilter(searchValue, visible, (r) => `${r.title} ${(r.datasetNames ?? []).join(' ')}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports, searchValue, registeredReportIds, myUserId]);
+
+  // 소유 탭별 건수 (검색 반영)
+  const ownCounts = useMemo<Record<OwnershipFilter, number>>(() => {
+    return {
+      ALL: visibleBase.length,
+      MINE: visibleBase.filter(isMine).length,
+      PUBLISHED: visibleBase.filter((r) => registeredReportIds.has(r.reportId)).length,
+      SYSTEM: visibleBase.filter((r) => r.isSystem).length,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleBase, myUserId, registeredReportIds]);
+
+  // 2) 소유 적용 (도메인 미적용) — 도메인 건수 + 목록 기준
+  const ownFiltered = useMemo(() => {
+    return visibleBase.filter((r) => {
+      if (ownership === 'PUBLISHED') return registeredReportIds.has(r.reportId);
+      if (ownership === 'MINE') return isMine(r);
+      if (ownership === 'SYSTEM') return !!r.isSystem;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleBase, ownership, registeredReportIds, myUserId]);
+
+  // 도메인별 건수 (레일 배지) — 전체 + 도메인별
+  const domainCounts = useMemo<Record<string, number>>(() => {
+    const counts: Record<string, number> = { ALL: ownFiltered.length };
+    DOMAIN_SECTIONS.forEach((d) => (counts[d] = 0));
+    ownFiltered.forEach((r) => {
+      if (counts[r.domain] != null) counts[r.domain] += 1;
+    });
+    return counts;
+  }, [ownFiltered]);
+
+  // 도메인 그룹화 (목록 렌더) — DOMAIN_SECTIONS 기반 동적 초기화.
+  // 향후 도메인 목록을 API 로 받아도(배열만 교체) 그대로 수용. 미정의 도메인도 누락 없이 그룹 생성.
+  const byDomain = useMemo<Record<string, ReportListItem[]>>(() => {
+    const grouped: Record<string, ReportListItem[]> = {};
+    DOMAIN_SECTIONS.forEach((d) => (grouped[d] = []));
+    ownFiltered.forEach((r) => {
+      (grouped[r.domain] ??= []).push(r);
+    });
     return grouped;
-  }, [reports, searchValue, ownership, registeredReportIds, myUserId]);
+  }, [ownFiltered]);
 
-  const activeSections = domain ? [domain as DomainCode] : DOMAIN_SECTIONS;
-  const hasAnyMatch = activeSections.some((d) => byDomain[d].length > 0);
-  const isFiltered = !!searchValue || ownership !== 'ALL';
+  const totalVisible = (domain ? [domain] : DOMAIN_SECTIONS).reduce((sum, d) => sum + byDomain[d].length, 0);
+
+  // 칸반 컬럼 정의 — 전체면 도메인별 컬럼, 도메인 필터 시 선택 도메인을 N개 컬럼으로 균등 분산(레이아웃 일관)
+  const colCount = DOMAIN_SECTIONS.length;
+  const columns: { key: string; domain: DomainCode; items: ReportListItem[] }[] = domain
+    ? Array.from({ length: colCount }, (_, i) => ({
+        key: `${domain}-${i}`,
+        domain,
+        items: byDomain[domain].filter((_, idx) => idx % colCount === i),
+      }))
+    : DOMAIN_SECTIONS.map((d) => ({ key: d, domain: d, items: byDomain[d] }));
+
+  const handleNew = () => navigate('/insight/statistics/reports/new');
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* 필터 바 */}
-      <div className="flex items-center justify-between gap-4 w-full bg-white bt-shadow px-7 py-5">
-        <div className="flex items-center gap-3">
-          <Segmented
-            value={ownership}
-            onChange={(v) => setOwnership(v as OwnershipFilter)}
-            options={[
-              { value: 'ALL', label: '전체' },
-              { value: 'MINE', label: '내 보고서' },
-              { value: 'PUBLISHED', label: '메뉴 등록' },
-            ]}
-          />
-          <Select
-            value={domain}
-            onChange={(v) => setDomain(v as DomainCode | '')}
-            options={[
-              { value: '', label: '전체 도메인' },
-              { value: 'IE', label: `IE · ${DOMAIN_LABELS.IE}` },
-              { value: 'IC', label: `IC · ${DOMAIN_LABELS.IC}` },
-              { value: 'IR', label: `IR · ${DOMAIN_LABELS.IR}` },
-            ]}
-            className="!min-w-[140px]"
-            popupMatchSelectWidth={false}
-          />
-          <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="보고서 이름 검색…" className="w-full max-w-[300px]" allowClear />
-        </div>
-        <Button type="primary" onClick={() => navigate('/insight/statistics/reports/new')}>
-          + 새 보고서
-        </Button>
-      </div>
+      {/* datasets 페이지와 동일한 2분할: 좌측 검색+필터 레일 박스 / 우측 목록 박스 */}
+      <div className="flex gap-4 flex-1 min-h-0">
+        {/* 좌측: 검색 + 필터 레일 (트리 자리) */}
+        <div className="flex w-[340px] shrink-0 flex-col gap-3 bg-white bt-shadow p-4 min-h-0">
+          <div className="flex items-center gap-2">
+            <Input
+              allowClear
+              prefix={<Search className="size-4 text-gray-400" />}
+              placeholder="보고서 검색"
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="flex-1"
+            />
+            <Button type="primary" icon={<Plus className="size-4" />} onClick={handleNew}>
+              추가
+            </Button>
+          </div>
 
-      {/* 도메인별 섹션 */}
-      {isFetching ? (
-        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
-          <FallbackSpinner />
+          <div className="border-t border-gray-200" />
+
+          {/* 필터 레일 — 소유 + 도메인 (스크롤) */}
+          <div className="flex flex-1 flex-col gap-4 overflow-auto min-h-0">
+            {/* 소유 필터 */}
+            <div>
+              <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">범위</div>
+              <div className="flex flex-col gap-0.5">
+                {OWNERSHIP_OPTIONS.map((opt) => (
+                  <RailButton
+                    key={opt.value}
+                    active={ownership === opt.value}
+                    icon={opt.icon}
+                    label={opt.label}
+                    count={ownCounts[opt.value]}
+                    onClick={() => setOwnership(opt.value)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 도메인 필터 */}
+            <div>
+              <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">도메인</div>
+              <div className="flex flex-col gap-0.5">
+                <RailButton active={domain === ''} dot="#868e96" label="전체" count={domainCounts.ALL} onClick={() => setDomain('')} />
+                {DOMAIN_SECTIONS.map((d) => (
+                  <RailButton
+                    key={d}
+                    active={domain === d}
+                    dot={DOMAIN_DOT_COLOR[d] ?? '#868e96'}
+                    label={`${d} ${DOMAIN_LABELS[d] ?? d}`}
+                    count={domainCounts[d] ?? 0}
+                    onClick={() => setDomain(d)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      ) : !hasAnyMatch && isFiltered ? (
-        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
-          <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '조회된 데이터가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
+
+        {/* 우측: 보고서 목록 */}
+        <div className="flex flex-1 min-w-0 min-h-0 flex-col bg-white bt-shadow">
+          {isFetching ? (
+            <div className="flex h-full w-full items-center justify-center">
+              <FallbackSpinner />
+            </div>
+          ) : totalVisible === 0 ? (
+            <div className="flex h-full w-full items-center justify-center">
+              <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '조회된 데이터가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
+            </div>
+          ) : (
+            // 칸반 그리드 — 행은 목록과 동일 ReportRow. 도메인(카테고리)별로 독립 패널 분리(테두리+상단 강조선+여백)로 영역 구분감 강화.
+            // 전체: 컬럼별 도메인 헤더 / 도메인 필터: 합친 단일 헤더(총 건수) + 아래만 그리드 분산
+            <div className="flex flex-1 flex-col overflow-auto p-3">
+              {domain && (
+                <div
+                  className="sticky top-0 z-[2] mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-[#e9ebec] border-l-4 px-4 py-2.5"
+                  style={{ background: DOMAIN_SOFT_BG[domain] ?? '#fafbfc', borderLeftColor: DOMAIN_DOT_COLOR[domain] ?? '#868e96' }}
+                >
+                  <Tag
+                    color={DOMAIN_TAG_COLOR[domain]}
+                    className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
+                    style={{ borderColor: DOMAIN_DOT_COLOR[domain] ?? '#868e96' }}
+                  >
+                    {domain}
+                  </Tag>
+                  <span className="text-[13px] font-semibold">{DOMAIN_LABELS[domain] ?? domain}</span>
+                  <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{byDomain[domain].length}</span>
+                </div>
+              )}
+              <div className="grid flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(280px, 1fr))` }}>
+                {columns.map((col) => (
+                  <div
+                    key={col.key}
+                    className="flex min-w-0 flex-col rounded-lg border border-[#e9ebec] bg-white"
+                    style={{ borderTopColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96', borderTopWidth: 2 }}
+                  >
+                    {/* 전체일 때만 컬럼별 도메인 헤더 노출 (필터 시엔 위 합친 헤더가 담당) */}
+                    {!domain && (
+                      <div
+                        className="sticky top-0 z-[1] flex items-center gap-2 rounded-t-md border-b border-[#e9ebec] px-4 py-2.5"
+                        style={{ background: DOMAIN_SOFT_BG[col.domain] ?? '#fafbfc' }}
+                      >
+                        <Tag
+                          color={DOMAIN_TAG_COLOR[col.domain]}
+                          className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
+                          style={{ borderColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96' }}
+                        >
+                          {col.domain}
+                        </Tag>
+                        <span className="text-[13px] font-semibold">{DOMAIN_LABELS[col.domain] ?? col.domain}</span>
+                        <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{col.items.length}</span>
+                      </div>
+                    )}
+                    {/* 컬럼 행 목록 */}
+                    {col.items.length > 0
+                      ? col.items.map((report) => <ReportRow key={report.reportId} report={report} query={searchValue} />)
+                      : !domain && <div className="px-4 py-8 text-center text-xs text-[var(--color-bt-fg-muted)]">조건에 맞는 보고서가 없습니다.</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="flex flex-col gap-4 w-full overflow-y-auto pb-4">
-          {activeSections.map((d) => (
-            <DomainSection key={d} domain={d} items={byDomain[d]} onNew={() => navigate('/insight/statistics/reports/new')} />
-          ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
-interface DomainSectionProps {
-  domain: DomainCode;
-  items: ReportListItem[];
-  onNew: () => void;
+interface RailButtonProps {
+  active: boolean;
+  label: string;
+  count: number;
+  dot?: string;
+  icon?: LucideIcon;
+  onClick: () => void;
 }
 
-function DomainSection({ domain, items, onNew }: DomainSectionProps) {
-  const label = DOMAIN_LABELS[domain];
-
+function RailButton({ active, label, count, dot, icon: Icon, onClick }: RailButtonProps) {
   return (
-    <section className="bg-white bt-shadow">
-      <div className="flex items-center gap-2 px-7 pt-5 pb-3">
-        <Tag color={DOMAIN_TAG_COLOR[domain]} className="font-mono !text-sm !font-bold !px-2 !py-0.5">
-          {domain}
-        </Tag>
-        <span className="text-[15px] font-semibold">{label}</span>
-        <span className="text-[12px] text-[var(--color-bt-fg-muted)]">· {items.length}개</span>
-      </div>
-
-      <div className="px-7 pb-5">
-        {items.length > 0 ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
-            {items.map((report) => (
-              <ReportCard key={report.reportId} report={report} />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-3 py-8 text-center text-[12.5px] text-[var(--color-bt-fg-muted)]">
-            <span>{label} 도메인에 등록된 보고서가 없습니다.</span>
-            <Button size="small" onClick={onNew}>
-              + 새 보고서
-            </Button>
-          </div>
-        )}
-      </div>
-    </section>
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
+        active ? 'bg-[var(--color-bt-primary-soft)] font-semibold text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg)] hover:bg-[#f0f3f7]',
+      )}
+    >
+      <span className="flex min-w-0 items-center gap-1.5">
+        {Icon ? (
+          <Icon size={14} className={cn('shrink-0', active ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]')} />
+        ) : dot ? (
+          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
+        ) : null}
+        <span className="truncate">{label}</span>
+      </span>
+      <span className={cn('shrink-0 text-xs tabular-nums', active ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]')}>{count}</span>
+    </button>
   );
 }

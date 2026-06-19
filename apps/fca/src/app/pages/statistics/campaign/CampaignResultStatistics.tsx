@@ -221,9 +221,9 @@ export default function CampaignResultStatistics() {
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
-        <header className="flex items-start gap-3">
+    <div className="flex flex-col gap-4 w-full h-full min-h-0">
+      <div className="flex flex-col gap-5 w-full h-full min-h-0 bg-white bt-shadow p-5">
+        <header className="flex items-start gap-3 shrink-0">
           <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
@@ -272,7 +272,7 @@ export default function CampaignResultStatistics() {
             )}
           </div>
         </header>
-        <div className="w-full h-full">
+        <div className="flex-1 min-h-0 w-full">
           <AgGridReact<CampaignResultStatListItem>
             ref={gridRef}
             rowModelType="clientSide"

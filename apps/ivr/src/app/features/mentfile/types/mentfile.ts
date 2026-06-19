@@ -36,6 +36,22 @@ export interface MentFileUpdateRequest {
   emsFilePath?: string;
 }
 
+// ─── 다량추가 (multi-file) + 설명 매핑 ──────────────────────────────────────
+
+/** 멘트파일 다량추가 결과 (AS-IS IPR30S3020M.do). */
+export interface MentFileBatchResult {
+  total: number;
+  created: number;
+  skipped: number;
+  items: MentFile[];
+}
+
+/** 멘트설명 Excel/CSV 파싱 결과 한 행 (AS-IS IPR30S3020EXL.do). 파일명 매칭용. */
+export interface MentDescRow {
+  mentFile: string;
+  mentDesc: string;
+}
+
 // ─── 적용 대상 시스템 ──────────────────────────────────────────────────────
 
 export interface MentApplyTarget {
