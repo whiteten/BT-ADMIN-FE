@@ -22,7 +22,7 @@ import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-const breadcrumb: BreadcrumbProps['items'] = [{ title: '실행' }, { title: '수신파일', path: '/campaign/execution/receive-file' }];
+const breadcrumb: BreadcrumbProps['items'] = [{ title: '실행' }, { title: '캠페인 수신파일이력', path: '/campaign/execution/receive-file' }];
 
 const RECEIVE_FILE_TENANT_STORAGE_KEY = 'campaign-receive-file:tenant-ids';
 const RECEIVE_FILE_CAMPAIGN_STORAGE_KEY = 'campaign-receive-file:campaign-selections';

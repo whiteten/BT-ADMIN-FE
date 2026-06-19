@@ -9,8 +9,11 @@ const CampaignAchievementStatistics = React.lazy(() => import('./pages/statistic
 const CampaignList = React.lazy(() => import('./pages/management/CampaignList'));
 const CampaignCreate = React.lazy(() => import('./pages/management/CampaignCreate'));
 const CampaignDetail = React.lazy(() => import('./pages/management/CampaignDetail'));
+const ScheduleManagement = React.lazy(() => import('./pages/schedule/ScheduleManagement'));
 const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
 const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
+const ExecutionManagement = React.lazy(() => import('./pages/execution/ExecutionManagement'));
+const CampaignScenario = React.lazy(() => import('./pages/management/CampaignScenario'));
 
 export const routes = [
   {
@@ -44,13 +47,15 @@ export const routes = [
           { path: 'basic-info', element: <CampaignList /> },
           { path: 'create', element: <CampaignCreate /> },
           { path: ':campaignId', element: <CampaignDetail /> },
+          { path: 'campaign-scenario', element: <CampaignScenario /> },
         ],
       },
       {
         path: 'schedule',
         element: <Outlet />,
         children: [
-          { index: true, element: <Navigate to="schedule-list" replace /> },
+          { index: true, element: <Navigate to="schedule-management" replace /> },
+          { path: 'schedule-management', element: <ScheduleManagement /> },
           { path: 'schedule-list', element: <ScheduleList /> },
         ],
       },
@@ -60,6 +65,7 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="receive-file" replace /> },
           { path: 'receive-file', element: <ReceiveFileList /> },
+          { path: 'execution-management', element: <ExecutionManagement /> },
         ],
       },
     ],
