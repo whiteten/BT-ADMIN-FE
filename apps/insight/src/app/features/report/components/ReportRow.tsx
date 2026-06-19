@@ -166,11 +166,6 @@ export default function ReportRow({ report }: ReportRowProps) {
         )}
       </div>
 
-      {/* 시스템 식별은 제목 옆 태그가 담당 — 우측은 소유(내 보고서)만 표기 */}
-      {isOwner && !report.isSystem && (
-        <span className="inline-flex h-[17px] shrink-0 items-center rounded border border-[#86efac] bg-[#ecfdf5] px-1.5 text-[11px] font-medium text-[#15803d]">내 보고서</span>
-      )}
-
       <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
         <Button
           type="text"

@@ -22,6 +22,8 @@ const breadcrumb: BreadcrumbProps['items'] = [
 const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
 // 레일 도메인 점 색상 (antd Tag 색과 동일 계열). 미정의 도메인은 회색 fallback.
 const DOMAIN_DOT_COLOR: Record<string, string> = { IE: '#1677ff', IC: '#389e0d', IR: '#d46b08' };
+// 도메인 컬럼 헤더 연한 배경 — 카테고리 영역 구분감 부여. 미정의 도메인은 회색 fallback.
+const DOMAIN_SOFT_BG: Record<string, string> = { IE: '#f0f7ff', IC: '#f6ffed', IR: '#fff7e6' };
 
 const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string; icon: LucideIcon }[] = [
   { value: 'ALL', label: '전체', icon: Layers },
@@ -216,31 +218,43 @@ export default function ReportList() {
               <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '조회된 데이터가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
             </div>
           ) : (
-            // 칸반 그리드 — 행은 목록과 동일 ReportRow.
+            // 칸반 그리드 — 행은 목록과 동일 ReportRow. 도메인(카테고리)별로 독립 패널 분리(테두리+상단 강조선+여백)로 영역 구분감 강화.
             // 전체: 컬럼별 도메인 헤더 / 도메인 필터: 합친 단일 헤더(총 건수) + 아래만 그리드 분산
-            <div className="flex flex-1 flex-col overflow-auto">
+            <div className="flex flex-1 flex-col overflow-auto p-3">
               {domain && (
-                <div className="sticky top-0 z-[2] flex shrink-0 items-center gap-2 rounded-t-lg border-b border-[#e9ebec] bg-[#fafbfc] px-4 py-2.5">
-                  <Tag color={DOMAIN_TAG_COLOR[domain]} className="!m-0 font-mono !px-2 !py-0.5 !text-xs !font-bold">
+                <div
+                  className="sticky top-0 z-[2] mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-[#e9ebec] border-l-4 px-4 py-2.5"
+                  style={{ background: DOMAIN_SOFT_BG[domain] ?? '#fafbfc', borderLeftColor: DOMAIN_DOT_COLOR[domain] ?? '#868e96' }}
+                >
+                  <Tag
+                    color={DOMAIN_TAG_COLOR[domain]}
+                    className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
+                    style={{ borderColor: DOMAIN_DOT_COLOR[domain] ?? '#868e96' }}
+                  >
                     {domain}
                   </Tag>
                   <span className="text-[13px] font-semibold">{DOMAIN_LABELS[domain] ?? domain}</span>
                   <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{byDomain[domain].length}</span>
                 </div>
               )}
-              <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(280px, 1fr))` }}>
-                {columns.map((col, i) => (
-                  <div key={col.key} className={cn('flex min-w-0 flex-col', i < columns.length - 1 && 'border-r border-[#e9ebec]')}>
+              <div className="grid flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(280px, 1fr))` }}>
+                {columns.map((col) => (
+                  <div
+                    key={col.key}
+                    className="flex min-w-0 flex-col rounded-lg border border-[#e9ebec] bg-white"
+                    style={{ borderTopColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96', borderTopWidth: 3 }}
+                  >
                     {/* 전체일 때만 컬럼별 도메인 헤더 노출 (필터 시엔 위 합친 헤더가 담당) */}
                     {!domain && (
                       <div
-                        className={cn(
-                          'sticky top-0 z-[1] flex items-center gap-2 border-b border-[#e9ebec] bg-[#fafbfc] px-4 py-2.5',
-                          i === 0 && 'rounded-tl-lg',
-                          i === columns.length - 1 && 'rounded-tr-lg',
-                        )}
+                        className="sticky top-0 z-[1] flex items-center gap-2 rounded-t-md border-b border-[#e9ebec] px-4 py-2.5"
+                        style={{ background: DOMAIN_SOFT_BG[col.domain] ?? '#fafbfc' }}
                       >
-                        <Tag color={DOMAIN_TAG_COLOR[col.domain]} className="!m-0 font-mono !px-2 !py-0.5 !text-xs !font-bold">
+                        <Tag
+                          color={DOMAIN_TAG_COLOR[col.domain]}
+                          className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
+                          style={{ borderColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96' }}
+                        >
                           {col.domain}
                         </Tag>
                         <span className="text-[13px] font-semibold">{DOMAIN_LABELS[col.domain] ?? col.domain}</span>
