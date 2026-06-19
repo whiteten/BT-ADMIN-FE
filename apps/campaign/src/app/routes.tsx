@@ -10,6 +10,7 @@ const CampaignList = React.lazy(() => import('./pages/management/CampaignList'))
 const CampaignCreate = React.lazy(() => import('./pages/management/CampaignCreate'));
 const CampaignDetail = React.lazy(() => import('./pages/management/CampaignDetail'));
 const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
+const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
 
 export const routes = [
   {
@@ -51,6 +52,14 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="schedule-list" replace /> },
           { path: 'schedule-list', element: <ScheduleList /> },
+        ],
+      },
+      {
+        path: 'execution',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="receive-file" replace /> },
+          { path: 'receive-file', element: <ReceiveFileList /> },
         ],
       },
     ],
