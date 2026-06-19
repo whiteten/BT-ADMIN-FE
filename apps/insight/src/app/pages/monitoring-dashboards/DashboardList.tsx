@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Tag } from 'antd';
 import { Layers, type LucideIcon, Menu, PenLine, Plus, Search } from 'lucide-react';
@@ -25,8 +25,6 @@ const DOMAIN_SECTIONS: DomainCode[] = ['IE', 'IC', 'IR'];
 const DOMAIN_TAG_COLOR: Record<string, string> = { IE: 'blue', IC: 'green', IR: 'orange' };
 // 레일 도메인 점 색상 / 패널 강조선 (antd Tag 색과 동일 계열). 미정의 도메인은 회색 fallback.
 const DOMAIN_DOT_COLOR: Record<string, string> = { IE: '#1677ff', IC: '#389e0d', IR: '#d46b08' };
-// 도메인 컬럼 헤더 배경 — 카테고리 구분용이되 색감은 최소화(거의 중성에 살짝 도메인 힌트). 미정의 도메인은 회색 fallback.
-const DOMAIN_SOFT_BG: Record<string, string> = { IE: '#f7fafc', IC: '#f7fbf8', IR: '#fcfaf7' };
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string; icon: LucideIcon }[] = [
   { value: 'ALL', label: '전체', icon: Layers },
@@ -95,15 +93,13 @@ export default function DashboardList() {
 
   const totalVisible = (domain ? [domain] : DOMAIN_SECTIONS).reduce((sum, d) => sum + byDomain[d].length, 0);
 
-  // 칸반 컬럼 정의 — 전체면 도메인별 컬럼, 도메인 필터 시 선택 도메인을 N개 컬럼으로 균등 분산(레이아웃 일관)
-  const colCount = DOMAIN_SECTIONS.length;
+  // 패널(영역) 정의 — 전체면 도메인별 N개 영역, 도메인 선택 시 해당 도메인 단일 영역(내부에서 칸만 분할)
   const columns: { key: string; domain: DomainCode; items: DashboardListItem[] }[] = domain
-    ? Array.from({ length: colCount }, (_, i) => ({
-        key: `${domain}-${i}`,
-        domain,
-        items: byDomain[domain].filter((_, idx) => idx % colCount === i),
-      }))
+    ? [{ key: domain, domain, items: byDomain[domain] }]
     : DOMAIN_SECTIONS.map((d) => ({ key: d, domain: d, items: byDomain[d] }));
+  const colCount = columns.length;
+  // 단일 영역 내부 칸(컬럼) 수 — 도메인 선택 시 행을 이만큼 균등 분산
+  const SUB_COLS = DOMAIN_SECTIONS.length;
 
   const handleNew = () => navigate('/insight/monitoring/dashboards/create');
 
@@ -158,7 +154,15 @@ export default function DashboardList() {
                     key={d}
                     active={domain === d}
                     dot={DOMAIN_DOT_COLOR[d] ?? '#868e96'}
-                    label={`${d} ${DOMAIN_LABELS[d] ?? d}`}
+                    badge={
+                      <span
+                        className="inline-flex shrink-0 items-center rounded border border-solid px-1 font-mono text-[10px] font-bold leading-[15px]"
+                        style={{ color: DOMAIN_DOT_COLOR[d] ?? '#595959', borderColor: DOMAIN_DOT_COLOR[d] ?? '#d9d9d9' }}
+                      >
+                        {d}
+                      </span>
+                    }
+                    label={DOMAIN_LABELS[d] ?? d}
                     count={domainCounts[d] ?? 0}
                     onClick={() => setDomain(d)}
                   />
@@ -168,64 +172,60 @@ export default function DashboardList() {
           </div>
         </div>
 
-        {/* 우측: 대시보드 목록 */}
-        <div className="flex flex-1 min-w-0 min-h-0 flex-col bg-white bt-shadow">
+        {/* 우측: 대시보드 목록 — 뒷 배경 박스 없이 패널이 페이지 배경 위에 바로(FCA bot list 패턴) */}
+        <div className="flex flex-1 min-w-0 min-h-0 flex-col">
           {isLoading ? (
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center bg-white bt-shadow">
               <FallbackSpinner />
             </div>
           ) : totalVisible === 0 ? (
-            <div className="flex h-full w-full items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center bg-white bt-shadow">
               <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '조회된 데이터가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
             </div>
           ) : (
-            // 칸반 그리드 — 도메인(카테고리)별 독립 패널 분리(테두리+상단 강조선+여백)로 영역 구분감 강화.
-            // 전체: 컬럼별 도메인 헤더 / 도메인 필터: 합친 단일 헤더(총 건수) + 아래만 그리드 분산
-            <div className="flex flex-1 flex-col overflow-auto p-3">
-              {domain && (
-                <div
-                  className="sticky top-0 z-[2] mb-3 flex shrink-0 items-center gap-2 rounded-lg border border-[#e9ebec] border-l-4 px-4 py-2.5"
-                  style={{ background: DOMAIN_SOFT_BG[domain] ?? '#fafbfc', borderLeftColor: DOMAIN_DOT_COLOR[domain] ?? '#868e96' }}
-                >
-                  <Tag
-                    color={DOMAIN_TAG_COLOR[domain]}
-                    className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
-                    style={{ borderColor: DOMAIN_DOT_COLOR[domain] ?? '#868e96' }}
-                  >
-                    {domain}
-                  </Tag>
-                  <span className="text-[13px] font-semibold">{DOMAIN_LABELS[domain] ?? domain}</span>
-                  <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{byDomain[domain].length}</span>
-                </div>
-              )}
+            // 칸반 그리드 — 도메인(카테고리)별 독립 패널. 헤더 배경 없이 상단 강조선·구분선·IE/IC/IR 배지로 구분.
+            // 전체: 도메인별 N개 패널 / 도메인 선택: 해당 패널 단일 전체영역 확대
+            <div className="flex flex-1 flex-col overflow-auto">
               <div className="grid flex-1 gap-3" style={{ gridTemplateColumns: `repeat(${colCount}, minmax(280px, 1fr))` }}>
                 {columns.map((col) => (
                   <div
                     key={col.key}
                     className="flex min-w-0 flex-col rounded-lg border border-[#e9ebec] bg-white"
-                    style={{ borderTopColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96', borderTopWidth: 2 }}
+                    style={{
+                      borderTopColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96',
+                      borderTopWidth: 2,
+                      borderBottomColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96',
+                      borderBottomWidth: 2,
+                    }}
                   >
-                    {/* 전체일 때만 컬럼별 도메인 헤더 노출 (필터 시엔 위 합친 헤더가 담당) */}
-                    {!domain && (
-                      <div
-                        className="sticky top-0 z-[1] flex items-center gap-2 rounded-t-md border-b border-[#e9ebec] px-4 py-2.5"
-                        style={{ background: DOMAIN_SOFT_BG[col.domain] ?? '#fafbfc' }}
+                    {/* 도메인 헤더 — 카테고리(IE/IC/IR) 구분 표시, 하단은 회색 기본 구분선(제목 구분용) */}
+                    <div className="sticky top-0 z-[1] flex items-center gap-2 rounded-t-md border-b border-[#e9ebec] bg-white px-4 py-2.5">
+                      <Tag
+                        color={DOMAIN_TAG_COLOR[col.domain]}
+                        className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
+                        style={{ borderColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96' }}
                       >
-                        <Tag
-                          color={DOMAIN_TAG_COLOR[col.domain]}
-                          className="!m-0 font-mono !rounded-md !border !border-solid !px-2 !py-0.5 !text-xs !font-bold"
-                          style={{ borderColor: DOMAIN_DOT_COLOR[col.domain] ?? '#868e96' }}
-                        >
-                          {col.domain}
-                        </Tag>
-                        <span className="text-[13px] font-semibold">{DOMAIN_LABELS[col.domain] ?? col.domain}</span>
-                        <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{col.items.length}</span>
+                        {col.domain}
+                      </Tag>
+                      <span className="text-[13px] font-semibold">{DOMAIN_LABELS[col.domain] ?? col.domain}</span>
+                      <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{col.items.length}</span>
+                    </div>
+                    {/* 본문 — 전체: 단일 세로 목록 / 도메인 선택: 영역은 하나, 내부에서 칸만 SUB_COLS 분할 */}
+                    {col.items.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs text-[var(--color-bt-fg-muted)]">조건에 맞는 대시보드가 없습니다.</div>
+                    ) : domain ? (
+                      <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${SUB_COLS}, minmax(0, 1fr))` }}>
+                        {Array.from({ length: SUB_COLS }, (_, i) => col.items.filter((_, idx) => idx % SUB_COLS === i)).map((sub, i) => (
+                          <div key={i} className={cn('flex min-w-0 flex-col', i < SUB_COLS - 1 && 'border-r border-[#e9ebec]')}>
+                            {sub.map((dashboard) => (
+                              <DashboardRow key={dashboard.dashboardId} dashboard={dashboard} query={searchValue} />
+                            ))}
+                          </div>
+                        ))}
                       </div>
+                    ) : (
+                      col.items.map((dashboard) => <DashboardRow key={dashboard.dashboardId} dashboard={dashboard} query={searchValue} />)
                     )}
-                    {/* 컬럼 행 목록 */}
-                    {col.items.length > 0
-                      ? col.items.map((dashboard) => <DashboardRow key={dashboard.dashboardId} dashboard={dashboard} query={searchValue} />)
-                      : !domain && <div className="px-4 py-8 text-center text-xs text-[var(--color-bt-fg-muted)]">조건에 맞는 대시보드가 없습니다.</div>}
                   </div>
                 ))}
               </div>
@@ -243,10 +243,11 @@ interface RailButtonProps {
   count: number;
   dot?: string;
   icon?: LucideIcon;
+  badge?: ReactNode;
   onClick: () => void;
 }
 
-function RailButton({ active, label, count, dot, icon: Icon, onClick }: RailButtonProps) {
+function RailButton({ active, label, count, dot, icon: Icon, badge, onClick }: RailButtonProps) {
   return (
     <button
       type="button"
@@ -257,11 +258,8 @@ function RailButton({ active, label, count, dot, icon: Icon, onClick }: RailButt
       )}
     >
       <span className="flex min-w-0 items-center gap-1.5">
-        {Icon ? (
-          <Icon size={14} className={cn('shrink-0', active ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]')} />
-        ) : dot ? (
-          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-        ) : null}
+        {dot ? <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} /> : null}
+        {badge ? badge : Icon ? <Icon size={14} className={cn('shrink-0', active ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]')} /> : null}
         <span className="truncate">{label}</span>
       </span>
       <span className={cn('shrink-0 text-xs tabular-nums', active ? 'text-[var(--color-bt-primary)]' : 'text-[var(--color-bt-fg-muted)]')}>{count}</span>

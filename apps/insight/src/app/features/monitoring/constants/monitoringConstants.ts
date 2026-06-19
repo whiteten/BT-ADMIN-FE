@@ -7,7 +7,7 @@ import type { DomainCode, KpiDirection, VizType } from '../types';
 // ─── 도메인 ──────────────────────────────────────────────────────────────
 
 export const DOMAIN_LABELS: Record<DomainCode, string> = {
-  IE: '교환기',
+  IE: 'PBX',
   IC: 'CTI',
   IR: 'IVR',
 };

@@ -159,16 +159,15 @@ export default function ReportRow({ report, query }: ReportRowProps) {
           )}
         </div>
         <span className={cn('truncate text-xs', report.description ? 'text-[var(--color-bt-fg-muted)]' : 'italic text-gray-300')}>{report.description || '설명 없음'}</span>
-        {datasetNames.length > 0 && (
-          <div className="mt-0.5 flex flex-wrap items-center gap-1">
-            {datasetNames.slice(0, 3).map((name) => (
-              <span key={name} className="inline-flex h-[18px] items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]">
-                {name}
-              </span>
-            ))}
-            {datasetNames.length > 3 && <span className="text-[11px] text-[var(--color-bt-fg-muted)]">외 {datasetNames.length - 3}</span>}
-          </div>
-        )}
+        {/* 칩 영역은 항상 고정 높이로 예약 — 칩 유무에 따른 행 높이 들쭉날쭉 방지 */}
+        <div className="mt-0.5 flex h-[18px] items-center gap-1 overflow-hidden">
+          {datasetNames.slice(0, 3).map((name) => (
+            <span key={name} className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]">
+              {name}
+            </span>
+          ))}
+          {datasetNames.length > 3 && <span className="shrink-0 text-[11px] text-[var(--color-bt-fg-muted)]">외 {datasetNames.length - 3}</span>}
+        </div>
       </div>
 
       <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
