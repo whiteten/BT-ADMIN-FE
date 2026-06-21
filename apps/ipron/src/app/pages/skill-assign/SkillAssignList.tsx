@@ -130,6 +130,8 @@ export default function SkillAssignList() {
   const [selectedAgentIds, setSelectedAgentIds] = useState<number[]>([]);
   const [selectedSkillsetTreeId, setSelectedSkillsetTreeId] = useState<number | null>(null);
   const [selectedSkillsetIds, setSelectedSkillsetIds] = useState<number[]>([]);
+  // 교차테넌트 방지: row 선택 시 그 row 의 tenantId 로 상대 목록을 좁힘. 선택 해제 시 null(전체 복귀).
+  const [lockedTenantId, setLockedTenantId] = useState<number | null>(null);
   const [grantDrawerOpen, setGrantDrawerOpen] = useState(false);
   // (legacy single-select 잔재 — mode 'group' 의존성 위해 임시 유지)
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
@@ -174,6 +176,7 @@ export default function SkillAssignList() {
   const { data: tenantStats = [] } = useGetSkillAssignTenants();
 
   // 상담사 / 상담그룹 트리 / 스킬셋 / 업무그룹 트리 — 양쪽 모드 모두 필요 (좌우 반전만 다름)
+  // 카드 selectedTenantId 가 있으면 그 테넌트로 BE 조회를 필터링, null(전체) 이면 전체 조회.
   const { data: agents = [], isLoading: agentsLoading } = useGetAgents({
     params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
   });
@@ -221,6 +224,7 @@ export default function SkillAssignList() {
         setGrantDrawerOpen(false);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
+        setLockedTenantId(null);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '부여 실패';
@@ -235,6 +239,7 @@ export default function SkillAssignList() {
         toast.success(`${result.removed}개 매핑 해제됨`);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
+        setLockedTenantId(null);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '해제 실패';
@@ -249,6 +254,7 @@ export default function SkillAssignList() {
         toast.success(`${updated}건 우선순위·스킬레벨 수정됨`);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
+        setLockedTenantId(null);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '수정 실패';
@@ -256,6 +262,26 @@ export default function SkillAssignList() {
       },
     },
   });
+
+  // 카드 전환 시 선택·잠금 초기화 (전체↔특정테넌트 전환 시 이전 선택이 잔류하지 않도록)
+  useEffect(() => {
+    setSelectedAgentIds([]);
+    setSelectedSkillsetIds([]);
+    setLockedTenantId(null);
+    agentGridRef1.current?.api?.deselectAll();
+    agentGridRef2.current?.api?.deselectAll();
+    skillsetGridRef1.current?.api?.deselectAll();
+    skillsetGridRef2.current?.api?.deselectAll();
+  }, [selectedTenantId]);
+
+  // 양쪽 선택이 모두 빈 배열이 되면 lockedTenantId 를 해제.
+  // onSelectionChanged 에서 empty 시 setLockedTenantId(null) 을 호출하지 않기 때문에
+  // 그리드 체크박스로 전체 선택 해제했을 때 lock 이 풀리지 않는 문제를 보완한다.
+  useEffect(() => {
+    if (selectedAgentIds.length === 0 && selectedSkillsetIds.length === 0) {
+      setLockedTenantId(null);
+    }
+  }, [selectedAgentIds, selectedSkillsetIds]);
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const totalStats = useMemo(() => {
@@ -284,21 +310,29 @@ export default function SkillAssignList() {
   }, [agents, agentSearch]);
 
   // 좌측 트리에서 선택된 상담그룹 + 키워드 필터 적용. selectedAgentGroupId=null → 전체.
+  // lockedTenantId: 스킬셋 row 를 먼저 선택한 경우, 그 tenantId 의 상담사만 표시(교차테넌트 방지).
   const filteredAgentsByGroup = useMemo(() => {
     let rows = filteredAgents;
     if (selectedAgentGroupId != null) {
       rows = rows.filter((a) => a.groupId === selectedAgentGroupId);
     }
+    if (lockedTenantId != null) {
+      rows = rows.filter((a) => a.tenantId === lockedTenantId);
+    }
     return rows;
-  }, [filteredAgents, selectedAgentGroupId]);
+  }, [filteredAgents, selectedAgentGroupId, lockedTenantId]);
 
   // 우측: 업무그룹 트리 선택에 따른 스킬셋 필터링. selectedSkillsetTreeId=null → 전체, 0 → 미배정, n → 그 그룹.
+  // lockedTenantId: 상담사 row 를 먼저 선택한 경우, 그 tenantId 의 스킬셋만 표시(교차테넌트 방지).
   const filteredSkillsetsByGroup = useMemo(() => {
     let rows = skillsetMasters;
     if (selectedSkillsetTreeId === 0) rows = rows.filter((s) => s.treeId == null);
     else if (selectedSkillsetTreeId != null) rows = rows.filter((s) => s.treeId === selectedSkillsetTreeId);
+    if (lockedTenantId != null) {
+      rows = rows.filter((s) => s.tenantId === lockedTenantId);
+    }
     return rows;
-  }, [skillsetMasters, selectedSkillsetTreeId]);
+  }, [skillsetMasters, selectedSkillsetTreeId, lockedTenantId]);
 
   // 보유율 맵 (skillsetId → 보유 인원) — 모드 ①
   const coverageMap = useMemo(() => {
@@ -424,6 +458,7 @@ export default function SkillAssignList() {
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const agentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
       { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
@@ -465,7 +500,7 @@ export default function SkillAssignList() {
         },
       },
     ],
-    [selectedSkillsetIds.length, agentCoverageMap, selectedSkillsetEntities],
+    [selectedSkillsetIds.length, agentCoverageMap, selectedSkillsetEntities, selectedTenantId],
   );
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — ag-Grid 34 에서 gridOptions.rowSelection 은
@@ -494,7 +529,14 @@ export default function SkillAssignList() {
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
-        setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
+        const selected = e.api.getSelectedRows();
+        setSelectedAgentIds(selected.map((r) => r.agentId));
+        // 상담사 row 선택 시 그 tenantId 로 스킬셋 목록 잠금.
+        // selected.length === 0 인 경우는 rowData 교체로 인한 ag-Grid 자동 선택해제 발화일 수 있으므로
+        // setLockedTenantId(null) 을 여기서 호출하지 않는다 — 명시적 해제는 "선택 해제" 버튼 or deselectAll() 경로로만.
+        if (selected.length > 0) {
+          setLockedTenantId(selected[0].tenantId ?? null);
+        }
       },
       onCellMouseOver: (e) => {
         const nextId = e.data?.agentId ?? null;
@@ -530,6 +572,7 @@ export default function SkillAssignList() {
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const skillsetColumnsAg = useMemo<ColDef<SkillsetResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'skillsetName', headerName: '스킬셋명', flex: 1, minWidth: 140 },
       {
         headerName: '보유 건수',
@@ -562,7 +605,7 @@ export default function SkillAssignList() {
         },
       },
     ],
-    [selectedAgentIds.length, coverageMap, selectedAgentEntities],
+    [selectedAgentIds.length, coverageMap, selectedAgentEntities, selectedTenantId],
   );
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — 동일 이유
@@ -590,7 +633,14 @@ export default function SkillAssignList() {
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
-        setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
+        const selected = e.api.getSelectedRows();
+        setSelectedSkillsetIds(selected.map((r) => r.skillsetId));
+        // 스킬셋 row 선택 시 그 tenantId 로 상담사 목록 잠금.
+        // selected.length === 0 인 경우는 rowData 교체로 인한 ag-Grid 자동 선택해제 발화일 수 있으므로
+        // setLockedTenantId(null) 을 여기서 호출하지 않는다 — 명시적 해제는 "선택 해제" 버튼 or deselectAll() 경로로만.
+        if (selected.length > 0) {
+          setLockedTenantId(selected[0].tenantId ?? null);
+        }
       },
       onCellMouseOver: (e) => {
         const nextId = e.data?.skillsetId ?? null;
@@ -625,11 +675,12 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (상담사 기준) ────────────────────
   const viewAgentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
       { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
     ],
-    [],
+    [selectedTenantId],
   );
 
   const viewAgentRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
@@ -653,6 +704,7 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (스킬셋 기준) ────────────────────
   const viewSkillsetColumnsAg = useMemo<ColDef<SkillsetResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'skillsetName', headerName: '스킬셋명', flex: 1, minWidth: 140 },
       {
         field: 'treeName',
@@ -671,7 +723,7 @@ export default function SkillAssignList() {
         cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>),
       },
     ],
-    [],
+    [selectedTenantId],
   );
 
   // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
@@ -1688,6 +1740,7 @@ export default function SkillAssignList() {
                 onClick={() => {
                   setSelectedAgentIds([]);
                   setSelectedSkillsetIds([]);
+                  setLockedTenantId(null);
                   agentGridRef1.current?.api?.deselectAll();
                   agentGridRef2.current?.api?.deselectAll();
                   skillsetGridRef1.current?.api?.deselectAll();
