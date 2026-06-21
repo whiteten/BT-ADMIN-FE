@@ -42,6 +42,8 @@ interface CtiQueueTableProps {
   nodeOptions?: { value: number; label: string }[];
   /** "업무그룹 보기" 토글 — ON 시 업무그룹명(treeName) 컬럼을 좌측에 추가 노출 + 드래그 핸들 표시. */
   groupView?: boolean;
+  /** 현재 선택된 테넌트 ID. null = 전체보기(테넌트 컬럼 표시), non-null = 단일 테넌트(테넌트 컬럼 숨김). */
+  selectedTenantId?: number | null;
   onRowDoubleClicked: (row: CtiQueueResponse) => void;
   onSelectionChanged?: (selected: CtiQueueResponse[]) => void;
   /** drag 시점에 dataTransfer 에 실어 보낼 ctiqId 배열 결정. 선택된 게 있으면 그것, 없으면 단건. */
@@ -148,6 +150,7 @@ export default function CtiQueueTable({
   groupOptions = [],
   nodeOptions = [],
   groupView = false,
+  selectedTenantId = null,
   onRowDoubleClicked,
   onSelectionChanged,
   getDragCtiqIds,
@@ -304,6 +307,15 @@ export default function CtiQueueTable({
         },
       },
       {
+        headerName: '테넌트',
+        field: 'tenantName',
+        flex: 1,
+        minWidth: 120,
+        tooltipField: 'tenantName',
+        valueFormatter: (p) => p.value ?? '-',
+        hide: selectedTenantId !== null,
+      },
+      {
         headerName: 'CTIQ ID',
         field: 'ctiqId',
         minWidth: 90,
@@ -440,7 +452,7 @@ export default function CtiQueueTable({
         valueFormatter: (p) => num(p.value),
       },
     ],
-    [groupView, groupNameById, nodeNameById, getDragCtiqIds],
+    [groupView, groupNameById, nodeNameById, getDragCtiqIds, selectedTenantId],
   );
 
   const columnDefs = skillMatrixMode ? matrixColumnDefs : normalColumnDefs;

@@ -998,6 +998,7 @@ export default function CtiQueueList() {
                 groupOptions={groupOptions}
                 nodeOptions={nodeSelectOptions}
                 groupView={true}
+                selectedTenantId={ctxTenantId}
                 onRowDoubleClicked={handleEdit}
                 onSelectionChanged={setSelectedRows}
                 getDragCtiqIds={getDragCtiqIds}
