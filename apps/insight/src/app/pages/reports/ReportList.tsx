@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input, Tag } from 'antd';
-import { Layers, type LucideIcon, Menu, Plus, Search, Server, User } from 'lucide-react';
+import { Layers, type LucideIcon, Menu, Plus, Search, Share2, User } from 'lucide-react';
 import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
 import { fuzzyFilter } from '@/shared-util';
 import ReportRow from '../../features/report/components/ReportRow';
@@ -28,7 +28,7 @@ const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string; icon: LucideIc
   { value: 'ALL', label: '전체', icon: Layers },
   { value: 'MINE', label: '내 보고서', icon: User },
   { value: 'PUBLISHED', label: '메뉴 등록', icon: Menu },
-  { value: 'SYSTEM', label: '시스템', icon: Server },
+  { value: 'SYSTEM', label: '공유', icon: Share2 },
 ];
 
 /**
@@ -252,13 +252,13 @@ export default function ReportList() {
                         {Array.from({ length: SUB_COLS }, (_, i) => col.items.filter((_, idx) => idx % SUB_COLS === i)).map((sub, i) => (
                           <div key={i} className={cn('flex min-w-0 flex-col', i < SUB_COLS - 1 && 'border-r border-[#e9ebec]')}>
                             {sub.map((report) => (
-                              <ReportRow key={report.reportId} report={report} query={searchValue} />
+                              <ReportRow key={report.reportId} report={report} query={searchValue} isMenuRegistered={registeredReportIds.has(report.reportId)} />
                             ))}
                           </div>
                         ))}
                       </div>
                     ) : (
-                      col.items.map((report) => <ReportRow key={report.reportId} report={report} query={searchValue} />)
+                      col.items.map((report) => <ReportRow key={report.reportId} report={report} query={searchValue} isMenuRegistered={registeredReportIds.has(report.reportId)} />)
                     )}
                   </div>
                 ))}
