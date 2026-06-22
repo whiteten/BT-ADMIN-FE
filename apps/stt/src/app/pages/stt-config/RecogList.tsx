@@ -4,13 +4,16 @@ import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } f
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import RecogGroupTree, { type RecogTreeSelection } from '../../features/stt-config/components/RecogGroupTree';
-import RecogTargetList from '../../features/stt-config/components/RecogTargetList';
-import RecogTargetSearch from '../../features/stt-config/components/RecogTargetSearch';
 import { recogQueryKeys, useCreateRecogGroup } from '../../features/stt-config/hooks/useRecogQueries';
+import RecogEvaluate from '../../features/stt-config/tabs/RecogEvaluate';
+import RecogTargetList from '../../features/stt-config/tabs/RecogTargetList';
+import RecogTargetSearch from '../../features/stt-config/tabs/RecogTargetSearch';
 import type { RecogGroupCreateData, RecogGroupItem } from '../../features/stt-config/types';
-import { IconBubble, IconDocument } from '@/components/custom/Icons';
+import { IconBubble, IconChartLine, IconDocument } from '@/components/custom/Icons';
 import NoData from '@/components/custom/NoData';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
+
+const RecogGroupContext = createContext<RecogGroupItem | null>(null);
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: 'STT 관리', path: '/stt/stt-config' },
@@ -61,8 +64,6 @@ function EngineDetailPanel({ engineCode, onCreated }: { engineCode: string; onCr
   );
 }
 
-const RecogGroupContext = createContext<RecogGroupItem | null>(null);
-
 function RegisterTabContent() {
   const group = useContext(RecogGroupContext)!;
   return <RecogTargetSearch groupCode={group.groupCode} engineCode={group.engineCode} />;
@@ -73,9 +74,15 @@ function ListTabContent() {
   return <RecogTargetList groupCode={group.groupCode} groupName={group.groupName} engineCode={group.engineCode} />;
 }
 
+function EvaluateTabContent() {
+  const group = useContext(RecogGroupContext)!;
+  return <RecogEvaluate groupCode={group.groupCode} groupName={group.groupName} engineCode={group.engineCode} />;
+}
+
 const GROUP_DETAIL_TABS: PageTab[] = [
   { id: 'register', label: '정답지 등록', icon: IconBubble, component: RegisterTabContent },
   { id: 'list', label: '정답지 목록', icon: IconDocument, component: ListTabContent },
+  { id: 'evaluate', label: '인식률 측정', icon: IconChartLine, component: EvaluateTabContent },
 ];
 
 function GroupDetailPanel({ group }: { group: RecogGroupItem }) {
