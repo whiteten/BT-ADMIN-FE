@@ -7,18 +7,42 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
-import { Layers, ListChecks, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { type BreadcrumbProps, Button, Empty, Input, Select } from 'antd';
+import { ListChecks, Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ScenarioAssignedStatusModal, { type ScenarioAssignedStatusModalRef } from '../../features/scenario/components/ScenarioAssignedStatusModal';
+import ScenarioCard from '../../features/scenario/components/ScenarioCard';
 import ScenarioMasterSheet, { type ScenarioMasterSheetRef } from '../../features/scenario/components/ScenarioMasterSheet';
 import ScenarioTypeMultiSelect from '../../features/scenario/components/ScenarioTypeMultiSelect';
 import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../../features/scenario/hooks/useScenarioQueries';
-import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type Scenario, type ScenarioType } from '../../features/scenario/types';
+import { APPLY_STATUS, type Scenario, type ScenarioType } from '../../features/scenario/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오/버전 관리', path: '/ivr/scenario/list' }];
+
+type DeployFilter = 'applied' | 'reserved' | 'fail' | 'none';
+const DEPLOY_FILTER_OPTIONS: { label: string; value: DeployFilter }[] = [
+  { label: '배포', value: 'applied' },
+  { label: '예약', value: 'reserved' },
+  { label: '실패', value: 'fail' },
+  { label: '미배포', value: 'none' },
+];
+const DEPLOY_FAIL_STATUSES: number[] = [APPLY_STATUS.SEND_FAIL, APPLY_STATUS.CMD_FAIL, APPLY_STATUS.APPLY_FAIL];
+
+/** 배포여부 필터 매칭 — 선택된 분류 중 하나라도 시나리오의 시스템 상태와 일치하면 통과(OR). */
+function matchesDeployFilter(s: Scenario, sel: DeployFilter[]): boolean {
+  if (sel.length === 0) return true;
+  const ds = s.deploySystems ?? [];
+  if (sel.includes('none') && ds.length === 0) return true;
+  return ds.some((d) => {
+    const st = d.applyStatus;
+    if (sel.includes('applied') && (st === APPLY_STATUS.APPLIED || (st == null && d.serviceVer))) return true;
+    if (sel.includes('reserved') && st === APPLY_STATUS.PENDING) return true;
+    if (sel.includes('fail') && st != null && DEPLOY_FAIL_STATUSES.includes(st)) return true;
+    return false;
+  });
+}
 
 export default function ScenarioList() {
   const navigate = useNavigate();
@@ -33,9 +57,13 @@ export default function ScenarioList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const [selectedTypes, setSelectedTypes] = useState<ScenarioType[]>([]);
+  const [selectedDeploy, setSelectedDeploy] = useState<DeployFilter[]>([]);
   const [searchText, setSearchText] = useState('');
   const masterSheetRef = useRef<ScenarioMasterSheetRef>(null);
   const assignedStatusRef = useRef<ScenarioAssignedStatusModalRef>(null);
+  // 신규 등록 직후 그 카드로 스크롤 + 하이라이트
+  const pendingFocusIdRef = useRef<number | null>(null);
+  const [focusedId, setFocusedId] = useState<number | null>(null);
 
   const queryParams = useMemo(() => {
     const params: Record<string, unknown> = {};
@@ -45,6 +73,22 @@ export default function ScenarioList() {
   }, [selectedTypes, searchText]);
 
   const { data: scenarios = [] } = useGetScenarios({ params: queryParams });
+
+  // 배포여부 필터는 클라이언트 측(목록 응답의 deploySystems 기준)
+  const filteredScenarios = useMemo(() => scenarios.filter((s) => matchesDeployFilter(s, selectedDeploy)), [scenarios, selectedDeploy]);
+
+  // 신규 등록 후 목록이 갱신되어 새 카드가 나타나면 그 카드로 스크롤 + 잠시 하이라이트
+  useEffect(() => {
+    const id = pendingFocusIdRef.current;
+    if (id == null || !filteredScenarios.some((s) => s.serviceId === id)) return;
+    pendingFocusIdRef.current = null;
+    setFocusedId(id);
+    requestAnimationFrame(() => {
+      document.getElementById(`scenario-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    const t = setTimeout(() => setFocusedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [filteredScenarios]);
 
   const { mutate: deleteMutate } = useDeleteScenario({
     mutationOptions: {
@@ -58,8 +102,8 @@ export default function ScenarioList() {
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value);
 
   const handleDetail = useCallback(
-    (s: Scenario) => {
-      navigate(`../${s.serviceId}`);
+    (serviceId: number) => {
+      navigate(`../${serviceId}`);
     },
     [navigate],
   );
@@ -77,32 +121,31 @@ export default function ScenarioList() {
     [modal, deleteMutate],
   );
 
-  // 수정은 상세 페이지의 기본정보 탭에서 inline edit 으로 처리 (BotList 패턴 동일).
-  const getCardMenuItems = (s: Scenario) => [
-    { key: 'detail', label: '상세보기', onClick: () => handleDetail(s) },
-    { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleDelete(s) },
-  ];
-
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       {/* ===== 상단 헤더 ===== */}
       <div className="flex items-center gap-3 px-7 py-5 h-[76px] bg-white bt-shadow">
         <div className="flex items-center gap-2">
-          <Layers className="size-4 text-gray-400" />
-          <span className="text-[12px] font-medium text-gray-600">시나리오 타입</span>
+          <span className="text-sm text-gray-600">시나리오 타입</span>
           <ScenarioTypeMultiSelect value={selectedTypes} onChange={setSelectedTypes} />
         </div>
         <div className="ml-2 flex items-center gap-2">
-          <Input
+          <span className="text-sm text-gray-600">배포 여부</span>
+          <Select<DeployFilter[]>
+            mode="multiple"
+            placeholder="전체"
+            value={selectedDeploy}
+            onChange={setSelectedDeploy}
+            options={DEPLOY_FILTER_OPTIONS}
+            maxTagCount="responsive"
             allowClear
-            prefix={<Search className="size-3.5 text-gray-400" />}
-            placeholder="시나리오명 검색"
-            value={searchText}
-            onChange={handleSearchChange}
-            style={{ width: 240 }}
+            style={{ minWidth: 200 }}
           />
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-[11px] text-slate-500">※ 테넌트는 로그인 정보로 자동 적용</div>
+        <div className="ml-2 flex items-center gap-2">
+          <span className="text-sm text-gray-600">시나리오명</span>
+          <Input allowClear placeholder="검색어를 입력하세요." value={searchText} onChange={handleSearchChange} style={{ width: 240 }} />
+        </div>
         <div className="ml-auto flex items-center gap-2">
           <Button color="blue" variant="filled" icon={<ListChecks className="size-3.5" />} onClick={() => assignedStatusRef.current?.open()}>
             시스템별 할당 현황
@@ -114,48 +157,36 @@ export default function ScenarioList() {
       </div>
 
       {/* ===== 카드 그리드 ===== */}
-      {scenarios.length === 0 ? (
+      {filteredScenarios.length === 0 ? (
         <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
           <div className="flex flex-col items-center justify-center text-gray-400 gap-3">
-            <Empty description={false} imageStyle={{ height: 60 }} />
+            <Empty description={false} styles={{ image: { height: 60 } }} />
             <span className="text-sm">조건에 맞는 시나리오가 없습니다</span>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4 w-full overflow-y-auto">
-          {scenarios.map((s) => {
-            const tc = SCENARIO_TYPE_COLORS[s.serviceType] ?? { bg: 'bg-slate-100', text: 'text-slate-700' };
-            return (
-              <div
-                key={s.serviceId}
-                className="bg-white border border-gray-200 rounded-lg p-4 transition-all hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)] flex flex-col h-[150px]"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <span className={`px-1.5 py-0.5 text-[10px] font-medium ${tc.bg} ${tc.text} rounded`}>{SCENARIO_TYPE_LABELS[s.serviceType] ?? s.serviceType}</span>
-                  <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                    <Dropdown menu={{ items: getCardMenuItems(s) }} trigger={['click']} placement="bottomRight">
-                      <button type="button" className="p-0.5 rounded hover:bg-gray-100">
-                        <MoreVertical className="size-3.5 text-gray-400" />
-                      </button>
-                    </Dropdown>
-                  </div>
-                </div>
-                <div className="font-semibold text-[14px] text-slate-800 truncate mb-2">{s.serviceName}</div>
-                <div className="text-[11px] text-slate-500 space-y-0.5 mt-auto">
-                  <div>ID: {s.serviceId}</div>
-                  <div>
-                    버전 {s.versionCount ?? 0}개{s.maxKeepTime != null && <span> · 유지 {s.maxKeepTime}초</span>}
-                  </div>
-                  {s.serviceDesc && <div className="truncate text-slate-400">{s.serviceDesc}</div>}
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
+          {filteredScenarios.map((s) => (
+            <ScenarioCard
+              key={s.serviceId}
+              scenario={s}
+              highlighted={focusedId === s.serviceId}
+              onDetail={handleDetail}
+              onDelete={handleDelete}
+              onShowAssigned={() => assignedStatusRef.current?.open(s.serviceId)}
+            />
+          ))}
         </div>
       )}
 
       {/* Sheets */}
-      <ScenarioMasterSheet ref={masterSheetRef} onSuccess={() => queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getScenarios._def })} />
+      <ScenarioMasterSheet
+        ref={masterSheetRef}
+        onSuccess={(createdId) => {
+          queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getScenarios._def });
+          if (createdId != null) pendingFocusIdRef.current = createdId;
+        }}
+      />
       <ScenarioAssignedStatusModal ref={assignedStatusRef} />
     </div>
   );

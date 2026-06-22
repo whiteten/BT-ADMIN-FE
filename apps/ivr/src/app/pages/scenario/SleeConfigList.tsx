@@ -598,7 +598,7 @@ export default function SleeConfigList() {
           <div className="flex items-center px-4 py-3 h-[170px]">
             {filteredConfigFiles.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} imageStyle={{ height: 40 }} />
+                <Empty description={false} styles={{ image: { height: 40 } }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 환경파일이 없습니다'}</span>
               </div>
             ) : (
@@ -673,7 +673,7 @@ export default function SleeConfigList() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
-                  <Empty description={false} imageStyle={{ height: 32 }} />
+                  <Empty description={false} styles={{ image: { height: 32 } }} />
                   <span className="text-xs">환경파일을 선택하세요</span>
                 </div>
               )}
@@ -710,7 +710,7 @@ export default function SleeConfigList() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
-                  <Empty description={false} imageStyle={{ height: 32 }} />
+                  <Empty description={false} styles={{ image: { height: 32 } }} />
                   <span className="text-xs">카테고리를 선택하세요</span>
                 </div>
               )}

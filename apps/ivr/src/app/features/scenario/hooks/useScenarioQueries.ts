@@ -3,7 +3,7 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
 import { scenarioApi } from '../api/scenarioApi';
 import type { DeployTargetSystem, DeployedSystem, Scenario, ScenarioAssignedStatusRow, ScenarioVersion, SystemDeployItem } from '../types';
 
@@ -16,8 +16,8 @@ export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
   getDeployStatus: (params?: Record<string, unknown>) => [params],
   getDeployTargets: (params?: Record<string, unknown>) => [params],
   getDeployConfig: (params?: Record<string, unknown>) => [params],
-  getAssignedStatus: null,
-  getAssignedHistory: null,
+  getAssignedStatus: (params?: Record<string, unknown>) => [params],
+  getAssignedHistory: (params?: Record<string, unknown>) => [params],
 });
 
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
@@ -60,18 +60,18 @@ export const useDeleteScenario = ({ mutationOptions }: MutationHookOptions = {})
 };
 
 // ─── 시스템별 시나리오 할당 현황 (IPR20S6020) ──────────────────────────────
-export const useGetScenarioAssignedStatus = ({ queryOptions }: QueryHookOptions<ScenarioAssignedStatusRow[]> = {}) => {
+export const useGetScenarioAssignedStatus = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAssignedStatusRow[]> = {}) => {
   return useQuery({
-    queryKey: scenarioQueryKeys.getAssignedStatus.queryKey,
-    queryFn: () => scenarioApi.getAssignedStatus(),
+    queryKey: scenarioQueryKeys.getAssignedStatus(params).queryKey,
+    queryFn: () => scenarioApi.getAssignedStatus(params),
     ...queryOptions,
   });
 };
 
-export const useGetScenarioAssignedHistory = ({ queryOptions }: QueryHookOptions<ScenarioAssignedStatusRow[]> = {}) => {
+export const useGetScenarioAssignedHistory = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAssignedStatusRow[]> = {}) => {
   return useQuery({
-    queryKey: scenarioQueryKeys.getAssignedHistory.queryKey,
-    queryFn: () => scenarioApi.getAssignedHistory(),
+    queryKey: scenarioQueryKeys.getAssignedHistory(params).queryKey,
+    queryFn: () => scenarioApi.getAssignedHistory(params),
     ...queryOptions,
   });
 };

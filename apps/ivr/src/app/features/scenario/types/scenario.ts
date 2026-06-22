@@ -113,6 +113,18 @@ export interface ScenarioAssignedStatusRow {
 
 // ─── 시나리오 마스터 ────────────────────────────────────────────────────────
 
+/** 시나리오 목록 카드용 배포 시스템 요약 (시나리오 1 : 시스템 N). 상세는 '시스템별 할당 현황' 모달. */
+export interface ScenarioDeploySummary {
+  systemId: number;
+  systemName?: string | null;
+  serviceVer?: string | null; // 적용 버전
+  applyVer?: string | null; // 예약 대기 버전
+  rtResvKind?: number | null; // 1=실시간, 2=예약
+  applyStatus?: number | null; // 10/50/55 ...
+  applyResult?: number | null;
+  applyDatetime?: string | null;
+}
+
 export interface Scenario {
   serviceId: number;
   serviceName: string;
@@ -130,6 +142,8 @@ export interface Scenario {
   workUser?: number | null;
   workUserName?: string | null;
   workTime?: string | null;
+  deploySystems?: ScenarioDeploySummary[]; // 배포 시스템 요약 (카드 미니리스트)
+  deployFailCount?: number; // 적용실패(55) 시스템 수
 }
 
 export interface ScenarioCreateRequest {

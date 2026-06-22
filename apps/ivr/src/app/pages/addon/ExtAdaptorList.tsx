@@ -67,6 +67,10 @@ export default function ExtAdaptorList() {
   const adaptorDrawerRef = useRef<AdaptorDrawerRef>(null);
   const batchCopyDialogRef = useRef<AdaptorBatchCopyDialogRef>(null);
   const watcherDrawerRef = useRef<WatcherDrawerRef>(null);
+  // 그리드 ref (탭 전환 시 key 로 remount 되므로 한 시점에 하나만 마운트 → 단일 ref 공유)
+  const gridRef = useRef<AgGridReact>(null);
+  // 신규 추가 직후 그 행으로 스크롤/강조하기 위한 대기 정보 (탭 + getRowId 키)
+  const pendingFocusRef = useRef<{ tab: BottomTab; id: string } | null>(null);
   const queryClient = useQueryClient();
   const deleteAdaptorMutation = useDeleteAdaptor();
   const deleteWatcherMutation = useDeleteWatcher();
@@ -95,6 +99,47 @@ export default function ExtAdaptorList() {
       queryClient.invalidateQueries({ queryKey: extAdaptorQueryKeys.getWatchers({ systemId: selectedSystemId }).queryKey });
     }
   }, [queryClient, selectedSystemId]);
+
+  // 신규 추가 성공: 목록 갱신 + 새 행을 해당 탭에서 스크롤/강조 대기 (수정/환경파일 저장 시 created 없음 → 기존 동작)
+  const handleAdaptorDrawerSuccess = useCallback(
+    (created?: Adaptor) => {
+      invalidateAdaptors();
+      if (created) {
+        setBottomTab('adaptor');
+        pendingFocusRef.current = { tab: 'adaptor', id: String(created.adaptorId) };
+      }
+    },
+    [invalidateAdaptors],
+  );
+
+  const handleWatcherDrawerSuccess = useCallback(
+    (created?: Watcher) => {
+      invalidateWatchers();
+      if (created) {
+        setBottomTab('watcher');
+        pendingFocusRef.current = { tab: 'watcher', id: String(created.watcherId) };
+      }
+    },
+    [invalidateWatchers],
+  );
+
+  // 목록이 갱신되어 새 행이 그리드에 반영되면 그 행으로 스크롤/강조(1회). 선택 상태는 변경하지 않음.
+  useEffect(() => {
+    const pending = pendingFocusRef.current;
+    if (!pending || pending.tab !== bottomTab) return;
+    const list = pending.tab === 'adaptor' ? adaptors : watchers;
+    const has = pending.tab === 'adaptor' ? list.some((a) => String((a as Adaptor).adaptorId) === pending.id) : list.some((w) => String((w as Watcher).watcherId) === pending.id);
+    if (!has) return;
+    pendingFocusRef.current = null;
+    setTimeout(() => {
+      const api = gridRef.current?.api;
+      const node = api?.getRowNode(pending.id);
+      if (api && node) {
+        api.ensureNodeVisible(node, 'middle');
+        api.flashCells({ rowNodes: [node] });
+      }
+    }, 100);
+  }, [adaptors, watchers, bottomTab]);
 
   const isSearching = searchText.trim().length > 0;
 
@@ -373,7 +418,7 @@ export default function ExtAdaptorList() {
           <div className="flex items-center px-4 py-3 h-[150px]">
             {filteredSystems.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 36 }} />
+                <Empty description={false} styles={{ image: { height: 36 } }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '시스템이 없습니다'}</span>
               </div>
             ) : (
@@ -494,6 +539,7 @@ export default function ExtAdaptorList() {
               // watcher 행 더블클릭 시 어댑터 수정 Drawer 가 열리는 버그가 발생한다. (탭 전환 시 완전 remount)
               <AgGridReact<Adaptor>
                 key="adaptor-grid"
+                ref={gridRef}
                 rowData={adaptors}
                 columnDefs={adaptorColumnDefs}
                 gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
@@ -505,6 +551,7 @@ export default function ExtAdaptorList() {
             ) : (
               <AgGridReact<Watcher>
                 key="watcher-grid"
+                ref={gridRef}
                 rowData={watchers}
                 columnDefs={watcherColumnDefs}
                 gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
@@ -519,9 +566,9 @@ export default function ExtAdaptorList() {
       </div>
 
       {/* Drawer */}
-      <AdaptorDrawer ref={adaptorDrawerRef} onSuccess={invalidateAdaptors} />
+      <AdaptorDrawer ref={adaptorDrawerRef} onSuccess={handleAdaptorDrawerSuccess} />
       <AdaptorBatchCopyDialog ref={batchCopyDialogRef} onSuccess={invalidateAllAdaptors} />
-      <WatcherDrawer ref={watcherDrawerRef} onSuccess={invalidateWatchers} />
+      <WatcherDrawer ref={watcherDrawerRef} onSuccess={handleWatcherDrawerSuccess} />
     </div>
   );
 }
