@@ -417,14 +417,6 @@ export default function CampaignAchievementStatistics() {
             <div className="flex items-start gap-3">
               <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
-                  <Select
-                    value={statCategory}
-                    onChange={handleStatCategoryChange}
-                    options={CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_OPTIONS}
-                    className="!min-w-[120px]"
-                    popupMatchSelectWidth={false}
-                  />
                   <span className="text-sm font-medium text-[#495057] shrink-0">기간구분</span>
                   <Select
                     value={timeUnit}
@@ -461,6 +453,14 @@ export default function CampaignAchievementStatistics() {
                 </div>
                 <Divider orientation="vertical" className="!h-5 !m-0" />
                 <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
+                  <Select
+                    value={statCategory}
+                    onChange={handleStatCategoryChange}
+                    options={CAMPAIGN_ACHIEVEMENT_STAT_CATEGORY_OPTIONS}
+                    className="!min-w-[120px]"
+                    popupMatchSelectWidth={false}
+                  />
                   <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
                   <Select
                     mode="multiple"
