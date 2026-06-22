@@ -21,7 +21,8 @@ export interface WatcherDrawerRef {
 }
 
 interface Props {
-  onSuccess?: () => void;
+  /** 성공 콜백. 신규 추가 시 생성된 Watcher를 전달(새 그리드 행 포커싱용), 수정 시 인자 없음. */
+  onSuccess?: (created?: Watcher) => void;
 }
 
 const WatcherDrawer = forwardRef<WatcherDrawerRef, Props>(({ onSuccess }, ref) => {
@@ -93,10 +94,10 @@ const WatcherDrawer = forwardRef<WatcherDrawerRef, Props>(({ onSuccess }, ref) =
     createMutation.mutate(
       { file, systemId, watcherName: values.watcherName, watcherDesc: values.watcherDesc, emsFilePath, irFilePath },
       {
-        onSuccess: () => {
+        onSuccess: (created) => {
           toast.success('Watcher 환경파일이 등록되었습니다');
           setOpen(false);
-          onSuccess?.();
+          onSuccess?.(created as Watcher | undefined);
         },
       },
     );
