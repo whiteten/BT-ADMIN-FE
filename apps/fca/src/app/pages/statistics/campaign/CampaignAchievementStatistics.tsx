@@ -364,13 +364,17 @@ export default function CampaignAchievementStatistics() {
       field: 'psrTimeKey',
       ...dateColDef(displayTimeUnit),
       pinned: 'left',
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 2 : 1),
+      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
       valueFormatter: ({ value, node }) => {
         if (node?.rowPinned === 'bottom') return value ?? '';
         return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
       },
       cellStyle: textCellStyle,
     };
+    const campaignCol = createFlexibleNameColumnDef<CampaignAchievementStatListItem>('캠페인', 'campaignName', (data) => String(data?.campaignName ?? ''), textCellStyle, {
+      minWidth: 140,
+      pinned: 'left',
+    });
     const scenarioCol = createFlexibleNameColumnDef<CampaignAchievementStatListItem>(
       '시나리오',
       'campaignListName',
@@ -378,7 +382,7 @@ export default function CampaignAchievementStatistics() {
       textCellStyle,
       { minWidth: 160, pinned: 'left' },
     );
-    return [dateCol, scenarioCol, ...CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory]];
+    return [dateCol, campaignCol, scenarioCol, ...CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory]];
   }, [displayStatCategory, displayTimeUnit]);
 
   const { permissions } = useNavigationStore();
