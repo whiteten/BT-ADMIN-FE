@@ -51,10 +51,20 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
   // 현재 유효 세션(threadId) — 응답 도착 시점에 세션이 바뀌었는지 판별하는 가드.
   // 닫고 새 대화를 연 뒤 옛 요청 응답이 늦게 도착하면, 요청 당시 threadId(variables)와 불일치 → 무시.
   const sessionRef = useRef('');
+  // 진행 중 요청 취소용 컨트롤러 — 세션 교체/초기화 시 abort 해 클라이언트의 응답 대기를 중단(isBusy 즉시 해제).
+  const controllerRef = useRef<AbortController | null>(null);
 
   const addMessage = (message: ChatMessage) => setMessages((prev) => [...prev, message]);
 
-  /** 응답의 요청 당시 threadId 가 현재 세션과 다르면 stale(닫힘/세션 교체 후 늦게 도착) → 처리 무시 */
+  /** 직전 요청을 취소하고 새 AbortSignal 발급 (서버 호출은 진행되나 클라이언트는 응답 대기 중단) */
+  const beginRequest = () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    return controller.signal;
+  };
+
+  /** 응답의 요청 당시 threadId 가 현재 세션과 다르면 stale(닫힘/세션 교체/취소 후 늦게 도착) → 처리 무시 */
   // mutationOptions 타입상 variables 가 unknown 으로 추론되므로 요청 타입으로 좁힘
   const isStale = (variables: unknown) => (variables as AgentTestRequest).body.threadId !== sessionRef.current;
 
@@ -72,8 +82,9 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
         onAfterResponse?.();
       },
       onError: (error, variables) => {
-        Log.warn('testAgent error', error);
+        // 취소/세션 교체로 인한 stale 응답은 로그·메시지 모두 생략
         if (isStale(variables)) return;
+        Log.warn('testAgent error', error);
         setIsWelcomePending(false);
         addMessage({ id: Date.now(), type: 'response', content: { error: '오류가 발생했습니다.' }, timestamp: dayjs().format('HH:mm') });
         onAfterResponse?.();
@@ -84,8 +95,8 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
   const { mutate: refreshAgent, isPending: isRefreshing } = useRefreshAgent({
     mutationOptions: {
       onError: (error, variables) => {
-        Log.warn('refreshAgent error', error);
         if (isStale(variables)) return;
+        Log.warn('refreshAgent error', error);
         setIsWelcomePending(false);
       },
     },
@@ -97,19 +108,21 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
     const newServiceId = `test_${uuid}`;
     const newThreadId = `${agentId}_${uuid}`;
     sessionRef.current = newThreadId;
+    const signal = beginRequest();
     setServiceId(newServiceId);
     setThreadId(newThreadId);
     setMessages([]);
     setIsWelcomePending(true);
-    testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
+    testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' }, signal });
   };
 
   /** 사용자 메시지 전송 (firstYn:'N') */
   const send = (agentId: string, text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isTesting || isRefreshing) return;
+    const signal = beginRequest();
     addMessage({ id: Date.now(), type: 'request', content: trimmed, timestamp: dayjs().format('HH:mm') });
-    testAgent({ agentId, body: { firstYn: 'N', serviceId, threadId, userInput: trimmed } });
+    testAgent({ agentId, body: { firstYn: 'N', serviceId, threadId, userInput: trimmed }, signal });
   };
 
   /** 세션 초기화 — refresh(세션 초기화) → test(firstYn:'Y') 로 welcomeMessage 재수신 */
@@ -118,24 +131,27 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
     const newServiceId = `test_${uuid}`;
     const newThreadId = `${agentId}_${uuid}`;
     sessionRef.current = newThreadId;
+    const signal = beginRequest();
     setServiceId(newServiceId);
     setThreadId(newThreadId);
     setMessages([]);
     setIsWelcomePending(true);
     refreshAgent(
-      { agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } },
+      { agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' }, signal },
       {
         // refresh 응답이 늦게 와서 세션이 이미 바뀐 경우 welcome 재수신 트리거를 건너뜀
         onSuccess: () => {
           if (newThreadId !== sessionRef.current) return;
-          testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
+          testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' }, signal: controllerRef.current?.signal });
         },
       },
     );
   };
 
-  /** 대화·세션 비우기 (닫기/에이전트 변경 직전) */
+  /** 대화·세션 비우기 (닫기/에이전트 변경 직전) — 진행 중 요청도 취소 */
   const reset = () => {
+    controllerRef.current?.abort();
+    controllerRef.current = null;
     sessionRef.current = '';
     setMessages([]);
     setThreadId('');
