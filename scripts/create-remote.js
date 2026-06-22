@@ -133,6 +133,9 @@ function createRemote() {
       // host의 useQuerySelectorsLoader.ts에 신규 remote 등록
       updateQuerySelectorLoaders(trimmedAppName);
 
+      // host의 remotes.d.ts에 신규 remote 와일드카드 모듈 선언 추가
+      updateHostRemotesDts(trimmedAppName);
+
       // 신규앱의 app.tsx 파일을 manager의 sample에서 복사 및 주석 제거
       copyAppTemplate(trimmedAppName);
 
@@ -161,6 +164,36 @@ function createRemote() {
       rl.close();
     }
   });
+}
+
+function updateHostRemotesDts(appName) {
+  const timer = createTimer();
+  logStart('host/remotes.d.ts', `${appName} 와일드카드 모듈 선언 추가`);
+  try {
+    const dtsPath = path.join(process.cwd(), 'apps/host/src/remotes.d.ts');
+    if (!fs.existsSync(dtsPath)) {
+      logError('host/remotes.d.ts', '파일을 찾을 수 없음');
+      return;
+    }
+    let content = fs.readFileSync(dtsPath, 'utf8');
+
+    // 이미 선언되어 있으면 스킵
+    const moduleDecl = `declare module '${appName}/*'`;
+    if (content.includes(moduleDecl)) {
+      logInfo('host/remotes.d.ts', `${appName} 선언이 이미 존재함 (스킵)`);
+      return;
+    }
+
+    // 파일 끝에 remote 별 범용 컴포넌트 expose 폴백 와일드카드 추가.
+    // 구체 패턴(*/Module, */Routes 등)이 우선 매칭되고, 구체 선언이 없는 컴포넌트 expose 를 이 와일드카드가 받는다.
+    const block = `declare module '${appName}/*' {\n  const Component: React.ComponentType;\n  export default Component;\n}\n`;
+    content = `${content.replace(/\s*$/, '')}\n\n${block}`;
+    fs.writeFileSync(dtsPath, content);
+
+    logSuccess('host/remotes.d.ts', `${appName} 와일드카드 모듈 선언 추가`, timer);
+  } catch (error) {
+    logError('host/remotes.d.ts', `${appName} 와일드카드 모듈 선언 추가`, error);
+  }
 }
 
 function removeTsConfigPath(appName) {

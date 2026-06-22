@@ -8,6 +8,7 @@ const config: ModuleFederationConfig = {
     './PageVariantManifest': './src/app/features/router/pageVariantManifest.ts',
     './QuerySelectors': './src/app/features/router/querySelectors.ts',
     './WorkflowApp': './src/remote-entry-workflow.ts',
+    './AgentChatFab': './src/app/features/agent-config/components/AgentChatFab.tsx',
   },
   additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
