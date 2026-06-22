@@ -3,6 +3,36 @@ import type { CampaignResultStatListItem } from '../../../features/statistics/ty
 
 export type CampaignResultStatColDef = ColDef<CampaignResultStatListItem> | ColGroupDef<CampaignResultStatListItem>;
 
+type TextCellStyleFn = (params: { node?: { rowPinned?: string | null } }) => CellStyle;
+
+/** 긴 이름 컬럼 — flex 확장 + 말줄임 + 툴팁 */
+export function createFlexibleNameColumnDef<T>(
+  headerName: string,
+  colId: string,
+  getName: (data: T | undefined) => string,
+  textCellStyle: TextCellStyleFn,
+  options?: { minWidth?: number; pinned?: 'left' },
+): ColDef<T> {
+  const minWidth = options?.minWidth ?? 140;
+  return {
+    headerName,
+    colId,
+    flex: 1,
+    minWidth,
+    pinned: options?.pinned,
+    valueGetter: ({ data }) => {
+      const name = getName(data).trim();
+      return name || '-';
+    },
+    tooltipValueGetter: ({ data }) => getName(data).trim(),
+    cellStyle: (params) => ({
+      ...textCellStyle(params),
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    }),
+  };
+}
+
 const ATTEMPT_SELF_CALL_SUCCESS_TOOLTIP = '발신 시도 차수별 본인통화 성공률';
 
 /** ag-Grid 컬럼 그룹 — 헤더는 1차/2차/3차만 표시, 전체 명칭은 툴팁 */

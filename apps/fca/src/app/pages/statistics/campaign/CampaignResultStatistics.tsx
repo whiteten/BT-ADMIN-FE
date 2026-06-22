@@ -3,15 +3,18 @@ import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { ChevronDown, Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
+import { CampaignStatExcludeFilterRow, buildCampaignExcludeFilterParams } from './campaignStatExcludeFilters';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
@@ -90,6 +93,10 @@ export default function CampaignResultStatistics() {
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
+  const [excludeDays, setExcludeDays] = useState<string[]>([]);
+  const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
+  const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
@@ -118,8 +125,9 @@ export default function CampaignResultStatistics() {
       timeUnit,
       fromTime,
       toTime,
+      ...buildCampaignExcludeFilterParams(timeUnit, excludeDays, excludeBusinessHoliday, excludeStatHoliday),
     }),
-    [timeUnit, fromTime, toTime],
+    [timeUnit, fromTime, toTime, excludeDays, excludeBusinessHoliday, excludeStatHoliday],
   );
 
   const {
@@ -210,6 +218,7 @@ export default function CampaignResultStatistics() {
       const response = await statisticsApi.exportCampaignResultStatExcel({
         ...campaignStatParams,
         timeUnit: displayTimeUnit,
+        ...buildCampaignExcludeFilterParams(displayTimeUnit, excludeDays, excludeBusinessHoliday, excludeStatHoliday),
       });
       const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
@@ -223,55 +232,78 @@ export default function CampaignResultStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full min-h-0">
       <div className="flex flex-col gap-5 w-full h-full min-h-0 bg-white bt-shadow p-5">
-        <header className="flex items-start gap-3 shrink-0">
-          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
-              <Select
-                value={timeUnit}
-                onChange={(v) => setTimeUnit(v)}
-                options={[
-                  { label: '일간', value: 'DD' },
-                  { label: '월간', value: 'MM' },
-                  { label: '년간', value: 'YY' },
-                ]}
-                className="!max-w-[110px] !min-w-[90px]"
-                popupMatchSelectWidth={false}
-                defaultValue="DD"
-              />
-              <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
-              <DatePicker
-                value={startDate}
-                onChange={(date) => setStartDate(date)}
-                picker={getPickerMode(timeUnit)}
-                format={getDatePickerFormat(timeUnit)}
-                disabledDate={disabledDate}
-                inputReadOnly
-                allowClear={false}
-              />
-              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-              <DatePicker
-                value={endDate}
-                onChange={(date) => setEndDate(date)}
-                picker={getPickerMode(timeUnit)}
-                format={getDatePickerFormat(timeUnit)}
-                disabledDate={disabledEndDate}
-                inputReadOnly
-                allowClear={false}
-              />
+        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <header className="flex flex-col gap-3 shrink-0">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
+                  <Select
+                    value={timeUnit}
+                    onChange={(v) => setTimeUnit(v)}
+                    options={[
+                      { label: '일간', value: 'DD' },
+                      { label: '월간', value: 'MM' },
+                      { label: '년간', value: 'YY' },
+                    ]}
+                    className="!max-w-[110px] !min-w-[90px]"
+                    popupMatchSelectWidth={false}
+                    defaultValue="DD"
+                  />
+                  <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                  <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <CollapsibleTrigger asChild>
+                    <Button type="default" icon={<ChevronDown className={cn('size-4 transition-transform', isFilterOpen && 'rotate-180')} />} className="!size-8 !min-w-8" />
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
+                  조회
+                </Button>
+                {hasExcelPermission && (
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
+                    Export
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
-              조회
-            </Button>
-            {hasExcelPermission && (
-              <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
-                Export
-              </Button>
-            )}
-          </div>
-        </header>
+            {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
+              <CollapsibleContent>
+                <div className="flex flex-wrap items-center gap-3">
+                  <CampaignStatExcludeFilterRow
+                    excludeDays={excludeDays}
+                    onExcludeDaysChange={setExcludeDays}
+                    excludeBusinessHoliday={excludeBusinessHoliday}
+                    onExcludeBusinessHolidayChange={setExcludeBusinessHoliday}
+                    excludeStatHoliday={excludeStatHoliday}
+                    onExcludeStatHolidayChange={setExcludeStatHoliday}
+                  />
+                </div>
+              </CollapsibleContent>
+            ) : null}
+          </header>
+        </Collapsible>
         <div className="flex-1 min-h-0 w-full">
           <AgGridReact<CampaignResultStatListItem>
             ref={gridRef}
