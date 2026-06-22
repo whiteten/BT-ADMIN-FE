@@ -36,6 +36,8 @@ export interface DatasetListItem {
   description?: string;
   isSystem: boolean;
   isActive: boolean;
+  /** 데이터셋 태그. 백엔드 제공 전 과도기에는 화면에서 임시 시드(seedTags)로 채운다. */
+  tags?: string[];
 }
 
 export interface DatasetDetail extends DatasetListItem {
