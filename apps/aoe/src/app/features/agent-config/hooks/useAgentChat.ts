@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import dayjs from 'dayjs';
 import { Log } from '@/log';
 import { createUUID } from '@/shared-util';
-import type { ChatMessage } from '../types';
+import type { AgentTestRequest, ChatMessage } from '../types';
 import { useRefreshAgent, useTestAgent } from './useAgentQueries';
 
 /**
@@ -48,11 +48,20 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
   // (있으면 메시지가 그대로 뜨고, 없으면 조용히 빈 상태 유지 — 사용자 메시지 응답에만 '...' 노출)
   const [isWelcomePending, setIsWelcomePending] = useState(false);
 
+  // 현재 유효 세션(threadId) — 응답 도착 시점에 세션이 바뀌었는지 판별하는 가드.
+  // 닫고 새 대화를 연 뒤 옛 요청 응답이 늦게 도착하면, 요청 당시 threadId(variables)와 불일치 → 무시.
+  const sessionRef = useRef('');
+
   const addMessage = (message: ChatMessage) => setMessages((prev) => [...prev, message]);
+
+  /** 응답의 요청 당시 threadId 가 현재 세션과 다르면 stale(닫힘/세션 교체 후 늦게 도착) → 처리 무시 */
+  // mutationOptions 타입상 variables 가 unknown 으로 추론되므로 요청 타입으로 좁힘
+  const isStale = (variables: unknown) => (variables as AgentTestRequest).body.threadId !== sessionRef.current;
 
   const { mutate: testAgent, isPending: isTesting } = useTestAgent({
     mutationOptions: {
-      onSuccess: (data) => {
+      onSuccess: (data, variables) => {
+        if (isStale(variables)) return;
         // BE 응답: data 가 단계별 결과 객체 (`{ execute: {result}, run: {result}, ... }`). 옛 단일 result 도 호환.
         // 우선순위: run > execute > 객체 마지막 키 > 최상위 result
         setIsWelcomePending(false);
@@ -62,8 +71,9 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
         }
         onAfterResponse?.();
       },
-      onError: (error) => {
+      onError: (error, variables) => {
         Log.warn('testAgent error', error);
+        if (isStale(variables)) return;
         setIsWelcomePending(false);
         addMessage({ id: Date.now(), type: 'response', content: { error: '오류가 발생했습니다.' }, timestamp: dayjs().format('HH:mm') });
         onAfterResponse?.();
@@ -73,8 +83,9 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
 
   const { mutate: refreshAgent, isPending: isRefreshing } = useRefreshAgent({
     mutationOptions: {
-      onError: (error) => {
+      onError: (error, variables) => {
         Log.warn('refreshAgent error', error);
+        if (isStale(variables)) return;
         setIsWelcomePending(false);
       },
     },
@@ -85,6 +96,7 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
     const uuid = createUUID();
     const newServiceId = `test_${uuid}`;
     const newThreadId = `${agentId}_${uuid}`;
+    sessionRef.current = newThreadId;
     setServiceId(newServiceId);
     setThreadId(newThreadId);
     setMessages([]);
@@ -105,18 +117,26 @@ export const useAgentChat = (onAfterResponse?: () => void) => {
     const uuid = createUUID();
     const newServiceId = `test_${uuid}`;
     const newThreadId = `${agentId}_${uuid}`;
+    sessionRef.current = newThreadId;
     setServiceId(newServiceId);
     setThreadId(newThreadId);
     setMessages([]);
     setIsWelcomePending(true);
     refreshAgent(
       { agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } },
-      { onSuccess: () => testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } }) },
+      {
+        // refresh 응답이 늦게 와서 세션이 이미 바뀐 경우 welcome 재수신 트리거를 건너뜀
+        onSuccess: () => {
+          if (newThreadId !== sessionRef.current) return;
+          testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
+        },
+      },
     );
   };
 
   /** 대화·세션 비우기 (닫기/에이전트 변경 직전) */
   const reset = () => {
+    sessionRef.current = '';
     setMessages([]);
     setThreadId('');
     setServiceId('');
