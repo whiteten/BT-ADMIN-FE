@@ -14,6 +14,8 @@ const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
 const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
 const ExecutionManagement = React.lazy(() => import('./pages/execution/ExecutionManagement'));
 const CampaignScenario = React.lazy(() => import('./pages/management/CampaignScenario'));
+const CampaignScenarioDetail = React.lazy(() => import('./pages/management/CampaignScenarioDetail'));
+const CampaignScenarioCreate = React.lazy(() => import('./pages/management/CampaignScenarioCreate'));
 
 export const routes = [
   {
@@ -48,6 +50,8 @@ export const routes = [
           { path: 'create', element: <CampaignCreate /> },
           { path: ':campaignId', element: <CampaignDetail /> },
           { path: 'campaign-scenario', element: <CampaignScenario /> },
+          { path: 'campaign-scenario/create', element: <CampaignScenarioCreate /> },
+          { path: 'campaign-scenario/:scenarioId', element: <CampaignScenarioDetail /> },
         ],
       },
       {

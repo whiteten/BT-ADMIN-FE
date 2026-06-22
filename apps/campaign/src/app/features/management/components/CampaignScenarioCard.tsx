@@ -1,5 +1,6 @@
 import { Card } from 'antd';
 import dayjs from 'dayjs';
+import { TRANSFER_DN_OPTIONS } from '../constants/campaignScenarioConstants';
 import type { CampaignScenarioListItem } from '../types/campaignScenario';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
@@ -90,14 +91,16 @@ export default function CampaignScenarioCard({
     </div>
   );
 
+  const transferDnLabel = TRANSFER_DN_OPTIONS.find((option) => option.value === transferDn)?.label ?? transferDn;
+
   const fields: { label: string; value: React.ReactNode }[] = [
     { label: '파일식별자', value: fileIdentifier },
     { label: '조건', value: conditionNumber },
-    { label: '발신번호', value: callerNumber },
+    { label: '발신번호', value: callerNumber || '-' },
     { label: '캠페인코드', value: campaignCode },
-    { label: '호전환DN', value: transferDn },
-    { label: '콜배수', value: callMultiplier },
-    { label: '알림기준', value: notificationCriteria },
+    { label: '호전환DN', value: transferDnLabel },
+    { label: '콜배수', value: `${callMultiplier}배` },
+    { label: '알림기준', value: `${notificationCriteria}%` },
     { label: '우선순위', value: priority },
     { label: '사용여부', value: inUse ? '사용' : '미사용' },
     { label: '차수', value: sequence },

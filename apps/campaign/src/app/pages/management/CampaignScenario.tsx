@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -27,6 +28,7 @@ const INITIAL_APPLIED_FILTERS: AppliedFilters = {
 };
 
 export default function CampaignScenario() {
+  const navigate = useNavigate();
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -80,11 +82,11 @@ export default function CampaignScenario() {
   };
 
   const handleClickCreateBtn = () => {
-    toast.info('추가 기능은 준비 중입니다.');
+    navigate('create');
   };
 
-  const handleDetail = (_scenarioId: string) => {
-    toast.info('상세보기 기능은 준비 중입니다.');
+  const handleDetail = (scenarioId: string) => {
+    navigate(scenarioId);
   };
 
   const handleDelete = (scenarioId: string) => {
