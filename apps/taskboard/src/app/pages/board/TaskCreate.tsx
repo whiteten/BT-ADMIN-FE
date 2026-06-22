@@ -191,7 +191,7 @@ function DraggableSourceItem({ item }: { item: CallDataItem }) {
       }`}
     >
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-      <span className="text-xs font-medium text-slate-700 truncate flex-1">{item.label}</span>
+      <span className="text-xs font-medium text-slate-700 truncate flex-1 min-w-0">{item.label}</span>
       {item.category === 'notice' && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold flex-shrink-0">공지</span>}
       {item.isRealtime && item.category !== 'Redis' && <span className="text-[9px] bg-cyan-100 text-cyan-600 px-1 py-0.5 rounded font-bold">실시간</span>}
       {item.displayType === 'table' && !item.isRealtime && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
@@ -514,7 +514,7 @@ function RedisTreeNode({ node, depth }: { node: RedisKeyNode; depth: number }) {
 
         {/* 레이블 */}
         <span
-          className={`font-mono truncate flex-1 leading-none ${
+          className={`font-mono truncate flex-1 min-w-0 leading-none ${
             isHashGroup ? 'text-[11px] text-rose-700 font-semibold' : depth === 0 ? 'text-[11px] text-slate-700 font-semibold' : 'text-[10px] text-slate-600'
           }`}
         >
@@ -947,7 +947,7 @@ function CalcOperandDropZone({
         <span className="w-5 h-5 flex items-center justify-center rounded bg-violet-100 text-violet-600 text-[10px] font-bold flex-shrink-0">{operand.var}</span>
         <div
           ref={setNodeRef}
-          className={`flex-1 h-7 flex items-center px-2 rounded border text-[10px] truncate transition-colors ${
+          className={`flex-1 min-w-0 h-7 flex items-center px-2 rounded border text-[10px] truncate transition-colors ${
             isOver ? 'border-[#0f5b9e] bg-[#0f5b9e]/10' : label ? 'border-slate-200 bg-white text-slate-700' : 'border-dashed border-slate-300 bg-slate-50 text-slate-400'
           }`}
         >
@@ -2379,7 +2379,7 @@ export default function TaskCreate() {
           {/* ── 큐리스트/상담그룹/상담사 멀티선택 바 — 캔버스 미리보기 전용, 저장 안 됨 ── */}
           <div className="px-3 py-2 bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-cyan-200 flex items-center gap-2 flex-shrink-0">
             <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap flex-shrink-0 px-1.5 py-0.5 bg-white/70 rounded border border-slate-200">
-              미리보기 전용 — 실제 표시값은 디스플레이 관리에서 설정
+              미리보기 전용 — 실제 표시값은 뷰 그룹 관리에서 설정
             </span>
             <div className="w-px h-4 bg-cyan-200 flex-shrink-0 mx-1" />
             {/* 큐리스트 */}
@@ -2724,7 +2724,7 @@ export default function TaskCreate() {
           {selectedWidget ? (
             <>
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
-                <span className="text-sm font-bold text-slate-700 truncate flex-1">{selectedWidget.customTitle ?? selectedWidget.item.label}</span>
+                <span className="text-sm font-bold text-slate-700 truncate flex-1 min-w-0">{selectedWidget.customTitle ?? selectedWidget.item.label}</span>
                 <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                   <button
                     onClick={() => duplicateWidget(selectedWidget.id)}
@@ -2893,7 +2893,7 @@ export default function TaskCreate() {
                       {selectedWidget.item.tableConfig.columns.map((col) => (
                         <div key={col.key} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded px-2 py-1">
                           <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
-                          <span className="text-[10px] text-slate-700 flex-1 truncate">{col.label}</span>
+                          <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
                           {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
                             <button
                               onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}

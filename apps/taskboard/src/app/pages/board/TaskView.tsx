@@ -10,7 +10,8 @@ import {
   useGetCtiAgentList,
   useGetCtiGroupList,
   useGetCtiQueueList,
-  useGetTaskboardDisplayLayoutDetail,
+  useGetTaskboardDisplayList,
+  useGetTaskboardLayoutList,
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
@@ -701,18 +702,18 @@ function SingleLayoutView({
       <div
         className={`absolute top-0 left-0 right-0 z-50 transition-all duration-500 ${showControls ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-full pointer-events-none'}`}
       >
-        <div className="flex items-center justify-between px-4 py-2 bg-black/70 backdrop-blur-sm">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-2 bg-black/70 backdrop-blur-sm">
+          <div className="flex items-center gap-3 min-w-0 overflow-hidden">
             <button
               onClick={() => navigate('/taskboard/board/task-list')}
-              className="text-white/70 hover:text-white text-sm font-semibold px-3 py-1 rounded hover:bg-white/10 transition-colors"
+              className="text-white/70 hover:text-white text-sm font-semibold px-3 py-1 rounded hover:bg-white/10 transition-colors flex-shrink-0"
             >
               ← 목록
             </button>
-            <span className="text-white font-bold text-sm">{displayName}</span>
-            <span className="text-white/50 text-xs">({layout.layoutName})</span>
+            <span className="text-white font-bold text-sm truncate min-w-0">{displayName}</span>
+            <span className="text-white/50 text-xs truncate flex-shrink-0 max-w-[200px]">({layout.layoutName})</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {hasLiveSelection && (
               <span className={`text-xs px-2 py-0.5 rounded-full ${wsConnected ? 'bg-green-500/30 text-green-300' : 'bg-yellow-500/30 text-yellow-300'}`}>
                 {wsConnected ? '● 실시간' : '○ 연결중'}
@@ -762,14 +763,17 @@ function SingleLayoutView({
 }
 
 // ── TaskView 진입점 ─────────────────────────────────────────────────────────
+// 레이아웃(전광판)과 뷰 그룹(표시값)은 서로 매핑되지 않는 독립된 풀이다 — URL에 두 id를 직접 받아 그 자리에서 조합한다.
 export default function TaskView() {
-  const { displayId: displayLayoutId } = useParams<{ displayId: string }>();
+  const { layoutId, displayId } = useParams<{ layoutId: string; displayId: string }>();
   const navigate = useNavigate();
-  const id = displayLayoutId ? Number(displayLayoutId) : undefined;
+  const numLayoutId = layoutId ? Number(layoutId) : undefined;
+  const numDisplayId = displayId ? Number(displayId) : undefined;
 
-  const { data: detail, isLoading, refetch } = useGetTaskboardDisplayLayoutDetail(id ?? 0, { queryOptions: { enabled: !!id } });
+  const { data: layoutList = [], isLoading: layoutLoading } = useGetTaskboardLayoutList();
+  const { data: displayList = [], isLoading: displayLoading, refetch } = useGetTaskboardDisplayList();
 
-  if (!id) {
+  if (!numLayoutId || !numDisplayId) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
         <p className="text-lg">전광판 정보가 없습니다.</p>
@@ -780,14 +784,17 @@ export default function TaskView() {
     );
   }
 
-  if (isLoading) {
+  if (layoutLoading || displayLoading) {
     return <div className="h-screen flex items-center justify-center bg-slate-900 text-white">불러오는 중...</div>;
   }
 
-  if (!detail) {
+  const layout = layoutList.find((l) => l.layoutId === numLayoutId);
+  const display = displayList.find((d) => d.displayId === numDisplayId);
+
+  if (!layout || !display) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
-        <p className="text-lg">디스플레이를 찾을 수 없습니다.</p>
+        <p className="text-lg">{!layout ? '전광판을 찾을 수 없습니다.' : '뷰 그룹을 찾을 수 없습니다.'}</p>
         <button onClick={() => navigate('/taskboard/board/task-list')} className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82]">
           목록으로 돌아가기
         </button>
@@ -797,10 +804,10 @@ export default function TaskView() {
 
   return (
     <SingleLayoutView
-      displayId={detail.displayId}
-      displayName={detail.displayName}
-      layout={detail.layout}
-      selection={parseSelection(detail.selectionJson)}
+      displayId={display.displayId}
+      displayName={display.displayName}
+      layout={layout}
+      selection={parseSelection(display.selectionJson)}
       onSelectionSaved={() => refetch()}
     />
   );

@@ -869,12 +869,12 @@ export default function TaskBg() {
               </div>
               <div className="p-4 bg-white">
                 <div className="flex justify-between items-start mb-3">
-                  <div>
+                  <div className="min-w-0 pr-2">
                     <h3 className={`text-[15px] font-bold truncate ${item.useYn === 'N' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{item.pageName}</h3>
                     <p className="text-[11px] font-mono text-slate-400 mt-0.5">ID: {item.pageId}</p>
                   </div>
                   <span
-                    className={`text-[10px] px-2 py-1 rounded font-bold border ${item.useYn === 'Y' ? 'bg-blue-50 text-[#0f5b9e] border-blue-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}
+                    className={`flex-shrink-0 text-[10px] px-2 py-1 rounded font-bold border ${item.useYn === 'Y' ? 'bg-blue-50 text-[#0f5b9e] border-blue-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}
                   >
                     {item.useYn === 'Y' ? '사용중' : '미사용'}
                   </span>

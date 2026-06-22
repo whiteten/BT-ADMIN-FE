@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Button, Input } from 'antd';
+import { Button, Input, Select } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 
 /**
@@ -15,15 +15,22 @@ import { useBreadcrumbStore } from '@/shared-store';
 
 const breadcrumb = [{ title: 'VEL' }, { title: '실시간감청 데모', path: '/vel/monitoring/realtime-test' }];
 
-const FIELDS: { name: keyof FormState; label: string; placeholder?: string; full?: boolean }[] = [
+// 녹취/감청 서버 주소 선택지. 2026-06-19 구 100.100.107.101 → VIP .27/.28 로 이전(이중화).
+const SERVER_IP_OPTIONS = [
+  { value: '100.100.107.27', label: '100.100.107.27 (VIP)' },
+  { value: '100.100.107.28', label: '100.100.107.28 (VIP)' },
+  { value: '100.100.107.101', label: '100.100.107.101 (구·레거시)' },
+];
+
+const FIELDS: { name: keyof FormState; label: string; placeholder?: string; full?: boolean; options?: { value: string; label: string }[] }[] = [
   { name: 'tenant_id', label: '회사 아이디 (Tenant ID)' },
   { name: 'manager_id', label: '청취자 아이디 (Manager ID)' },
   { name: 'agent_dn', label: '내선번호 (Agent DN)', placeholder: '감청할 내선번호' },
   { name: 'agent_id', label: '상담원 사번 (Agent ID)' },
   { name: 'agent_name', label: '상담원 성명 (Agent Name)' },
-  { name: 'ip', label: '서버 IP' },
+  { name: 'ip', label: '서버 IP', options: SERVER_IP_OPTIONS },
   { name: 'port', label: '포트' },
-  { name: 'media_ip', label: '미디어 IP (Media IP)' },
+  { name: 'media_ip', label: '미디어 IP (Media IP)', options: SERVER_IP_OPTIONS },
   { name: 'media_port', label: '미디어 포트 (Media Port)' },
 ];
 
@@ -42,12 +49,12 @@ interface FormState {
 const INITIAL: FormState = {
   tenant_id: '2000000001',
   manager_id: 'btadmin',
-  agent_dn: '4408',
+  agent_dn: '4409',
   agent_id: 'agent01',
   agent_name: '홍길동',
-  ip: '100.100.107.101',
+  ip: '100.100.107.27',
   port: '7801',
-  media_ip: '100.100.107.101',
+  media_ip: '100.100.107.27',
   media_port: '7620',
 };
 
@@ -63,7 +70,7 @@ export default function RealtimeTestPage() {
 
   const handleChange = (name: keyof FormState, value: string) => setForm((prev) => ({ ...prev, [name]: value }));
 
-  const handleStart = (mode: 'poll' | 'stream') => {
+  const handleStart = (mode: 'poll' | 'stream' | 'ws') => {
     const qs = new URLSearchParams({ ...form, mode }).toString();
     const w = 560;
     const h = 560;
@@ -87,12 +94,16 @@ export default function RealtimeTestPage() {
             {FIELDS.map((f) => (
               <div key={f.name} className={`flex flex-col gap-1 ${f.full ? 'col-span-2' : ''}`}>
                 <label className="text-xs text-gray-500">{f.label}</label>
-                <Input
-                  value={form[f.name]}
-                  placeholder={f.placeholder}
-                  onChange={(e) => handleChange(f.name, e.target.value)}
-                  {...(f.name === 'agent_dn' ? { style: { fontWeight: 600, color: '#6366f1' } } : {})}
-                />
+                {f.options ? (
+                  <Select value={form[f.name]} options={f.options} onChange={(value) => handleChange(f.name, value)} />
+                ) : (
+                  <Input
+                    value={form[f.name]}
+                    placeholder={f.placeholder}
+                    onChange={(e) => handleChange(f.name, e.target.value)}
+                    {...(f.name === 'agent_dn' ? { style: { fontWeight: 600, color: '#6366f1' } } : {})}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -104,6 +115,9 @@ export default function RealtimeTestPage() {
             <Button size="large" onClick={() => handleStart('stream')} style={{ flex: 1 }}>
               스트림 테스트 (BFF 패스스루)
             </Button>
+            <Button size="large" onClick={() => handleStart('ws')} style={{ flex: 1 }}>
+              WebSocket (BFF /ws/proxy)
+            </Button>
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded p-4 text-xs text-gray-500 leading-relaxed">
@@ -112,6 +126,9 @@ export default function RealtimeTestPage() {
             <br />
             <b>스트림 테스트 (BFF 패스스루)</b> — <code>/vel-realtime-stream</code> 무한 스트림. BFF가 무한 audio/mpeg를 flush(패스스루)하는지 검증용. 미지원이면 0바이트로 막혀
             플레이어에 실패 표시됩니다.
+            <br />
+            <b>WebSocket (BFF /ws/proxy)</b> — <code>/ws/proxy/vel/realtime</code> 로 BFF 범용 WS 프록시 경유. VEL이 Core 오디오를 BINARY 프레임으로 push. BFF aggregation 우회(무한
+            스트림 정식 해법 후보).
             <br />
             내선번호 등을 입력하고 버튼을 누르면 별도 감청 플레이어 팝업이 열리고, 해당 내선 통화 발생 시 실시간 음성이 재생됩니다.
           </div>

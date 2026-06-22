@@ -29,7 +29,7 @@ export const routes = [
           { path: 'task-mgmt', element: pv('board/task-mgmt', TaskMgmt) },
           { path: 'task-create', element: pv('board/task-create', TaskCreate) },
           { path: 'task-display', element: pv('board/task-display', TaskDisplayManage) },
-          { path: 'task-view/:displayId', element: pv('board/task-view/:displayId', TaskView) },
+          { path: 'task-view/:layoutId/:displayId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },
           { path: 'task-notice', element: pv('board/task-notice', TaskNotice) },
         ],
       },

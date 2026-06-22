@@ -352,7 +352,7 @@ export default function TaskNotice() {
                       {/* 내용 */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-0.5">
-                          {notice.title && <p className="text-sm font-semibold text-slate-800 truncate">{notice.title}</p>}
+                          {notice.title && <p className="text-sm font-semibold text-slate-800 truncate flex-1 min-w-0">{notice.title}</p>}
                           <span className="text-[10px] text-slate-400 flex-shrink-0">
                             {notice.displayType === 'slide' ? '슬라이드' : '고정'} · 순서 {notice.sortOrder}
                           </span>

@@ -257,6 +257,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
   const [showLegend, setShowLegend] = useState(true);
   const [goalLineEnabled, setGoalLineEnabled] = useState(false);
   const [goalLineValue, setGoalLineValue] = useState<number | undefined>();
+  const [avgLineEnabled, setAvgLineEnabled] = useState(() => (existingPanel?.chartOptions as { avgLine?: boolean } | undefined)?.avgLine ?? false);
 
   // ─── Top N state ──────────────────────────────────────────────────────────
   const limitEntry = existingFieldMap.find((f) => f.slotType === 'LIMIT');
@@ -388,7 +389,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
 
   const buildChartOptions = () => {
     if (isGrid) return { showSumRow };
-    return { direction: chartDirection, dataLabel: showDataLabel, legend: showLegend, goalLine: { enabled: goalLineEnabled, value: goalLineValue } };
+    return { direction: chartDirection, dataLabel: showDataLabel, legend: showLegend, avgLine: avgLineEnabled, goalLine: { enabled: goalLineEnabled, value: goalLineValue } };
   };
 
   const handleSave = () => {
@@ -1263,6 +1264,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
                             표시
                           </Checkbox>
                         </div>
+                        {chartType === 'LINE' && (
+                          <div className="flex items-center gap-2 rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
+                            <span className="text-sm font-semibold">평균선</span>
+                            <Checkbox className="ml-auto" checked={avgLineEnabled} onChange={(e) => setAvgLineEnabled(e.target.checked)}>
+                              표시
+                            </Checkbox>
+                          </div>
+                        )}
                         {chartType !== 'PIE' && (
                           <div className="rounded border border-[var(--color-bt-border)] bg-white p-2.5">
                             <div className="mb-2 flex items-center gap-2">

@@ -198,6 +198,7 @@ export interface ScenarioVersionUpdateRequest {
 export interface ScenarioPublishRequest {
   rtResvKind: ApplyTimingKind;
   applyDatetime?: string; // ISO 8601, RESERVED 시 필수
+  systemIds?: number[]; // 체크박스로 선택한 배포 대상 시스템 (미지정이면 할당 시스템 전체)
 }
 
 export interface DeployedSystem {
@@ -228,6 +229,7 @@ export interface DeployTargetSystem {
   haGroupId?: number | null;
   haGroupName?: string | null;
   assignSystem: number; // 1=할당, 0=HA 백업
+  reserved?: boolean; // 활성 예약(대기) 여부 — true 면 체크박스 disabled + "예약중"
 }
 
 // ─── 시나리오 배포 결과 (publish 응답) ──────────────────────────────────────

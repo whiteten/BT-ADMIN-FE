@@ -3,14 +3,12 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
-import type { RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardDisplayLayout, TaskboardDisplayLayoutDetail, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
+import type { RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
   getLayoutList: () => [{}],
   getDisplayList: () => [{}],
-  getDisplayLayoutList: (params?: { displayId?: number; layoutId?: number }) => [params ?? {}],
-  getDisplayLayoutDetail: (displayLayoutId: number) => [{ displayLayoutId }],
   getRollingGroupList: () => [{}],
   getNoticeList: () => [{}],
   getNoticeListByKey: (noticeKey: string) => [{ noticeKey }],
@@ -80,7 +78,7 @@ export const useDeleteTaskboardLayout = ({ mutationOptions }: MutationHookOption
   });
 };
 
-// ── 디스플레이 훅 (레이아웃과 무관한 순수 선택값 그룹핑) ─────────────────────────
+// ── 뷰 그룹 훅 (레이아웃과 매핑되지 않는 독립된 선택값 묶음) ─────────────────────────
 
 export const useGetTaskboardDisplayList = ({ queryOptions }: QueryHookWithParamsOptions<TaskboardDisplay[]> = {}) => {
   return useQuery({
@@ -107,42 +105,6 @@ export const useUpdateTaskboardDisplay = ({ mutationOptions }: MutationHookOptio
 export const useDeleteTaskboardDisplay = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.deleteDisplay,
-    ...mutationOptions,
-  });
-};
-
-// ── 화면 인스턴스 훅 (디스플레이 그룹핑 × 레이아웃 N:M 연결) ────────────────────────
-
-export const useGetTaskboardDisplayLayoutList = (
-  params?: { displayId?: number; layoutId?: number },
-  { queryOptions }: QueryHookWithParamsOptions<TaskboardDisplayLayout[]> = {},
-) => {
-  return useQuery({
-    queryKey: taskboardQueryKeys.getDisplayLayoutList(params).queryKey,
-    queryFn: () => taskboardApi.getDisplayLayoutList(params),
-    ...queryOptions,
-  });
-};
-
-export const useGetTaskboardDisplayLayoutDetail = (displayLayoutId: number, { queryOptions }: QueryHookWithParamsOptions<TaskboardDisplayLayoutDetail | undefined> = {}) => {
-  return useQuery({
-    queryKey: taskboardQueryKeys.getDisplayLayoutDetail(displayLayoutId).queryKey,
-    queryFn: () => taskboardApi.getDisplayLayoutDetail(displayLayoutId),
-    enabled: !!displayLayoutId,
-    ...queryOptions,
-  });
-};
-
-export const useCreateTaskboardDisplayLayout = ({ mutationOptions }: MutationHookOptions<any, { displayId: number; layoutId: number }> = {}) => {
-  return useMutation({
-    mutationFn: taskboardApi.createDisplayLayout,
-    ...mutationOptions,
-  });
-};
-
-export const useDeleteTaskboardDisplayLayout = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
-  return useMutation({
-    mutationFn: taskboardApi.deleteDisplayLayout,
     ...mutationOptions,
   });
 };
