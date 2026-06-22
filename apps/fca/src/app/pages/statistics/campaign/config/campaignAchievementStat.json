@@ -8,8 +8,16 @@
         "scenarios": [
           { "campaignListId": "2026000011" },
           { "campaignListId": "2026000008" },
+          { "campaignListId": "2000000001" },
+          { "campaignListId": "2026000006" },
+          { "campaignListId": "2026000003" },
+          { "campaignListId": "2026000009" },
+          { "campaignListId": "2026000007" },
+          { "campaignListId": "2026000005" },
+          { "campaignListId": "2026000001" },
+          { "campaignListId": "2026000004" },
           { "campaignListId": "2026000010" },
-          { "campaignListId": "2026000009" }
+          { "campaignListId": "2026000002" }
         ]
       },
       {
@@ -18,20 +26,24 @@
         "scenarios": [
           { "campaignListId": "2026000027" },
           { "campaignListId": "2026000029" },
-          { "campaignListId": "2026000030" },
           { "campaignListId": "2026000026" },
-          { "campaignListId": "2026000025" },
-          { "campaignListId": "2026000024" }
+          { "campaignListId": "2026000028" }
         ]
       },
       {
         "campaignId": "2026000001",
         "campaignName": "수익증권",
         "scenarios": [
-          { "campaignListId": "2026000014" },
           { "campaignListId": "2026000013" },
-          { "campaignListId": "2026000015" },
-          { "campaignListId": "2026000016" }
+          { "campaignListId": "2026000016" },
+          { "campaignListId": "2026000017" },
+          { "campaignListId": "2026000018" },
+          { "campaignListId": "2026000019" },
+          { "campaignListId": "2026000020" },
+          { "campaignListId": "2026000021" },
+          { "campaignListId": "2026000012" },
+          { "campaignListId": "2026000014" },
+          { "campaignListId": "2026000015" }
         ]
       },
       {
@@ -47,7 +59,10 @@
       {
         "campaignId": "2026000004",
         "campaignName": "개인형IRP 모니터링",
-        "scenarios": [{ "campaignListId": "2026000030" }, { "campaignListId": "2026000031" }]
+        "scenarios": [
+          { "campaignListId": "2026000030" },
+          { "campaignListId": "2026000031" }
+        ]
       }
     ]
   },
@@ -67,7 +82,10 @@
       {
         "campaignId": "2026000005",
         "campaignName": "고객상담부",
-        "scenarios": [{ "campaignListId": "2026000032" }, { "campaignListId": "2026000142" }]
+        "scenarios": [
+          { "campaignListId": "2026000032" },
+          { "campaignListId": "2026000142" }
+        ]
       },
       {
         "campaignId": "2026000006",
