@@ -26,8 +26,18 @@ const OVERRIDES_DIR = path.join(CUSTOM_DIR, 'src', 'app', 'overrides');
 const MF_CONFIG_PATH = path.join(CUSTOM_DIR, 'module-federation.config.ts');
 const MANIFEST_PATH = path.join(CUSTOM_DIR, 'src', 'app', 'site-manifest.ts');
 
-// custom(자기 자신)·host(셸)는 오버라이드 대상이 아님
-const EXCLUDED_APPS = ['custom', 'host'];
+// custom(자기 자신)은 오버라이드 대상이 아님. host(셸)는 app.tsx 인라인 라우트로 지원한다.
+const EXCLUDED_APPS = ['custom'];
+
+/**
+ * 앱의 라우트 정의 파일 경로.
+ * - host: app.tsx 인라인 <Routes> (routes.tsx 없음)
+ * - 그 외 remote: routes.tsx
+ */
+function routesFilePath(appId) {
+  const appDir = path.join(APPS_DIR, appId, 'src', 'app');
+  return appId === 'host' ? path.join(appDir, 'app.tsx') : path.join(appDir, 'routes.tsx');
+}
 
 // import 그래프 추적 시 파싱 대상 코드 확장자 — 그 외(svg·css 등)는 복사만
 const CODE_EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
@@ -62,24 +72,25 @@ function stripComments(s) {
   return s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
-/** apps/ 아래에서 routes.tsx를 가진 오버라이드 대상 remote 목록 */
+/** apps/ 아래에서 라우트 파일(routes.tsx 또는 host의 app.tsx)을 가진 오버라이드 대상 목록 */
 function listRemoteApps() {
   return fs
     .readdirSync(APPS_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory() && !EXCLUDED_APPS.includes(d.name))
     .map((d) => d.name)
-    .filter((name) => fs.existsSync(path.join(APPS_DIR, name, 'src', 'app', 'routes.tsx')))
+    .filter((name) => fs.existsSync(routesFilePath(name)))
     .sort();
 }
 
 /**
- * routes.tsx에서 pv 소켓 항목 추출.
- * - lazy 선언: const X = React.lazy(() => import('./pages/...'))
+ * 라우트 파일에서 pv 소켓 항목 추출.
+ * - lazy 선언: const X = React.lazy(() => import('./pages/...'))   (remote routes.tsx 컨벤션)
+ * - 정적 default import: import X from './pages/...'                (host app.tsx의 pv 컴포넌트)
  * - 소켓 호출: pv('<화면 키>', X)
  * @returns {{ key: string, varName: string, importPath: string | null }[]}
  */
 function extractPvEntries(appId) {
-  const routesPath = path.join(APPS_DIR, appId, 'src', 'app', 'routes.tsx');
+  const routesPath = routesFilePath(appId);
   const content = fs.readFileSync(routesPath, 'utf-8');
 
   const lazyImports = new Map();
@@ -87,6 +98,11 @@ function extractPvEntries(appId) {
   let match;
   while ((match = lazyRegex.exec(content)) !== null) {
     lazyImports.set(match[1], match[2]);
+  }
+  // host app.tsx처럼 pv 컴포넌트를 정적 default import로 선언하는 경우도 추적 (type import 제외)
+  const defaultImportRegex = /import\s+(?!type\b)(\w+)\s+from\s+['"]([^'"]+)['"]/g;
+  while ((match = defaultImportRegex.exec(content)) !== null) {
+    if (!lazyImports.has(match[1])) lazyImports.set(match[1], match[2]);
   }
 
   const entries = [];
@@ -225,20 +241,20 @@ function createOverride(appId, key, label, description, dryRun) {
   const entries = extractPvEntries(appId);
   const entry = entries.find((e) => e.key === key);
   if (!entry) {
-    logError(`'${appId}'의 routes.tsx에 화면 키 '${key}'의 pv 소켓이 없습니다.`);
+    logError(`'${appId}'의 라우트 파일에 화면 키 '${key}'의 pv 소켓이 없습니다.`);
     const variantHint = `정식 variant 화면(DynamicElement 직접 사용)은 이 스크립트가 지원하지 않습니다.`;
     logInfo(`사용 가능한 키 목록은 대화형 모드(인자 없이 실행)에서 확인할 수 있습니다. ${variantHint}`);
     process.exitCode = 1;
     return false;
   }
   if (!entry.importPath) {
-    logError(`pv 소켓의 컴포넌트 '${entry.varName}'의 React.lazy import 선언을 routes.tsx에서 찾지 못했습니다.`);
+    logError(`pv 소켓의 컴포넌트 '${entry.varName}'의 import 선언을 라우트 파일에서 찾지 못했습니다.`);
     process.exitCode = 1;
     return false;
   }
 
   const appSrcRoot = path.join(APPS_DIR, appId, 'src');
-  const routesPath = path.join(appSrcRoot, 'app', 'routes.tsx');
+  const routesPath = routesFilePath(appId);
   const entryFile = resolveImport(routesPath, entry.importPath);
   if (!entryFile) {
     logError(`원본 페이지 파일을 찾지 못했습니다: ${entry.importPath}`);
@@ -312,7 +328,7 @@ function checkConsistency() {
   for (const key of exposeKeys) {
     const [appId, ...rest] = key.split('/');
     const screenKey = rest.join('/');
-    if (!fs.existsSync(path.join(APPS_DIR, appId, 'src', 'app', 'routes.tsx'))) {
+    if (!fs.existsSync(routesFilePath(appId))) {
       report(`존재하지 않는 remote를 가리키는 키: '${key}'`);
       continue;
     }
@@ -322,7 +338,7 @@ function checkConsistency() {
         extractPvEntries(appId).map((e) => e.key),
       );
     if (!pvKeyCache.get(appId).includes(screenKey)) {
-      report(`'${appId}'의 routes.tsx에 pv 소켓이 없는 화면 키: '${screenKey}'`);
+      report(`'${appId}'의 라우트 파일에 pv 소켓이 없는 화면 키: '${screenKey}'`);
     }
 
     const moduleMatch = stripComments(mfContent).match(new RegExp(`'\\./${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}':\\s*'([^']+)'`));
@@ -374,7 +390,7 @@ async function runInteractive() {
 
     const entries = extractPvEntries(appId);
     if (entries.length === 0) {
-      logError(`'${appId}'의 routes.tsx에서 pv 소켓을 찾지 못했습니다.`);
+      logError(`'${appId}'의 라우트 파일에서 pv 소켓을 찾지 못했습니다.`);
       return;
     }
     console.log(`\n'${appId}'의 화면 키 (${entries.length}개):`);
