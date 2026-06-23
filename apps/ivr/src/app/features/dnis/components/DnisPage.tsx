@@ -187,7 +187,7 @@ export default function DnisPage() {
           <div className="flex items-center px-4 py-3 h-[150px]">
             {tenants.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 36 }} />
+                <Empty description={false} styles={{ image: { height: 36 } }} />
                 <span className="text-sm">테넌트가 없습니다</span>
               </div>
             ) : (

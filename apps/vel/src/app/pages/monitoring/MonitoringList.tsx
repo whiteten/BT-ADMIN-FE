@@ -414,7 +414,7 @@ export default function MonitoringList() {
       };
       localStorage.setItem(key, JSON.stringify(eavesdropInfo));
 
-      window.open(`/vel-eavesdrop/monitoring/eavesdrop?eavesdropId=${key}`, `Eavesdrop-${key}`, 'width=560,height=500,resizable=yes');
+      window.open(`/vel/monitoring/eavesdrop?eavesdropId=${key}`, `Eavesdrop-${key}`, 'width=560,height=500,resizable=yes');
     } catch {
       toast.error('감청 시작에 실패했습니다.');
     }

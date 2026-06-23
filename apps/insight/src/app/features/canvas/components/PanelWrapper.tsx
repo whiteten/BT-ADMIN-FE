@@ -45,7 +45,7 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit, draggableC
   return (
     <div className="flex h-full flex-col rounded-lg bg-white bt-shadow overflow-hidden">
       {/* 패널 헤더 — 모니터링 위젯 카드와 동일한 깔끔한 bg-white 헤더 (편집 모드에서 드래그 핸들) */}
-      <div className={`flex items-center justify-between gap-3 bg-white px-4 h-[45px] min-h-[45px] ${isEdit ? `${draggableClass} cursor-move` : ''}`}>
+      <div className={`flex items-center justify-between gap-3 bg-white px-4 h-[45px] min-h-[45px] ${draggableClass} cursor-move`}>
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-base font-semibold text-[#495057] truncate" title={panel.title}>
             {panel.title}

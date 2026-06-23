@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import Chromeless from '@/components/custom/Chromeless';
 import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
@@ -26,8 +27,8 @@ export const routes = [
         element: <Outlet />,
         children: [
           { path: 'list', element: pv('rec-search/list', RecSearchList) },
-          // 녹취 재생 새창 (/vel-player/rec-search/player). Layout 없이 host 팝업 라우트로 진입.
-          { path: 'player', element: pv('rec-search/player', RecPlayerPage) },
+          // 녹취 재생 새창 (/vel/rec-search/player). Chromeless 래퍼가 Layout chrome 제거.
+          { path: 'player', element: <Chromeless>{pv('rec-search/player', RecPlayerPage)}</Chromeless> },
         ],
       },
       {
@@ -40,11 +41,12 @@ export const routes = [
         element: <Outlet />,
         children: [
           { path: 'list', element: pv('monitoring/list', MonitoringList) },
-          { path: 'eavesdrop', element: pv('monitoring/eavesdrop', EavesdropPage) },
+          // 감청 새창 (/vel/monitoring/eavesdrop). Chromeless 래퍼가 Layout chrome 제거.
+          { path: 'eavesdrop', element: <Chromeless>{pv('monitoring/eavesdrop', EavesdropPage)}</Chromeless> },
           // 실시간 감청 데모 — 테스트 폼 (레이아웃 내, 사이드바 메뉴로 진입)
           { path: 'realtime-test', element: pv('monitoring/realtime-test', RealtimeTestPage) },
-          // 실시간 감청 데모 — 플레이어 팝업 (/vel-eavesdrop/monitoring/realtime-player, Layout 없음)
-          { path: 'realtime-player', element: pv('monitoring/realtime-player', RealtimePlayerPage) },
+          // 실시간 감청 데모 — 플레이어 팝업 (/vel/monitoring/realtime-player). Chromeless 래퍼가 Layout chrome 제거.
+          { path: 'realtime-player', element: <Chromeless>{pv('monitoring/realtime-player', RealtimePlayerPage)}</Chromeless> },
         ],
       },
       {

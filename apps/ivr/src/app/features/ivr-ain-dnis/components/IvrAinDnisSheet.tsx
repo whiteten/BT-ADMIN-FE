@@ -18,7 +18,8 @@ export interface IvrAinDnisSheetRef {
 }
 
 interface Props {
-  onSuccess: () => void;
+  /** 성공 콜백. 신규 등록 시 생성된 대표번호 DNIS를 전달(새 그리드 행 포커싱용), 수정 시 인자 없음. */
+  onSuccess: (created?: IrAinMaster) => void;
 }
 
 const IvrAinDnisSheet = forwardRef<IvrAinDnisSheetRef, Props>(({ onSuccess }, ref) => {
@@ -65,10 +66,10 @@ const IvrAinDnisSheet = forwardRef<IvrAinDnisSheetRef, Props>(({ onSuccess }, re
 
   const { mutate: createAin, isPending: isCreating } = useCreateAin({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: (created) => {
         toast.success('대표번호 DNIS가 등록되었습니다.');
         handleClose();
-        onSuccess();
+        onSuccess(created as IrAinMaster | undefined);
       },
       onError: (err: unknown) => {
         const msg = (err as { message?: string })?.message ?? '등록에 실패했습니다.';

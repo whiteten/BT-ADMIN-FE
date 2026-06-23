@@ -49,3 +49,11 @@ export const useValidateMonitoringDatasetSource = ({
     mutationFn: (data: { baseType: 'XML' | 'SQL'; schemaSnapshot: string }) => datasetApi.validateDatasetSource(data),
     ...mutationOptions,
   });
+
+/** 필드 구성 단계 전용 — 조립된 데이터셋(fields/calc/lookups)을 검증. */
+export type ValidateDatasetResult = { ok: boolean; errors: string[]; warnings: string[] };
+export const useValidateMonitoringDataset = ({
+  mutationOptions,
+}: {
+  mutationOptions?: UseMutationOptions<ValidateDatasetResult, Error, DatasetCreateDatas>;
+} = {}) => useMutation({ mutationFn: (data: DatasetCreateDatas) => datasetApi.validateDataset(data), ...mutationOptions });

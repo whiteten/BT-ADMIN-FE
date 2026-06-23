@@ -15,7 +15,7 @@ export default function ScenarioTypeMultiSelect({ value, onChange, className }: 
   return (
     <Select<ScenarioType[]>
       mode="multiple"
-      placeholder="전체 (BOT 제외)"
+      placeholder="전체"
       value={value}
       onChange={onChange}
       maxTagCount="responsive"

@@ -9,7 +9,7 @@ import { Drawer, Empty, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { Activity, Server, ServerOff } from 'lucide-react';
 import { useGetDeployStatus } from '../hooks/useScenarioQueries';
-import { APPLY_RESULT, APPLY_STATUS, APPLY_TIMING, type DeployedSystem } from '../types';
+import { APPLY_STATUS, APPLY_TIMING, type DeployedSystem } from '../types';
 
 const APPLY_STATUS_LABELS: Record<number, string> = {
   [APPLY_STATUS.PENDING]: '대기',
@@ -19,11 +19,6 @@ const APPLY_STATUS_LABELS: Record<number, string> = {
   [APPLY_STATUS.CMD_FAIL]: '명령실패',
   [APPLY_STATUS.APPLIED]: '적용완료',
   [APPLY_STATUS.APPLY_FAIL]: '적용실패',
-};
-
-const APPLY_RESULT_LABELS: Record<number, string> = {
-  [APPLY_RESULT.SUCCESS]: '성공',
-  [APPLY_RESULT.FAIL]: '실패',
 };
 
 export interface ScenarioDeployStatusDrawerRef {
@@ -88,11 +83,9 @@ const ScenarioDeployStatusDrawer = forwardRef<ScenarioDeployStatusDrawerRef>((_,
                     <Server className="size-4 text-[#405189] flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-[13px] font-semibold text-slate-800 truncate">{s.systemName ?? `System ${s.systemId}`}</div>
+                      {/* IP · node · HA그룹명 — 헷갈리는 HA그룹 숫자 id 는 제외 */}
                       <div className="text-[11px] text-slate-400 truncate">
-                        {s.systemRole ?? '-'}
-                        {s.ipAddress ? ` · ${s.ipAddress}` : ''}
-                        {s.nodeId != null ? ` · node ${s.nodeId}` : ''}
-                        {s.haGroupId != null ? ` · HA그룹 ${s.haGroupId}` : ''}
+                        {[s.ipAddress, s.nodeId != null ? `node ${s.nodeId}` : null, s.systemRole].filter(Boolean).join(' · ') || '-'}
                       </div>
                     </div>
                     <Tag color={statusColor} className="!m-0 flex-shrink-0">
@@ -124,38 +117,24 @@ const ScenarioDeployStatusDrawer = forwardRef<ScenarioDeployStatusDrawerRef>((_,
                     </div>
                   </div>
 
-                  {/* 결과 / 일시 / 작업자 */}
+                  {/* 일시 / 작업자 — 모든 시스템 동일 항목, 값 없으면 '-'. (적용 성공/실패는 상단 상태 태그가 APPLY_STATUS 기준으로 표시하므로 '적용 결과' 행은 제거) */}
                   <div className="space-y-1 text-[11px] ml-6">
-                    {s.applyResult && (
-                      <div className="flex gap-2 text-slate-600">
-                        <span className="text-slate-400 w-16 flex-shrink-0">적용 결과</span>
-                        <span>{APPLY_RESULT_LABELS[s.applyResult] ?? s.applyResult}</span>
-                      </div>
-                    )}
-                    {s.applyDatetime && (
-                      <div className="flex gap-2 text-slate-600">
-                        <span className="text-slate-400 w-16 flex-shrink-0">{isReserved ? '예약 일시' : '적용 일시'}</span>
-                        <span>{dayjs(s.applyDatetime).format('YYYY-MM-DD HH:mm:ss')}</span>
-                      </div>
-                    )}
-                    {s.workTime && (
-                      <div className="flex gap-2 text-slate-600">
-                        <span className="text-slate-400 w-16 flex-shrink-0">작업 시각</span>
-                        <span>{dayjs(s.workTime).format('YYYY-MM-DD HH:mm:ss')}</span>
-                      </div>
-                    )}
-                    {(s.workUserName || s.workUser != null) && (
-                      <div className="flex gap-2 text-slate-600">
-                        <span className="text-slate-400 w-16 flex-shrink-0">작업자</span>
-                        <span>{s.workUserName ?? `user#${s.workUser}`}</span>
-                      </div>
-                    )}
-                    {s.svcResvId && (
-                      <div className="flex gap-2 text-slate-600">
-                        <span className="text-slate-400 w-16 flex-shrink-0">예약 ID</span>
-                        <span className="font-mono">{s.svcResvId}</span>
-                      </div>
-                    )}
+                    <div className="flex gap-2 text-slate-600">
+                      <span className="text-slate-400 w-16 flex-shrink-0">{isReserved ? '예약 일시' : '적용 일시'}</span>
+                      <span>{s.applyDatetime ? dayjs(s.applyDatetime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
+                    </div>
+                    <div className="flex gap-2 text-slate-600">
+                      <span className="text-slate-400 w-16 flex-shrink-0">작업자</span>
+                      <span>{s.workUserName ?? '-'}</span>
+                    </div>
+                    <div className="flex gap-2 text-slate-600">
+                      <span className="text-slate-400 w-16 flex-shrink-0">작업 시각</span>
+                      <span>{s.workTime ? dayjs(s.workTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
+                    </div>
+                    <div className="flex gap-2 text-slate-600">
+                      <span className="text-slate-400 w-16 flex-shrink-0">예약 ID</span>
+                      <span className="font-mono">{s.svcResvId ?? '-'}</span>
+                    </div>
                   </div>
                 </div>
               );

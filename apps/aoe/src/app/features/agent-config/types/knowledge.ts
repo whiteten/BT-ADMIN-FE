@@ -139,6 +139,8 @@ export interface KnowledgeEvalResult {
 }
 
 export interface KnowledgeChunkItem {
+  /** 청크 PK. 청크 수정 시 필수. */
+  fileChunkId: string;
   chunkId: string;
   chunk: string;
   chunkIndex: number;
@@ -146,6 +148,19 @@ export interface KnowledgeChunkItem {
   fileName: string;
   /** 청크 로딩 시 주입되는 파일 ID (docs 조립에 사용). */
   fileId?: string;
+  /** 청크 사이즈/index/파일타입 등이 담긴 JSON 문자열. 파싱해서 표시. */
+  metaData?: string;
+}
+
+/** 파일 단위 메타데이터 값. */
+export interface KnowledgeFileMeta {
+  fileMetaId: string;
+  fileId: string;
+  metaId: string;
+  metaValue: string;
+  /** 조회 시 문서 메타 스키마와 JOIN되어 채워짐. */
+  metaName?: string;
+  metaType?: MetaType;
 }
 
 export interface EvalQuestionSetting {

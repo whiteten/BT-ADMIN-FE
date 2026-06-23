@@ -63,7 +63,11 @@ function toFormValues(items: StatConfigItem[]): StatConfigFormValues {
     const raw = item.configValue?.trim() ?? '';
     if (item.configCategory === 'TIMEUNIT_LIMIT') {
       const key = item.configKey as keyof TimeUnitLimitForm;
-      if (key in DEFAULT_TIME_UNIT_LIMIT) v[key] = raw ? Number.parseInt(raw, 10) || 0 : 0;
+      // 무제한 불가: blank/0(레거시 무제한) 값은 단위 기본값으로 대체해 표시(저장 시 검증으로 floor 강제).
+      if (key in DEFAULT_TIME_UNIT_LIMIT) {
+        const n = raw ? Number.parseInt(raw, 10) : NaN;
+        v[key] = Number.isInteger(n) && n > 0 ? n : DEFAULT_TIME_UNIT_LIMIT[key];
+      }
     } else if (item.configCategory === 'FORMAT') {
       if (item.configKey === 'DECIMAL_PLACES') v.decimalPlaces = raw ? Number.parseInt(raw, 10) || 0 : 0;
       else if (item.configKey === 'THOUSANDS_SEP') v.thousandsSep = raw.toLowerCase() === 'true';
@@ -98,13 +102,13 @@ function toSaveItems(tab: TabKey, v: StatConfigFormValues): StatConfigSaveItem[]
   ];
 }
 
-/** 0 또는 floor 이상만 허용하는 antd 검증 규칙. */
+/** floor 이상만 허용하는 antd 검증 규칙(무제한 불가 — 0 거부). */
 function limitRule(floor: number) {
   return {
     validator(_: unknown, value: number | null) {
       if (value === null || value === undefined || Number.isNaN(value)) return Promise.reject(new Error('값을 입력하세요'));
-      if (value < 0 || !Number.isInteger(value)) return Promise.reject(new Error('0 이상의 정수'));
-      if (value !== 0 && value < floor) return Promise.reject(new Error(`0(제한 없음) 또는 ${floor}일 이상`));
+      if (!Number.isInteger(value)) return Promise.reject(new Error('정수를 입력하세요'));
+      if (value < floor) return Promise.reject(new Error(`${floor}일 이상 입력하세요`));
       return Promise.resolve();
     },
   };
@@ -262,7 +266,7 @@ export default function StatConfigPage() {
                         >
                           <div className="flex items-center gap-2">
                             <Form.Item name={m.code} className="!mb-0" rules={[limitRule(m.floor)]}>
-                              <InputNumber min={0} className="!w-24" size="middle" />
+                              <InputNumber min={m.floor} className="!w-24" size="middle" />
                             </Form.Item>
                             <span className="text-sm text-gray-500">일</span>
                           </div>
@@ -277,7 +281,7 @@ export default function StatConfigPage() {
                         보고서 화면에서 선택한 시간 단위에 따라 검색 가능한 <b>날짜 범위 상한(일)</b>을 정합니다. 과도한 기간 조회로 인한 조회 부하 방지 가드.
                       </li>
                       <li>
-                        <b>0 = 제한 없음</b>. 그 외에는 단위 최소폭(분·시·일 ≥ 1, 월 ≥ 31, 년 ≥ 366) 이상만 허용.
+                        모든 단위는 <b>유한 상한 필수</b>(무제한 불가). 단위 최소폭(분·시·일 ≥ 1, 월 ≥ 31, 년 ≥ 366) 이상만 허용.
                       </li>
                       <li>
                         출처: <span className="font-mono">TB_BT_IS_STAT_CONFIG · CONFIG_CATEGORY='TIMEUNIT_LIMIT'</span>.
@@ -379,9 +383,9 @@ export default function StatConfigPage() {
           </Form>
         </div>
 
-        {/* 우: 설정 요약 */}
+        {/* 우: 설정 요약 — 좌측 폼과 동일 높이(아래까지) 유지. 데이터 유무와 무관하게 규격 고정. */}
         <aside className="hidden xl:flex w-[320px] min-w-[320px] flex-col">
-          <div className="bg-white bt-shadow rounded-lg p-5">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-white bt-shadow rounded-lg p-5">
             <div className="text-base font-bold text-gray-900">설정 요약</div>
             <div className="text-xs text-gray-500 mb-3">현재 적용된 정책</div>
 
@@ -393,7 +397,7 @@ export default function StatConfigPage() {
             <div className="divide-y divide-gray-100">
               {TIME_UNIT_METAS.map((m) => {
                 const v = current?.[m.code] ?? 0;
-                return <SummaryRow key={m.code} label={m.label} value={v === 0 ? '0일 · 제한 없음' : `${v.toLocaleString()}일`} active={v === 0 ? true : undefined} />;
+                return <SummaryRow key={m.code} label={m.label} value={`${v.toLocaleString()}일`} />;
               })}
             </div>
 

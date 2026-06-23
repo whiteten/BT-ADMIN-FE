@@ -11,13 +11,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { AutoComplete, Button, DatePicker, Form, Input, Modal, Pagination, Select, Space, TimePicker } from 'antd';
+import { Button, DatePicker, Form, Input, Modal, Pagination, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { useGetAgents, useGetGroups, useGetTenants } from '../../features/common/hooks/useCommonQueries';
-import MonitoringAgentPopup, { type MonitoringAgentPopupRef } from '../../features/monitoring/components/MonitoringAgentPopup';
-import MonitoringGroupPopup, { type MonitoringGroupPopupRef } from '../../features/monitoring/components/MonitoringGroupPopup';
+import { useGetTenants } from '../../features/common/hooks/useCommonQueries';
 import { recSearchApi } from '../../features/rec-search/api/recSearchApi';
 import RecInfoUpdateModal, { type RecInfoUpdateModalRef } from '../../features/rec-search/components/RecInfoUpdateModal';
 import RecMarkingModal, { type RecMarkingModalRef } from '../../features/rec-search/components/RecMarkingModal';
@@ -27,12 +25,6 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [{ title: 'VEL' }, { title: '통화내역조회', path: '/vel/rec-search/list' }];
-
-const SearchIcon = () => (
-  <svg viewBox="64 64 896 896" width="14" height="14" fill="currentColor">
-    <path d="M909.6 854.5L649.9 594.8C690.2 542.7 712 479 712 412c0-80.2-31.3-155.4-87.9-212.1-56.6-56.7-132-87.9-212.1-87.9s-155.5 31.3-212.1 87.9C143.2 256.5 112 331.8 112 412c0 80.1 31.3 155.5 87.9 212.1C256.5 680.8 331.8 712 412 712c67 0 130.6-21.8 182.7-62l259.7 259.6a8.2 8.2 0 0011.6 0l43.6-43.5a8.2 8.2 0 000-11.6zM570.4 570.4C528 612.7 471.8 636 412 636s-116-23.3-158.4-65.6C211.3 528 188 471.8 188 412s23.3-116.1 65.6-158.4C296 211.3 352.2 188 412 188s116.1 23.2 158.4 65.6S636 352.2 636 412s-23.3 116.1-65.6 158.4z" />
-  </svg>
-);
 
 const PAGE_SIZE_OPTIONS = [15, 20, 30, 40, 50];
 
@@ -159,8 +151,6 @@ export default function RecSearchList() {
   const gridRef = useRef<AgGridReact<RecFileListItem>>(null);
   const infoUpdateModalRef = useRef<RecInfoUpdateModalRef>(null);
   const markingModalRef = useRef<RecMarkingModalRef>(null);
-  const groupPopupRef = useRef<MonitoringGroupPopupRef>(null);
-  const agentPopupRef = useRef<MonitoringAgentPopupRef>(null);
   const queryClient = useQueryClient();
   const { mutate: deleteMarking, isPending: isDeletingMarking } = useUpdateMarking();
   const userInfo = useAuthStore((s) => s.userInfo);
@@ -172,27 +162,12 @@ export default function RecSearchList() {
   const [pageSize, setPageSize] = useState(15);
   const [selectedRows, setSelectedRows] = useState<RecFileListItem[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState('');
-  const [selectedAgentId, setSelectedAgentId] = useState('');
-  const [groupOptions, setGroupOptions] = useState<{ value: string; label: string; groupId: string }[]>([]);
-  const [agentOptions, setAgentOptions] = useState<{ value: string; label: string }[]>([]);
 
   const { data: tenantsData } = useGetTenants();
   const tenantOptions = [{ value: '', label: '선택하세요!' }, ...(Array.isArray(tenantsData) ? tenantsData.map((t) => ({ value: t.tenantId, label: t.tenantName })) : [])];
 
   const findTenantId = Form.useWatch('findTenantId', form) as string | undefined;
   const popupTenantId = findTenantId || userInfo?.tenant;
-
-  const { data: allGroups = [] } = useGetGroups({
-    params: popupTenantId ? { tenantId: popupTenantId, userId: userInfo?.userAccount, grantId: userInfo?.roles?.[0] } : undefined,
-    queryOptions: { enabled: false }, // TB_MNG_GROUP 보류 — 임시 비활성
-  });
-  const allGroupMap = new Map(allGroups.map((g) => [g.groupId, g]));
-
-  const { data: allAgents = [] } = useGetAgents({
-    params: popupTenantId ? { tenantId: popupTenantId, userId: userInfo?.userAccount, grantId: userInfo?.roles?.[0] } : undefined,
-    queryOptions: { enabled: false }, // TB_MNG_USERINFO 보류 — 임시 비활성
-  });
 
   const { data: markCodeOptions = [] } = useGetMarkCodes({
     params: popupTenantId ? { tenantId: popupTenantId } : undefined,
@@ -202,73 +177,11 @@ export default function RecSearchList() {
     params: popupTenantId ? { tenantId: popupTenantId } : undefined,
   });
 
-  const getGroupPath = (groupId: string): string => {
-    const parts: string[] = [];
-    let cur = allGroupMap.get(groupId);
-    while (cur) {
-      parts.unshift(cur.groupName);
-      cur = cur.parentId ? allGroupMap.get(cur.parentId) : undefined;
-    }
-    return parts.join('/');
-  };
-
-  const handleGroupInputSearch = (val: string) => {
-    setSelectedGroupId('');
-    if (!val.trim()) {
-      setGroupOptions([]);
-      return;
-    }
-    const filtered = allGroups.filter((g) => g.groupName.includes(val) || g.groupId.includes(val));
-    setGroupOptions(filtered.slice(0, 20).map((g) => ({ value: g.groupId, label: getGroupPath(g.groupId), groupId: g.groupId })));
-  };
-
-  const handleGroupOptionSelect = (_val: string, option: { value: string; label: string; groupId: string }) => {
-    setSelectedGroupId(option.groupId);
-    form.setFieldsValue({ findGroupId: option.label });
-    setGroupOptions([]);
-  };
-
-  const handleGroupPopupOpen = () => {
-    if (!popupTenantId) {
-      toast.warning('테넌트를 선택하세요.');
-      return;
-    }
-    groupPopupRef.current?.open({ tenantId: popupTenantId, userId: userInfo?.userAccount, grantId: userInfo?.roles?.[0] }, (group, fullPath) => {
-      setSelectedGroupId(group.groupId);
-      form.setFieldsValue({ findGroupId: fullPath });
-    });
-  };
-
-  const handleAgentInputChange = (val: string) => {
-    if (!val) {
-      setSelectedAgentId('');
-      setAgentOptions([]);
-      return;
-    }
-    const filtered = allAgents.filter((a) => a.userId.includes(val) || a.userName.includes(val));
-    setAgentOptions(filtered.slice(0, 20).map((a) => ({ value: a.userId, label: `[${a.userId}]${a.userName}` })));
-  };
-
-  const handleAgentSelect = (val: string) => {
-    const agent = allAgents.find((a) => a.userId === val);
-    setSelectedAgentId(val);
-    form.setFieldsValue({ findUserIdText: agent ? `${agent.userName}(${agent.userId})` : val });
-    setAgentOptions([]);
-  };
-
-  const handleAgentPopupOpen = () => {
-    if (!popupTenantId) {
-      toast.warning('테넌트를 선택하세요.');
-      return;
-    }
-    agentPopupRef.current?.open({ tenantId: popupTenantId, userId: userInfo?.userAccount, grantId: userInfo?.roles?.[0] }, (agent) => {
-      setSelectedAgentId(agent.userId);
-      form.setFieldsValue({ findUserIdText: `${agent.userName}(${agent.userId})` });
-    });
-  };
-
+  // 조회 클릭마다 +1 → 동일 검색조건이어도 강제 재요청(실시간 신규 녹취 반영). 쿼리키에만 반영됨.
+  const [searchToken, setSearchToken] = useState(0);
   const { data, isFetching } = useGetRecordings({
     params: searchParams ? { ...searchParams, page, size: pageSize } : undefined,
+    searchToken,
   });
 
   // 사용자가 [조회] 버튼을 눌러 발생한 검색에 한해서만 "결과 없음" 알림 표시.
@@ -319,14 +232,15 @@ export default function RecSearchList() {
       const callMax = toSeconds(values.callTimeEnd as Dayjs | undefined);
 
       setPage(0);
+      setSearchToken((v) => v + 1);
       searchTriggeredRef.current = true;
       setSearchParams({
         startDate: `${startDate.format('YYYYMMDD')}${startTimeStr}`,
         endDate: `${endDate.format('YYYYMMDD')}${endTimeStr}`,
         findTenantId: (values.findTenantId as string) || undefined,
-        findGroupId: selectedGroupId || undefined,
+        findGroupId: (values.findGroupId as string) || undefined,
         findDnText: values.findDnText ?? undefined,
-        findUserIdText: selectedAgentId || undefined,
+        findUserIdText: (values.findUserIdText as string) || undefined,
         findCustTelText: values.findCustTelText ?? undefined,
         findCallKind: values.findCallKind || undefined,
         findCallIdText: values.findCallIdText ?? undefined,
@@ -344,13 +258,9 @@ export default function RecSearchList() {
     setSearchParams(null);
     setPage(0);
     setSelectedRows([]);
-    setSelectedGroupId('');
-    setSelectedAgentId('');
-    setGroupOptions([]);
-    setAgentOptions([]);
   };
 
-  // 녹취 재생은 새창(/vel-player/rec-search/player)으로 띄운다. 재생목록은 localStorage로 전달
+  // 녹취 재생은 새창(/vel/rec-search/player, chromeless)으로 띄운다. 재생목록은 localStorage로 전달
   // (실시간 감청 새창과 동일 패턴). 모달 대신 새창을 쓰면 다중 녹취를 동시에 듣거나 목록 화면을
   // 점유하지 않고 청취할 수 있다.
   const openPlayer = (rows: RecFileListItem[], startIndex = 0) => {
@@ -358,15 +268,16 @@ export default function RecSearchList() {
     const key = `vel-rec-player-${Date.now()}`;
     localStorage.setItem(key, JSON.stringify({ playlist: rows, startIndex }));
     // 팝업을 화면(현재 모니터) 중앙에서 띄운다. dualScreenLeft/screenX는 멀티모니터 보정용.
+    // 초기 크기는 근사값 — 팝업이 뜬 뒤 RecPlayerPage가 컨텐츠 크기에 맞게 최종 리사이즈한다.
     const w = 720;
-    const h = 720;
+    const h = rows.length > 1 ? 700 : 520;
     const dualLeft = window.screenLeft ?? window.screenX;
     const dualTop = window.screenTop ?? window.screenY;
     const screenW = window.innerWidth || document.documentElement.clientWidth || window.screen.width;
     const screenH = window.innerHeight || document.documentElement.clientHeight || window.screen.height;
     const left = Math.max(0, dualLeft + (screenW - w) / 2);
     const top = Math.max(0, dualTop + (screenH - h) / 2);
-    window.open(`/vel-player/rec-search/player?playerId=${key}`, `RecPlayer-${key}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    window.open(`/vel/rec-search/player?playerId=${key}`, `RecPlayer-${key}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
   const handlePlay = (row: RecFileListItem) => openPlayer([row], 0);
@@ -394,15 +305,22 @@ export default function RecSearchList() {
   };
 
   const handleDownload = async () => {
-    if (selectedRows.length !== 1) return;
-    const recKey = selectedRows[0].recKey;
+    if (selectedRows.length === 0) return;
     setIsDownloading(true);
+    let failed = 0;
     try {
-      const response = await recSearchApi.downloadRecording(recKey);
-      const fileName = extractFileName(response.headers['content-disposition'], `${recKey}.mp3`);
-      downloadBlob(response.data, fileName);
-    } catch {
-      toast.error('다운로드에 실패했습니다.');
+      // 선택 건을 순차 다운로드. 파일 간 간격을 둬 브라우저 다중 다운로드 차단/프롬프트를 완화한다.
+      for (const row of selectedRows) {
+        try {
+          const response = await recSearchApi.downloadRecording(row.recKey);
+          const fileName = extractFileName(response.headers['content-disposition'], `${row.recKey}.mp3`);
+          downloadBlob(response.data, fileName);
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        } catch {
+          failed += 1;
+        }
+      }
+      if (failed > 0) toast.error(`${failed}건 다운로드에 실패했습니다.`);
     } finally {
       setIsDownloading(false);
     }
@@ -491,10 +409,6 @@ export default function RecSearchList() {
                 showSearch
                 optionFilterProp="label"
                 onChange={() => {
-                  setSelectedGroupId('');
-                  setSelectedAgentId('');
-                  setGroupOptions([]);
-                  setAgentOptions([]);
                   form.setFieldsValue({ findGroupId: '', findUserIdText: '' });
                 }}
               />
@@ -505,46 +419,12 @@ export default function RecSearchList() {
             <Form.Item name="findDnText" label="내선번호" style={FORM_ITEM_STYLE}>
               <Input placeholder="내선번호" />
             </Form.Item>
-            {/* 그룹/상담사 — TB_MNG_GROUP/USERINFO 보류라 임시 비활성 */}
+            {/* 그룹/상담사 — 트리 팝업 대신 일단 INPUT으로 (직접 입력) */}
             <Form.Item name="findGroupId" label="그룹" style={FORM_ITEM_STYLE}>
-              <Space.Compact style={{ width: '100%' }}>
-                <AutoComplete
-                  options={groupOptions}
-                  onSearch={handleGroupInputSearch}
-                  onSelect={handleGroupOptionSelect}
-                  onChange={(val) => {
-                    if (!val) {
-                      setSelectedGroupId('');
-                      setGroupOptions([]);
-                    }
-                  }}
-                  allowClear
-                  placeholder="(보류)"
-                  style={{ width: '100%' }}
-                  disabled
-                />
-                <Button icon={<SearchIcon />} onClick={handleGroupPopupOpen} disabled />
-              </Space.Compact>
+              <Input placeholder="그룹" allowClear />
             </Form.Item>
             <Form.Item name="findUserIdText" label="상담사ID" style={FORM_ITEM_STYLE}>
-              <Space.Compact style={{ width: '100%' }}>
-                <AutoComplete
-                  options={agentOptions}
-                  onSearch={handleAgentInputChange}
-                  onSelect={handleAgentSelect}
-                  onChange={(val) => {
-                    if (!val) {
-                      setSelectedAgentId('');
-                      setAgentOptions([]);
-                    }
-                  }}
-                  allowClear
-                  placeholder="(보류)"
-                  style={{ width: '100%' }}
-                  disabled
-                />
-                <Button icon={<SearchIcon />} onClick={handleAgentPopupOpen} disabled />
-              </Space.Compact>
+              <Input placeholder="상담사ID" allowClear />
             </Form.Item>
             <div className="col-span-3" />
 
@@ -658,7 +538,7 @@ export default function RecSearchList() {
           <Button disabled={selectedRows.length === 0} onClick={handleBatchPlay}>
             일괄재생
           </Button>
-          <Button disabled={selectedRows.length !== 1 || isDownloading} loading={isDownloading} onClick={handleDownload}>
+          <Button disabled={selectedRows.length === 0 || isDownloading} loading={isDownloading} onClick={handleDownload}>
             다운로드
           </Button>
           <Button onClick={handleExcelExport}>Excel Export</Button>
@@ -713,8 +593,6 @@ export default function RecSearchList() {
       </div>
       <RecInfoUpdateModal ref={infoUpdateModalRef} />
       <RecMarkingModal ref={markingModalRef} />
-      <MonitoringGroupPopup ref={groupPopupRef} />
-      <MonitoringAgentPopup ref={agentPopupRef} />
     </div>
   );
 }

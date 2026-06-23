@@ -16,7 +16,8 @@ export interface IvrEndpointMasterSheetRef {
 
 interface Props {
   nodes: { nodeId: number; nodeName: string }[];
-  onSuccess: () => void;
+  /** 성공 콜백. 신규 등록 시 생성된 EndPoint를 전달(새 카드 포커싱용), 수정 시 인자 없음. */
+  onSuccess: (created?: IvrEndpointMaster) => void;
 }
 
 /**
@@ -93,12 +94,12 @@ const IvrEndpointMasterSheet = forwardRef<IvrEndpointMasterSheetRef, Props>(({ n
 
   const { mutate: createMaster, isPending: isCreating } = useCreateMaster({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: (created) => {
         toast.success('EndPoint가 등록되었습니다.');
         setVisible(false);
         setEditData(null);
         form.resetFields();
-        onSuccess();
+        onSuccess(created as IvrEndpointMaster | undefined);
       },
       onError: (err: unknown) => {
         const msg = (err as { message?: string })?.message ?? '등록에 실패했습니다.';
