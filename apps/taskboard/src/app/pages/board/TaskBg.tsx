@@ -610,7 +610,7 @@ export default function TaskBg() {
     ctx.closePath();
   };
 
-  // ── AI 생성 (20종 완전 다른 시각 테마) ───────────────────────────────────
+  // ── 자동생성 (20종 완전 다른 시각 테마) ───────────────────────────────────
   const handleAnalyze = () => {
     if (!originalImgUrl) {
       alert('CI 이미지를 먼저 업로드해주세요.');
@@ -809,7 +809,7 @@ export default function TaskBg() {
             onClick={() => setIsModalOpen(true)}
             className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82] transition-colors shadow-sm"
           >
-            png 자동생성 (AI)
+            png 자동생성
           </button>
         </div>
       </div>
@@ -859,7 +859,7 @@ export default function TaskBg() {
                   className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${item.useYn === 'N' ? 'grayscale opacity-60' : ''}`}
                 />
                 <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 text-white text-[10px] rounded backdrop-blur-sm uppercase font-bold tracking-wider shadow-sm">
-                  {item.genType === 'AI' ? 'AI 생성' : '직접 업로드'}
+                  {item.genType === 'AI' ? '자동생성' : '직접 업로드'}
                 </div>
                 {item.useYn === 'N' && (
                   <div className="absolute inset-0 bg-slate-900/30 flex items-center justify-center">
@@ -899,7 +899,7 @@ export default function TaskBg() {
                 <div className="flex items-center gap-1 text-xs text-slate-400">
                   <span className={`px-2 py-0.5 rounded-full font-semibold ${modalStep === 1 ? 'bg-[#0f5b9e] text-white' : 'bg-slate-100 text-slate-400'}`}>1단계: 레이아웃</span>
                   <span>→</span>
-                  <span className={`px-2 py-0.5 rounded-full font-semibold ${modalStep === 2 ? 'bg-[#0f5b9e] text-white' : 'bg-slate-100 text-slate-400'}`}>2단계: AI 생성</span>
+                  <span className={`px-2 py-0.5 rounded-full font-semibold ${modalStep === 2 ? 'bg-[#0f5b9e] text-white' : 'bg-slate-100 text-slate-400'}`}>2단계: 자동생성</span>
                 </div>
               </div>
               <button onClick={closeAndResetModal} className="text-slate-400 hover:text-slate-600 text-2xl font-bold">
@@ -947,7 +947,7 @@ export default function TaskBg() {
                       onClick={() => setModalStep(2)}
                       className="px-6 py-2.5 bg-[#0f5b9e] text-white text-sm font-bold rounded-lg hover:bg-[#0c4a82] transition-colors shadow-sm"
                     >
-                      다음 단계: AI 생성 →
+                      다음 단계: 자동생성 →
                     </button>
                   </div>
                 </div>
@@ -1095,7 +1095,7 @@ export default function TaskBg() {
                                               const requestData: TaskboardBg = {
                                                 tenantId: '2000000001',
                                                 pageId: 0,
-                                                pageName: `AI생성_${selectedLayout.name}_${preview.res}_${Date.now().toString().slice(-4)}`,
+                                                pageName: `자동생성_${selectedLayout.name}_${preview.res}_${Date.now().toString().slice(-4)}`,
                                                 authorName: 'admin',
                                                 authRole: 'MASTER',
                                                 genType: 'AI',

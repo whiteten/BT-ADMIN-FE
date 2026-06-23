@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { GripVertical, X } from 'lucide-react';
+import { createUUID, toast } from '@/shared-util';
 import { type RollingLayout, RollingPlayer, TRANSITION_OPTIONS, TRANSITION_PREVIEW_ANIMATION, TRANSITION_PREVIEW_CSS } from '../../features/board/components/RollingDisplay';
 import {
   useCreateRollingGroup,
@@ -12,6 +15,7 @@ import {
 } from '../../features/board/hooks/useTaskboardQueries';
 import type { RollingGroup, TaskboardDisplay, TaskboardLayout } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { IconTrash } from '@/components/custom/Icons';
 
 const parseIdArray = (raw?: string): number[] => {
   try {
@@ -68,8 +72,42 @@ interface GroupEditViewProps {
   onCancel: () => void;
 }
 
+/** 롤링 순서 한 슬롯 — 같은 전광판이 여러 번 들어가도 각자 독립적으로 드래그·삭제할 수 있도록 고유 uid를 둔다. */
+interface RollingSlot {
+  uid: string;
+  layoutId: number;
+}
+
+// ─── 롤링 순서 행 — 드래그로 순서 변경, X로 제거 ───────────────────────────────
+function SortableRollingSlotRow({ uid, order, layoutName, onRemove }: { uid: string; order: number; layoutName: string; onRemove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: uid });
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 text-xs text-blue-800 bg-white/60 rounded-md px-1.5 py-1">
+      <button
+        {...attributes}
+        {...listeners}
+        className="p-0.5 text-blue-400 hover:text-blue-700 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+        title="드래그로 순서 변경"
+      >
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <span className="w-4 h-4 rounded-full bg-[#0f5b9e] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">{order}</span>
+      <span className="flex-1 min-w-0 truncate">{layoutName}</span>
+      <button onClick={onRemove} className="p-0.5 text-blue-400 hover:text-red-500 flex-shrink-0" title="제거">
+        <X className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
 function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewProps) {
-  const [selectedLayoutIds, setSelectedLayoutIds] = useState<number[]>(() => parseIdArray(group?.displayIds));
+  const [slots, setSlots] = useState<RollingSlot[]>(() => parseIdArray(group?.displayIds).map((layoutId) => ({ uid: createUUID(), layoutId })));
   const [groupName, setGroupName] = useState(group?.groupName ?? '새 그룹');
   const [intervalSec, setIntervalSec] = useState(group?.intervalSec ?? 5);
   const [transitionType, setTransitionType] = useState(group?.transitionType ?? 'fade');
@@ -78,24 +116,29 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
   const createGroup = useCreateRollingGroup();
   const updateGroup = useUpdateRollingGroup();
 
-  // 클릭할 때마다 순서 끝에 추가 — 같은 전광판을 여러 번 추가할 수 있다(중복 허용). 제거/순서 변경은 우측 "롤링 순서" 목록에서.
-  const addLayout = (layoutId: number) => setSelectedLayoutIds((prev) => [...prev, layoutId]);
-  const removeLayoutAt = (index: number) => setSelectedLayoutIds((prev) => prev.filter((_, i) => i !== index));
-  const moveLayout = (index: number, direction: -1 | 1) =>
-    setSelectedLayoutIds((prev) => {
-      const target = index + direction;
-      if (target < 0 || target >= prev.length) return prev;
-      const next = [...prev];
-      [next[index], next[target]] = [next[target], next[index]];
-      return next;
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  // 클릭할 때마다 순서 끝에 추가 — 같은 전광판을 여러 번 추가할 수 있다(중복 허용). 제거는 X, 순서 변경은 드래그로.
+  const addLayout = (layoutId: number) => setSlots((prev) => [...prev, { uid: createUUID(), layoutId }]);
+  const removeSlot = (uid: string) => setSlots((prev) => prev.filter((s) => s.uid !== uid));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setSlots((prev) => {
+      const oldIndex = prev.findIndex((s) => s.uid === active.id);
+      const newIndex = prev.findIndex((s) => s.uid === over.id);
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
     });
+  };
 
   const layoutCounts = new Map<number, number>();
-  selectedLayoutIds.forEach((id) => layoutCounts.set(id, (layoutCounts.get(id) ?? 0) + 1));
+  slots.forEach((s) => layoutCounts.set(s.layoutId, (layoutCounts.get(s.layoutId) ?? 0) + 1));
 
-  const selectedLayouts = selectedLayoutIds
-    .map((id, originalIndex) => ({ layout: layoutList.find((l) => l.layoutId === id), originalIndex }))
-    .filter((entry): entry is { layout: TaskboardLayout; originalIndex: number } => entry.layout !== undefined);
+  const selectedLayouts = slots
+    .map((s) => ({ uid: s.uid, layout: layoutList.find((l) => l.layoutId === s.layoutId) }))
+    .filter((entry): entry is { uid: string; layout: TaskboardLayout } => entry.layout !== undefined);
 
   const handleSave = async () => {
     if (selectedLayouts.length === 0) {
@@ -110,7 +153,7 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
     try {
       const payload = {
         groupName: groupName.trim(),
-        displayIds: JSON.stringify(selectedLayoutIds),
+        displayIds: JSON.stringify(slots.map((s) => s.layoutId)),
         intervalSec,
         transitionType,
       };
@@ -211,35 +254,15 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
             {selectedLayouts.length === 0 ? (
               <p className="text-xs text-blue-400">왼쪽에서 전광판을 선택해 주세요.</p>
             ) : (
-              <div className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-1">
-                {selectedLayouts.map(({ layout, originalIndex }, i) => (
-                  <div key={originalIndex} className="flex items-center gap-2 text-xs text-blue-800 bg-white/60 rounded-md px-1.5 py-1">
-                    <span className="w-4 h-4 rounded-full bg-[#0f5b9e] text-white flex items-center justify-center text-[9px] font-bold flex-shrink-0">{i + 1}</span>
-                    <span className="flex-1 min-w-0 truncate">{layout.layoutName}</span>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      <button
-                        onClick={() => moveLayout(originalIndex, -1)}
-                        disabled={i === 0}
-                        className="p-0.5 text-blue-400 hover:text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="위로"
-                      >
-                        <ChevronUp className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => moveLayout(originalIndex, 1)}
-                        disabled={i === selectedLayouts.length - 1}
-                        className="p-0.5 text-blue-400 hover:text-blue-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="아래로"
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-                      <button onClick={() => removeLayoutAt(originalIndex)} className="p-0.5 text-blue-400 hover:text-red-500" title="제거">
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis, restrictToParentElement]} onDragEnd={handleDragEnd}>
+                <SortableContext items={selectedLayouts.map((s) => s.uid)} strategy={verticalListSortingStrategy}>
+                  <div className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-1">
+                    {selectedLayouts.map(({ uid, layout }, i) => (
+                      <SortableRollingSlotRow key={uid} uid={uid} order={i + 1} layoutName={layout.layoutName} onRemove={() => removeSlot(uid)} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
 
@@ -276,19 +299,19 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
             <label className="text-xs font-semibold text-slate-600 block mb-2">
               롤링 간격 &nbsp;<span className="text-[#0f5b9e] font-bold">{intervalSec}초</span>
             </label>
-            <input type="range" min={3} max={60} step={1} value={intervalSec} onChange={(e) => setIntervalSec(Number(e.target.value))} className="w-full accent-[#0f5b9e] mb-1" />
+            <input type="range" min={3} max={180} step={1} value={intervalSec} onChange={(e) => setIntervalSec(Number(e.target.value))} className="w-full accent-[#0f5b9e] mb-1" />
             <div className="flex justify-between text-[10px] text-slate-400 mb-2">
               <span>3초</span>
-              <span>60초</span>
+              <span>180초</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500">직접 입력:</span>
               <input
                 type="number"
                 min={3}
-                max={60}
+                max={180}
                 value={intervalSec}
-                onChange={(e) => setIntervalSec(Math.max(3, Math.min(60, Number(e.target.value))))}
+                onChange={(e) => setIntervalSec(Math.max(3, Math.min(180, Number(e.target.value))))}
                 className="w-16 text-sm font-bold text-center border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-[#0f5b9e]"
               />
               <span className="text-xs text-slate-500">초</span>
@@ -501,7 +524,6 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 그룹 관리</h1>
-          <p className="text-sm text-slate-500 mt-1">전광판 그룹을 만들고 롤링을 실행하세요. 어떤 뷰 그룹으로 보여줄지는 실행할 때 고릅니다.</p>
         </div>
         <button
           onClick={onAdd}
@@ -524,7 +546,7 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
           <p className="text-sm mt-1">오른쪽 상단의 &quot;새 그룹 만들기&quot;를 눌러 그룹을 만들어 주세요.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {groups.map((group) => {
             const layoutCount = parseIdArray(group.displayIds).length;
             return (
@@ -596,20 +618,23 @@ export default function TaskMgmt() {
   const [editingGroup, setEditingGroup] = useState<RollingGroup | null>(null);
   const [runningGroup, setRunningGroup] = useState<RollingGroup | null>(null);
   const [rollingLayouts, setRollingLayouts] = useState<RollingLayout[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<RollingGroup | null>(null);
 
   const { data: groupList = [], isLoading, refetch } = useGetRollingGroupList();
   const { data: layoutList = [] } = useGetTaskboardLayoutList();
   const { data: displayList = [] } = useGetTaskboardDisplayList();
   const deleteGroup = useDeleteRollingGroup();
 
-  const handleDelete = async (group: RollingGroup) => {
-    if (!window.confirm(`"${group.groupName}" 그룹을 삭제하시겠습니까?`)) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteGroup.mutateAsync(group.groupId);
+      await deleteGroup.mutateAsync(deleteTarget.groupId);
       toast.success('그룹이 삭제되었습니다.');
       refetch();
     } catch {
       toast.error('삭제에 실패했습니다.');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -658,7 +683,7 @@ export default function TaskMgmt() {
           setRunningGroup(g);
           setViewMode('run-options');
         }}
-        onDelete={handleDelete}
+        onDelete={setDeleteTarget}
       />
       {viewMode === 'run-options' && runningGroup && (
         <RunOptionsView
@@ -671,6 +696,35 @@ export default function TaskMgmt() {
           }}
           onCancel={() => setViewMode('list')}
         />
+      )}
+
+      {/* 삭제 확인 모달 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-[320px] overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <IconTrash className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">그룹 삭제</h3>
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-slate-700">&ldquo;{deleteTarget.groupName}&rdquo;</span> 그룹을 삭제하시겠습니까?
+                <br />이 작업은 되돌릴 수 없습니다.
+              </p>
+            </div>
+            <div className="flex border-t border-slate-100">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors border-r border-slate-100"
+              >
+                취소
+              </button>
+              <button onClick={handleDeleteConfirm} className="flex-1 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

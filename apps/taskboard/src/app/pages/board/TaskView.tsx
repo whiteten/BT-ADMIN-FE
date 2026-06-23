@@ -6,6 +6,7 @@ import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../../feat
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { MultiSelectDropdown } from '../../features/board/components/MultiSelectDropdown';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../../features/board/hooks/useCtiqWebSocket';
+import { useResponsiveFontScale } from '../../features/board/hooks/useResponsiveFontScale';
 import {
   useGetCtiAgentList,
   useGetCtiGroupList,
@@ -14,9 +15,20 @@ import {
   useGetTaskboardLayoutList,
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
+import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
-import { buildGroupIdsByHashKey, collectRedisWsSubscriptions, getCalcDisplayValue, getRedisDisplayValue, mergeWsSubscriptions } from '../../features/board/utils/redisValue';
-import { getWidgetVisualStyle, isTransparentBg } from '../../features/board/utils/widgetVisualStyle';
+import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
+import { buildSelectionIdsByHashKey, collectRedisWsSubscriptions, getCalcDisplayValue, getRedisDisplayValue, mergeWsSubscriptions } from '../../features/board/utils/redisValue';
+import {
+  VALUE_CHANGE_ANIMATION_CSS,
+  formatWidgetValue,
+  getThresholdColor,
+  getValueAnimationClass,
+  getValueAnimationStyle,
+  getValueOffsetStyle,
+  getWidgetVisualStyle,
+  isTransparentBg,
+} from '../../features/board/utils/widgetVisualStyle';
 
 const CHART_VIEW_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
@@ -170,7 +182,17 @@ function buildLiveChartData(
 }
 
 // ── 테이블 위젯 렌더 ────────────────────────────────────────────────────────
-function ViewTableWidget({ widget, liveRows, columns: columnsOverride }: { widget: DroppedWidget; liveRows?: Record<string, string | number>[]; columns?: TableColumn[] }) {
+function ViewTableWidget({
+  widget,
+  liveRows,
+  columns: columnsOverride,
+  fontScale = 1,
+}: {
+  widget: DroppedWidget;
+  liveRows?: Record<string, string | number>[];
+  columns?: TableColumn[];
+  fontScale?: number;
+}) {
   const cfg = widget.item.tableConfig;
   if (!cfg) return null;
   const showTitle = widget.showTitle !== false;
@@ -183,7 +205,7 @@ function ViewTableWidget({ widget, liveRows, columns: columnsOverride }: { widge
         <div
           className="truncate font-semibold px-1 flex-shrink-0"
           style={{
-            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`,
             textAlign: widget.style.titleAlign ?? 'left',
             color: widget.style.color,
             fontFamily: widget.style.fontFamily,
@@ -195,7 +217,7 @@ function ViewTableWidget({ widget, liveRows, columns: columnsOverride }: { widge
       <div className="flex-1 overflow-hidden">
         <table
           className="w-full border-collapse"
-          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
+          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
         >
           <thead>
             <tr>
@@ -227,19 +249,21 @@ function ViewTableWidget({ widget, liveRows, columns: columnsOverride }: { widge
 }
 
 // ── 차트 위젯 렌더 ───────────────────────────────────────────────────────────
-function ViewChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData: Array<{ name: string; value: number }> }) {
+function ViewChartWidget({ widget, liveData, fontScale = 1 }: { widget: DroppedWidget; liveData: Array<{ name: string; value: number }>; fontScale?: number }) {
   const cfg = widget.item.chartConfig as ChartConfig | undefined;
   const chartType = cfg?.chartType ?? 'bar';
   const data = liveData.length > 0 ? liveData : (cfg?.sampleData ?? []);
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
+  const tickFontSize = Math.round(8 * fontScale);
+  const tooltipFontSize = Math.round(10 * fontScale);
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {showTitle && (
         <div
           className="truncate font-semibold px-1 flex-shrink-0"
           style={{
-            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`,
             textAlign: widget.style.titleAlign ?? 'left',
             color: widget.style.color,
             fontFamily: widget.style.fontFamily,
@@ -253,9 +277,9 @@ function ViewChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData
           {chartType === 'bar' ? (
             <BarChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <YAxis tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <YAxis tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
               <Bar dataKey="value">
                 {data.map((_, i) => (
                   <Cell key={i} fill={CHART_VIEW_COLORS[i % CHART_VIEW_COLORS.length]} />
@@ -265,9 +289,9 @@ function ViewChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData
           ) : chartType === 'line' ? (
             <LineChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <YAxis tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <YAxis tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
               <Line type="monotone" dataKey="value" stroke={widget.item.color} strokeWidth={2} dot={false} />
             </LineChart>
           ) : (
@@ -277,8 +301,8 @@ function ViewChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData
                   <Cell key={i} fill={CHART_VIEW_COLORS[i % CHART_VIEW_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
-              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 8, color: widget.style.color }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
+              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: tickFontSize, color: widget.style.color }} />
             </PieChart>
           )}
         </ResponsiveContainer>
@@ -288,18 +312,20 @@ function ViewChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData
 }
 
 // ── 단일값 위젯 렌더 ────────────────────────────────────────────────────────
-const VIEW_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
+const VIEW_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime', 'etc-custom']);
 
 function ViewValueWidget({
   widget,
   widgets,
   redisData,
-  groupIdsByHashKey,
+  selectionIdsByHashKey,
+  fontScale = 1,
 }: {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   redisData?: CtiWsDataByHashKey;
-  groupIdsByHashKey?: Record<string, string[]>;
+  selectionIdsByHashKey?: Record<string, string[]>;
+  fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && VIEW_ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
@@ -321,6 +347,7 @@ function ViewValueWidget({
     if (widget.item.id === 'etc-date') return `${y}${mo}${d}`;
     if (widget.item.id === 'etc-time') return `${h}${mi}${s}`;
     if (widget.item.id === 'etc-datetime') return `${y}${mo}${d} ${h}:${mi}:${s}`;
+    if (widget.item.id === 'etc-custom') return formatCustomClock(now, widget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT);
     return String(widget.item.sampleValue);
   };
 
@@ -329,27 +356,52 @@ function ViewValueWidget({
   const displayValue = isEtcClock
     ? getLiveValue()
     : isCalc
-      ? getCalcDisplayValue(widget, widgets, redisData, groupIdsByHashKey)
+      ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
       : isRedis
-        ? getRedisDisplayValue(widget, redisData, groupIdsByHashKey)
+        ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey)
         : widget.item.sampleValue;
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
+  const animKey = useValueChangeKey(displayValue);
+  const thresholdColor = getThresholdColor(displayValue, widget.style);
 
   return (
-    <div className="w-full h-full flex flex-col justify-center px-2 overflow-hidden">
+    <div className="relative w-full h-full flex flex-col justify-center px-2 overflow-hidden">
+      {/* 하이라이트 모션은 텍스트가 아니라 위젯 박스 전체를 덮는 오버레이로 그려서, 값 위치 세밀조정으로
+          텍스트가 어디로 이동해 있어도 사용자가 정한 위젯 영역 전체에 배경색이 채워지게 한다. */}
+      {widget.style.valueChangeAnimation === 'highlight' && (
+        <div key={`hl-${animKey}`} className="absolute inset-0 pointer-events-none tb-anim-highlight" style={getValueAnimationStyle(widget.style)} />
+      )}
       {showTitle && (
         <div
           className="truncate mb-0.5 opacity-80 leading-tight"
-          style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`, textAlign: widget.style.titleAlign ?? 'left' }}
+          style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`, textAlign: widget.style.titleAlign ?? 'left' }}
         >
           {displayTitle}
         </div>
       )}
-      <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize, textAlign: widget.style.valueAlign ?? 'left' }}>
-        {displayValue}
+      <div
+        key={animKey}
+        className={`font-bold leading-tight truncate ${widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationClass(widget.style.valueChangeAnimation) : ''}`}
+        style={{
+          fontSize: widget.style.fontSize * fontScale,
+          textAlign: widget.style.valueAlign ?? 'left',
+          color: thresholdColor,
+          ...getValueOffsetStyle(widget.style),
+          ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
+        }}
+      >
+        {formatWidgetValue(displayValue, widget.style.useThousandSep)}
+        {isCalc && widget.calc?.showPercent && (
+          <span
+            className="font-normal ml-0.5 opacity-70"
+            style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * (widget.calc?.percentFontScale ?? 0.65) * fontScale))}px` }}
+          >
+            %
+          </span>
+        )}
         {widget.item.unit && (
-          <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
+          <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px` }}>
             {widget.item.unit}
           </span>
         )}
@@ -512,6 +564,7 @@ function SingleLayoutView({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [imgRatio, setImgRatio] = useState(16 / 9);
+  const fontScale = useResponsiveFontScale(imgRatio);
 
   const widgets = parseLayoutWidgets(layout.layoutJson);
 
@@ -526,9 +579,16 @@ function SingleLayoutView({
   const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
 
   // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 큐/그룹/상담사 실시간 KPI와 동일한 WS 소켓으로 구독.
-  // IC:GROUP:* 위젯은 디자인 시점에 고정된 compositeKey 대신, 디스플레이 선택값(그룹)으로 어떤 그룹을 볼지 결정한다.
-  const groupIdsByHashKey = buildGroupIdsByHashKey(widgets, groupRows, selectedGroupIds);
-  const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, groupIdsByHashKey);
+  // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 디자인 시점에 고정된 id 대신, 디스플레이 선택값으로 어떤 id들을 볼지 결정한다.
+  const selectionIdsByHashKey = buildSelectionIdsByHashKey(widgets, {
+    queueRows,
+    selectedQueueIds,
+    groupRows,
+    selectedGroupIds,
+    agentRows,
+    selectedAgentIds,
+  });
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey);
 
   // 큐/그룹/상담사 실시간 KPI — WS 구독. "캔버스에 그 데이터를 실제로 쓰는 위젯이 있을 때만" 구독해서
   // 디스플레이에 선택만 돼 있고 화면에 안 보여주는 큐/그룹/상담사까지 불필요하게 통째로 받아오는 걸 막는다.
@@ -539,10 +599,15 @@ function SingleLayoutView({
   const queueChartWidgets = widgets.filter((w) => w.item.id === 'chart-bar-queue' || w.item.id === 'chart-line-trend');
   const needsGroup = tableGroupWidgets.length > 0;
   const needsAgent = tableAgentWidgets.length > 0;
+  const needsQueue = tableQueueWidgets.length > 0 || queueChartWidgets.length > 0;
 
   const groupMediaTypes = [...new Set(tableGroupWidgets.map((w) => w.item.mediaType ?? '0'))];
   const queueMediaTypes = [...new Set([...tableQueueWidgets, ...queueChartWidgets].map((w) => w.item.mediaType ?? '0'))];
   const agentMediaTypes = [...new Set(tableAgentWidgets.map((w) => w.item.mediaType ?? '0'))];
+
+  // GROUP과 동일한 "선택 없음 = 전체" 규칙 — selectedQueueIds가 비어있으면(미선택) 마스터 큐 전체를 구독한다.
+  // (row 표시 쪽 selectedQueueIds 필터는 그대로 두고, WS 구독용 id 목록만 별도로 만든다)
+  const queueIdsForSub = needsQueue ? (selectedQueueIds.length > 0 ? selectedQueueIds : queueRows.map((q) => q.ctiqId)) : [];
 
   const groupCompositeKeys = needsGroup
     ? [...new Set(groupRows.filter((g) => selectedGroupIds.length === 0 || selectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))]
@@ -589,7 +654,7 @@ function SingleLayoutView({
   ].filter((c): c is string => !!c);
 
   const subscriptions: CtiWsSubscription[] = mergeWsSubscriptions([
-    ...(selectedQueueIds.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: selectedQueueIds, columns: queueColumns })) : []),
+    ...(queueIdsForSub.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: queueIdsForSub, columns: queueColumns })) : []),
     ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
     ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
     ...widgetRedisSubscriptions,
@@ -658,13 +723,13 @@ function SingleLayoutView({
       const liveRows = cfg
         ? buildLiveTableRows(widget.item.id, queueRows, agentRows, groupRows, tableColumns, selection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys)
         : [];
-      return <ViewTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} />;
+      return <ViewTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
     }
     if (dt === 'chart') {
       const liveChartData = buildLiveChartData(widget.item.id, queueRows, agentRows, groupRows, ctiqWsData, selectedQueueIds);
-      return <ViewChartWidget widget={widget} liveData={liveChartData} />;
+      return <ViewChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
     }
-    return <ViewValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} groupIdsByHashKey={groupIdsByHashKey} />;
+    return <ViewValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} selectionIdsByHashKey={selectionIdsByHashKey} fontScale={fontScale} />;
   };
 
   const hasLiveSelection = subscriptions.length > 0;
@@ -689,7 +754,7 @@ function SingleLayoutView({
                 top: `${widget.y}%`,
                 width: `${widget.w ?? 13}%`,
                 height: `${widget.h ?? 16}%`,
-                ...getWidgetVisualStyle(widget.style),
+                ...getWidgetVisualStyle(widget.style, fontScale),
               }}
               className={isTransparentBg(widget.style) ? '' : 'shadow-xl backdrop-blur-sm'}
             >
@@ -757,7 +822,7 @@ function SingleLayoutView({
         />
       )}
 
-      <style>{`body { cursor: ${showControls ? 'auto' : 'none'} !important; }`}</style>
+      <style>{VALUE_CHANGE_ANIMATION_CSS + `body { cursor: ${showControls ? 'auto' : 'none'} !important; }`}</style>
     </div>
   );
 }

@@ -17,7 +17,6 @@ import type {
   ServiceStatList,
   SlotOptionListItem,
   SlotStatList,
-  TenantOptionListItem,
   UserDefStatList,
 } from '../types';
 
@@ -36,7 +35,6 @@ export const statisticsQueryKeys = createQueryKeys('statistics', {
   getIntentOptionList: (params?: Record<string, unknown>) => [params],
   getEntityOptionList: (params?: Record<string, unknown>) => [params],
   getCategoryOptionList: (params?: Record<string, unknown>) => [params],
-  getTenantOptionList: (params?: Record<string, unknown>) => [params],
   getCampaignOptionList: (params?: Record<string, unknown>) => [params],
 });
 
@@ -148,14 +146,6 @@ export const useGetCategoryOptionList = ({ params, queryOptions }: QueryHookWith
   return useQuery({
     queryKey: statisticsQueryKeys.getCategoryOptionList(params).queryKey,
     queryFn: () => statisticsApi.getCategoryOptionList(params),
-    ...queryOptions,
-  });
-};
-
-export const useGetTenantOptionList = ({ params, queryOptions }: QueryHookWithParamsOptions<TenantOptionListItem[]> = {}) => {
-  return useQuery({
-    queryKey: statisticsQueryKeys.getTenantOptionList(params).queryKey,
-    queryFn: () => statisticsApi.getTenantOptionList(params),
     ...queryOptions,
   });
 };

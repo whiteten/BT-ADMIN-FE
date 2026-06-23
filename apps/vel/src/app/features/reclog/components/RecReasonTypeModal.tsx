@@ -12,6 +12,9 @@ export interface RecReasonTypeModalRef {
   open: () => void;
 }
 
+// 기본 선택 테넌트. 목록에 없으면 첫 번째로 폴백.
+const DEFAULT_TENANT_ID = '2000000001';
+
 const columnDefs: ColDef<RecReasonType>[] = [
   //   { field: 'tenantId', headerName: '테넌트ID', width: 160, minWidth: 120 },
   { field: 'code', headerName: '사유아이디', width: 110, minWidth: 90 },
@@ -25,6 +28,9 @@ const RecReasonTypeModal = forwardRef<RecReasonTypeModalRef>((_, ref) => {
   const [selectedRow, setSelectedRow] = useState<RecReasonType | null>(null);
   const gridRef = useRef<AgGridReact<RecReasonType>>(null);
   const [form] = Form.useForm<RecReasonTypeRequest & { tenantIdSearch?: string }>();
+  // 등록/수정 버튼 활성화 판정용. form.getFieldValue는 비반응(필드 변경 시 부모 리렌더 안 됨)이라
+  // 테넌트를 골라도 버튼이 안 풀린다 → useWatch로 반응형 추적.
+  const watchedTenantId = Form.useWatch('tenantId', form);
   const { gridOptions } = useAggridOptions();
 
   /* ── 드래그 ── */
@@ -59,6 +65,14 @@ const RecReasonTypeModal = forwardRef<RecReasonTypeModalRef>((_, ref) => {
   /* ── 데이터 ── */
   const { data: tenantsData } = useGetTenants();
   const tenantOptions = Array.isArray(tenantsData) ? tenantsData.map((t) => ({ value: t.tenantId, label: t.tenantName })) : [];
+
+  // 모달 열릴 때 기본 테넌트 자동 선택 (DEFAULT_TENANT_ID 우선, 없으면 목록 첫 번째)
+  useEffect(() => {
+    if (open && tenantsData && tenantsData.length > 0 && !form.getFieldValue('tenantId')) {
+      const preferred = tenantsData.find((t) => t.tenantId === DEFAULT_TENANT_ID) ?? tenantsData[0];
+      form.setFieldsValue({ tenantId: preferred.tenantId });
+    }
+  }, [open, tenantsData, form]);
 
   const { data: reasonTypes, isFetching, refetch } = useGetReasonTypes({ tenantId }, searchEnabled);
 
@@ -208,7 +222,7 @@ const RecReasonTypeModal = forwardRef<RecReasonTypeModalRef>((_, ref) => {
           <Button style={{ backgroundColor: '#ed8f14', borderColor: '#ed8f14', color: '#fff' }} onClick={handleSearch} loading={isFetching}>
             조회
           </Button>
-          <Button type="primary" onClick={handleSave} loading={isCreating || isUpdating} disabled={!form.getFieldValue('tenantId')}>
+          <Button type="primary" onClick={handleSave} loading={isCreating || isUpdating} disabled={!watchedTenantId}>
             {selectedRow ? '수정' : '등록'}
           </Button>
           <Button danger onClick={handleDelete} loading={isDeleting}>
