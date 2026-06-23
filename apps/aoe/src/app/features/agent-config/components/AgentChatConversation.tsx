@@ -1,11 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Input, type InputRef } from 'antd';
 import { Bot, User } from 'lucide-react';
+import rehypeSanitize from 'rehype-sanitize';
+import remarkGfm from 'remark-gfm';
 import MessageCopyButton from '../../shared/components/MessageCopyButton';
 import type { ChatMessage } from '../types';
 import { IconSend } from '@/components/custom/Icons';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+// 봇 말풍선 Markdown 스타일 — 작은 말풍선에 맞춘 여백·코드·링크 규격
+const MARKDOWN_CLASS = cn(
+  'text-[13px] leading-relaxed text-slate-700 break-words',
+  '[&_p]:my-0 [&_p+p]:mt-2 [&>:first-child]:mt-0 [&>:last-child]:mb-0',
+  '[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5',
+  '[&_a]:text-blue-600 [&_a]:underline [&_strong]:font-semibold [&_em]:italic',
+  '[&_code]:rounded [&_code]:bg-black/5 [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[12px]',
+  '[&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-slate-900 [&_pre]:p-3 [&_pre]:text-slate-100 [&_pre_code]:bg-transparent [&_pre_code]:p-0',
+  '[&_blockquote]:border-l-2 [&_blockquote]:border-slate-300 [&_blockquote]:pl-3 [&_blockquote]:text-slate-500',
+  '[&_table]:my-2 [&_table]:w-full [&_th]:border [&_th]:border-slate-200 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-slate-200 [&_td]:px-2 [&_td]:py-1',
+);
 
 /** 메시지 본문 텍스트 추출 — 렌더·타이핑 길이 계산에서 공통 사용 */
 const getMessageText = (msg: ChatMessage): string => {
@@ -119,10 +134,23 @@ export default function AgentChatConversation({
                 <div
                   className={cn('border rounded-2xl px-3.5 py-2 shadow-sm', isUser ? 'rounded-br-md bg-emerald-50 border-emerald-100' : 'rounded-bl-md bg-blue-50 border-blue-100')}
                 >
-                  <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">
-                    {text}
-                    {isTyping && <span className="ml-0.5 inline-block w-1 animate-pulse">▍</span>}
-                  </p>
+                  {/* 봇 응답은 타이핑 완료 후 Markdown 렌더(타이핑 중·유저 메시지는 잘림/깨짐 방지 위해 plain) */}
+                  {!isUser && !isTyping ? (
+                    <div className={MARKDOWN_CLASS}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                        components={{ a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer noopener" /> }}
+                      >
+                        {fullText}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">
+                      {text}
+                      {isTyping && <span className="ml-0.5 inline-block w-1 animate-pulse">▍</span>}
+                    </p>
+                  )}
                 </div>
                 <div className={cn('mt-0.5 opacity-0 transition-opacity group-hover:opacity-100', isUser && 'self-end')}>
                   <MessageCopyButton text={fullText} />
