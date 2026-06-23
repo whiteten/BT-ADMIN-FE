@@ -1,3 +1,4 @@
+export * from './lib/useAgentChatStore';
 export * from './lib/useAuthStore';
 // export * from './lib/useFavoriteStore';
 export * from './lib/defaultSelectorKeys';
