@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { CellEditingStoppedEvent, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellEditingStoppedEvent, ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { FileText, SearchCheck } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import KnowledgeChunkDrawer, { type KnowledgeChunkDrawerRef } from '../components/KnowledgeChunkDrawer';
 import KnowledgeMetadataDrawer, { type KnowledgeMetadataDrawerRef } from '../components/KnowledgeMetadataDrawer';
 import KnowledgeSearchDrawer, { type KnowledgeSearchDrawerRef } from '../components/KnowledgeSearchDrawer';
 import { knowledgeQueryKeys, useAddKnowledgeFile, useDeleteKnowledgeFiles, useGetKnowledgeFiles, useUpdateKnowledgeFileRole } from '../hooks/useKnowledgeQueries';
@@ -54,6 +55,7 @@ export default function KnowledgeFileList() {
   const fileImportModalRef = useRef<FileImportModalRef>(null);
   const metadataDrawerRef = useRef<KnowledgeMetadataDrawerRef>(null);
   const searchDrawerRef = useRef<KnowledgeSearchDrawerRef>(null);
+  const chunkDrawerRef = useRef<KnowledgeChunkDrawerRef>(null);
   const [searchValue, setSearchValue] = useState('');
 
   const { data: files, isFetching } = useGetKnowledgeFiles({ params: { documentId } });
@@ -108,6 +110,11 @@ export default function KnowledgeFileList() {
         deleteKnowledgeFiles({ params: { documentId: documentId! }, data: { fileIds } });
       },
     });
+  };
+
+  const handleRowDoubleClicked = (event: RowDoubleClickedEvent<KnowledgeFileItem>) => {
+    if (!event.data || !documentId) return;
+    chunkDrawerRef.current?.open({ fileId: event.data.fileId, fileName: event.data.fileName, documentId });
   };
 
   const handleCellEditingStopped = (event: CellEditingStoppedEvent<KnowledgeFileItem>) => {
@@ -201,6 +208,7 @@ export default function KnowledgeFileList() {
           getRowId={(params) => params.data.fileId}
           loading={isFetching}
           onCellEditingStopped={handleCellEditingStopped}
+          onRowDoubleClicked={handleRowDoubleClicked}
         />
       </div>
 
@@ -217,6 +225,7 @@ export default function KnowledgeFileList() {
       />
       <KnowledgeMetadataDrawer ref={metadataDrawerRef} />
       <KnowledgeSearchDrawer ref={searchDrawerRef} />
+      <KnowledgeChunkDrawer ref={chunkDrawerRef} />
     </div>
   );
 }

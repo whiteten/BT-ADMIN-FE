@@ -13,6 +13,7 @@ import type {
   KnowledgeEvalResult,
   KnowledgeEvalUpdateDatas,
   KnowledgeFileItem,
+  KnowledgeFileMeta,
   KnowledgeItem,
   KnowledgeListItem,
   KnowledgeMetadataItem,
@@ -26,6 +27,7 @@ export const knowledgeQueryKeys = createQueryKeys('knowledges', {
   getKnowledge: (params?: Record<string, unknown>) => [params],
   getKnowledgeFiles: (params?: Record<string, unknown>) => [params],
   getKnowledgeChunks: (params?: Record<string, unknown>) => [params],
+  getKnowledgeFileMeta: (params?: Record<string, unknown>) => [params],
   getKnowledgeMetadata: (params?: Record<string, unknown>) => [params],
   getKnowledgeSearchRecords: (params?: Record<string, unknown>) => [params],
   getKnowledgeEvals: (params?: Record<string, unknown>) => [params],
@@ -211,6 +213,36 @@ export const useGetKnowledgeChunks = ({ params, queryOptions }: QueryHookWithPar
     queryFn: () => knowledgeApi.getKnowledgeChunks(params as { fileId: string }),
     enabled: !!params?.fileId,
     ...queryOptions,
+  });
+};
+
+export const useUpdateKnowledgeChunk = ({ mutationOptions }: MutationHookOptions<void, { fileChunkId: string; chunk: string }> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.updateKnowledgeChunk,
+    ...mutationOptions,
+  });
+};
+
+export const useGetKnowledgeFileMeta = ({ params, queryOptions }: QueryHookWithParamsOptions<KnowledgeFileMeta[]> = {}) => {
+  return useQuery({
+    queryKey: knowledgeQueryKeys.getKnowledgeFileMeta(params).queryKey,
+    queryFn: () => knowledgeApi.getKnowledgeFileMeta(params as { fileId: string }),
+    enabled: !!params?.fileId,
+    ...queryOptions,
+  });
+};
+
+export const useUpsertKnowledgeFileMeta = ({ mutationOptions }: MutationHookOptions<void, { fileId: string; metaId: string; metaValue: string }> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.upsertKnowledgeFileMeta,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteKnowledgeFileMeta = ({ mutationOptions }: MutationHookOptions<void, { fileMetaId: string }> = {}) => {
+  return useMutation({
+    mutationFn: knowledgeApi.deleteKnowledgeFileMeta,
+    ...mutationOptions,
   });
 };
 

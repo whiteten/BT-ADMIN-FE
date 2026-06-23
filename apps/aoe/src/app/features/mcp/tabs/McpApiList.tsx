@@ -1,9 +1,10 @@
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Spin } from 'antd';
-import { Braces, Inbox, Info, RefreshCw } from 'lucide-react';
+import { Braces, ChevronDown, Inbox, Info, RefreshCw } from 'lucide-react';
 import { mcpQueryKeys, useGetMcpList, useGetMcpTools } from '../hooks/useMcpQueries';
 import type { McpApiItem } from '../types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 /** API 설명 텍스트를 요약·인수·비고 블록으로 파싱해 문서형 카드로 렌더한다. */
 type DescBlock =
@@ -99,6 +100,11 @@ function ApiDescription({ blocks }: { blocks: DescBlock[] }) {
 }
 
 function ApiCard({ api, index }: { api: McpApiItem; index: number }) {
+  const blocks = parseDescription(api.description);
+  const summary = blocks.find((b) => b.kind === 'summary')?.text;
+  // 설명이 길면 기본 접힘, 짧으면 펼침 (블록 ≈ 줄 단위)
+  const isLong = blocks.length > 5;
+
   return (
     <article
       className="group relative animate-in fade-in-0 slide-in-from-bottom-1 overflow-hidden rounded-xl border border-slate-200/80 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--color-bt-primary)]/40 hover:shadow-[0_12px_32px_-16px_rgba(8,95,181,0.35)]"
@@ -106,17 +112,25 @@ function ApiCard({ api, index }: { api: McpApiItem; index: number }) {
     >
       <span className="absolute inset-y-0 left-0 w-[3px] bg-[var(--color-bt-primary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
-      <header className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-3.5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)]">
-          <Braces className="size-4" />
-        </span>
-        <code className="font-mono text-sm font-semibold tracking-tight text-slate-800">{api.toolName}</code>
-        {api.source && <span className="ml-auto rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">{api.source}</span>}
-      </header>
+      <Collapsible defaultOpen={!isLong}>
+        <CollapsibleTrigger className="group/trigger flex w-full items-center gap-3 px-5 py-3.5 text-left data-[state=open]:border-b data-[state=open]:border-slate-100">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-bt-primary)]/10 text-[var(--color-bt-primary)]">
+            <Braces className="size-4" />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <code className="font-mono text-sm font-semibold tracking-tight text-slate-800">{api.toolName}</code>
+            {summary && <span className="truncate text-xs text-slate-500 group-data-[state=open]/trigger:hidden">{summary}</span>}
+          </div>
+          {api.source && <span className="shrink-0 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">{api.source}</span>}
+          <ChevronDown className="size-4 shrink-0 text-slate-400 transition-transform duration-200 group-data-[state=open]/trigger:rotate-180" />
+        </CollapsibleTrigger>
 
-      <div className="px-5 py-4">
-        <ApiDescription blocks={parseDescription(api.description)} />
-      </div>
+        <CollapsibleContent>
+          <div className="px-5 py-4">
+            <ApiDescription blocks={blocks} />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </article>
   );
 }
@@ -135,7 +149,7 @@ export default function McpApiList() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pb-7">
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
