@@ -53,14 +53,19 @@ const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry
 };
 
 // 각 remote 의 Routes import 결과를 모아 라우트 맵 + 가용성 맵을 함께 반환.
-// import 성공 = remote 기동(+ Routes expose 정상), 실패 = 미기동/expose 실패.
+// 가용성은 import 성공 여부가 아니라 "실제 라우트 보유 여부"로 판정한다.
+// MF runtime 은 첫 import 실패(미기동) 후에도 remote 를 빈 컨테이너로 등록해 두기 때문에,
+// 로그아웃→재로그인(페이지 reload 없는 재마운트)으로 loadRemoteRoutes 가 재실행되면
+// 미기동 remote 의 import 가 reject 가 아니라 "빈 모듈"로 resolve 된다. 이때 import 성공만으로
+// ok 를 판정하면 미기동 remote 도 true 로 잡힌다(remote_entry 재요청 없이 캐시 resolve).
+// 미기동 remote 는 routes 가 빈 배열로 들어오므로, routes.length 로 판정하면 1차/2차 모두 정상.
 const loadRemoteRoutes = async (): Promise<{ routes: RemoteRoutesMap; availability: Record<string, boolean> }> => {
   const results = await Promise.all(
     Object.entries(ROUTE_LOADERS).map(async ([name, loader]) => {
       try {
         const routesModule = await loader();
         const routes = Array.isArray(routesModule?.routes) ? routesModule.routes : [];
-        return { name, ok: true, entries: flattenRoutes(routes) };
+        return { name, ok: routes.length > 0, entries: flattenRoutes(routes) };
       } catch (err) {
         return { name, ok: false, entries: [] as RemoteRouteEntry[] };
       }
