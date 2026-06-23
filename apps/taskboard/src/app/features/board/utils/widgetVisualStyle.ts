@@ -55,6 +55,13 @@ export const VALUE_CHANGE_ANIMATION_CSS = `
   .tb-anim-shake { animation: tbValShake 0.4s ease; }
   .tb-anim-bounce { animation: tbValBounce 0.5s ease; }
   .tb-anim-highlight { animation: tbValHighlight 0.9s ease; }
+  @keyframes tbMenuPopIn {
+    0% { opacity: 0; transform: scale(0.92) translateY(-4px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .tb-menu-pop-in { animation: tbMenuPopIn 0.16s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes tbMarquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  .tb-marquee-track { display: inline-block; white-space: nowrap; padding-left: 100%; animation: tbMarquee 12s linear infinite; }
 `;
 
 /** 값 변경 모션의 CSS class — 'none'/미설정이면 빈 문자열 */
@@ -83,8 +90,10 @@ export function getValueOffsetStyle(style: WidgetStyle): React.CSSProperties {
 /**
  * 임계치 색상 — value가 숫자로 해석 가능하고 thresholdEnabled가 true일 때,
  * rule.min 이하 중 가장 큰 min을 가진 규칙의 색상을 반환(오름차순 평가 후 마지막 매칭). 매칭 없으면 undefined(기본 색상 유지).
+ * WidgetStyle 전체가 아니라 thresholdEnabled/thresholds만 필요해서, 같은 모양을 가진 TableColumn(테이블
+ * 컬럼별 임계치)에도 그대로 재사용할 수 있게 Pick 타입을 받는다.
  */
-export function getThresholdColor(value: unknown, style: WidgetStyle): string | undefined {
+export function getThresholdColor(value: unknown, style: Pick<WidgetStyle, 'thresholdEnabled' | 'thresholds'>): string | undefined {
   if (!style.thresholdEnabled || !style.thresholds || style.thresholds.length === 0) return undefined;
   const num = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, ''));
   if (Number.isNaN(num)) return undefined;
