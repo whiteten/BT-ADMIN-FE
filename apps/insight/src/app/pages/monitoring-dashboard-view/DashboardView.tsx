@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from 'antd';
 import { Plus } from 'lucide-react';
@@ -34,7 +34,9 @@ type Mode = 'view' | 'edit';
  */
 export default function DashboardView() {
   const { dashboardId: param } = useParams<{ dashboardId: string }>();
-  const dashboardId = Number(param);
+  const [searchParams] = useSearchParams();
+  // 메뉴 등록 경로(.../dashboards/view?dashboardId=N)는 path 파라미터가 없으므로 쿼리스트링도 함께 본다.
+  const dashboardId = Number(param ?? searchParams.get('dashboardId') ?? '');
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
