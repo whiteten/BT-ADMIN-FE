@@ -41,6 +41,9 @@ import {
 
 const CHART_VIEW_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
+const VIEW_GRID_COLS = 24;
+const VIEW_GRID_ROWS = 20;
+
 function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
   if (!selectionJson) return {};
   try {
@@ -586,7 +589,57 @@ function SingleLayoutView({
   const [imgRatio, setImgRatio] = useState(16 / 9);
   const fontScale = useResponsiveFontScale(imgRatio);
 
+  // 그리드 모드 여백 보정을 위한 캔버스 실 픽셀 크기 (viewport 변화 시 fontScale 재렌더가 여기까지 전파됨)
+  const canvasWPx = Math.min(window.innerWidth, imgRatio * window.innerHeight);
+  const canvasHPx = Math.min(window.innerHeight, window.innerWidth / imgRatio);
+
   const widgets = parseLayoutWidgets(layout.layoutJson);
+
+  // layoutJson에서 그리드 모드 메타(layoutMode, gridMargin, containerPadding) 파싱
+  const layoutMeta = (() => {
+    try {
+      const raw = JSON.parse(layout.layoutJson ?? '{}') as {
+        version?: number;
+        layoutMode?: string;
+        gridMargin?: [number, number];
+        containerPadding?: [number, number];
+      };
+      if (raw?.version === 2) {
+        return {
+          layoutMode: raw.layoutMode ?? 'free',
+          gridMargin: (raw.gridMargin ?? [0, 0]) as [number, number],
+          containerPadding: (raw.containerPadding ?? [0, 0]) as [number, number],
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    return { layoutMode: 'free', gridMargin: [0, 0] as [number, number], containerPadding: [0, 0] as [number, number] };
+  })();
+
+  // 그리드 모드일 때 위젯의 실제 렌더 위치를 % 로 계산한다.
+  // fromGridItem()은 gridX/GRID_COLS * 100 같은 단순 비율만 저장하므로
+  // gridMargin / containerPadding 이 실제 view에서 반영되려면 역산이 필요하다.
+  const getGridAdjustedPos = (widget: DroppedWidget): { left: string; top: string; width: string; height: string } | null => {
+    if (layoutMeta.layoutMode !== 'grid' || canvasWPx < 50) return null;
+    const [padX, padY] = layoutMeta.containerPadding;
+    const [mX, mY] = layoutMeta.gridMargin;
+
+    const gx = Math.round((widget.x / 100) * VIEW_GRID_COLS);
+    const gy = Math.round((widget.y / 100) * VIEW_GRID_ROWS);
+    const gw = Math.max(1, Math.round(((widget.w ?? 13) / 100) * VIEW_GRID_COLS));
+    const gh = Math.max(1, Math.round(((widget.h ?? 16) / 100) * VIEW_GRID_ROWS));
+
+    const cellW = (canvasWPx - 2 * padX - mX * (VIEW_GRID_COLS - 1)) / VIEW_GRID_COLS;
+    const cellH = (canvasHPx - 2 * padY - mY * (VIEW_GRID_ROWS - 1)) / VIEW_GRID_ROWS;
+
+    return {
+      left: `${((padX + gx * (cellW + mX)) / canvasWPx) * 100}%`,
+      top: `${((padY + gy * (cellH + mY)) / canvasHPx) * 100}%`,
+      width: `${((gw * cellW + (gw - 1) * mX) / canvasWPx) * 100}%`,
+      height: `${((gh * cellH + (gh - 1) * mY) / canvasHPx) * 100}%`,
+    };
+  };
 
   const selectedQueueIds = selection.queueIds ?? [];
   const selectedGroupIds = selection.groupIds ?? [];
@@ -766,22 +819,25 @@ function SingleLayoutView({
           }}
         >
           {layout.fileName && <img src={layout.fileName} alt={layout.layoutName} className="absolute inset-0 w-full h-full object-fill pointer-events-none" />}
-          {widgets.map((widget) => (
-            <div
-              key={widget.id}
-              style={{
-                position: 'absolute',
-                left: `${widget.x}%`,
-                top: `${widget.y}%`,
-                width: `${widget.w ?? 13}%`,
-                height: `${widget.h ?? 16}%`,
-                ...getWidgetVisualStyle(widget.style, fontScale),
-              }}
-              className={isTransparentBg(widget.style) ? '' : 'shadow-xl backdrop-blur-sm'}
-            >
-              {renderWidget(widget)}
-            </div>
-          ))}
+          {widgets.map((widget) => {
+            const gridPos = getGridAdjustedPos(widget);
+            return (
+              <div
+                key={widget.id}
+                style={{
+                  position: 'absolute',
+                  left: gridPos ? gridPos.left : `${widget.x}%`,
+                  top: gridPos ? gridPos.top : `${widget.y}%`,
+                  width: gridPos ? gridPos.width : `${widget.w ?? 13}%`,
+                  height: gridPos ? gridPos.height : `${widget.h ?? 16}%`,
+                  ...getWidgetVisualStyle(widget.style, fontScale),
+                }}
+                className={isTransparentBg(widget.style) ? '' : 'shadow-xl backdrop-blur-sm'}
+              >
+                {renderWidget(widget)}
+              </div>
+            );
+          })}
         </div>
       </div>
 

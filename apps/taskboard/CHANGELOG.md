@@ -22,6 +22,38 @@
 - `useCtiqWebSocket.ts`: 단일 hashKey 구독 → `subscriptions: {hashKey, ids}[]` 배열을 한 연결로 동시 구독하도록 재작성(`CtiWsSubscription`, `CtiWsDataByHashKey` 신규 export, 기존 `CtiqQueueRecord`는 `CtiqRecord`로 이름 변경). 큐/그룹/상담사(상담사는 그룹별로 `IC:AGENT:{groupId}:{mediaType}` hashKey가 갈라짐)를 React Hook 규칙(동적 개수만큼 훅 호출 불가) 위반 없이 한 훅으로 처리하기 위함.
 - `ctiRedisApi.ts`: `CtiAgentRow`에 `groupId` 필드 추가(BE `CtiAgentDto`엔 이미 있었으나 FE 타입에 누락돼 있었음) — 상담사 WS hashKey(`IC:AGENT:{groupId}:{mediaType}`) 합성에 필요.
 
+## 2026-06-23 세션38
+
+### task-create: 비선택 위젯 경계 표시 (항상 dashed outline)
+- **원인**: `CanvasWidgetFree`·`CanvasWidgetGrid` 모두 `isSelected`가 false일 때 outline CSS가 빈 문자열이라 위젯 영역이 안 보였음.
+- **수정**: 비선택 상태에도 `[outline-style:dashed] outline outline-1 outline-white/30` 적용 — 잠금 여부와 관계없이 항상 흐릿한 점선 테두리로 위젯 경계 표시.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (CanvasWidgetFree line ~1287, CanvasWidgetGrid line ~1414)
+
+### task-view: 그리드 모드 간격(gridMargin)·여백(containerPadding) view에 반영
+- **원인**: `fromGridItem()`이 그리드 좌표→%로 단순 비율 변환(gridX/GRID_COLS×100)만 해서 gridMargin/containerPadding을 완전히 무시. TaskView에서 이 %를 absolute 위치로 쓰면 margin=0인 것과 동일하게 렌더되어 위젯들이 구석으로 붙었음.
+- **수정**: TaskView.tsx에 `VIEW_GRID_COLS/ROWS` 상수 추가, layoutJson의 `layoutMode`·`gridMargin`·`containerPadding`을 파싱해 `getGridAdjustedPos()` 헬퍼로 역산. gridMode이면 각 위젯의 저장된 %를 그리드 좌표(gx/gy/gw/gh)로 역산한 뒤 실제 픽셀 위치를 %로 재계산해 absolute style에 적용.
+- 관련 파일: `src/app/pages/board/TaskView.tsx`
+
+## 2026-06-23 세션37
+
+### 스포이드 — "Chrome/Edge 전용" 안내가 떴는데 Chrome/Edge에서도 안 되던 원인
+배경: 사용자가 Chrome/Edge 둘 다에서 스포이드를 눌러도 "Chrome/Edge 브라우저에서만 지원됩니다" 토스트가
+뜬다고 제보.
+
+- **원인**: `EyeDropper`는 `crypto.randomUUID()`와 같은 종류의 **secure context(HTTPS 또는
+  localhost) 전용 API**(AGENTS.md에 이미 같은 함정이 `createUUID` 관련해서 기록돼 있음) — HTTP+IP로
+  접속하는 개발계에서는 Chrome/Edge여도 `window.EyeDropper` 자체가 존재하지 않음. 기존 코드는
+  `'EyeDropper' in window` 단일 체크라 "브라우저 미지원"과 "비보안 접속이라 API가 안 노출됨"을 구분
+  못 해서, 실제로는 HTTP 접속 때문인데 메시지는 "Chrome/Edge에서만 지원"이라고 떠서 더 헷갈리게 했음.
+- **수정**: `window.isSecureContext` 체크를 추가해 분기 — `false`면(HTTP+IP 접속 등) "보안 연결
+  (HTTPS) 또는 localhost에서만 동작합니다" 메시지로 정확히 안내. `true`인데도 `EyeDropper`가 없으면
+  (Firefox/Safari) 기존 "Chrome/Edge 전용" 메시지 유지.
+- **한계**: 코드로 HTTP 환경에서 EyeDropper를 동작시킬 방법은 없음(브라우저 보안 정책) — 실제로
+  쓰려면 운영 환경을 HTTPS로 접속하거나, 개발 중이면 `localhost`로 접속해야 함.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`handlePickColorFromScreen`)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(기존 경고만 유지). 실제로 HTTP/HTTPS
+  양쪽에서 메시지가 다르게 뜨는지 확인은 미실시.
+
 ## 2026-06-23 세션36
 
 ### useCtiqWebSocket — 5초마다 재구독하던 걸 "구독 1회 + 서버 푸시 델타 병합"으로 변경

@@ -1284,7 +1284,7 @@ function CanvasWidgetFree({ widget, widgets, isSelected, locked, onSelect, onRem
         onSelect(e.shiftKey);
       }}
       className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
-        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : ''
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
       }`}
     >
       {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
@@ -1411,7 +1411,7 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
         ...getWidgetVisualStyle(widget.style, fontScale),
       }}
       className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
-        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : ''
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
       }`}
     >
       {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
@@ -2236,6 +2236,13 @@ export default function TaskCreate() {
   // 그림판 스포이드처럼 화면(배경 이미지 포함) 어디서든 색상을 추출 — 브라우저 EyeDropper API(Chrome/Edge) 사용.
   // 지원 안 하는 브라우저(Firefox/Safari)는 토스트로 안내만 하고, 기존 <input type="color"> 직접 선택은 그대로 가능.
   const handlePickColorFromScreen = async (field: 'color' | 'bgColor', widgetId: string) => {
+    // EyeDropper는 secure context(HTTPS 또는 localhost) 전용 API — crypto.randomUUID()와 동일한
+    // 함정(AGENTS.md 참고). HTTP+IP로 접속하는 개발계에서는 Chrome/Edge여도 window.EyeDropper 자체가
+    // 없어서, 단순 'EyeDropper' in window 체크만으로는 "브라우저 미지원"과 "비보안 접속"을 구분 못 한다.
+    if (!window.isSecureContext) {
+      toast.error('스포이드는 보안 연결(HTTPS) 또는 localhost에서만 동작합니다 — 지금 페이지는 HTTP로 접속돼 있어 Chrome/Edge에서도 사용할 수 없습니다.');
+      return;
+    }
     if (!('EyeDropper' in window)) {
       toast.error('스포이드 기능은 Chrome/Edge 브라우저에서만 지원됩니다.');
       return;
