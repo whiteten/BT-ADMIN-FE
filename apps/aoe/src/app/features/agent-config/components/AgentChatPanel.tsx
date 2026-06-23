@@ -105,8 +105,11 @@ export default function AgentChatPanel({ open, onClose, onExited, placement = 'b
       minHeight={PANEL_MIN_HEIGHT}
       bounds="window"
       dragHandleClassName={DRAG_HANDLE_CLASS}
-      enableResizing
-      className="z-[950]"
+      enableResizing={isVisible}
+      disableDragging={!isVisible}
+      // 닫힘(페이드아웃) 시 소비자가 unmount 하지 않고 대화 보존을 위해 마운트를 유지하므로,
+      // 숨김 상태에서는 pointer-events 를 꺼서 투명한 Rnd wrapper 가 뒤 UI 클릭을 가로채지 않도록 한다.
+      className={cn('z-[950]', !isVisible && 'pointer-events-none')}
       style={{ position: 'fixed' }}
     >
       {/* 본체 — Rnd 크기를 가득 채우고, 등장·종료는 opacity 페이드만(이동·크기는 Rnd 소유). */}
