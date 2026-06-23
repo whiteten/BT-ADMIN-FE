@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
+import GuestGuard from './features/router/GuestGuard';
 import RouteGuard from './features/router/RouteGuard';
 import SessionGuard from './features/router/SessionGuard';
 import SharedInfoProvider from './features/router/SharedInfoProvider';
@@ -83,7 +84,7 @@ const AppRoutes = () => {
             <Route index path="*" element={<Vel />} />
           </Route>
         </Route>
-        <Route path="/login" element={pv('login', Login)} />
+        <Route path="/login" element={<GuestGuard>{pv('login', Login)}</GuestGuard>} />
         <Route path="/forbidden" element={<Forbidden useFullScreen />} />
       </Route>
       <Route path="*" element={<NotFound useFullScreen />} />

@@ -33,6 +33,11 @@ declare module 'ipron/*' {
   const Component: React.ComponentType;
   export default Component;
 }
+// props 가 있는 expose 는 와일드카드(ComponentType<{}>)로 부족하므로 구체 선언으로 우선 매칭.
+declare module 'aoe/AgentChatPanel' {
+  const AgentChatPanel: React.ComponentType<{ open: boolean; onClose: () => void; onExited?: () => void; placement?: 'bottom-right' | 'top-right' }>;
+  export default AgentChatPanel;
+}
 declare module 'aoe/*' {
   const Component: React.ComponentType;
   export default Component;

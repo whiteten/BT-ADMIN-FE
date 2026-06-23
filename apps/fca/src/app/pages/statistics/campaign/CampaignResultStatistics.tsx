@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CellStyle, ColDef } from 'ag-grid-community';
+import type { CellStyle } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
+import { type CampaignResultStatColDef, buildCampaignResultStatRowId, createCampaignResultStatMetricColumns, createPsrTimeKeyColumnDef } from './campaignResultStatGridColumns';
 import { CampaignStatExcludeFilterRow, buildCampaignExcludeFilterParams } from './campaignStatExcludeFilters';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
@@ -45,13 +44,6 @@ const getDatePickerFormat = (unit: string): string => {
   if (unit === 'YY') return 'YYYY';
   return 'YYYY-MM-DD';
 };
-
-/** defaultColDef.flex 상속 방지 — 날짜 컬럼은 내용 길이만큼만 차지 */
-const dateColDef = (displayTimeUnit: string): Pick<ColDef, 'flex' | 'minWidth' | 'maxWidth'> => ({
-  flex: 0,
-  minWidth: displayTimeUnit === 'YY' ? 88 : displayTimeUnit === 'MM' ? 96 : 112,
-  maxWidth: displayTimeUnit === 'YY' ? 100 : displayTimeUnit === 'MM' ? 110 : 130,
-});
 
 const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   if (end.isBefore(start, 'day')) return false;
@@ -98,8 +90,8 @@ export default function CampaignResultStatistics() {
   const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
 
-  const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
+  const pendingTimeUnitRef = useRef(timeUnit);
   const [rowData, setRowData] = useState<CampaignResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -140,10 +132,17 @@ export default function CampaignResultStatistics() {
   });
 
   useEffect(() => {
-    if (campaignResultStatData !== undefined) setRowData(campaignResultStatData.items);
+    if (campaignResultStatData === undefined) return;
+    setRowData(campaignResultStatData.items);
+    setDisplayTimeUnit(pendingTimeUnitRef.current);
   }, [campaignResultStatData]);
 
-  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계' }] : [];
+  const summaryRow = useMemo<CampaignResultStatListItem[]>(
+    () => (campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계' }] : []),
+    [campaignResultStatData?.summary],
+  );
+
+  const { gridOptions } = useAggridOptions();
 
   useEffect(() => {
     if (startDate && endDate) {
@@ -173,34 +172,14 @@ export default function CampaignResultStatistics() {
       return;
     }
 
-    setDisplayTimeUnit(timeUnit);
+    pendingTimeUnitRef.current = timeUnit;
     refetch();
   };
 
-  const columnDefs: CampaignResultStatColDef[] = [
-    {
-      headerName: '날짜',
-      field: 'psrTimeKey',
-      ...dateColDef(displayTimeUnit),
-      pinned: 'left',
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
-      },
-      cellStyle: textCellStyle,
-    },
-    { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
-    { headerName: '발신진행건수(실시간)', field: 'outboundProgressCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '총발신시도건수(누적)', field: 'outboundAttemptCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '진행율', field: 'progressRatePct', width: 90, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '재시도발신건수', field: 'retryOutboundCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '본인통화건수', field: 'selfCallCnt', width: 110, cellStyle: numberCellStyle },
-    { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
-    { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
-    createAttemptSelfCallSuccessRateColumnGroup(numberCellStyle),
-    { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-  ];
+  const columnDefs = useMemo<CampaignResultStatColDef[]>(
+    () => [createPsrTimeKeyColumnDef<CampaignResultStatListItem>(displayTimeUnit, textCellStyle), ...createCampaignResultStatMetricColumns(numberCellStyle)],
+    [displayTimeUnit],
+  );
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-campaign-result:export');
@@ -309,7 +288,7 @@ export default function CampaignResultStatistics() {
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
-            getRowId={(params) => `${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey}_${params.data.seq}`}
+            getRowId={(params) => buildCampaignResultStatRowId(params.data)}
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingCampaignResultStatList}

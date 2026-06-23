@@ -9,9 +9,15 @@ export const recLogQueryKeys = createQueryKeys('rec-log', {
   getReasonTypes: (params?: Record<string, unknown>) => [params],
 });
 
-export const useGetRecLogs = ({ params, queryOptions }: QueryHookWithParamsOptions<RecLogPagedResult> & { params?: RecLogSearchParams } = {}) => {
+// searchToken: [조회] 클릭마다 +1 되는 nonce. 쿼리키에만 더해(=API 파라미터엔 미포함) 같은 검색조건이어도
+// 매 클릭 강제 재요청되게 한다. 실시간으로 청취로그가 쌓이는 환경에서 캐시 디듀핑으로 신규 데이터를 놓치는 것 방지.
+export const useGetRecLogs = ({
+  params,
+  searchToken,
+  queryOptions,
+}: QueryHookWithParamsOptions<RecLogPagedResult> & { params?: RecLogSearchParams; searchToken?: number } = {}) => {
   return useQuery({
-    queryKey: recLogQueryKeys.getRecLogs(params as Record<string, unknown>).queryKey,
+    queryKey: [...recLogQueryKeys.getRecLogs(params as Record<string, unknown>).queryKey, searchToken],
     queryFn: () => recLogApi.getRecLogs(params as RecLogSearchParams),
     enabled: !!params?.startDate && !!params?.endDate,
     ...queryOptions,
