@@ -24,6 +24,7 @@ const DashboardEditInfo = React.lazy(() => import('./pages/monitoring-dashboard-
 const TemplateWidgetWizard = React.lazy(() => import('./pages/monitoring-template-widget-wizard/TemplateWidgetWizard'));
 const CustomWidgetCatalogPage = React.lazy(() => import('./pages/monitoring-custom-widget-catalog/CustomWidgetCatalogPage'));
 const DashboardView = React.lazy(() => import('./pages/monitoring-dashboard-view/DashboardView'));
+const DashboardMenuView = React.lazy(() => import('./pages/monitoring-dashboard-view/DashboardMenuView'));
 const DatasetCatalog = React.lazy(() => import('./pages/monitoring-datasets/DatasetCatalog'));
 const DatasetWizard = React.lazy(() => import('./pages/monitoring-dataset-wizard/DatasetWizard'));
 const LookupCatalogList = React.lazy(() => import('./pages/monitoring-lookups/LookupCatalogList'));
@@ -104,6 +105,13 @@ export const routes = [
               { path: ':dashboardId/edit/widget/create/template', element: pv('monitoring/dashboards/:dashboardId/edit/widget/create/template', TemplateWidgetWizard) },
               { path: ':dashboardId/edit/widget/create/custom', element: pv('monitoring/dashboards/:dashboardId/edit/widget/create/custom', CustomWidgetCatalogPage) },
               { path: ':dashboardId/view', element: pv('monitoring/dashboards/:dashboardId/view', DashboardView) },
+              {
+                path: 'view',
+                element: pv('monitoring/dashboards/view', DashboardMenuView),
+                handle: {
+                  queryParams: [{ key: 'dashboardId', label: '대시보드', selectorKey: SelectorKeys.DashboardSelector }],
+                },
+              },
             ],
           },
           {
