@@ -19,8 +19,8 @@ export default function TopHeader() {
   const navigate = useNavigate();
   const toggleChrome = useLayoutStore((s) => s.toggleChrome);
   const [chatOpen, setChatOpen] = React.useState(false);
-  // 슬라이드 아웃 애니메이션 동안 패널을 잠깐 유지하기 위한 마운트 상태.
-  // 열림 → 즉시 mount, 닫힘 → 슬라이드 아웃 끝(onExited)에 unmount(=대화 상태 정리).
+  // 첫 열림 시 1회 마운트 후 계속 유지 — 닫아도 unmount 하지 않아 대화 내용 보존.
+  // 대화 초기화는 패널 내부 '초기화' 버튼만 담당. 첫 open 전까지는 미마운트(지연 로드 유지).
   const [chatMounted, setChatMounted] = React.useState(false);
   React.useEffect(() => {
     if (chatOpen) setChatMounted(true);
@@ -89,10 +89,10 @@ export default function TopHeader() {
         </button>
       </div>
 
-      {/* 슬라이드 인/아웃: open=false 로 내려 슬라이드 아웃 → onExited 에서 unmount(대화 상태 정리) */}
+      {/* 슬라이드 인/아웃: open=false 로 내려도 unmount 하지 않고 마운트 유지(대화 보존). 초기화는 패널 내부 버튼이 담당 */}
       {canUseAgentChat && chatMounted && (
         <React.Suspense fallback={null}>
-          <AgentChatPanel open={chatOpen} placement="top-right" onClose={() => setChatOpen(false)} onExited={() => setChatMounted(false)} />
+          <AgentChatPanel open={chatOpen} placement="top-right" onClose={() => setChatOpen(false)} />
         </React.Suspense>
       )}
     </div>
