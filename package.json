@@ -167,6 +167,7 @@
     "react-multi-select-component": "^4.3.4",
     "react-resizable": "^4.0.1",
     "react-resizable-panels": "^3.0.3",
+    "react-rnd": "^10.5.3",
     "react-router-dom": "6.29.0",
     "react-toastify": "^11.0.5",
     "recharts": "2.15.4",
