@@ -11,7 +11,9 @@ export const TOP_HEADER_HEIGHT = 56;
 
 // aoe remote 의 에이전트 채팅 패널 — 트리거·open 상태는 host(여기)가 소유, 패널은 open 일 때만 마운트.
 // 로드 실패 시 화면에 영향 없도록 null fallback.
-const AgentChatPanel = React.lazy(() => import('aoe/AgentChatPanel').catch(() => ({ default: () => null })));
+// import 를 1회만 실행해 promise 를 lazy(패널 렌더)와 가용성 판정 양쪽이 공유.
+const agentChatModule = import('aoe/AgentChatPanel');
+const AgentChatPanel = React.lazy(() => agentChatModule.catch(() => ({ default: () => null })));
 
 export default function TopHeader() {
   const navigate = useNavigate();
@@ -24,10 +26,18 @@ export default function TopHeader() {
     if (chatOpen) setChatMounted(true);
   }, [chatOpen]);
 
-  // aoe 에이전트 조회 권한이 있을 때만 채팅 버튼 노출
-  // TODO: 추후 권한 체크 로직으로 변경
-  const canUseAgentChat = true;
-  // const canUseAgentChat = useNavigationStore((s) => s.permissions.includes('aoe:agent:read'));
+  // aoe/AgentChatPanel 모듈 import 성공 시에만 버튼 노출(메뉴 등록 여부와 무관한 실제 가용성).
+  // 모듈은 webpack 캐시되어 실제 open 시 재요청 없음. 실패하면 초기값 false 유지 → 버튼 숨김.
+  // TODO: 추후 aoe 에이전트 조회 권한 체크와 결합 — setCanUseAgentChat(loaded && useNavigationStore.getState().permissions.includes('aoe:agent:read'))
+  const [canUseAgentChat, setCanUseAgentChat] = React.useState(false);
+  React.useEffect(() => {
+    agentChatModule
+      .then(
+        () => true,
+        () => false,
+      )
+      .then(setCanUseAgentChat);
+  }, []);
 
   return (
     <div style={{ height: TOP_HEADER_HEIGHT }} className="relative shrink-0 bg-[var(--color-bt-header)] text-white border-b border-white/10">
