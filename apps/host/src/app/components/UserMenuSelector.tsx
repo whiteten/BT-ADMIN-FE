@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Dot, KeyRound, LogOut, Repeat } from 'lucide-react';
-import { type TenantSummary, useAuthStore } from '@/shared-store';
+import { type TenantSummary, useAuthStore, useMenuStore, useNavigationStore, useRemoteAvailabilityStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { type ChangePasswordData, ChangePasswordDialog, type ChangePasswordDialogRef } from './ChangePasswordDialog';
 import { TenantSwitchDialog, type TenantSwitchDialogRef } from './TenantSwitchDialog';
@@ -32,7 +32,12 @@ export default function UserMenuSelector() {
   const { mutate: logout } = useLogout({
     mutationOptions: {
       onSettled: () => {
-        reset(); // 스토어 초기화
+        // 세션 관련 스토어 일괄 초기화 — 재로그인 시 SharedInfoProvider 재마운트로 다시 set되지만,
+        // 비우지 않으면 fetch 완료 전까지 이전 사용자의 메뉴·권한·가용성이 잔존(권한 다른 계정 재로그인 시 정보 노출).
+        reset(); // authStore
+        useNavigationStore.getState().reset();
+        useMenuStore.getState().reset();
+        useRemoteAvailabilityStore.getState().reset();
         navigate('/login');
       },
     },
