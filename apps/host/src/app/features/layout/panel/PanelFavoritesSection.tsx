@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Button } from 'antd';
 import { Check, GripVertical, SquareDashed, Trash2, X } from 'lucide-react';
 import { sharedApi } from '@/shared-api';
-import { useMenuStore, useNavigationStore } from '@/shared-store';
+import { useMenuStore, useNavigationStore, useRemoteAvailabilityStore } from '@/shared-store';
 import { isMenuActive } from './PanelMenuPrimitives';
 import { NewWindowButton } from '../components/NewWindowButton';
 import { useUpdateFavorite } from '../hooks/useFavoriteQueries';
@@ -23,6 +23,7 @@ interface FavoriteInfo {
   icon?: React.ElementType;
   path?: string;
   breadcrumb: string;
+  isAvailable: boolean;
 }
 
 interface SortableFavoriteRowProps {
@@ -34,9 +35,11 @@ interface SortableFavoriteRowProps {
 
 const SortableFavoriteRow = ({ info, isEditMode, onClick, onRemove }: SortableFavoriteRowProps) => {
   const location = useLocation();
-  const { favorite, icon: Icon, path, breadcrumb } = info;
+  const { favorite, icon: Icon, path, breadcrumb, isAvailable } = info;
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: favorite.menuKey });
-  const isActive = path ? isMenuActive(path, location, favorite.appId) : false;
+  // 클릭 가능 = 경로 있음 + remote 기동. 둘 중 하나라도 빠지면 죽은 항목으로 비활성 처리.
+  const isDisabled = !path || !isAvailable;
+  const isActive = !isDisabled && path ? isMenuActive(path, location, favorite.appId) : false;
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   if (isEditMode) {
@@ -64,10 +67,11 @@ const SortableFavoriteRow = ({ info, isEditMode, onClick, onRemove }: SortableFa
 
   return (
     <div
-      onClick={() => onClick(favorite, path)}
+      onClick={() => !isDisabled && onClick(favorite, path)}
+      title={!isAvailable ? '앱 미기동 — 현재 접속할 수 없습니다.' : undefined}
       className={cn(
         'group/row relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors',
-        path ? 'cursor-pointer text-[#495057] hover:bg-[#f1f3f5]' : 'cursor-not-allowed opacity-50',
+        isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer text-[#495057] hover:bg-[#f1f3f5]',
         isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
       )}
     >
@@ -80,7 +84,7 @@ const SortableFavoriteRow = ({ info, isEditMode, onClick, onRemove }: SortableFa
         <p className={cn('text-sm truncate', isActive ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]')}>{favorite.label}</p>
         {breadcrumb && <p className="text-[12px] text-[#adb5bd] truncate mt-0.5">{breadcrumb}</p>}
       </div>
-      {path && (
+      {!isDisabled && (
         <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
           <NewWindowButton path={path} appId={favorite.appId} />
         </span>
@@ -98,6 +102,7 @@ const PanelFavoritesSection = ({ className }: PanelFavoritesSectionProps) => {
   const queryClient = useQueryClient();
   const { menuConfigs } = useMenuStore();
   const { favorites } = useNavigationStore();
+  const availableRemotes = useRemoteAvailabilityStore((s) => s.availableRemotes);
   const { setOpen } = useMenuPanelStore();
   const [isEditMode, setIsEditMode] = useState(false);
   const [sortedFavorites, setSortedFavorites] = useState<Favorite[]>([]);
@@ -156,7 +161,8 @@ const PanelFavoritesSection = ({ className }: PanelFavoritesSectionProps) => {
     const { icon, path, appName, ancestors } = findMenuInfo(menuConfigs, favorite);
     // ancestors는 즐겨찾기 자신의 label까지 포함하므로 마지막을 제외해 부모 경로만 표시
     const breadcrumb = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
-    return { favorite, icon, path, breadcrumb };
+    const isAvailable = availableRemotes[favorite.appId] === true;
+    return { favorite, icon, path, breadcrumb, isAvailable };
   });
 
   const showToolbar = favorites.length > 0;
