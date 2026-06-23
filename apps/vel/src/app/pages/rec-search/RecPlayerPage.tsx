@@ -35,6 +35,19 @@ function loadSavedSpeed(): number {
 // 구간 반복(A-B) 영역 색상
 const LOOP_REGION_COLOR = 'rgba(237, 143, 20, 0.18)';
 
+// 파형 채널 색상. TX(상담원)=좌채널 초록, RX(고객)=우채널 파랑. 선택 안 한 채널은 회색으로 죽인다.
+const CH_TX = { waveColor: '#6ee7b7', progressColor: '#059669' };
+const CH_RX = { waveColor: '#93c5fd', progressColor: '#2563eb' };
+const CH_MUTED = { waveColor: '#e5e7eb', progressColor: '#9ca3af' };
+
+/** 선택 채널에 따른 splitChannels 색상 (MIX=둘 다 컬러, TX=RX 회색, RX=TX 회색). */
+function splitChannelsFor(mode: ChannelMode) {
+  return [
+    mode === 'RX' ? CH_MUTED : CH_TX, // ch0 = TX(좌)
+    mode === 'TX' ? CH_MUTED : CH_RX, // ch1 = RX(우)
+  ];
+}
+
 const TH = 'bg-gray-50 px-3 py-1 font-medium text-gray-600 flex items-center border-r border-gray-200 text-sm whitespace-nowrap';
 const TD = 'px-3 py-1 flex items-center text-sm min-w-0';
 
@@ -106,6 +119,7 @@ export default function RecPlayerPage() {
   const [regionRange, setRegionRange] = useState<{ start: number; end: number } | null>(null);
 
   const waveformRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WaveSurfer | null>(null);
   const regionsRef = useRef<RegionsPlugin | null>(null);
   const loopRegionRef = useRef<Region | null>(null);
@@ -130,6 +144,24 @@ export default function RecPlayerPage() {
   useEffect(() => {
     document.title = playlist.length > 1 ? `녹취 재생 (${playlist.length}건)` : '녹취 재생';
   }, [playlist.length]);
+
+  // 팝업 창을 컨텐츠(카드) 크기에 맞춤. 단건/재생목록/에러 등으로 높이가 바뀌면 ResizeObserver가 자동 재조정.
+  // (window.resizeTo는 script로 연 팝업에서만 동작 — 이 페이지가 그 케이스)
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const fit = () => {
+      const rect = el.getBoundingClientRect();
+      const margin = 24; // 카드 주변 여백
+      const chromeW = Math.max(0, window.outerWidth - window.innerWidth);
+      const chromeH = Math.max(0, window.outerHeight - window.innerHeight);
+      window.resizeTo(Math.ceil(rect.width + margin * 2) + chromeW, Math.ceil(rect.height + margin * 2) + chromeH);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // 트랙 전환 시 WaveSurfer 재구성
   //
@@ -195,11 +227,8 @@ export default function RecPlayerPage() {
       cursorColor: '#6b7280',
       cursorWidth: 1,
       normalize: false,
-      // TX(상담원) = 좌채널 → 초록, RX(고객) = 우채널 → 파랑
-      splitChannels: [
-        { waveColor: '#6ee7b7', progressColor: '#059669' },
-        { waveColor: '#93c5fd', progressColor: '#2563eb' },
-      ],
+      // TX(상담원)=좌채널, RX(고객)=우채널. 현재 선택 채널 기준 색상(미선택 채널은 회색).
+      splitChannels: splitChannelsFor(channelRef.current),
     });
     wsRef.current = ws;
 
@@ -309,6 +338,8 @@ export default function RecPlayerPage() {
       gainTX.gain.value = mode === 'RX' ? 0 : g;
       gainRX.gain.value = mode === 'TX' ? 0 : g;
     }
+    // 파형 색도 함께 갱신 — 미선택 채널은 회색으로 죽인다.
+    wsRef.current?.setOptions({ splitChannels: splitChannelsFor(mode) });
     setChannel(mode);
   };
 
@@ -374,7 +405,7 @@ export default function RecPlayerPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-start justify-center p-4 pt-6">
-      <div className="bg-white rounded shadow-md w-full max-w-2xl overflow-hidden">
+      <div ref={cardRef} className="bg-white rounded shadow-md w-full max-w-2xl overflow-hidden">
         {/* 헤더 */}
         <div className="bg-gray-700 text-white px-4 py-2.5 text-sm font-semibold flex items-center gap-2">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
