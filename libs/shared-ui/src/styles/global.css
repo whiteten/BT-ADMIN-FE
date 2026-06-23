@@ -201,6 +201,15 @@
   --radius-md: calc(var(--radius) + 2px);
   --radius-lg: calc(var(--radius) + 4px);
   --radius-xl: calc(var(--radius) + 8px);
+
+  /* AI 버튼 등 그라데이션 테두리 흐름(시리 아이콘 느낌) — bg-[length:200%_auto] 와 함께 사용 */
+  --animate-ai-border-flow: ai-border-flow 3s linear infinite;
+}
+
+@keyframes ai-border-flow {
+  to {
+    background-position: 200% center;
+  }
 }
 
 @layer base {
