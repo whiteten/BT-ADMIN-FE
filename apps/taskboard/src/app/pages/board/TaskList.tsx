@@ -94,7 +94,6 @@ export default function TaskList() {
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 목록</h1>
-          <p className="text-sm text-slate-500 mt-1">저장된 전광판 레이아웃 목록입니다. 이미지 위 ▷ 버튼으로 뷰 그룹을 선택해 실행하세요.</p>
         </div>
         <div className="flex items-center gap-2">
           <button

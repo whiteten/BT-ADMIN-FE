@@ -93,6 +93,10 @@ export interface CalcConfig {
   operands: CalcOperand[];
   /** 결과 표시 소수점 자릿수 (기본 1) */
   decimals?: number;
+  /** 결과값 뒤에 '%' 단위 표시 여부 */
+  showPercent?: boolean;
+  /** '%' 글자 크기 — 값 폰트 크기 대비 배율(em). 기본 0.65, 폰트는 값과 동일하게 상속받음 */
+  percentFontScale?: number;
 }
 
 /** 위젯 스타일 */
@@ -114,13 +118,22 @@ export interface WidgetStyle {
   shadow?: 'none' | 'soft' | 'hard' | 'glow';
   paddingX?: number; // px
   paddingY?: number; // px
-  // 분리형 레이아웃 (타이틀 헤더 + 값 본문)
-  widgetLayout?: 'unified' | 'split';
-  titleBgColor?: string;
-  valueBgColor?: string;
-  valueColor?: string;
-  titleIcon?: string;
-  valueFontScale?: number;
+  // 값 텍스트 위치 세밀조정 — valueAlign(좌/중/우)로 큰 정렬을 잡은 뒤, 픽셀 단위로 상하좌우 미세 이동
+  valueOffsetX?: number; // px, 음수=좌, 양수=우
+  valueOffsetY?: number; // px, 음수=상, 양수=하
+  // 값 변경 시 모션 효과
+  valueChangeAnimation?: 'none' | 'pulse' | 'flash' | 'shake' | 'bounce' | 'highlight';
+  // 하이라이트 모션 전용 색상 — 미지정 시 기본 노란색
+  highlightColor?: string;
+  // 임계치 색상 — 값이 rule.min 이상이면 해당 색상 적용(오름차순 평가, 마지막에 매칭되는 규칙이 적용됨)
+  thresholdEnabled?: boolean;
+  thresholds?: WidgetThresholdRule[];
+}
+
+/** 임계치 색상 규칙 — 예: min=5,color=노랑 → 값이 5 이상이면 노랑 (그 위 구간의 규칙이 있으면 그쪽이 우선) */
+export interface WidgetThresholdRule {
+  min: number;
+  color: string;
 }
 
 /** 전광판 캔버스에 드랍된 위젯 */
@@ -142,6 +155,8 @@ export interface DroppedWidget {
   aggregation?: 'none' | 'sum' | 'max' | 'min' | 'avg';
   /** 계산식 위젯(category=Calc) 설정 */
   calc?: CalcConfig;
+  /** 사용자 지정 시계 위젯(item.id='etc-custom') 포맷 — yyyy/mm/dd/hh24/mi/ss 토큰. 미지정 시 DEFAULT_CUSTOM_CLOCK_FORMAT */
+  clockFormat?: string;
 }
 
 /**

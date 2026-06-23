@@ -192,7 +192,7 @@ export const ctiRedisQueryKeys = createQueryKeys('cti-redis', {
   groupList: () => [{}],
   mediaTypeList: () => [{}],
   hashKeys: () => [{}],
-  hashFields: (hashKey: string) => [{ hashKey }],
+  hashColumns: () => [{}],
   hashEntries: (hashKey: string) => [{ hashKey }],
 });
 
@@ -245,24 +245,31 @@ export const useGetRedisHashKeys = ({ queryOptions }: QueryHookWithParamsOptions
   });
 };
 
-/** Redis Hash 키 목록 새로고침 — 서버가 다시 SCAN하여 캐시를 갱신한 결과를 받아 쿼리 캐시에 반영 */
+/**
+ * Redis Hash 키 목록 새로고침 — 서버가 다시 SCAN하여 캐시를 갱신한 결과를 받아 쿼리 캐시에 반영.
+ * 서버는 키 목록과 컬럼명 캐시를 같은 시점에 같이 갱신하므로, 여기서도 컬럼명 쿼리를 같이 무효화해
+ * 최신 캐시를 다시 받아오게 한다(검색 색인이 새로고침 전 상태로 남아있지 않도록).
+ */
 export const useRefreshRedisHashKeys = ({ mutationOptions }: MutationHookOptions<string[], void> = {}) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => ctiRedisApi.getRedisHashKeys(true),
     onSuccess: (data) => {
       queryClient.setQueryData(ctiRedisQueryKeys.hashKeys().queryKey, data);
+      queryClient.invalidateQueries({ queryKey: ctiRedisQueryKeys.hashColumns().queryKey });
     },
     ...mutationOptions,
   });
 };
 
-/** Redis Hash 키에 해당하는 모든 필드(컬럼)와 값 조회 */
-export const useGetRedisHashFields = (hashKey: string, { queryOptions }: QueryHookWithParamsOptions<Record<string, string>> = {}) => {
+/**
+ * Redis Hash 키별 컬럼명(필드명) 캐시 조회 — 서버가 기동/새로고침 시점에 미리 계산해 둔 캐시를 그대로
+ * 받아오므로 Redis를 직접 조회하지 않음. task-create 좌측 탐색기의 필드명 검색에 사용.
+ */
+export const useGetRedisHashColumns = ({ queryOptions }: QueryHookWithParamsOptions<Record<string, string[]>> = {}) => {
   return useQuery({
-    queryKey: ctiRedisQueryKeys.hashFields(hashKey).queryKey,
-    queryFn: () => ctiRedisApi.getRedisHashFields(hashKey),
-    enabled: !!hashKey,
+    queryKey: ctiRedisQueryKeys.hashColumns().queryKey,
+    queryFn: () => ctiRedisApi.getRedisHashColumns(),
     ...queryOptions,
   });
 };
