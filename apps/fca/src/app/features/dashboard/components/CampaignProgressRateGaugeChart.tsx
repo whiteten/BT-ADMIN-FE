@@ -8,8 +8,6 @@ type GaugeValueType = 'count' | 'percent';
 
 const getTargetCountGraphic = (entryCnt: number) => {
   const countText = entryCnt.toLocaleString();
-  const digitLen = countText.replace(/,/g, '').length;
-  const countFontSize = digitLen <= 3 ? 20 : digitLen <= 5 ? 17 : digitLen <= 7 ? 15 : 13;
 
   return {
     type: 'text' as const,
@@ -18,8 +16,8 @@ const getTargetCountGraphic = (entryCnt: number) => {
     style: {
       text: `{label|대상건수 | }{count|${countText}}`,
       rich: {
-        label: { fontSize: 15, fontWeight: 500, fill: '#495057', fontFamily: 'Noto Sans KR, sans-serif' },
-        count: { fontSize: countFontSize, fontWeight: 700, fill: '#495057', fontFamily: 'Noto Sans KR, sans-serif' },
+        label: { fontSize: 16, fontWeight: 500, fill: '#495057', fontFamily: 'Noto Sans KR, sans-serif' },
+        count: { fontSize: 18, fontWeight: 700, fill: '#495057', fontFamily: 'Noto Sans KR, sans-serif' },
       },
     },
   };

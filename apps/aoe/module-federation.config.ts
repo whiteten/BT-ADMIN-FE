@@ -7,7 +7,7 @@ const config: ModuleFederationConfig = {
     './Routes': './src/app/routes.tsx',
     './PageVariantManifest': './src/app/features/router/pageVariantManifest.ts',
     './QuerySelectors': './src/app/features/router/querySelectors.ts',
-    './AgentChatFab': './src/app/features/agent-config/components/AgentChatFab.tsx',
+    './AgentChatPanel': './src/app/features/agent-config/components/AgentChatPanel.tsx',
   },
   additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
