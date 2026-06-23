@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Maximize2 } from 'lucide-react';
-import { useLayoutStore, useMenuStore } from '@/shared-store';
+import { useLayoutStore, useMenuStore, useRemoteAvailabilityStore } from '@/shared-store';
 import UserMenuSelector from '../../components/UserMenuSelector';
 import GlobalSearch from '../search/components/GlobalSearch';
 import { IconRemoteAoe } from '@/components/custom/Icons';
@@ -24,11 +24,14 @@ export default function TopHeader() {
     if (chatOpen) setChatMounted(true);
   }, [chatOpen]);
 
-  // aoe remote 가 메뉴(menuConfigs)에 등록돼 있을 때만 채팅 버튼 노출.
-  // menuConfigs 는 host 부팅 시 등록된 remote 목록 — aoe 미배포 환경에선 자동 숨김.
+  // 채팅 버튼 노출 조건 — 둘 다 충족해야 함:
+  // 1) aoe remote 가 메뉴(menuConfigs)에 등록됨 — 운영자가 메뉴로 노출을 끄면 숨김.
+  // 2) aoe remote 가 실제 기동(availableRemotes) — 미기동/로드 실패 시 숨겨 죽은 버튼 방지.
   // TODO: 추후 aoe 에이전트 조회 권한 체크와 결합.
-  const canUseAgentChat = useMenuStore((s) => s.menuConfigs.some((m) => m.appId === 'aoe'));
-  // const canUseAgentChat = useNavigationStore((s) => s.permissions.includes('aoe:agent:read'));
+  const isAoeInMenu = useMenuStore((s) => s.menuConfigs.some((m) => m.appId === 'aoe'));
+  const isAoeAvailable = useRemoteAvailabilityStore((s) => s.availableRemotes.aoe === true);
+  const canUseAgentChat = isAoeInMenu && isAoeAvailable;
+  // const canUseAgentChat = isAoeInMenu && isAoeAvailable && useNavigationStore((s) => s.permissions.includes('aoe:agent:read'));
 
   return (
     <div style={{ height: TOP_HEADER_HEIGHT }} className="relative shrink-0 bg-[var(--color-bt-header)] text-white border-b border-white/10">
