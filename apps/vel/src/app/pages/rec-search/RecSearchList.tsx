@@ -177,8 +177,11 @@ export default function RecSearchList() {
     params: popupTenantId ? { tenantId: popupTenantId } : undefined,
   });
 
+  // 조회 클릭마다 +1 → 동일 검색조건이어도 강제 재요청(실시간 신규 녹취 반영). 쿼리키에만 반영됨.
+  const [searchToken, setSearchToken] = useState(0);
   const { data, isFetching } = useGetRecordings({
     params: searchParams ? { ...searchParams, page, size: pageSize } : undefined,
+    searchToken,
   });
 
   // 사용자가 [조회] 버튼을 눌러 발생한 검색에 한해서만 "결과 없음" 알림 표시.
@@ -229,6 +232,7 @@ export default function RecSearchList() {
       const callMax = toSeconds(values.callTimeEnd as Dayjs | undefined);
 
       setPage(0);
+      setSearchToken((v) => v + 1);
       searchTriggeredRef.current = true;
       setSearchParams({
         startDate: `${startDate.format('YYYYMMDD')}${startTimeStr}`,

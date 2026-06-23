@@ -11,9 +11,15 @@ export const recSearchQueryKeys = createQueryKeys('rec-search', {
   getCustInfoFields: (tenantId?: string) => [tenantId],
 });
 
-export const useGetRecordings = ({ params, queryOptions }: QueryHookWithParamsOptions<RecFilePagedResult> & { params?: RecSearchParams } = {}) => {
+// searchToken: [조회] 클릭마다 +1 되는 nonce. 쿼리키에만 더해(=API 파라미터엔 미포함) 같은 검색조건이어도
+// 매 클릭 강제 재요청되게 한다. 실시간으로 녹취가 쌓이는 환경에서 캐시 디듀핑으로 신규 데이터를 놓치는 것 방지.
+export const useGetRecordings = ({
+  params,
+  searchToken,
+  queryOptions,
+}: QueryHookWithParamsOptions<RecFilePagedResult> & { params?: RecSearchParams; searchToken?: number } = {}) => {
   return useQuery({
-    queryKey: recSearchQueryKeys.getRecordings(params as Record<string, unknown>).queryKey,
+    queryKey: [...recSearchQueryKeys.getRecordings(params as Record<string, unknown>).queryKey, searchToken],
     queryFn: () => recSearchApi.getRecordings(params as RecSearchParams),
     enabled: !!params?.startDate && !!params?.endDate,
     ...queryOptions,
