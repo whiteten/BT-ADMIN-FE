@@ -144,7 +144,9 @@ export default function AgentChatPanel({ open, onClose, onExited, placement = 'b
             loading={isLoading}
             placeholder="대화할 에이전트를 선택하세요"
             optionFilterProp="label"
-            className="min-w-0 flex-1"
+            // 화살표(suffix) 정확 클릭 시 mousedown 으로 열린 직후 같은 클릭의 토글이 다시 닫는 antd 동작 회피.
+            // suffix 의 pointer-events 를 꺼 클릭이 뒤 selector(열기 전용)로 통과하게 함. allowClear 미사용이라 안전.
+            className="[&_.ant-select-suffix]:pointer-events-none min-w-0 flex-1"
             options={deployedAgents.map((a) => ({ value: a.agentId, label: a.agentName }))}
             notFoundContent={isLoading ? '불러오는 중...' : '배포된 에이전트가 없습니다.'}
           />
