@@ -6,44 +6,34 @@
         "campaignId": "2000000001",
         "campaignName": "방카슈랑스 모니터링",
         "scenarios": [
-          { "campaignListId": "2026000011" },
-          { "campaignListId": "2026000008" },
           { "campaignListId": "2000000001" },
-          { "campaignListId": "2026000006" },
-          { "campaignListId": "2026000003" },
-          { "campaignListId": "2026000009" },
-          { "campaignListId": "2026000007" },
-          { "campaignListId": "2026000005" },
           { "campaignListId": "2026000001" },
+          { "campaignListId": "2026000002" },
+          { "campaignListId": "2026000003" },
           { "campaignListId": "2026000004" },
+          { "campaignListId": "2026000005" },
+          { "campaignListId": "2026000006" },
+          { "campaignListId": "2026000007" },
+          { "campaignListId": "2026000008" },
+          { "campaignListId": "2026000009" },
           { "campaignListId": "2026000010" },
-          { "campaignListId": "2026000002" }
-        ]
-      },
-      {
-        "campaignId": "2026000003",
-        "campaignName": "특정금전신탁 모니터링",
-        "scenarios": [
-          { "campaignListId": "2026000027" },
-          { "campaignListId": "2026000029" },
-          { "campaignListId": "2026000026" },
-          { "campaignListId": "2026000028" }
+          { "campaignListId": "2026000011" }
         ]
       },
       {
         "campaignId": "2026000001",
         "campaignName": "수익증권",
         "scenarios": [
+          { "campaignListId": "2026000012" },
           { "campaignListId": "2026000013" },
+          { "campaignListId": "2026000014" },
+          { "campaignListId": "2026000015" },
           { "campaignListId": "2026000016" },
           { "campaignListId": "2026000017" },
           { "campaignListId": "2026000018" },
           { "campaignListId": "2026000019" },
           { "campaignListId": "2026000020" },
-          { "campaignListId": "2026000021" },
-          { "campaignListId": "2026000012" },
-          { "campaignListId": "2026000014" },
-          { "campaignListId": "2026000015" }
+          { "campaignListId": "2026000021" }
         ]
       },
       {
@@ -54,6 +44,16 @@
           { "campaignListId": "2026000023" },
           { "campaignListId": "2026000024" },
           { "campaignListId": "2026000025" }
+        ]
+      },
+      {
+        "campaignId": "2026000003",
+        "campaignName": "특정금전신탁 모니터링",
+        "scenarios": [
+          { "campaignListId": "2026000026" },
+          { "campaignListId": "2026000027" },
+          { "campaignListId": "2026000028" },
+          { "campaignListId": "2026000029" }
         ]
       },
       {

@@ -14,10 +14,9 @@ import {
   parseCampaignIds,
   parseScenarioListIds,
 } from './campaignAchievementStatOptionUtils';
-import { createFlexibleNameColumnDef } from './campaignResultStatGridColumns';
+import { createCampaignStatMetricColDef, createFlexibleNameColumnDef, createPsrTimeKeyColumnDef } from './campaignResultStatGridColumns';
 import { CampaignStatExcludeFilterRow, buildCampaignExcludeFilterParams } from './campaignStatExcludeFilters';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignAchievementStatList, useGetCampaignOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignAchievementStatListItem } from '../../../features/statistics/types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
@@ -136,12 +135,6 @@ const numberCellStyle = (params: { node?: { rowPinned?: string | null } }): Cell
 const textCellStyle = (params: { node?: { rowPinned?: string | null } }): CellStyle =>
   params.node?.rowPinned === 'bottom' ? { fontWeight: 'bold', alignItems: 'center' } : { fontWeight: 'normal', alignItems: 'center' };
 
-const dateColDef = (displayTimeUnit: string): Pick<ColDef, 'flex' | 'minWidth' | 'maxWidth'> => ({
-  flex: 0,
-  minWidth: displayTimeUnit === 'YY' ? 88 : displayTimeUnit === 'MM' ? 96 : 112,
-  maxWidth: displayTimeUnit === 'YY' ? 100 : displayTimeUnit === 'MM' ? 110 : 130,
-});
-
 // 평균통화시간 포맷터 (초 단위 가정)
 const durationFormatter = ({ value }: { value: unknown }) => {
   if (value === null || value === undefined || value === '') return '';
@@ -154,32 +147,32 @@ const durationFormatter = ({ value }: { value: unknown }) => {
 
 const CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS: Record<CampaignAchievementStatCategory, ColDef<CampaignAchievementStatListItem>[]> = {
   HAPPY_CALL: [
-    { headerName: '설문완료 건수', field: 'surveyCompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '부정답변 건수', field: 'negativeAnswerCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'successRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '평균통화시간', field: 'avgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+    createCampaignStatMetricColDef('설문완료 건수', 'surveyCompleteCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('부정답변 건수', 'negativeAnswerCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('성공률', 'successRatePct', 100, numberCellStyle, { cellRenderer: 'percentBarRenderer' }),
+    createCampaignStatMetricColDef('평균통화시간', 'avgCallDurationSec', 120, numberCellStyle, { valueFormatter: durationFormatter }),
   ],
   PHYSICAL_TRANSFER: [
-    { headerName: '접수건수', field: 'transferReceiptCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '접수거절건수', field: 'transferRejectCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '중간안내', field: 'transferMidGuideCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '취소안내', field: 'transferCancelGuideCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '인증실패건수', field: 'transferAuthFailCnt', width: 130, cellStyle: numberCellStyle },
-    { headerName: '평균통화시간', field: 'transferAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+    createCampaignStatMetricColDef('접수건수', 'transferReceiptCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('접수거절건수', 'transferRejectCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('중간안내', 'transferMidGuideCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('취소안내', 'transferCancelGuideCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('인증실패건수', 'transferAuthFailCnt', 130, numberCellStyle),
+    createCampaignStatMetricColDef('평균통화시간', 'transferAvgCallDurationSec', 120, numberCellStyle, { valueFormatter: durationFormatter }),
   ],
   MATURITY_NOTICE: [
-    { headerName: '완결 건수', field: 'noticeCompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '미완료 건수', field: 'noticeIncompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'noticeSuccessRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '문자발송건수', field: 'noticeNoSendCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '평균통화시간', field: 'noticeAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+    createCampaignStatMetricColDef('완결 건수', 'noticeCompleteCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('미완료 건수', 'noticeIncompleteCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('성공률', 'noticeSuccessRatePct', 100, numberCellStyle, { cellRenderer: 'percentBarRenderer' }),
+    createCampaignStatMetricColDef('문자발송건수', 'noticeNoSendCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('평균통화시간', 'noticeAvgCallDurationSec', 120, numberCellStyle, { valueFormatter: durationFormatter }),
   ],
   SHORT_TERM_OVERDUE: [
-    { headerName: '완결 건수', field: 'overdueCompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '미완료 건수', field: 'overdueIncompleteCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '성공률', field: 'overdueSuccessRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '문자발송건수', field: 'overdueNoSendCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '평균통화시간', field: 'overdueAvgCallDurationSec', width: 120, valueFormatter: durationFormatter, cellStyle: numberCellStyle },
+    createCampaignStatMetricColDef('완결 건수', 'overdueCompleteCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('미완료 건수', 'overdueIncompleteCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('성공률', 'overdueSuccessRatePct', 100, numberCellStyle, { cellRenderer: 'percentBarRenderer' }),
+    createCampaignStatMetricColDef('문자발송건수', 'overdueNoSendCnt', 120, numberCellStyle),
+    createCampaignStatMetricColDef('평균통화시간', 'overdueAvgCallDurationSec', 120, numberCellStyle, { valueFormatter: durationFormatter }),
   ],
 };
 
@@ -204,8 +197,9 @@ export default function CampaignAchievementStatistics() {
   const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
 
-  const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignAchievementStatListItem>>(null);
+  const pendingTimeUnitRef = useRef(timeUnit);
+  const pendingStatCategoryRef = useRef(statCategory);
   const [rowData, setRowData] = useState<CampaignAchievementStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
   const [displayStatCategory, setDisplayStatCategory] = useState<CampaignAchievementStatCategory>(DEFAULT_STAT_CATEGORY);
@@ -304,10 +298,18 @@ export default function CampaignAchievementStatistics() {
   });
 
   useEffect(() => {
-    if (campaignAchievementStatData !== undefined) setRowData(campaignAchievementStatData.items);
+    if (campaignAchievementStatData === undefined) return;
+    setRowData(campaignAchievementStatData.items);
+    setDisplayTimeUnit(pendingTimeUnitRef.current);
+    setDisplayStatCategory(pendingStatCategoryRef.current);
   }, [campaignAchievementStatData]);
 
-  const summaryRow: CampaignAchievementStatListItem[] = campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, psrTimeKey: '전체합계' }] : [];
+  const summaryRow = useMemo<CampaignAchievementStatListItem[]>(
+    () => (campaignAchievementStatData?.summary ? [{ ...campaignAchievementStatData.summary, psrTimeKey: '전체합계', campaignName: '', campaignListName: '' }] : []),
+    [campaignAchievementStatData?.summary],
+  );
+
+  const { gridOptions } = useAggridOptions();
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -353,34 +355,24 @@ export default function CampaignAchievementStatistics() {
       return;
     }
 
-    setDisplayTimeUnit(timeUnit);
-    setDisplayStatCategory(statCategory);
+    pendingTimeUnitRef.current = timeUnit;
+    pendingStatCategoryRef.current = statCategory;
     refetch();
   };
 
   const columnDefs = useMemo(() => {
-    const dateCol: ColDef<CampaignAchievementStatListItem> = {
-      headerName: '날짜',
-      field: 'psrTimeKey',
-      ...dateColDef(displayTimeUnit),
-      pinned: 'left',
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
-      },
-      cellStyle: textCellStyle,
-    };
+    const dateCol = createPsrTimeKeyColumnDef<CampaignAchievementStatListItem>(displayTimeUnit, textCellStyle, { pinned: 'left' });
     const campaignCol = createFlexibleNameColumnDef<CampaignAchievementStatListItem>('캠페인', 'campaignName', (data) => String(data?.campaignName ?? ''), textCellStyle, {
       minWidth: 140,
       pinned: 'left',
+      hideOnPinnedBottom: true,
     });
     const scenarioCol = createFlexibleNameColumnDef<CampaignAchievementStatListItem>(
       '시나리오',
       'campaignListName',
       (data) => String(data?.campaignListName ?? ''),
       textCellStyle,
-      { minWidth: 160, pinned: 'left' },
+      { minWidth: 160, pinned: 'left', hideOnPinnedBottom: true },
     );
     return [dateCol, campaignCol, scenarioCol, ...CAMPAIGN_ACHIEVEMENT_COLUMN_DEFS[displayStatCategory]];
   }, [displayStatCategory, displayTimeUnit]);
@@ -588,7 +580,6 @@ export default function CampaignAchievementStatistics() {
         </Collapsible>
         <div className="flex-1 min-h-0 w-full">
           <AgGridReact<CampaignAchievementStatListItem>
-            key={displayStatCategory}
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
