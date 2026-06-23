@@ -34,6 +34,27 @@
 - **수정**: TaskView.tsx에 `VIEW_GRID_COLS/ROWS` 상수 추가, layoutJson의 `layoutMode`·`gridMargin`·`containerPadding`을 파싱해 `getGridAdjustedPos()` 헬퍼로 역산. gridMode이면 각 위젯의 저장된 %를 그리드 좌표(gx/gy/gw/gh)로 역산한 뒤 실제 픽셀 위치를 %로 재계산해 absolute style에 적용.
 - 관련 파일: `src/app/pages/board/TaskView.tsx`
 
+## 2026-06-23 세션38
+
+### 스포이드 — HTTP 환경 폴백 구현 (캔버스 배경 이미지 픽셀 샘플링)
+
+배경: 고객사 HTTP 배포 환경에서도 스포이드를 사용할 수 있어야 한다는 요구. EyeDropper API는 Secure Context
+전용이라 HTTP에서는 API 자체가 없어 코드로 우회 불가.
+
+- **방식**: HTTPS/localhost면 기존 EyeDropper 그대로, HTTP면 보드 배경 이미지를 offscreen canvas에 그린 뒤
+  클릭 좌표 픽셀 색상을 샘플링하는 클릭 모드로 폴백. html2canvas 없이 `new Image()` + `canvas.getContext('2d')`만 사용.
+- **UX**: HTTP 접속 시 스포이드 버튼 클릭 → "보드 위를 클릭하여 색상을 추출하세요. ESC로 취소" 토스트 →
+  보드 전체에 crosshair 커서 오버레이(z-[500]) → 클릭 시 배경 PNG에서 픽셀 추출 → 색상 적용 → 모드 해제.
+  ESC 키로 취소 가능(Delete 키 핸들러에 Escape 분기 추가).
+- **object-contain 보정**: 배경 이미지가 `object-contain`으로 렌더되어 레터박스가 생기므로,
+  클릭 좌표를 이미지 실제 픽셀 좌표로 변환 시 imgAspect/boardAspect 비교로 offsetX/offsetY 보정 적용.
+- **한계**: 배경 이미지에서만 추출 가능 (위젯 텍스트/배경 색상 클릭 추출 불가). 이미지가 cross-origin이면
+  `img.onerror`에서 "서버 CORS 설정 확인" 토스트. 같은 서버에서 서비스하는 고객사 HTTP 환경은 same-origin이라 문제없음.
+- **신규 state**: `colorPickingMode: { field, widgetId } | null`
+- **신규 함수**: `sampleColorFromBoardClick(e)` — 클릭 좌표 → 이미지 픽셀 → hex 변환
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`
+- 검증: `npx nx run taskboard:lint` 0 errors, `typecheck-staged.js` 통과. **브라우저 실측 미실시**.
+
 ## 2026-06-23 세션37
 
 ### 스포이드 — "Chrome/Edge 전용" 안내가 떴는데 Chrome/Edge에서도 안 되던 원인
