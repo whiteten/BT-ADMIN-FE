@@ -1284,7 +1284,7 @@ function CanvasWidgetFree({ widget, widgets, isSelected, locked, onSelect, onRem
         onSelect(e.shiftKey);
       }}
       className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
-        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : ''
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
       }`}
     >
       {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
@@ -1411,7 +1411,7 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
         ...getWidgetVisualStyle(widget.style, fontScale),
       }}
       className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
-        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : ''
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
       }`}
     >
       {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
@@ -1572,6 +1572,7 @@ export default function TaskCreate() {
   // ── 기본 상태 ────────────────────────────────────────────────────────────
   const [boardTitle, setBoardTitle] = useState(layout?.layoutName ?? bg?.pageName ?? '새 전광판');
   const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
+  const [colorPickingMode, setColorPickingMode] = useState<{ field: 'color' | 'bgColor'; widgetId: string } | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleText, setEditingTitleText] = useState('');
@@ -2233,20 +2234,79 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, ...patch } } : w)));
   };
 
-  // 그림판 스포이드처럼 화면(배경 이미지 포함) 어디서든 색상을 추출 — 브라우저 EyeDropper API(Chrome/Edge) 사용.
-  // 지원 안 하는 브라우저(Firefox/Safari)는 토스트로 안내만 하고, 기존 <input type="color"> 직접 선택은 그대로 가능.
+  // 스포이드 색상 추출 — HTTPS/localhost면 EyeDropper API, HTTP면 보드 배경 이미지 클릭 모드로 폴백.
   const handlePickColorFromScreen = async (field: 'color' | 'bgColor', widgetId: string) => {
-    if (!('EyeDropper' in window)) {
-      toast.error('스포이드 기능은 Chrome/Edge 브라우저에서만 지원됩니다.');
-      return;
+    if (window.isSecureContext) {
+      if (!('EyeDropper' in window)) {
+        toast.error('스포이드 기능은 Chrome/Edge 브라우저에서만 지원됩니다.');
+        return;
+      }
+      try {
+        const eyeDropper = new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
+        const result = await eyeDropper.open();
+        updateWidgetStyle(widgetId, { [field]: result.sRGBHex });
+      } catch {
+        /* 사용자가 Esc로 취소한 경우 — 무시 */
+      }
+    } else {
+      // HTTP 접속 — EyeDropper API 없음. 보드 배경 이미지를 canvas로 샘플링하는 클릭 모드로 전환.
+      if (!fileName) {
+        toast.error('배경 이미지가 없어 스포이드를 사용할 수 없습니다.');
+        return;
+      }
+      setColorPickingMode({ field, widgetId });
+      toast.info('보드 위를 클릭하여 색상을 추출하세요. ESC로 취소');
     }
-    try {
-      const eyeDropper = new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
-      const result = await eyeDropper.open();
-      updateWidgetStyle(widgetId, { [field]: result.sRGBHex });
-    } catch {
-      /* 사용자가 Esc로 취소한 경우 — 무시 */
-    }
+  };
+
+  // 보드 배경 이미지에서 클릭 좌표 픽셀 색상 추출 (HTTP 폴백용)
+  const sampleColorFromBoardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!colorPickingMode || !fileName) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      // object-contain 렌더 기준으로 클릭 좌표를 이미지 픽셀 좌표로 변환
+      const boardW = rect.width;
+      const boardH = rect.height;
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      const boardAspect = boardW / boardH;
+      let imgX: number, imgY: number;
+      if (imgAspect > boardAspect) {
+        const scale = boardW / img.naturalWidth;
+        const scaledH = img.naturalHeight * scale;
+        const offsetY = (boardH - scaledH) / 2;
+        imgX = (clickX / boardW) * img.naturalWidth;
+        imgY = ((clickY - offsetY) / scaledH) * img.naturalHeight;
+      } else {
+        const scale = boardH / img.naturalHeight;
+        const scaledW = img.naturalWidth * scale;
+        const offsetX = (boardW - scaledW) / 2;
+        imgX = ((clickX - offsetX) / scaledW) * img.naturalWidth;
+        imgY = (clickY / boardH) * img.naturalHeight;
+      }
+      if (imgX < 0 || imgY < 0 || imgX >= img.naturalWidth || imgY >= img.naturalHeight) {
+        toast.warning('배경 이미지 영역 밖입니다. 이미지 위를 클릭해주세요.');
+        return;
+      }
+      const pixel = ctx.getImageData(Math.floor(imgX), Math.floor(imgY), 1, 1).data;
+      const hex = `#${pixel[0].toString(16).padStart(2, '0')}${pixel[1].toString(16).padStart(2, '0')}${pixel[2].toString(16).padStart(2, '0')}`;
+      updateWidgetStyle(colorPickingMode.widgetId, { [colorPickingMode.field]: hex });
+      setColorPickingMode(null);
+    };
+    img.onerror = () => {
+      toast.error('이미지를 불러올 수 없습니다. 서버 CORS 설정을 확인하세요.');
+      setColorPickingMode(null);
+    };
+    img.src = fileName;
   };
 
   // 임계치 색상 규칙 CRUD — 위젯 style.thresholds 배열을 다룬다
@@ -2539,6 +2599,10 @@ export default function TaskCreate() {
   // ── Delete 키: 선택한 위젯 일괄 삭제 ────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setColorPickingMode(null);
+        return;
+      }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
@@ -3226,6 +3290,9 @@ export default function TaskCreate() {
                               </div>
                             ))}
                       </DroppableBoard>
+                      {colorPickingMode && (
+                        <div className="absolute inset-0 z-[500]" style={{ cursor: 'crosshair' }} title="클릭하여 색상 추출 / ESC로 취소" onClick={sampleColorFromBoardClick} />
+                      )}
                       {guidesOverlay}
                     </>
                   );
