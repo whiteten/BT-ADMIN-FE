@@ -1,6 +1,6 @@
 import { type ComponentType, type SVGProps, useEffect, useRef } from 'react';
 import { Pin, PinOff, SquareDashed } from 'lucide-react';
-import { useMenuStore } from '@/shared-store';
+import { useMenuStore, useRemoteAvailabilityStore } from '@/shared-store';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { APP_BADGE_STRIP_WIDTH } from '../constants/layoutConstants';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
@@ -61,7 +61,8 @@ export const getAppBadgeIcon = (appId: string): ComponentType<SVGProps<SVGSVGEle
  * - 스크롤: remote 뱃지 영역만 overflow-y-auto. 즐겨찾기는 상단 고정, 핀 토글은 하단 고정으로 스크롤 영역에서 제외.
  */
 const PanelAppBadgeStrip = () => {
-  const remotes = useMenuStore((s) => s.menuConfigs);
+  const menuConfigs = useMenuStore((s) => s.menuConfigs);
+  const availableRemotes = useRemoteAvailabilityStore((s) => s.availableRemotes);
   const selectedRemote = useCurrentRemote();
   const pinned = useMenuPanelStore((s) => s.pinned);
   const view = useMenuPanelStore((s) => s.view);
@@ -100,6 +101,11 @@ const PanelAppBadgeStrip = () => {
     setView('favorite');
     setActiveMenuKey(null);
   };
+
+  // 뱃지 노출 조건 — 둘 다 충족해야 함:
+  // 1) 메뉴(menuConfigs)에 등록됨 — 운영자가 메뉴로 노출을 끄면 숨김.
+  // 2) 실제 기동(availableRemotes) — 미기동/Routes 로드 실패 시 숨겨 죽은 뱃지 방지.
+  const remotes = menuConfigs.filter((m) => availableRemotes[m.appId] === true);
 
   // manager는 항상 맨 하단, 나머지 remote는 원래 순서 유지
   const managerRemote = remotes.find((r) => r.appId === 'manager');
