@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import Chromeless from '@/components/custom/Chromeless';
 import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
@@ -25,6 +26,7 @@ const McpCreate = React.lazy(() => import('./pages/agent-config/McpCreate'));
 const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
 const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
 const Chat = React.lazy(() => import('./pages/analysis/Chat'));
+const WorkflowEdit = React.lazy(() => import('./pages/workflow/WorkflowEdit'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('aoe');
@@ -123,6 +125,9 @@ export const routes = [
           { path: 'chat', element: pv('analysis/chat', Chat) },
         ],
       },
+      // 워크플로우 편집기 — 새창 chromeless 팝업. Layout 통과(antd 컨텍스트 확보) + Chromeless 래퍼가 chrome 제거.
+      // pv 소켓으로 화면 키 유지(custom remote 오버라이드 가능), Chromeless 가 pv element 를 감싸 깜빡임 차단.
+      { path: 'workflow/:agentId', element: <Chromeless>{pv('workflow/:agentId', WorkflowEdit)}</Chromeless> },
     ],
   },
   {

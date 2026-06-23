@@ -15,6 +15,7 @@
 | API 계층·TanStack Query 훅 작성 | [.claude/skills/add-api/SKILL.md](.claude/skills/add-api/SKILL.md) |
 | 데이터 추가/수정 폼 (Ant Design Form) 작성 | [.claude/skills/add-form/SKILL.md](.claude/skills/add-form/SKILL.md) |
 | Drawer/Modal (forwardRef 명령형 제어) 작성 | [.claude/skills/add-drawer/SKILL.md](.claude/skills/add-drawer/SKILL.md) |
+| chromeless 화면(헤더·사이드바 없는 새창/standalone) 작성 | [.claude/skills/add-chromeless/SKILL.md](.claude/skills/add-chromeless/SKILL.md) |
 | Zustand 스토어 작성 | [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) |
 | 트리 UI (useTreeView + TreeView) 작성 | [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) |
 | 검색 기능(client-side fuzzy) 작성 | [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) |
@@ -446,6 +447,28 @@ if (isLoading) return <FallbackSpinner />;
 같은 path를 여러 메뉴가 공유할 때 메뉴 A→B 전환 시 React가 같은 컴포넌트 인스턴스를 재사용해 form state·scroll·진행 중 mutation이 유지됩니다. 페이지에서 outer/inner 분할 + `<Inner key={queryValue} />`로 강제 remount 필요. 분기 키 문자열은 routes의 `handle.queryParams[].key`·페이지의 `searchParams.get(...)`·(있다면) TanStack Query key 세 곳에 박아야 하며 non-data router 환경에서 자동 동기화는 불가하므로 작성자가 일관성을 챙겨야 함(키가 1~2개로 짧으면 하드코딩, 재사용·오타 위험·키 2개 이상이면 `<Page>.consts.ts`로 상수화). 자동화 메커니즘은 검토했으나 효과가 없어 React 표준 `key` 패턴을 정공법으로 채택([DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드 → 주의사항 — 컴포넌트 remount 처리" 참조).
 
 상세 절차(새 selector 추가, create-remote 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.
+
+### chromeless 화면(새창·standalone) 패턴
+
+인증은 필요하나 Layout(헤더·사이드바·패널)이 없는 화면(녹취 재생 팝업·감청 팝업·워크플로우 편집기 등 새창/standalone)에 사용합니다. **chromeless 여부를 remote가 routes.tsx에서 스스로 선언**해 host를 건드리지 않는 것이 핵심입니다(신규 chromeless 화면마다 host에 전용 prefix 라우트를 추가하던 옛 방식 대체).
+
+#### 핵심 규칙 (요약)
+
+1. **routes.tsx leaf를 `Chromeless` 래퍼로 감쌈**: `element: <Chromeless>{pv('<key>', Page)}</Chromeless>`(`@/components/custom/Chromeless`). pv 소켓은 유지(변형·custom 키 보존). 페이지는 host `/<remote>` 아래라 Layout을 거친다.
+2. **host에 전용 prefix 라우트 만들지 말 것**: `/aoe-workflow`·`/vel-player` 같은 별도 host 라우트 추가 금지. 그 방식을 없애려고 이 메커니즘이 있다.
+3. **새창은 Layout 통과 경로로**: `window.open('/<remote>/...')`. 창 크기·named window 옵션은 그대로 유지.
+4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal`·`toast` 그대로 동작).
+5. **페이지 안에서 `useChromeless` 직접 호출 금지**: 반드시 `Chromeless` 래퍼가 담당. 래퍼 없이 lazy 페이지 내부에서 호출하면 로딩 구간 내내 chrome이 보이는 깜빡임이 생긴다.
+
+#### 데이터 흐름
+
+- **SoT**: `useLayoutStore`(`@/shared-store`)의 `chromeless` 상태(persist 제외) + `useChromeless()` 훅
+- **선언**: routes.tsx leaf를 `Chromeless` 래퍼로 감쌈 → 래퍼가 mount 시 `useChromeless()`로 chrome 제거 신호 on, unmount 시 off
+- **렌더**: host `Layout`이 `chromeless` 구독 → true면 헤더/사이드바/패널/펼치기 버튼 제거하고 본문만 full-bleed
+
+> ⚠️ **깜빡임·재마운트 함정**: `Chromeless` 래퍼는 non-lazy라 Layout과 같은 커밋에 mount되고 lazy children의 suspend를 자체 `Suspense`로 가둬 `useLayoutEffect`가 페인트 전에 chrome을 제거합니다(깜빡임 차단). Layout 수정 시 chromeless를 별도 return(다른 트리)으로 분기하면 Outlet 부모 사슬이 바뀌어 토글 시 페이지가 재마운트되므로(localStorage 1회 소비 페이지가 빈 값으로 재초기화) 단일 트리 유지 + chrome 조각만 조건부 렌더해야 합니다.
+
+**새 chromeless 화면을 작성할 때**: [.claude/skills/add-chromeless/SKILL.md](.claude/skills/add-chromeless/SKILL.md) 스킬을 사용합니다. 판정·래퍼 적용·window.open 경로·함정 체크리스트 등 상세 절차는 해당 스킬에 정리되어 있습니다. 배경·메커니즘 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "chromeless 화면 가이드" 섹션 참조.
 
 ### 상수 정의 패턴
 

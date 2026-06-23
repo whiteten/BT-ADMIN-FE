@@ -60,6 +60,8 @@ export default function IvrDnGroupList() {
   const [searchText, setSearchText] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
+  // 신규 등록 직후 그 카드로 스크롤하기 위한 대기 id (목록 갱신 후 1회 사용)
+  const pendingFocusIdRef = useRef<number | null>(null);
 
   // ─── Refs ───────────────────────────────────────────────────────────────
   const dnGroupSheetRef = useRef<IvrDnGroupSheetRef>(null);
@@ -138,6 +140,18 @@ export default function IvrDnGroupList() {
     }
   }, [filteredDnGroups, selectedDnGroupId]);
 
+  // 신규 등록 후: 목록이 갱신되어 새 카드가 나타나면 해당 카드로 스크롤(1회)
+  useEffect(() => {
+    const id = pendingFocusIdRef.current;
+    if (id == null) return;
+    if (filteredDnGroups.some((g) => g.dnGroupId === id)) {
+      pendingFocusIdRef.current = null;
+      requestAnimationFrame(() => {
+        document.getElementById(`dn-group-card-${id}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      });
+    }
+  }, [filteredDnGroups]);
+
   const selectedDnGroup = useMemo(() => {
     if (!selectedDnGroupId) return null;
     return dnGroups.find((g) => g.dnGroupId === selectedDnGroupId) ?? null;
@@ -211,9 +225,18 @@ export default function IvrDnGroupList() {
     [modal, deleteSubDnGroup, selectedDnGroupId],
   );
 
-  const handleDnGroupSheetSuccess = useCallback(() => {
-    invalidateDnGroups();
-  }, [invalidateDnGroups]);
+  const handleDnGroupSheetSuccess = useCallback(
+    (created?: IrDnGroup) => {
+      invalidateDnGroups();
+      // 신규 등록 시에만 created 전달됨 → 새 카드를 선택하고 보이도록 노드 탭 정렬 + 스크롤 대기
+      if (created) {
+        if (created.nodeId != null) setSelectedNodeId(created.nodeId);
+        setSelectedDnGroupId(created.dnGroupId);
+        pendingFocusIdRef.current = created.dnGroupId;
+      }
+    },
+    [invalidateDnGroups],
+  );
 
   const handleSubDnDialogSuccess = useCallback(() => {
     invalidateSubDnGroups();
@@ -403,7 +426,7 @@ export default function IvrDnGroupList() {
           <div className="flex items-center px-4 py-3 h-[220px]">
             {filteredDnGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} imageStyle={{ height: 40 }} />
+                <Empty description={false} styles={{ image: { height: 40 } }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 DN 그룹이 없습니다'}</span>
               </div>
             ) : (

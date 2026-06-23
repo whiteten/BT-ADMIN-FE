@@ -6,6 +6,25 @@ import NoData from '@/components/custom/NoData';
 
 type GaugeValueType = 'count' | 'percent';
 
+const getTargetCountGraphic = (entryCnt: number) => {
+  const countText = entryCnt.toLocaleString();
+  const digitLen = countText.replace(/,/g, '').length;
+  const countFontSize = digitLen <= 3 ? 20 : digitLen <= 5 ? 17 : digitLen <= 7 ? 15 : 13;
+
+  return {
+    type: 'text' as const,
+    left: 'center',
+    top: '67%',
+    style: {
+      text: `{label|대상건수 | }{count|${countText}}`,
+      rich: {
+        label: { fontSize: 15, fontWeight: 500, fill: '#495057', fontFamily: 'Noto Sans KR, sans-serif' },
+        count: { fontSize: countFontSize, fontWeight: 700, fill: '#495057', fontFamily: 'Noto Sans KR, sans-serif' },
+      },
+    },
+  };
+};
+
 const toProgressPieData = (data: CampaignProgressRateData) => {
   const entryCnt = data.totalTargetCnt ?? 0;
   const completeCnt = Math.max(data.outboundAttemptCnt ?? 0, 0);
@@ -105,22 +124,7 @@ const createChartOption = ({
           },
         },
       },
-      ...(showTargetCount
-        ? [
-            {
-              type: 'text' as const,
-              left: 'center',
-              top: '67%',
-              style: {
-                text: `대상건수 | ${pieData.entryCnt.toLocaleString()}`,
-                fill: '#495057',
-                fontSize: 14,
-                fontWeight: 500,
-                fontFamily: 'Noto Sans KR, sans-serif',
-              },
-            },
-          ]
-        : []),
+      ...(showTargetCount ? [getTargetCountGraphic(pieData.entryCnt)] : []),
     ],
     tooltip: {
       trigger: 'item',

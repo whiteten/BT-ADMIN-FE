@@ -321,6 +321,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     return (
       <AgGridReact
         {...gridOptions}
+        sideBar={false}
         defaultColDef={gridDefaultColDef}
         rowData={[]}
         columnDefs={columnDefs}
@@ -340,6 +341,7 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
       <AgGridReact
         {...gridOptions}
         sideBar={reportSideBar}
+        statusBar={undefined}
         defaultColDef={gridDefaultColDef}
         onRowDataUpdated={onRowDataUpdated}
         onModelUpdated={onModelUpdated}

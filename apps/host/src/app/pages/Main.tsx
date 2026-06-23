@@ -1,7 +1,15 @@
+import * as React from 'react';
 import { useAuthStore } from '@/shared-store';
+
+// aoe remote 의 에이전트 채팅 floating 위젯 — 메인 홈에서만 노출. 로드 실패 시 화면에 영향 없도록 null fallback.
+const AgentChatFab = React.lazy(() => import('aoe/AgentChatFab').catch(() => ({ default: () => null })));
 
 export default function Main() {
   const { userInfo, getCurrentRoleName } = useAuthStore();
+  // aoe 에이전트 조회 권한이 있을 때만 채팅 위젯 노출
+  // TODO: 추후 권한 체크 로직으로 변경
+  const canUseAgentChat = true;
+  // const canUseAgentChat = useNavigationStore((s) => s.permissions.includes('aoe:agent:read'));
 
   const displayName = userInfo?.username ?? userInfo?.userAccount ?? '사용자';
   const roleName = getCurrentRoleName();
@@ -24,6 +32,12 @@ export default function Main() {
           <p className="mt-1 text-xs font-medium uppercase tracking-[0.2em] text-gray-400">{roleName}</p>
         </div>
       </div>
+
+      {canUseAgentChat && (
+        <React.Suspense fallback={null}>
+          <AgentChatFab />
+        </React.Suspense>
+      )}
     </div>
   );
 }

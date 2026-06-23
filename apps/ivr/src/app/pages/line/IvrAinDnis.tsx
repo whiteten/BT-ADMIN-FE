@@ -53,6 +53,9 @@ export default function IvrAinDnis() {
   const sheetRef = useRef<IvrAinDnisSheetRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
   const importResultModalRef = useRef<IvrAinDnisImportResultModalRef>(null);
+  const gridRef = useRef<AgGridReact<IrAinMaster>>(null);
+  // 신규 등록 직후 그 행으로 스크롤/선택하기 위한 대기 rowId (getRowId 키와 동일 포맷)
+  const pendingFocusRowIdRef = useRef<string | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: tenants = [] } = useGetTenants();
@@ -90,6 +93,35 @@ export default function IvrAinDnis() {
   const invalidateList = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ivrAinDnisQueryKeys.getList._def });
   }, [queryClient]);
+
+  // 신규 등록 성공: 목록 갱신 + 새 행을 선택/스크롤(SkillAssignList ensureNodeVisible 패턴)
+  const handleSheetSuccess = useCallback(
+    (created?: IrAinMaster) => {
+      invalidateList();
+      if (created) {
+        setSelectedTenantId(created.tenantId); // 다른 테넌트에 등록됐어도 그 목록으로 전환
+        setSearchText(''); // 검색 필터에 가려지지 않도록 해제
+        pendingFocusRowIdRef.current = `${created.tenantId}__${created.ainNo}__${created.originDnis}`;
+      }
+    },
+    [invalidateList],
+  );
+
+  // 목록이 갱신되어 새 행이 그리드에 반영되면 그 행으로 스크롤/선택(1회)
+  useEffect(() => {
+    const rowId = pendingFocusRowIdRef.current;
+    if (rowId == null) return;
+    if (!filteredRows.some((r) => `${r.tenantId}__${r.ainNo}__${r.originDnis}` === rowId)) return;
+    pendingFocusRowIdRef.current = null;
+    setTimeout(() => {
+      const api = gridRef.current?.api;
+      const node = api?.getRowNode(rowId);
+      if (api && node) {
+        api.ensureNodeVisible(node, 'middle'); // 새 행으로 스크롤
+        api.flashCells({ rowNodes: [node] }); // 선택 상태 변경 없이 잠깐 강조(기존 동작 무영향)
+      }
+    }, 100);
+  }, [filteredRows]);
 
   // ─── Mutations ─────────────────────────────────────────────────────────
   const { mutate: deleteAin } = useDeleteAin({
@@ -375,6 +407,7 @@ export default function IvrAinDnis() {
               </div>
             ) : (
               <AgGridReact<IrAinMaster>
+                ref={gridRef}
                 rowData={filteredRows}
                 columnDefs={columnDefs}
                 gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
@@ -391,7 +424,7 @@ export default function IvrAinDnis() {
       </div>
 
       {/* ===== Drawer / Modal ===== */}
-      <IvrAinDnisSheet ref={sheetRef} onSuccess={invalidateList} />
+      <IvrAinDnisSheet ref={sheetRef} onSuccess={handleSheetSuccess} />
       <FileImportModal ref={importModalRef} title="대표번호별 DNIS 엑셀 가져오기" accept=".xlsx,.xls" onConfirm={handleImportConfirm} confirmLoading={isImporting} />
       <IvrAinDnisImportResultModal ref={importResultModalRef} />
     </div>

@@ -185,7 +185,6 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
 
   // ─── 드래그/리사이즈 종료 → 위치 반영 + 영속 ─────────────────────────────
   const handleDragResizeStop = (next: GridItem[]) => {
-    if (!isEdit) return;
     // 빈 영역 위치 갱신
     setPlaceholders((prev) =>
       prev.map((ph) => {
@@ -203,7 +202,8 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
         layoutUpdates.push({ panelId: p.panelId, x: l.x, y: l.y, w: l.w, h: l.h });
       }
     });
-    if (!isDraft && reportId > 0 && layoutUpdates.length > 0) {
+    // 편집 모드에서만 서버 영속. 보기(view) 모드는 로컬 스토어만 갱신 → 화면만 변경, DB 미저장(새로고침 시 원복).
+    if (isEdit && !isDraft && reportId > 0 && layoutUpdates.length > 0) {
       updateLayouts({ reportId, layouts: layoutUpdates });
     }
   };
@@ -237,8 +237,8 @@ const CanvasLayout = forwardRef<CanvasLayoutRef, CanvasLayoutProps>(function Can
               cols={{ lg: COLS, md: COLS, sm: COLS }}
               rowHeight={ROW_HEIGHT}
               margin={[GRID_MARGIN, GRID_MARGIN]}
-              isDraggable={isEdit}
-              isResizable={isEdit}
+              isDraggable
+              isResizable
               draggableHandle={`.${DRAG_HANDLE_CLASS}`}
               draggableCancel=".panel-no-drag"
               onDragStop={handleDragResizeStop}

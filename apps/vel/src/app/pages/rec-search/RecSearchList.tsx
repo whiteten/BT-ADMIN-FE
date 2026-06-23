@@ -256,7 +256,7 @@ export default function RecSearchList() {
     setSelectedRows([]);
   };
 
-  // 녹취 재생은 새창(/vel-player/rec-search/player)으로 띄운다. 재생목록은 localStorage로 전달
+  // 녹취 재생은 새창(/vel/rec-search/player, chromeless)으로 띄운다. 재생목록은 localStorage로 전달
   // (실시간 감청 새창과 동일 패턴). 모달 대신 새창을 쓰면 다중 녹취를 동시에 듣거나 목록 화면을
   // 점유하지 않고 청취할 수 있다.
   const openPlayer = (rows: RecFileListItem[], startIndex = 0) => {
@@ -273,7 +273,7 @@ export default function RecSearchList() {
     const screenH = window.innerHeight || document.documentElement.clientHeight || window.screen.height;
     const left = Math.max(0, dualLeft + (screenW - w) / 2);
     const top = Math.max(0, dualTop + (screenH - h) / 2);
-    window.open(`/vel-player/rec-search/player?playerId=${key}`, `RecPlayer-${key}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    window.open(`/vel/rec-search/player?playerId=${key}`, `RecPlayer-${key}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
   const handlePlay = (row: RecFileListItem) => openPlayer([row], 0);

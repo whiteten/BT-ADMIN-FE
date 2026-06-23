@@ -1,14 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Card, Tag, Tooltip } from 'antd';
+import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
+import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { DASHBOARD_ICON_SVG, DEFAULT_DASHBOARD_ICON } from '../constants/dashboardIconConstants';
-import { DOMAIN_LABELS } from '../constants/monitoringConstants';
+import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../constants/monitoringConstants';
 import { dashboardKeys, useDeleteDashboard } from '../hooks/useDashboardQueries';
 import type { DashboardListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface DashboardCardProps {
@@ -16,8 +15,8 @@ interface DashboardCardProps {
 }
 
 /**
- * 대시보드 카드 — AgentCard / RoleCard 와 동일 패턴.
- * Card 자체 클릭으로 진입 (메뉴 등록 → 보기 · 초안 → 편집).
+ * 대시보드 카드 — 통계 보고서(ReportCard) 와 동일한 데이터 구성·스타일.
+ * Card 자체 클릭으로 진입 (항상 플레이/보기). 편집은 Dropdown 메뉴로.
  */
 export default function DashboardCard({ dashboard }: DashboardCardProps) {
   const navigate = useNavigate();
@@ -37,120 +36,103 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
   const handleView = () => navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/view`);
   const handleEdit = () => navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/edit`);
   const handleEditInfo = () => navigate(`/insight/monitoring/dashboards/${dashboard.dashboardId}/edit-info`);
-  // 기본은 항상 플레이(view) 진입. 편집은 Dropdown 메뉴 또는 view 화면의 [편집] 버튼으로.
-  const handleCardClick = handleView;
   const handleDelete = () =>
     modal.confirm.delete({
       onOk: () => deleteDashboard(dashboard.dashboardId),
     });
 
-  const domainLabel = DOMAIN_LABELS[dashboard.domainCode];
+  const domainLabel = DOMAIN_LABELS[dashboard.domainCode] ?? dashboard.domainCode;
 
-  const title = (
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'view',
+      label: '▶ 플레이',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleView();
+      },
+    },
+    {
+      key: 'edit',
+      label: '화면 편집',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleEdit();
+      },
+    },
+    {
+      key: 'edit-info',
+      label: '정보 편집',
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleEditInfo();
+      },
+    },
+    { type: 'divider' },
+    {
+      key: 'delete',
+      label: '삭제',
+      danger: true,
+      onClick: ({ domEvent }) => {
+        domEvent.stopPropagation();
+        handleDelete();
+      },
+    },
+  ];
+
+  const cardTitle = (
     <div className="flex items-center gap-2">
       <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]">
         {DASHBOARD_ICON_SVG[dashboard.iconType ?? DEFAULT_DASHBOARD_ICON]}
       </span>
-      <span
-        className="truncate hover:cursor-pointer hover:!text-[var(--color-bt-primary)]"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleCardClick();
-        }}
-      >
+      <span className="cursor-pointer hover:!text-[var(--color-bt-primary)] truncate" onClick={handleView}>
         {dashboard.dashboardName}
       </span>
+      <Tag color={dashboard.menuRegistered ? 'green' : 'orange'} className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4 shrink-0">
+        {dashboard.menuRegistered ? '메뉴 등록' : '초안'}
+      </Tag>
     </div>
   );
 
-  const extra = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-        <Button variant="ghost" className="w-6 h-6 flex items-center justify-center hover:cursor-pointer">
-          <IconMoreVertical />
-          <span className="sr-only">더보기</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleView}>
-          ▶ 플레이
-        </DropdownMenuItem>
-        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleEdit}>
-          화면 편집
-        </DropdownMenuItem>
-        <DropdownMenuItem className="hover:cursor-pointer" onClick={handleEditInfo}>
-          정보 편집
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="hover:cursor-pointer text-[var(--color-bt-danger)] focus:text-[var(--color-bt-danger)]" onClick={handleDelete}>
-          삭제
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+  const cardExtra = (
+    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+      <Button type="text" size="small" icon={<IconMoreVertical />} onClick={(e) => e.stopPropagation()} />
+    </Dropdown>
   );
 
   return (
     <Card
-      title={title}
-      extra={extra}
-      hoverable
+      title={cardTitle}
+      extra={cardExtra}
       styles={{ header: { padding: '0 20px' }, body: { padding: '20px', paddingTop: '16px' } }}
-      className="hover:!border-[var(--color-bt-primary)] hover:cursor-pointer"
-      onClick={handleCardClick}
+      className="hover:!border-[var(--color-bt-primary)] cursor-pointer"
+      onClick={handleView}
     >
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex items-center">
-          <span className="w-[90px] text-gray-500 text-[13px]">도메인</span>
-          <Tag color="blue" className="font-mono text-[11px] !m-0">
+          <span className="w-[80px] shrink-0 text-sm">도메인</span>
+          <Tag color={DOMAIN_TAG_COLOR[dashboard.domainCode]}>
             {dashboard.domainCode} · {domainLabel}
           </Tag>
         </div>
         <div className="flex items-center">
-          <span className="w-[90px] text-gray-500 text-[13px]">위젯</span>
-          {dashboard.widgetNames && dashboard.widgetNames.length > 0 ? (
-            <Tooltip
-              title={
-                <div className="flex flex-col gap-1 py-1">
-                  {dashboard.widgetNames.map((name, idx) => (
-                    <div key={idx} className="text-[12px] flex items-center gap-2">
-                      <span className="w-4 h-4 flex items-center justify-center rounded bg-white/20 text-[10px] font-bold">{idx + 1}</span>
-                      {name}
-                    </div>
-                  ))}
-                </div>
-              }
-              overlayInnerStyle={{ padding: '8px 12px' }}
-            >
-              <span className="inline-flex items-center gap-1.5 cursor-help">
-                <span className="text-[13px] font-medium text-[#495057] truncate max-w-[200px]">{dashboard.widgetNames[0]}</span>
-                {dashboard.widgetNames.length > 1 && (
-                  <span className="inline-flex items-center justify-center rounded-full bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)] text-[10px] font-bold leading-none px-2 h-[18px] min-w-[24px] border border-[var(--color-bt-primary)]/20">
-                    +{dashboard.widgetNames.length - 1}
-                  </span>
-                )}
-              </span>
-            </Tooltip>
-          ) : (
-            <span className="text-gray-300 text-[13px]">-</span>
-          )}
-        </div>
-        <div className="flex items-center">
-          <span className="w-[90px] text-gray-500 text-[13px]">상태</span>
-          {dashboard.menuRegistered ? (
-            <Tag color="green" className="!m-0 text-[11px]">
-              메뉴 등록
-            </Tag>
-          ) : (
-            <Tag color="orange" className="!m-0 text-[11px]">
-              초안
-            </Tag>
-          )}
-        </div>
-        <div className="flex">
-          <span className="w-[90px] text-gray-500 shrink-0 text-[13px]">설명</span>
-          <span className="flex-1 truncate text-gray-700 text-[13px]" title={dashboard.description ?? undefined}>
-            {dashboard.description || <span className="text-gray-300">-</span>}
+          <span className="w-[80px] shrink-0 text-sm">위젯</span>
+          <span className="text-sm truncate" title={dashboard.widgetNames?.join(', ')}>
+            {dashboard.widgetNames && dashboard.widgetNames.length > 0
+              ? dashboard.widgetNames.length > 1
+                ? `${dashboard.widgetNames[0]} 외 ${dashboard.widgetNames.length - 1}개`
+                : dashboard.widgetNames[0]
+              : '-'}
           </span>
+        </div>
+        {dashboard.description && (
+          <div className="flex items-center">
+            <span className="w-[80px] shrink-0 text-sm">설명</span>
+            <span className="text-sm line-clamp-1">{dashboard.description}</span>
+          </div>
+        )}
+        <div className="flex items-center justify-end pt-1">
+          <span className="text-xs text-gray-400 tabular-nums">{dashboard.updatedAt ? dayjs(dashboard.updatedAt).format('YYYY.MM.DD') : '-'}</span>
         </div>
       </div>
     </Card>

@@ -7,8 +7,8 @@ import type { RecFileListItem } from '../../features/rec-search/types';
 /**
  * 녹취 재생 팝업 (새창).
  *
- * 통화내역조회([RecSearchList])에서 `window.open('/vel-player/rec-search/player?playerId=...')`로
- * 띄우는 독립 페이지. 재생목록(RecFileListItem[])과 시작 인덱스는 localStorage로 전달한다
+ * 통화내역조회([RecSearchList])에서 `window.open('/vel/rec-search/player?playerId=...')`로
+ * 띄우는 chromeless 새창 페이지. 재생목록(RecFileListItem[])과 시작 인덱스는 localStorage로 전달한다
  * (실시간 감청 [EavesdropPage]와 동일한 새창+localStorage 패턴).
  *
  * 2026-05-20 embedded modal(RecPlayerModal)로 전환했다가, 다중 녹취를 별도 창에서

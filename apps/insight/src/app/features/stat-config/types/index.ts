@@ -2,7 +2,7 @@
  * 통계 글로벌 정책(TB_BT_IS_STAT_CONFIG) 타입 정의 — v3.1 (D71/D99).
  *
  * 카테고리:
- *  ① TIMEUNIT_LIMIT — 시간 단위별 최대 조회 기간(일). 0 = 제한 없음.
+ *  ① TIMEUNIT_LIMIT — 시간 단위별 최대 조회 기간(일). 단위 최소폭(floor) 이상 필수(무제한 불가).
  *  ② FORMAT         — 숫자 표시 기본값 (DECIMAL_PLACES / THOUSANDS_SEP / LOCALE). 소비처 GlobalFormatPolicy.
  *  ③ QUERY_STRATEGY — 집계 테이블 라우팅 (ROUTING_MODE). 소비처 DatasetQueryEngine.
  */
@@ -49,7 +49,7 @@ export interface StatConfigBulkSaveRequest {
 
 // ─── ① TIMEUNIT_LIMIT ────────────────────────────────────────────────────────
 
-/** 조회 기간 제한 폼 값(일 수). 0 = 제한 없음. */
+/** 조회 기간 제한 폼 값(일 수). 단위 최소폭(floor) 이상 필수(무제한 불가). */
 export interface TimeUnitLimitForm {
   MI: number;
   HH: number;
@@ -58,7 +58,7 @@ export interface TimeUnitLimitForm {
   YY: number;
 }
 
-/** 단위별 메타 — 라벨/설명/최소폭(floor). 0 또는 floor 이상만 허용. */
+/** 단위별 메타 — 라벨/설명/최소폭(floor). floor 이상만 허용(무제한 불가). */
 export interface TimeUnitMeta {
   code: TimeUnitCode;
   label: string;
@@ -68,20 +68,20 @@ export interface TimeUnitMeta {
 }
 
 export const TIME_UNIT_METAS: TimeUnitMeta[] = [
-  { code: 'MI', label: '분 단위', symbol: '분', description: '분 단위 보고서 조회 시 최대 검색 기간 · 0 또는 1일 이상', floor: 1 },
-  { code: 'HH', label: '시 단위', symbol: '시', description: '시 단위 보고서 조회 시 최대 검색 기간 · 0 또는 1일 이상', floor: 1 },
-  { code: 'DD', label: '일 단위', symbol: '일', description: '일 단위 보고서 조회 시 최대 검색 기간 · 0 또는 1일 이상', floor: 1 },
-  { code: 'MM', label: '월 단위', symbol: '월', description: '월 단위 보고서 조회 시 최대 검색 기간 · 0 또는 31일 이상 (월 1개 ≥ 31일)', floor: 31 },
-  { code: 'YY', label: '년 단위', symbol: '년', description: '년 단위 보고서 조회 시 최대 검색 기간 · 0(제한 없음) 또는 366일 이상', floor: 366 },
+  { code: 'MI', label: '분 단위', symbol: '분', description: '분 단위 보고서 조회 시 최대 검색 기간 · 1일 이상 필수', floor: 1 },
+  { code: 'HH', label: '시 단위', symbol: '시', description: '시 단위 보고서 조회 시 최대 검색 기간 · 1일 이상 필수', floor: 1 },
+  { code: 'DD', label: '일 단위', symbol: '일', description: '일 단위 보고서 조회 시 최대 검색 기간 · 1일 이상 필수', floor: 1 },
+  { code: 'MM', label: '월 단위', symbol: '월', description: '월 단위 보고서 조회 시 최대 검색 기간 · 31일 이상 필수 (월 1개 ≥ 31일)', floor: 31 },
+  { code: 'YY', label: '년 단위', symbol: '년', description: '년 단위 보고서 조회 시 최대 검색 기간 · 366일 이상 필수', floor: 366 },
 ];
 
-/** 시드 기본값(V64). 분 7 / 시 31 / 일 730 / 월 3650 / 년 0(제한 없음). */
+/** 시드 기본값(V64 + V92). 분 7 / 시 31 / 일 730 / 월 3650 / 년 1825(5년). */
 export const DEFAULT_TIME_UNIT_LIMIT: TimeUnitLimitForm = {
   MI: 7,
   HH: 31,
   DD: 730,
   MM: 3650,
-  YY: 0,
+  YY: 1825,
 };
 
 // ─── ② FORMAT ────────────────────────────────────────────────────────────────

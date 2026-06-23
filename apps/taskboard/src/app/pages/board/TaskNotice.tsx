@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { toast } from '@/shared-util';
 import { useCreateNotice, useDeleteNotice, useGetNoticeList, useUpdateNotice } from '../../features/board/hooks/useTaskboardQueries';
 import type { TaskboardNotice } from '../../features/board/types/taskboard.types';
+import { IconTrash } from '@/components/custom/Icons';
 
 // ─── 상수 ─────────────────────────────────────────────────────────────────────
 
@@ -230,6 +231,7 @@ export default function TaskNotice() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState<TaskboardNotice | null>(null);
   const [searchKey, setSearchKey] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<TaskboardNotice | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const { data: notices = [], isLoading, refetch } = useGetNoticeList({});
@@ -254,14 +256,16 @@ export default function TaskNotice() {
     refetch();
   };
 
-  const handleDelete = async (notice: TaskboardNotice) => {
-    if (!window.confirm(`"${notice.title || notice.noticeKey}" 공지사항을 삭제하시겠습니까?`)) return;
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteNotice.mutateAsync(notice.noticeId);
+      await deleteNotice.mutateAsync(deleteTarget.noticeId);
       toast.success('삭제되었습니다.');
       refetch();
     } catch {
       toast.error('삭제에 실패했습니다.');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -287,7 +291,6 @@ export default function TaskNotice() {
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">공지사항 관리</h1>
-          <p className="text-sm text-slate-500 mt-1">전광판에 표시할 공지사항을 키(noticeKey)별로 관리합니다.</p>
         </div>
         <button
           onClick={handleAdd}
@@ -381,7 +384,7 @@ export default function TaskNotice() {
                             />
                           </svg>
                         </button>
-                        <button onClick={() => handleDelete(notice)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="삭제">
+                        <button onClick={() => setDeleteTarget(notice)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="삭제">
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
                             <path
                               strokeLinecap="round"
@@ -401,6 +404,35 @@ export default function TaskNotice() {
 
       {/* 등록/수정 폼 모달 */}
       {formOpen && <NoticeForm initial={editingNotice} onSave={handleFormSave} onCancel={() => setFormOpen(false)} />}
+
+      {/* 삭제 확인 모달 */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl w-[320px] overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-100 text-red-500 flex items-center justify-center mx-auto mb-4">
+                <IconTrash className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">공지사항 삭제</h3>
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-slate-700">&ldquo;{deleteTarget.title || deleteTarget.noticeKey}&rdquo;</span> 공지사항을 삭제하시겠습니까?
+                <br />이 작업은 되돌릴 수 없습니다.
+              </p>
+            </div>
+            <div className="flex border-t border-slate-100">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors border-r border-slate-100"
+              >
+                취소
+              </button>
+              <button onClick={handleDeleteConfirm} className="flex-1 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

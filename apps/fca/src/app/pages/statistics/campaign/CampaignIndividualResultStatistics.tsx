@@ -3,15 +3,18 @@ import type { CellStyle, ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { ChevronDown, Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
+import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup, createFlexibleNameColumnDef } from './campaignResultStatGridColumns';
+import { CampaignStatExcludeFilterRow, buildCampaignExcludeFilterParams } from './campaignStatExcludeFilters';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
 import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
-import { useGetCampaignOptionList, useGetCampaignResultStatList, useGetTenantOptionList } from '../../../features/statistics/hooks/useStatisticsQueries';
+import { useGetCampaignOptionList, useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
@@ -19,7 +22,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '캠페인별 통계', path: '/fca/statistics/campaign/campaign-individual-result' },
 ];
 
-const CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY = 'campaign-individual-result:tenant-ids';
 const CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY = 'campaign-individual-result:campaign-selections';
 const CAMPAIGN_INDIVIDUAL_SCENARIO_STORAGE_KEY = 'campaign-individual-result:scenario-selections';
 
@@ -145,7 +147,10 @@ export default function CampaignIndividualResultStatistics() {
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
-  const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY));
+  const [excludeDays, setExcludeDays] = useState<string[]>([]);
+  const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
+  const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
   const [scenarioSelections, setScenarioSelections] = useState<string[]>(() => {
     const fromScenarioKey = loadStoredStringArray(CAMPAIGN_INDIVIDUAL_SCENARIO_STORAGE_KEY);
@@ -155,7 +160,6 @@ export default function CampaignIndividualResultStatistics() {
 
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
-  const isInitialTenantHydrationDone = useRef(false);
   const [rowData, setRowData] = useState<CampaignResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -163,19 +167,7 @@ export default function CampaignIndividualResultStatistics() {
   const disabledDate = useMemo(() => createDisabledDate(), []);
   const disabledEndDate = useMemo(() => createEndDisabledDate(startDate, timeUnit), [startDate, timeUnit]);
 
-  // 테넌트 옵션
-  const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(
-    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
-    [tenantOptionList],
-  );
-
-  // 캠페인 옵션 (선택된 테넌트 기준)
-  const tenantIdNums = useMemo(() => tenantIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)), [tenantIds]);
-  const { data: campaignOptionList } = useGetCampaignOptionList({
-    params: { tenantIds: tenantIdNums },
-    queryOptions: { enabled: tenantIdNums.length > 0 },
-  });
+  const { data: campaignOptionList } = useGetCampaignOptionList();
   const campaignSelectOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { label: string; value: string }[] = [];
@@ -207,16 +199,6 @@ export default function CampaignIndividualResultStatistics() {
     return options;
   }, [campaignOptionList, campaignSelections]);
 
-  // 테넌트 변경 시 캠페인·시나리오 선택 초기화
-  useEffect(() => {
-    if (!isInitialTenantHydrationDone.current) {
-      isInitialTenantHydrationDone.current = true;
-      return;
-    }
-    setCampaignSelections([]);
-    setScenarioSelections([]);
-  }, [tenantIds]);
-
   // 캠페인 변경 시 유효하지 않은 시나리오 선택 제거 (구형 L:tenant:listId → L:tenant:campaign:listId 보정)
   useEffect(() => {
     // 옵션 로딩 전(초기 렌더)에는 로컬스토리지에서 복원한 시나리오를 지우지 않음
@@ -240,10 +222,6 @@ export default function CampaignIndividualResultStatistics() {
       return [...new Set(next)];
     });
   }, [campaignOptionList, scenarioSelectOptions]);
-
-  useEffect(() => {
-    localStorage.setItem(CAMPAIGN_INDIVIDUAL_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
-  }, [tenantIds]);
 
   useEffect(() => {
     localStorage.setItem(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignSelections));
@@ -276,7 +254,7 @@ export default function CampaignIndividualResultStatistics() {
       timeUnit,
       fromTime,
       toTime,
-      tenantIds: tenantIdNums,
+      ...buildCampaignExcludeFilterParams(timeUnit, excludeDays, excludeBusinessHoliday, excludeStatHoliday),
     };
     // 시나리오 전체 선택 = 미선택과 동일하게 캠페인 기준 전체 조회 (행 수·집계 일치)
     if (campaignListIds.length > 0 && !allScenariosSelected) {
@@ -285,7 +263,7 @@ export default function CampaignIndividualResultStatistics() {
       base.campaignIds = campaignIds;
     }
     return base;
-  }, [timeUnit, fromTime, toTime, tenantIdNums, campaignSelections, scenarioSelections, scenarioSelectOptions]);
+  }, [timeUnit, fromTime, toTime, excludeDays, excludeBusinessHoliday, excludeStatHoliday, campaignSelections, scenarioSelections, scenarioSelectOptions]);
 
   // 캠페인별 통계 — 캠페인 통계와 동일 데이터·API (BFF: stat-campaign-result)
   const {
@@ -318,11 +296,6 @@ export default function CampaignIndividualResultStatistics() {
   }, [endDate, startDate, timeUnit]);
 
   const handleSearch = () => {
-    if (tenantIds.length === 0) {
-      toast.warning('테넌트를 선택해주세요.');
-      return;
-    }
-
     if (campaignSelections.length === 0) {
       toast.warning('캠페인을 선택해주세요.');
       return;
@@ -365,25 +338,11 @@ export default function CampaignIndividualResultStatistics() {
       },
       cellStyle: textCellStyle,
     },
-    {
-      headerName: '캠페인',
-      field: 'campaignName',
-      width: 140,
+    createFlexibleNameColumnDef<CampaignResultStatListItem>('캠페인', 'campaignName', (data) => String(data?.campaignName ?? ''), textCellStyle, { minWidth: 140, pinned: 'left' }),
+    createFlexibleNameColumnDef<CampaignResultStatListItem>('시나리오', 'campaignListName', (data) => String(data?.campaignListName ?? ''), textCellStyle, {
+      minWidth: 160,
       pinned: 'left',
-      cellStyle: textCellStyle,
-    },
-    {
-      headerName: '시나리오',
-      field: 'campaignListName',
-      width: 160,
-      pinned: 'left',
-      valueGetter: ({ data }) => {
-        if (!data) return '-';
-        const name = String(data.campaignListName ?? '').trim();
-        return name || '-';
-      },
-      cellStyle: textCellStyle,
-    },
+    }),
     { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
     { headerName: '발신진행건수 (실시간)', field: 'outboundProgressCnt', width: 250, cellStyle: numberCellStyle },
     { headerName: '총발신시도건수(누적)', field: 'outboundAttemptCnt', width: 250, cellStyle: numberCellStyle },
@@ -413,6 +372,7 @@ export default function CampaignIndividualResultStatistics() {
       const response = await statisticsApi.exportCampaignResultStatExcel({
         ...campaignStatParams,
         timeUnit: displayTimeUnit,
+        ...buildCampaignExcludeFilterParams(displayTimeUnit, excludeDays, excludeBusinessHoliday, excludeStatHoliday),
       });
       const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
@@ -426,175 +386,158 @@ export default function CampaignIndividualResultStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full min-h-0">
       <div className="flex flex-col gap-5 w-full h-full min-h-0 bg-white bt-shadow p-5">
-        <header className="flex items-start gap-3 shrink-0">
-          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
-              <Select
-                value={timeUnit}
-                onChange={(v) => setTimeUnit(v)}
-                options={[
-                  { label: '일간', value: 'DD' },
-                  { label: '월간', value: 'MM' },
-                  { label: '년간', value: 'YY' },
-                ]}
-                className="!max-w-[110px] !min-w-[90px]"
-                popupMatchSelectWidth={false}
-                defaultValue="DD"
-              />
-              <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
-              <DatePicker
-                value={startDate}
-                onChange={(date) => setStartDate(date)}
-                picker={getPickerMode(timeUnit)}
-                format={getDatePickerFormat(timeUnit)}
-                disabledDate={disabledDate}
-                inputReadOnly
-                allowClear={false}
-              />
-              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-              <DatePicker
-                value={endDate}
-                onChange={(date) => setEndDate(date)}
-                picker={getPickerMode(timeUnit)}
-                format={getDatePickerFormat(timeUnit)}
-                disabledDate={disabledEndDate}
-                inputReadOnly
-                allowClear={false}
-              />
-            </div>
-            <Divider orientation="vertical" className="!h-5 !m-0" />
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">테넌트</span>
-              <Select
-                mode="multiple"
-                value={tenantIds}
-                onChange={(value) => setTenantIds(value ?? [])}
-                allowClear
-                showSearch
-                maxTagCount="responsive"
-                options={tenantSelectOptions}
-                placeholder="테넌트를 선택하세요."
-                optionFilterProp="label"
-                style={{ width: '15rem' }}
-                popupMatchSelectWidth={false}
-                dropdownRender={(menu) => (
-                  <>
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        if (tenantIds.length === tenantSelectOptions.length) {
-                          setTenantIds([]);
-                        } else {
-                          setTenantIds(tenantSelectOptions.map((o) => o.value));
-                        }
-                      }}
-                    >
-                      <Checkbox
-                        checked={tenantIds.length === tenantSelectOptions.length && tenantSelectOptions.length > 0}
-                        indeterminate={tenantIds.length > 0 && tenantIds.length < tenantSelectOptions.length}
-                      />
-                      <span className="text-sm">전체 선택</span>
-                    </div>
-                    <Divider style={{ margin: '4px 0' }} />
-                    {menu}
-                  </>
+        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <header className="flex flex-col gap-3 shrink-0">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
+                  <Select
+                    value={timeUnit}
+                    onChange={(v) => setTimeUnit(v)}
+                    options={[
+                      { label: '일간', value: 'DD' },
+                      { label: '월간', value: 'MM' },
+                      { label: '년간', value: 'YY' },
+                    ]}
+                    className="!max-w-[110px] !min-w-[90px]"
+                    popupMatchSelectWidth={false}
+                    defaultValue="DD"
+                  />
+                  <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                  <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                </div>
+                <Divider orientation="vertical" className="!h-5 !m-0" />
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
+                  <Select
+                    mode="multiple"
+                    value={campaignSelections}
+                    onChange={(value) => setCampaignSelections(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={campaignSelectOptions}
+                    placeholder="캠페인을 선택하세요."
+                    optionFilterProp="label"
+                    style={{ width: '15rem' }}
+                    popupMatchSelectWidth={false}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (campaignSelections.length === campaignSelectOptions.length) {
+                              setCampaignSelections([]);
+                            } else {
+                              setCampaignSelections(campaignSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={campaignSelections.length === campaignSelectOptions.length && campaignSelectOptions.length > 0}
+                            indeterminate={campaignSelections.length > 0 && campaignSelections.length < campaignSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">시나리오</span>
+                  <Select
+                    mode="multiple"
+                    value={scenarioSelections}
+                    onChange={(value) => setScenarioSelections(value ?? [])}
+                    allowClear
+                    showSearch
+                    maxTagCount="responsive"
+                    options={scenarioSelectOptions}
+                    placeholder="시나리오를 선택하세요."
+                    optionFilterProp="label"
+                    style={{ width: '15rem' }}
+                    popupMatchSelectWidth={false}
+                    disabled={campaignSelections.length === 0}
+                    dropdownRender={(menu) => (
+                      <>
+                        <div
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            if (scenarioSelections.length === scenarioSelectOptions.length) {
+                              setScenarioSelections([]);
+                            } else {
+                              setScenarioSelections(scenarioSelectOptions.map((o) => o.value));
+                            }
+                          }}
+                        >
+                          <Checkbox
+                            checked={scenarioSelections.length === scenarioSelectOptions.length && scenarioSelectOptions.length > 0}
+                            indeterminate={scenarioSelections.length > 0 && scenarioSelections.length < scenarioSelectOptions.length}
+                          />
+                          <span className="text-sm">전체 선택</span>
+                        </div>
+                        <Divider style={{ margin: '4px 0' }} />
+                        {menu}
+                      </>
+                    )}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <CollapsibleTrigger asChild>
+                    <Button type="default" icon={<ChevronDown className={cn('size-4 transition-transform', isFilterOpen && 'rotate-180')} />} className="!size-8 !min-w-8" />
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
+                  조회
+                </Button>
+                {hasExcelPermission && (
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
+                    Export
+                  </Button>
                 )}
-              />
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
-              <Select
-                mode="multiple"
-                value={campaignSelections}
-                onChange={(value) => setCampaignSelections(value ?? [])}
-                allowClear
-                showSearch
-                maxTagCount="responsive"
-                options={campaignSelectOptions}
-                placeholder="캠페인을 선택하세요."
-                optionFilterProp="label"
-                style={{ width: '15rem' }}
-                popupMatchSelectWidth={false}
-                disabled={tenantIds.length === 0}
-                dropdownRender={(menu) => (
-                  <>
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        if (campaignSelections.length === campaignSelectOptions.length) {
-                          setCampaignSelections([]);
-                        } else {
-                          setCampaignSelections(campaignSelectOptions.map((o) => o.value));
-                        }
-                      }}
-                    >
-                      <Checkbox
-                        checked={campaignSelections.length === campaignSelectOptions.length && campaignSelectOptions.length > 0}
-                        indeterminate={campaignSelections.length > 0 && campaignSelections.length < campaignSelectOptions.length}
-                      />
-                      <span className="text-sm">전체 선택</span>
-                    </div>
-                    <Divider style={{ margin: '4px 0' }} />
-                    {menu}
-                  </>
-                )}
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">시나리오</span>
-              <Select
-                mode="multiple"
-                value={scenarioSelections}
-                onChange={(value) => setScenarioSelections(value ?? [])}
-                allowClear
-                showSearch
-                maxTagCount="responsive"
-                options={scenarioSelectOptions}
-                placeholder="시나리오를 선택하세요."
-                optionFilterProp="label"
-                style={{ width: '15rem' }}
-                popupMatchSelectWidth={false}
-                disabled={tenantIds.length === 0 || campaignSelections.length === 0}
-                dropdownRender={(menu) => (
-                  <>
-                    <div
-                      className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        if (scenarioSelections.length === scenarioSelectOptions.length) {
-                          setScenarioSelections([]);
-                        } else {
-                          setScenarioSelections(scenarioSelectOptions.map((o) => o.value));
-                        }
-                      }}
-                    >
-                      <Checkbox
-                        checked={scenarioSelections.length === scenarioSelectOptions.length && scenarioSelectOptions.length > 0}
-                        indeterminate={scenarioSelections.length > 0 && scenarioSelections.length < scenarioSelectOptions.length}
-                      />
-                      <span className="text-sm">전체 선택</span>
-                    </div>
-                    <Divider style={{ margin: '4px 0' }} />
-                    {menu}
-                  </>
-                )}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
-              조회
-            </Button>
-            {hasExcelPermission && (
-              <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
-                Export
-              </Button>
-            )}
-          </div>
-        </header>
+            {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
+              <CollapsibleContent>
+                <div className="flex flex-wrap items-center gap-3">
+                  <CampaignStatExcludeFilterRow
+                    excludeDays={excludeDays}
+                    onExcludeDaysChange={setExcludeDays}
+                    excludeBusinessHoliday={excludeBusinessHoliday}
+                    onExcludeBusinessHolidayChange={setExcludeBusinessHoliday}
+                    excludeStatHoliday={excludeStatHoliday}
+                    onExcludeStatHolidayChange={setExcludeStatHoliday}
+                  />
+                </div>
+              </CollapsibleContent>
+            ) : null}
+          </header>
+        </Collapsible>
         <div className="flex-1 min-h-0 w-full">
           <AgGridReact<CampaignResultStatListItem>
             ref={gridRef}

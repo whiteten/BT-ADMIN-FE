@@ -13,6 +13,7 @@ import WsSessionEventHandler from './features/router/WsSessionEventHandler';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
 import Login from './pages/Login';
 import Main from './pages/Main';
+import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Forbidden } from '@/components/custom/Forbidden';
 import { NotFound } from '@/components/custom/NotFound';
@@ -24,12 +25,15 @@ const Manager = React.lazy(() => import('manager/Module').catch(() => ({ default
 const Fca = React.lazy(() => import('fca/Module').catch(() => ({ default: () => <NotFound /> })));
 const Ipron = React.lazy(() => import('ipron/Module').catch(() => ({ default: () => <NotFound /> })));
 const Aoe = React.lazy(() => import('aoe/Module').catch(() => ({ default: () => <NotFound /> })));
-const AoeWorkflow = React.lazy(() => import('aoe/WorkflowApp').catch(() => ({ default: () => <NotFound /> })));
 const Stt = React.lazy(() => import('stt/Module').catch(() => ({ default: () => <NotFound /> })));
 const Ivr = React.lazy(() => import('ivr/Module').catch(() => ({ default: () => <NotFound /> })));
 const Insight = React.lazy(() => import('insight/Module').catch(() => ({ default: () => <NotFound /> })));
 const Taskboard = React.lazy(() => import('taskboard/Module').catch(() => ({ default: () => <NotFound /> })));
 const Vel = React.lazy(() => import('vel/Module').catch(() => ({ default: () => <NotFound /> })));
+
+// host 자체 화면도 변형 소켓으로 감싼다(appId='host'). 변형·현장 커스텀(site:) 교체 대상이 된다.
+// 화면 키는 SoT — 한번 정하면 변경 금지.
+const pv = createPageVariantSocket('host');
 
 const AppRoutes = () => {
   useApiErrorHandler();
@@ -49,7 +53,7 @@ const AppRoutes = () => {
           }
         >
           <Route path="/" element={<Layout />}>
-            <Route index element={<Main />} />
+            <Route index element={pv('main', Main)} />
           </Route>
           <Route path="/manager" element={<Layout />}>
             <Route index path="*" element={<Manager />} />
@@ -63,7 +67,6 @@ const AppRoutes = () => {
           <Route path="/aoe" element={<Layout />}>
             <Route index path="*" element={<Aoe />} />
           </Route>
-          <Route path="/aoe-workflow/:agentId" element={<AoeWorkflow />} />
           <Route path="/stt" element={<Layout />}>
             <Route index path="*" element={<Stt />} />
           </Route>
@@ -79,12 +82,8 @@ const AppRoutes = () => {
           <Route path="/vel" element={<Layout />}>
             <Route index path="*" element={<Vel />} />
           </Route>
-          {/* 팝업 라우트 — 인증은 필요하지만 Layout(사이드바/헤더)은 없음 */}
-          {/* /vel-player/*: 통화내역조회 녹취 재생 새창 (2026-06-15 새창 방식으로 환원) */}
-          <Route path="/vel-player/*" element={<Vel />} />
-          <Route path="/vel-eavesdrop/*" element={<Vel />} />
         </Route>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={pv('login', Login)} />
         <Route path="/forbidden" element={<Forbidden useFullScreen />} />
       </Route>
       <Route path="*" element={<NotFound useFullScreen />} />

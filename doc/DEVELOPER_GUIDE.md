@@ -3386,3 +3386,137 @@ selectorKey: SelectorKeys.PresetSelector,
 #### 본질이 다른 화면을 query 분기로 묶음
 
 queryString 분기는 **두 화면이 본질적으로 같은 자원·같은 prop·같은 query 형태인데 필터/모드만 다른 경우**에만 정당합니다. 화면 구조·데이터 형태·로직이 본질적으로 다른데 query로 분기하면 컴포넌트가 점점 비대해지고 분기가 새는 곳마다 버그가 납니다. 그런 경우엔 **path를 분리**(`/aoe/config/basic`, `/aoe/config/advanced`)하는 게 정공법입니다.
+
+## chromeless 화면 가이드
+
+인증은 필요하지만 host의 Layout 셸(헤더·사이드바·패널)이 없는 화면 — 녹취 재생 팝업, 감청 팝업, 워크플로우 편집기 같은 **새창/standalone** 화면 — 을 추가하기 위한 패턴입니다. chromeless 여부를 remote가 routes.tsx에서 스스로 선언하고, host는 한 줄도 건드리지 않습니다.
+
+### 왜 이 패턴인가
+
+**문제**: "인증은 필요한데 Layout은 없는 화면"을 추가할 때마다 host의 `app.tsx`에 전용 prefix 라우트(`/aoe-workflow`, `/vel-player`, `/vel-eavesdrop` 등)를 선언해야 했습니다.
+
+**잘못된 접근**:
+
+- host prefix 라우트로 분기(`/vel-player/*` → Layout 없이 `<Vel/>` 마운트) → "Layout을 씌울지" 결정이 host의 URL prefix에 박혀, chromeless 화면이 늘수록 `app.tsx`가 prefix 라우트로 오염됩니다. remote가 "이 화면은 chrome 없음"을 스스로 선언할 수단이 없어 매번 host 수정이 필요합니다.
+
+**올바른 접근**: chromeless 신호를 `@/shared-store`의 `useLayoutStore`에 두고(host·remote 공유), remote가 routes.tsx leaf를 `Chromeless` 래퍼로 감싸 선언합니다. host의 `Layout`이 그 신호를 구독해 chrome을 조건부로 제거합니다. **신규 chromeless 화면 추가 시 host는 무수정**입니다.
+
+> 참고: route `handle: { chromeless: true }` + `useMatches()`로 같은 목적을 달성할 수 있으나, `useMatches`는 `createBrowserRouter`(데이터 라우터) 전용입니다. 이 프로젝트는 non-data router(`useRoutes`)라 데이터 라우터 이관 비용이 커서, 스토어 기반 선언 방식을 채택했습니다.
+
+### 전체 구조
+
+```
+┌──────────── 코드 (개발자 작성) ────────────┐
+│                                              │
+│  apps/<remote>/src/app/routes.tsx            │
+│   { path: 'workflow/:agentId',               │
+│     element: <Chromeless>{pv(...)}</Chromeless> }
+│         │ Chromeless 래퍼가 useChromeless() 호출
+│         ▼                                    │
+│  libs/shared-store  useLayoutStore.chromeless │
+│   (persist 제외 — 화면 mount/unmount로 토글) │
+│         │                                    │
+└─────────┼────────────────────────────────────┘
+          │ host Layout이 구독
+          ▼
+  chromeless=true → 헤더/사이드바/패널/펼치기 버튼 제거,
+                    본문만 full-bleed (ConfigProvider+App은 유지)
+```
+
+진입은 새창(`window.open('/<remote>/...')`)이 일반적이며, 같은 탭 네비게이션(`navigate`)도 가능합니다. 어느 쪽이든 host `/<remote>` 경로를 거쳐 Layout을 통과해야 신호가 닿습니다.
+
+### 새 chromeless 화면 추가 절차
+
+#### Step 1: routes.tsx leaf를 Chromeless로 감싼다
+
+```tsx
+import Chromeless from '@/components/custom/Chromeless';
+
+const WorkflowEdit = React.lazy(() => import('./pages/workflow/WorkflowEdit'));
+
+// 최종 경로 /aoe/workflow/:agentId — host /aoe 아래라 Layout을 거친다. pv 소켓 유지.
+{ path: 'workflow/:agentId', element: <Chromeless>{pv('workflow/:agentId', WorkflowEdit)}</Chromeless> },
+```
+
+pv 소켓을 쓰지 않는 leaf면 `<Chromeless><Page /></Chromeless>`로 감쌉니다. **host에 별도 prefix 라우트를 만들지 않습니다.**
+
+#### Step 2: 진입 경로 작성
+
+```tsx
+// 새창 — Layout 통과 경로(/<remote>/...). 창 크기·named window 옵션은 그대로 유지
+window.open(`/aoe/workflow/${agentId}`, '_blank', 'noopener,noreferrer');
+```
+
+#### Step 3: 페이지 컴포넌트
+
+페이지에서 `ConfigProvider`/`App`로 다시 감싸지 않습니다(Layout chromeless 분기가 제공). 전체화면이 필요하면 `w-screen h-screen` 등 자체 클래스로 처리합니다(Layout chromeless main은 padding·배경 없는 full-bleed).
+
+### 왜 Chromeless 래퍼인가 — 깜빡임 차단
+
+`useChromeless()`는 `useLayoutEffect`로 mount 시 `chromeless`를 켭니다. 그런데 chromeless 페이지는 보통 `React.lazy`라, **페이지가 lazy 로딩되는 동안 Layout이 chromeless=false 상태로 chrome을 먼저 그립니다**. 페이지가 mount된 뒤에야 신호가 켜지므로, 래퍼 없이 페이지 내부에서 `useChromeless`를 호출하면 로딩 구간 내내 chrome이 보이는 깜빡임이 생깁니다(lazy suspend 구간이라 `useLayoutEffect`로도 못 막음 — 페이지가 아직 mount 전).
+
+`Chromeless` 래퍼는 이 문제를 구조로 해결합니다:
+
+```tsx
+// libs/shared-ui/src/components/custom/Chromeless.tsx
+export default function Chromeless({ children }: { children: ReactNode }) {
+  useChromeless();
+  return <Suspense fallback={<FallbackSpinner useFullScreen />}>{children}</Suspense>;
+}
+```
+
+래퍼는 **non-lazy**라 Layout과 같은 커밋에 mount되고, lazy children의 suspend를 **자체 Suspense로 가둡니다**. 따라서 래퍼는 멈추지 않고, `useChromeless`의 `useLayoutEffect`가 페인트 직전에 chrome을 제거합니다 — chrome이 그려지기 전에 사라지므로 깜빡임이 없습니다.
+
+### Layout은 단일 트리 — 재마운트 차단
+
+`Layout`에서 chromeless를 **별도 return(다른 JSX 트리)으로 분기하면 안 됩니다**:
+
+```tsx
+// ❌ Outlet의 부모 사슬이 달라져 chromeless 토글 시 페이지가 언마운트+재마운트됨
+if (chromeless) return <ConfigProvider><App><Outlet /></App></ConfigProvider>;
+return <ConfigProvider><div><App><div><main><Outlet /></main></div></App></div></ConfigProvider>;
+```
+
+chromeless가 토글되는 순간(래퍼 mount 직후) Layout이 트리 A↔B로 바뀌고, `<Outlet/>`의 부모 사슬(`App>Outlet` vs `App>div>main>Outlet`)이 달라져 **페이지가 재마운트**됩니다. localStorage를 1회 읽고 즉시 삭제하는 페이지(예: 녹취 재생 player의 재생목록 전달)는 두 번째 mount에서 빈 값을 만나 `"재생할 녹취 정보가 없습니다"`로 깨집니다.
+
+```tsx
+// ✅ 단일 트리 유지 + chrome 조각만 조건부 렌더 → Outlet 위치 고정 → 재마운트 없음
+return (
+  <ConfigProvider ...>
+    <div className="flex flex-col h-screen overflow-hidden">
+      {!chromeCollapsed && !chromeless && (<><TopHeader /><SubHeader /></>)}
+      <App className="flex-1 min-h-0 w-full overflow-hidden">
+        <div className="flex w-full h-full">
+          {!chromeless && pinned && <PanelAppBadgeStrip />}
+          <main className={chromeless ? 'flex-1 min-w-0 h-full overflow-hidden' : 'flex-1 min-w-0 h-full p-4 overflow-y-auto bg-[#f3f3f9]'}>
+            <Outlet />
+          </main>
+        </div>
+      </App>
+    </div>
+    {!chromeless && <MenuPanel topOffset={topOffset} />}
+  </ConfigProvider>
+);
+```
+
+`{cond && <X/>}`는 falsy placeholder를 남겨 형제 위치가 보존되므로, chrome 조각을 조건부로 빼도 `<main>`·`<Outlet/>`은 같은 위치를 유지합니다.
+
+### 흔한 실수 / 안티패턴
+
+#### host에 전용 prefix 라우트 추가
+
+```tsx
+// ❌ 이 메커니즘이 없애려던 옛 방식 — host가 chromeless 화면마다 오염됨
+<Route path="/aoe-workflow/:agentId" element={<AoeWorkflow />} />
+
+// ✅ remote routes.tsx에서 선언, host 무수정
+{ path: 'workflow/:agentId', element: <Chromeless>{pv('workflow/:agentId', WorkflowEdit)}</Chromeless> }
+```
+
+#### 페이지 내부에서 useChromeless 직접 호출
+
+래퍼 없이 lazy 페이지 본문에서 `useChromeless()`를 호출하면 로딩 구간 깜빡임이 생깁니다. 항상 `Chromeless` 래퍼로 감싸세요.
+
+#### 페이지에서 ConfigProvider/App 이중 래핑
+
+Layout chromeless 분기가 antd 컨텍스트를 제공하므로, 페이지에서 다시 `ConfigProvider`/`App`로 감싸면 컨텍스트가 중첩됩니다. 감싸지 마세요.

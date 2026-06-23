@@ -1,15 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Drawer, Input, type InputRef } from 'antd';
-import dayjs from 'dayjs';
-import { Bot, RotateCcw, User } from 'lucide-react';
-import { Log } from '@/log';
-import { createUUID } from '@/shared-util';
-import MessageCopyButton from '../../shared/components/MessageCopyButton';
-import { useRefreshAgent, useTestAgent } from '../hooks/useAgentQueries';
-import type { ChatMessage } from '../types';
-import { IconSend } from '@/components/custom/Icons';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { Drawer, type InputRef } from 'antd';
+import { RotateCcw } from 'lucide-react';
+import AgentChatConversation from './AgentChatConversation';
+import { useAgentChat } from '../hooks/useAgentChat';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 export interface AgentPlaygroundDrawerRef {
   open: (params: { agentId: string; agentName: string }) => void;
@@ -30,117 +24,32 @@ interface DrawerState {
 const MIN_WIDTH = 320;
 const MAX_WIDTH = 900;
 
-/**
- * BE testAgent/refreshAgent 응답에서 사용자에게 보여줄 답변 텍스트 추출.
- * 새 포맷: `{ run: {result}, execute: {result}, ... }` — run 우선, 없으면 execute, 그 외엔 객체 마지막 키의 result.
- * 옛 포맷: `{ result: "..." }` 도 호환.
- */
-const pickAnswerText = (data: unknown): string | null => {
-  if (!data || typeof data !== 'object') return null;
-  const obj = data as Record<string, unknown>;
-  // 옛 포맷
-  if (typeof obj.result === 'string') return obj.result;
-  // 단계별 포맷 — run > execute > 마지막 키
-  const preferred = ['run', 'execute'];
-  for (const key of preferred) {
-    const step = obj[key];
-    if (step && typeof step === 'object') {
-      const r = (step as Record<string, unknown>).result;
-      if (typeof r === 'string') return r;
-    }
-  }
-  const keys = Object.keys(obj);
-  for (let i = keys.length - 1; i >= 0; i -= 1) {
-    const step = obj[keys[i]];
-    if (step && typeof step === 'object') {
-      const r = (step as Record<string, unknown>).result;
-      if (typeof r === 'string') return r;
-    }
-  }
-  return null;
-};
-
 const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygroundDrawerProps>(({ onOpenChange }, ref) => {
   const [state, setState] = useState<DrawerState>({ open: false, agentId: '', agentName: '' });
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [threadId, setThreadId] = useState('');
-  const [serviceId, setServiceId] = useState('');
-  // welcomeMessage(firstYn:'Y') 로드는 메시지가 없을 수도 있으므로 타이핑 인디케이터를 띄우지 않음.
-  // (있으면 메시지가 그대로 뜨고, 없으면 조용히 빈 상태 유지 — 사용자 메시지 응답에만 '...' 노출)
-  const [isWelcomePending, setIsWelcomePending] = useState(false);
   const [drawerWidth, setDrawerWidth] = useState(600);
   const inputRef = useRef<InputRef>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const addMessage = (message: ChatMessage) => setMessages((prev) => [...prev, message]);
+  const chat = useAgentChat(() => requestAnimationFrame(() => inputRef.current?.focus()));
 
-  const { mutate: testAgent, isPending: isTesting } = useTestAgent({
-    mutationOptions: {
-      onSuccess: (data) => {
-        // BE 응답 변경: data 가 단계별 결과 객체 (`{ execute: {result}, run: {result}, ... }`).
-        // 옛 단일 result(`{ result: string }`) 도 호환. 우선순위: run > execute > 객체 마지막 키 > 최상위 result
-        setIsWelcomePending(false);
-        const text = pickAnswerText(data);
-        if (text != null && text.trim() !== '') {
-          addMessage({ id: Date.now(), type: 'response', content: { result: text }, timestamp: dayjs().format('HH:mm') });
-        }
-        requestAnimationFrame(() => inputRef.current?.focus());
-      },
-      onError: (error) => {
-        Log.warn('testAgent error', error);
-        setIsWelcomePending(false);
-        addMessage({ id: Date.now(), type: 'response', content: { error: '오류가 발생했습니다.' }, timestamp: dayjs().format('HH:mm') });
-        requestAnimationFrame(() => inputRef.current?.focus());
-      },
-    },
-  });
-
-  const { mutate: refreshAgent, isPending: isRefreshing } = useRefreshAgent({
-    mutationOptions: {
-      onError: (error) => {
-        Log.warn('refreshAgent error', error);
-        setIsWelcomePending(false);
-      },
-    },
-  });
+  const closeDrawer = () => {
+    setState((prev) => ({ ...prev, open: false }));
+    onOpenChange?.(false);
+    if (chat.messages.length > 0) {
+      chat.reset();
+      setInputValue('');
+    }
+  };
 
   useImperativeHandle(ref, () => ({
     open: ({ agentId, agentName }) => {
-      const uuid = createUUID();
-      const newServiceId = `test_${uuid}`;
-      const newThreadId = `${agentId}_${uuid}`;
-      setServiceId(newServiceId);
-      setThreadId(newThreadId);
-      setMessages([]);
       setInputValue('');
-      setIsWelcomePending(true);
       setState({ open: true, agentId, agentName });
-      testAgent({ agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } });
+      onOpenChange?.(true);
+      chat.start(agentId);
     },
-    close: () => {
-      setState((prev) => ({ ...prev, open: false }));
-      if (messages.length > 0) {
-        setMessages([]);
-        setInputValue('');
-        setThreadId('');
-        setServiceId('');
-      }
-    },
+    close: closeDrawer,
   }));
-
-  useEffect(() => {
-    requestAnimationFrame(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      }
-    });
-  }, [messages]);
-
-  // 열림/닫힘 변화를 부모에 통지 (open/close/handleClose 등 모든 경로 일괄 처리)
-  useEffect(() => {
-    onOpenChange?.(state.open);
-  }, [state.open, onOpenChange]);
 
   const handleResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -177,38 +86,11 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
   };
 
   const handleSend = () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed || isTesting || isRefreshing) return;
-
-    addMessage({ id: Date.now(), type: 'request', content: trimmed, timestamp: dayjs().format('HH:mm') });
+    chat.send(state.agentId, inputValue);
     setInputValue('');
-    testAgent({ agentId: state.agentId, body: { firstYn: 'N', serviceId, threadId, userInput: trimmed } });
   };
 
-  const handleRefresh = () => {
-    const uuid = createUUID();
-    const newServiceId = `test_${uuid}`;
-    const newThreadId = `${state.agentId}_${uuid}`;
-    setServiceId(newServiceId);
-    setThreadId(newThreadId);
-    setMessages([]);
-    setIsWelcomePending(true);
-    // AS-IS 와 동일한 시퀀스: refresh(세션 초기화) → test(firstYn='Y') 호출로 welcomeMessage 재수신
-    refreshAgent(
-      { agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } },
-      { onSuccess: () => testAgent({ agentId: state.agentId, body: { firstYn: 'Y', serviceId: newServiceId, threadId: newThreadId, userInput: '' } }) },
-    );
-  };
-
-  const handleClose = () => {
-    setState((prev) => ({ ...prev, open: false }));
-    if (messages.length > 0) {
-      setMessages([]);
-      setInputValue('');
-      setThreadId('');
-      setServiceId('');
-    }
-  };
+  const handleRefresh = () => chat.refresh(state.agentId);
 
   return (
     <Drawer
@@ -219,16 +101,16 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={chat.isBusy}
             className="gap-1.5 border-white/40 text-white bg-transparent hover:bg-white/15 hover:text-white hover:border-white/60 disabled:opacity-40"
           >
-            <RotateCcw className={`size-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RotateCcw className={`size-3.5 ${chat.isBusy ? 'animate-spin' : ''}`} />
             초기화
           </Button>
         </div>
       }
       open={state.open}
-      onClose={handleClose}
+      onClose={closeDrawer}
       maskClosable
       afterOpenChange={(open) => {
         if (open) inputRef.current?.focus();
@@ -247,79 +129,16 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
         <div className="absolute left-1/2 top-1/2 h-9 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gray-300/70 transition-all duration-150 group-hover:h-14 group-hover:bg-[var(--color-bt-primary)]" />
       </div>
 
-      {/* 메시지 영역 */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-        {messages.length === 0 && !isTesting && <div className="flex items-center justify-center h-full text-gray-400 text-sm">메시지를 입력해 대화를 시작하세요.</div>}
-        {messages.map((msg) => {
-          const isUser = msg.type === 'request';
-          const text = isUser
-            ? (msg.content as string)
-            : typeof msg.content === 'string'
-              ? msg.content
-              : ((msg.content as { result?: string })?.result ?? JSON.stringify(msg.content));
-
-          return (
-            <div key={msg.id} className={cn('flex items-start gap-2.5 max-w-[80%]', isUser && 'ml-auto flex-row-reverse')}>
-              <div className={cn('shrink-0 w-7 h-7 rounded-full flex items-center justify-center', isUser ? 'bg-emerald-500/10' : 'bg-blue-500/10')}>
-                {isUser ? <User size={14} className="text-emerald-600" /> : <Bot size={14} className="text-blue-600" />}
-              </div>
-              <div className={cn('group flex flex-col gap-0.5', isUser && 'items-end')}>
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  {isUser ? (
-                    <>
-                      <span className="text-[10px] text-slate-500 tabular-nums">{msg.timestamp}</span>
-                      <span className="text-[10px] font-medium text-emerald-600/70">나</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[10px] font-medium text-blue-600/70">{state.agentName || '봇'}</span>
-                      <span className="text-[10px] text-slate-500 tabular-nums">{msg.timestamp}</span>
-                    </>
-                  )}
-                </div>
-                <div
-                  className={cn('border rounded-2xl px-3.5 py-2 shadow-sm', isUser ? 'rounded-br-md bg-emerald-50 border-emerald-100' : 'rounded-bl-md bg-blue-50 border-blue-100')}
-                >
-                  <p className="text-[13px] text-slate-700 leading-relaxed break-all whitespace-pre-wrap">{text}</p>
-                </div>
-                <div className={cn('mt-0.5 opacity-0 transition-opacity group-hover:opacity-100', isUser && 'self-end')}>
-                  <MessageCopyButton text={text} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {isTesting && !isWelcomePending && (
-          <div className="flex items-start gap-2.5 max-w-[80%]">
-            <div className="shrink-0 w-7 h-7 rounded-full bg-blue-500/10 flex items-center justify-center">
-              <Bot size={14} className="text-blue-600" />
-            </div>
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl rounded-bl-md px-3.5 py-2.5 shadow-sm">
-              <div className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400 [animation-delay:-0.3s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400 [animation-delay:-0.15s]" />
-                <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-400" />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 입력 영역 */}
-      <div className="border-t p-3 flex gap-2 items-center">
-        <Input
-          ref={inputRef}
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onPressEnter={handleSend}
-          placeholder="메시지를 입력하세요..."
-          disabled={isTesting || isRefreshing}
-          className="flex-1"
-        />
-        <Button size="sm" onClick={handleSend} disabled={isTesting || isRefreshing || !inputValue.trim()} className="shrink-0">
-          <IconSend />
-        </Button>
-      </div>
+      <AgentChatConversation
+        messages={chat.messages}
+        isBusy={chat.isBusy}
+        isWelcomePending={chat.isWelcomePending}
+        agentName={state.agentName}
+        inputValue={inputValue}
+        onInputChange={setInputValue}
+        onSend={handleSend}
+        inputRef={inputRef}
+      />
     </Drawer>
   );
 });

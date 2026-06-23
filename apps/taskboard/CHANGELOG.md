@@ -22,6 +22,617 @@
 - `useCtiqWebSocket.ts`: 단일 hashKey 구독 → `subscriptions: {hashKey, ids}[]` 배열을 한 연결로 동시 구독하도록 재작성(`CtiWsSubscription`, `CtiWsDataByHashKey` 신규 export, 기존 `CtiqQueueRecord`는 `CtiqRecord`로 이름 변경). 큐/그룹/상담사(상담사는 그룹별로 `IC:AGENT:{groupId}:{mediaType}` hashKey가 갈라짐)를 React Hook 규칙(동적 개수만큼 훅 호출 불가) 위반 없이 한 훅으로 처리하기 위함.
 - `ctiRedisApi.ts`: `CtiAgentRow`에 `groupId` 필드 추가(BE `CtiAgentDto`엔 이미 있었으나 FE 타입에 누락돼 있었음) — 상담사 WS hashKey(`IC:AGENT:{groupId}:{mediaType}`) 합성에 필요.
 
+## 2026-06-23 세션23
+
+### 선택 하이라이트 outline-offset 제거 + 계산식 위젯 "검증" 버튼 + "%" 단위 옵션
+1. **outline-offset 제거**: 세션22에서 추가한 선택 하이라이트(`outline outline-2 ... outline-offset-2`)가
+   "생각보다 더 밖으로 잡힌다"는 피드백 — `outline-offset-2`(2px 바깥 간격)를 제거해 위젯 테두리에 바로
+   붙도록 수정. `CanvasWidgetFree`/`CanvasWidgetGrid` 둘 다 동일 적용.
+2. **계산식 수식 "검증" 버튼**: `redisValue.ts`의 `evaluateFormula` 파서를 `evaluateFormulaOrThrow`(에러
+   메시지 포함, throw)로 추출하고, 기존 `evaluateFormula`는 그걸 try/catch로 감싸는 얇은 래퍼로 변경
+   (동작 동일, 하위 호환). 신규 `validateFormula(formula, declaredVars)` — 선언된 변수 전부에 샘플값
+   1을 대입해 수식 문법만 검사(`{ ok:true, sampleResult }` 또는 `{ ok:false, message }`). `TaskCreate.tsx`
+   수식 입력 옆에 "검증" 버튼 추가 — 클릭 시 `toast.success`/`toast.error`로 성공(샘플 결과값 포함)/실패
+   (구체적 에러 메시지: "정의되지 않은 변수: X", "괄호가 닫히지 않았습니다" 등) 알림.
+3. **계산식 위젯 "%" 단위 옵션**: `CalcConfig`에 `showPercent?: boolean`, `percentFontScale?: number`
+   (값 폰트 크기 대비 배율, 기본 0.65) 추가. 설정 패널에 "% 표시" 토글 + (켜졌을 때만) "% 크기" 입력
+   추가. 렌더링은 `TaskCreate.tsx`(`WidgetContent`)/`TaskView.tsx`(`ViewValueWidget`)/`RollingDisplay.tsx`
+   (`RollingValueWidget`) 3곳 모두 기존 `widget.item.unit` 표시 패턴과 동일하게 — `%` span은 폰트 패밀리를
+   명시하지 않아 부모로부터 상속(요청대로 "폰트는 같이 쓰고") + `fontSize`만 `percentFontScale`로 별도 조절.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`, `src/app/pages/board/TaskView.tsx`,
+  `src/app/features/board/components/RollingDisplay.tsx`, `src/app/features/board/utils/redisValue.ts`,
+  `src/app/features/board/types/taskboard.types.ts` (`CalcConfig`)
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 에러 없음). 실제 브라우저 동작 확인 미실시.
+
+## 2026-06-22 세션22
+
+### 캔버스 위젯 선택 하이라이트 — 진짜 원인은 inline boxShadow가 ring을 덮어쓰던 것
+배경: 세션20에서 선택 시 테두리 색을 흰색→파란색(`ring-2 ring-[#0f5b9e]`)으로 바꿨는데도 사용자가
+"클릭해도 아무 반응이 없다"고 재확인. 원인 추적 결과 — `getWidgetVisualStyle()`가 위젯마다
+`boxShadow`(그림자 프리셋)를 **inline style**로 항상 채워 넣는데, Tailwind의 `ring-*`/`shadow-*`
+유틸리티도 결국 `box-shadow` CSS 속성을 컴파일하는 것이라 **inline style이 항상 클래스를 덮어써서**
+선택 시 ring이 시각적으로 전혀 반영되지 않았음(흰색이든 파란색이든 색상과 무관하게 애초에 안 그려짐).
+
+- `CanvasWidgetFree`/`CanvasWidgetGrid` 선택 하이라이트를 `ring`(box-shadow 기반) → `outline`(별도
+  CSS 속성, box-shadow와 충돌 없음) 기반으로 교체: `outline outline-2 outline-[#0f5b9e] outline-offset-2`
+  (잠금 상태는 `outline-amber-400` 유지).
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`CanvasWidgetFree`, `CanvasWidgetGrid`, `replace_all`)
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 없음). 실제 브라우저 확인 미실시 — `outline`은
+  `box-shadow`와 별개 속성이라 위젯 자체 그림자 설정과 무관하게 항상 그려져야 함.
+
+## 2026-06-22 세션21
+
+### 단일값 Redis 위젯 — GROUP 전용이던 "디스플레이 선택값 기준 합산"을 CTIQ/AGENT까지 일반화
+배경: 사용자가 GROUP 단일값 위젯은 "데이터 출처" 표시상 특정 compositeKey(`2026001272000005`)에
+고정된 것처럼 보이는데 실제로는 디스플레이 선택값(그룹 전체)을 합산해서 보여주고, CTIQ는 정말로
+드래그한 그 1개 id에 영원히 고정된다는 비대칭을 짚음 — 원인을 추적해보니 `redisValue.ts`에
+`isGroupHashKey()`/`GROUP_HASH_PREFIX`로 **GROUP만 특별 취급**하는 하드코딩이 남아있었음
+(`buildGroupIdsByHashKey`가 `IC:GROUP:` 접두사만 처리). "미디어타입 쓰는 부분은 전부 같은 방식으로
+동작해야 한다"는 요청에 따라 GROUP 전용 로직을 GROUP/CTIQ/AGENT 공통 로직으로 일반화.
+
+- **`redisValue.ts`**: `isGroupHashKey()`/`buildGroupIdsByHashKey(widgets, groupRows, selectedGroupIds)`
+  제거 → `SelectionListContext`(큐/그룹/상담사 마스터 리스트 + 각 선택값을 한데 묶은 컨텍스트 타입)를
+  받는 `buildSelectionIdsByHashKey(widgets, ctx)`로 교체. 캔버스에서 쓰이는 모든 Redis hashKey를 모은
+  뒤, 접두사별로 분기:
+  - `IC:GROUP:` → 그룹 컴포지트키(선택 없으면 전체, 있으면 그 그룹들만) 합산 — 기존 동작 그대로
+  - `IC:CTIQ:` → 큐 ID(선택 없으면 전체 큐, 있으면 선택된 큐만) 합산 — **신규**
+  - `IC:AGENT:{groupId}:{mediaType}` → 키에 박힌 그룹 소속 상담사 중 선택값에 해당하는 ID들 합산 — **신규**
+  - 그 외 접두사(다른 솔루션이 적재하는 임의의 키 등)는 매핑 대상이 아니므로 기존처럼 드래그 시점에
+    고정된 단일 id 그대로 사용(하위 호환)
+  - `getRedisDisplayValue`/`getWidgetNumericValue`/`getOperandNumericValue`/`getCalcDisplayValue`/
+    `collectRedisWsSubscriptions`의 파라미터명도 `groupIdsByHashKey` → `selectionIdsByHashKey`로 변경
+    (의미가 GROUP 전용이 아니게 됐으므로) — 이 5개 함수 자체는 원래도 prefix를 모르는 generic
+    `Record<string,string[]>` 소비자였어서 내부 로직 변경 없음.
+- **`TaskView.tsx`/`RollingDisplay.tsx`**: `buildSelectionIdsByHashKey` 호출부 3곳(단일 디스플레이
+  `SingleLayoutView`, 로테이션 슬라이드 `LayoutScreen`, 로테이션 전체 구독 `RollingPlayer`)에 큐/상담사
+  마스터 리스트·선택값을 추가로 넘기도록 수정. 변수/prop명도 전부 `selectionIdsByHashKey`로 일관되게
+  변경.
+- 관련 파일: `src/app/features/board/utils/redisValue.ts`, `src/app/pages/board/TaskView.tsx`,
+  `src/app/features/board/components/RollingDisplay.tsx`
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 에러 없음, 기존에 없던 미사용 변수/오타 없음 확인).
+  실제 브라우저에서 CTIQ/AGENT 단일값 위젯이 전체 선택 기준으로 합산되는지는 사용자 확인 필요.
+- **남은 부분**: `TaskCreate.tsx`의 `getWidgetDataSourcePath()`(좌측 패널 "데이터 출처" 표시 문구)는
+  디자인 캔버스에 살아있는 데이터가 없어 손대지 않음 — 여전히 `해시키 > 키값 > 필드` 그대로 보여주는데,
+  이건 "드래그 시점에 어떤 컬럼을 고를지 보여주는 샘플"이라는 의도라 실제 런타임엔 그 키값이 무시되고
+  선택값 기준으로 합산된다는 점이 문구만으로는 안 드러남 — 필요하면 후속으로 GROUP/CTIQ/AGENT 위젯의
+  문구에 "(전체 선택값 합산)" 같은 안내를 추가하는 게 좋을 듯.
+
+## 2026-06-22 세션20
+
+### 캔버스 위젯 선택 하이라이트 색상 강화
+배경: `CanvasWidgetFree`/`CanvasWidgetGrid`에 선택 시 `ring-2 ring-white` 하이라이트가 이미 있었지만,
+배경이 밝은(흰색 계열) 위젯에서는 흰 테두리가 거의 안 보여서 "지금 어떤 위젯이 선택돼 있는지" 구분이
+어렵다는 요청.
+
+- 잠금 안 된 상태의 선택 링 색상을 `ring-white` → 앱 기본색 `ring-[#0f5b9e]`(+ `shadow-[0_0_0_3px_rgba(15,91,158,0.25)]`)로 변경. 잠금 상태의 amber 하이라이트는 기존 그대로 유지(이미 충분히 잘 보였음).
+- 위젯의 X/Y/W/H 좌표 라벨(선택 시 좌상단에 뜨는 작은 배지)은 기존 그대로 — 별도 변경 없음.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`CanvasWidgetFree`, `CanvasWidgetGrid` 두 곳 동일 패턴, `replace_all`로 일괄 변경)
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 없음). 실제 브라우저 확인 미실시.
+
+## 2026-06-22 세션19
+
+### CTIQ WS 구독 "선택 없음 = 전체" 폴백 추가 — GROUP과의 비대칭 진짜 원인
+배경: 사용자가 실제 WS 구독 요청 페이로드를 캡처해서 보여줌 — `IC:GROUP:0`은 `ids` 140개가 그대로
+실리는데 `IC:CTIQ:0`은 `ids: ["2025001074"]` 1개만 실려서 나감(서버가 자르는 게 아니라 **클라이언트가
+보내는 시점부터** 1개). Redis/DB ID 정합성도 사용자가 직접 확인해서 문제 없음을 확인 — 즉 진짜 원인은
+FE의 구독 생성 로직 차이였음.
+
+- **원인**: `TaskView.tsx`/`RollingDisplay.tsx` 둘 다 GROUP은 `groupCompositeKeys` 계산 시
+  `allSelectedGroupIds.length === 0 || ...includes(...)` 형태로 **"선택값이 비어있으면(아무것도
+  명시적으로 고르지 않았으면) 전체"**를 이미 처리하고 있었는데, QUEUE는 `selectedQueueIds.length > 0
+  ? ids: selectedQueueIds : []` — 즉 선택값이 비어있으면 그냥 구독 자체를 안 보내거나(0개), 선택값에
+  뭐가 들어있든 그 값 그대로만 보냄. 디스플레이의 저장된 `selectionJson.queueIds`가 (이전 테스트
+  단계에서 만들어진) 단일 ID 1개였던 디스플레이를 보고 있었던 것으로 추정 — GROUP은 같은 상황에서도
+  "비어있으면 전체" 폴백 덕에 정상으로 보였던 것.
+- **수정**: `TaskView.tsx`에 `needsQueue`(GROUP/AGENT처럼 캔버스에 큐 위젯이 있을 때만 구독)와
+  `queueIdsForSub`(`selectedQueueIds.length > 0 ? selectedQueueIds : queueRows.map(q => q.ctiqId)`)를
+  추가해 WS 구독에서만 GROUP과 동일한 "선택 없음=전체" 규칙을 적용(행 표시용 `selectedQueueIds`
+  자체는 기존 로직 그대로 유지 — 거긴 이미 같은 폴백이 있었음). `RollingDisplay.tsx`도 `allQueueIds`
+  계산에 동일하게 `allSelectedQueueIds.length > 0 ? allSelectedQueueIds : queueRows.map(...)` 폴백 추가.
+- 관련 파일: `src/app/pages/board/TaskView.tsx`, `src/app/features/board/components/RollingDisplay.tsx`
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 에러 없음). 실제 디스플레이 저장값이 진짜 빈
+  배열이었는지(이번 수정으로 해결됨) 혹은 단일 ID가 명시적으로 저장돼 있었는지(이 경우 "표시값 설정"
+  패널에서 큐 드롭다운을 다시 열어 "전체 선택" 클릭 → 저장까지 눌러야 함)는 사용자 확인 필요.
+
+## 2026-06-22 세션18
+
+### Redis 탐색기 트리 — "해시그룹" 펼침 시 마지막 구분자(0/10/IN_TOT 등) 개별 키도 같이 보이게
+배경: task-create 좌측 Redis 탐색기에서 `IC:CTIQ` 같은 노드를 펼치면 자식이 전부 leaf(`IC:CTIQ:0`,
+`IC:CTIQ:10`, `IC:CTIQ:IN_TOT`)라서 `isHashGroup`으로 인식돼 대표 키(첫 번째 자식) 하나의 JSON
+필드만 보여주고 나머지 세그먼트(0/10/IN_TOT)는 트리에서 숨겨졌음. 사용자가 "마지막 구분자 단계까지
+보이게 해달라"고 요청.
+
+- **`TaskCreate.tsx` `RedisTreeNode`**: 기존엔 `hasChildren && !isHashGroup`일 때만 자식을 재귀
+  렌더링해서 해시그룹 노드는 자식이 화면에 전혀 안 나왔음. 조건을 `hasChildren`(해시그룹 여부 무관)으로
+  바꿔 해시그룹이어도 자식(개별 full key) 노드를 그대로 펼쳐서 보여주도록 수정. 렌더 순서도 "그룹
+  대표 키의 합산용 필드 아이템" → "개별 자식 노드(0/10/IN_TOT 등, 각각 클릭하면 그 키 하나만의
+  필드를 보여줌)" 순으로 정리.
+- **하위 호환**: `isHashGroup`의 본래 목적(형제 키 전체를 합산하는 `hashSiblingKeys` 드래그 아이템)은
+  그대로 유지 — 그룹 대표 필드 아이템은 여전히 위에 보이고, 새로 추가된 개별 자식 노드는 비집계
+  단일 키 드래그용으로 별도 제공. 즉 "합산해서 쓰기"와 "특정 미디어타입(0/10/IN_TOT)만 보기"를 둘 다
+  같은 트리에서 고를 수 있게 됨.
+- **후속 수정 (같은 세션)**: 위 1차 버전은 해시그룹을 펼치면 대표 키의 JSON 필드(컬럼값)가 *바로*
+  자동으로 fetch→렌더돼서, 사용자 입장에선 "개별 키 3개가 보이다가 갑자기 컬럼값들로 바뀌어버린다"는
+  피드백을 받음 — 펼침 직후 개별 키 목록과 대표 키의 컬럼 로딩이 같은 자리에서 순서대로 나타나
+  목록이 바뀐 것처럼 보였던 것. `RedisTreeNode`에 `showAggregate` state를 추가해 "∑ 전체 합계"
+  버튼(개별 키 목록 위, 별도 행)을 명시적으로 눌러야만 대표 키의 합산 필드 아이템이 뜨도록 분리.
+  버튼을 누르지 않으면 펼침 직후엔 개별 키(`0`/`10`/`IN_TOT`) 목록만 보이고 자동으로 아무것도
+  fetch되지 않음.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`RedisTreeNode`)
+- 검증: `npx eslint --fix` 통과(기존 경고 7건 외 신규 에러/경고 없음). 실제 브라우저 동작 확인 미실시.
+
+## 2026-06-22 세션17
+
+### Redis 해시키/필드 검색 — 클라이언트 병렬 색인 제거, 서버 캐시 기반으로 전환 (BE 연동)
+세션15~16에서 검색창 포커스 시 클라이언트가 모든 해시키의 엔트리를 `Promise.all`로 병렬 조회해 색인을
+만들던 방식이, 해시키가 많을 때 한꺼번에 수십~수백 개 요청이 나가 "페이지 전체가 느려진다"는 문제로
+이어짐(사용자 직접 보고). 사용자가 "차라리 Spring Boot 기동할 때 메모리에 담아두면 빠를 것 같다"고
+제안 → BE에 캐시를 추가하고 FE는 그 캐시를 그냥 받아오는 방식으로 교체.
+- **FE 즉시 조치**: 클라이언트 측 `ensureFieldIndex`/`fieldIndex` state/`Promise.all` 병렬 조회 로직
+  전부 제거(임시로 `fieldIndex=null`만 둬서 키 경로 검색만 동작하게 함) — 슬로우다운 즉시 해소.
+- **BE 추가**(`BT-ADMIN-SERVICE-TASKBOARD`, 상세는 그쪽 CHANGELOG.md 참고): 해시 키 목록과 같은 시점
+  (기동 `@PostConstruct` / `refresh=true` 새로고침)에 각 키의 컬럼명까지 미리 계산해 `redisHashColumnsCache`
+  에 적재, 신규 엔드포인트 `GET /api/taskboard/redis/hash-columns`로 캐시를 즉시 반환(Redis 직접 조회
+  없음). BFF AGG FLOW `taskboard-redis-hashcolumns` 신규 등록(`V92` 마이그레이션).
+- **FE 재연동**: `ctiRedisApi.getRedisHashColumns()` + `useGetRedisHashColumns()` 훅 신규 추가,
+  `useRefreshRedisHashKeys`가 새로고침 성공 시 `hashColumns` 쿼리도 같이 invalidate하도록 수정(새로고침
+  버튼 하나로 키 목록 + 컬럼 캐시 둘 다 갱신). `RedisHashSection`이 이 훅으로 `fieldIndex`를 받아
+  `filterRedisTree`에 그대로 전달 — 검색 시 별도 요청 없이 즉시 필터링됨.
+- 관련 파일: `pages/board/TaskCreate.tsx`, `features/board/api/ctiRedisApi.ts`,
+  `features/board/hooks/useTaskboardQueries.ts`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`
+  (에러 없음). BE는 `./gradlew :BT-ADMIN-SERVICE-TASKBOARD:compileJava` BUILD SUCCESSFUL. **브라우저
+  실측 미실시** — BFF가 V92 마이그레이션을 적용한 뒤(DB 반영 필요) `SUM_CONN_CNT` 검색이 즉시 동작하는지,
+  새로고침 버튼이 키+컬럼 캐시를 같이 갱신하는지 사용자가 직접 확인 필요
+
+## 2026-06-22 세션16
+
+### Redis 해시키 검색이 필드명으로 안 찾아지던 버그 수정
+세션15에서 추가한 필드명 색인이 `SUM_CONN_CNT`로 검색해도 안 잡혔던 원인 — "해시그룹"(예: `IC:CTIQ:0`,
+`IC:GROUP:0`)은 해시 필드값 자체가 JSON이라, 진짜 컬럼명(`SUM_CONN_CNT` 등)은 그 JSON **안**에 있고
+해시 필드명(`Object.keys(hashEntries)`)은 큐/그룹 ID 같은 식별자일 뿐이었음 — 그래서 색인이
+`Object.keys(entries)`만 보고 있어서 정작 검색하고 싶은 컬럼명을 못 모았던 것. `RedisHashFieldItems`가
+드래그 목록을 만들 때 쓰던 "첫 entry 값이 JSON이면 그 키들을 컬럼으로 본다" 로직을 `getRedisHashColumns()`
+로 뽑아내 검색 색인(`ensureFieldIndex`)에서도 동일하게 사용하도록 수정 — 이제 `SUM_CONN_CNT`로 검색하면
+그 컬럼을 가진 해시키(`IC:CTIQ:0` 등)가 바로 나옴.
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시**
+
+## 2026-06-22 세션15
+
+### TaskCreate 4건 — 마우스 위치 붙여넣기, Redis 키/필드명 검색, 잠금 시 선택 위젯 강조, 하이라이트 영역 보정
+1. **Ctrl+C/V 붙여넣기 위치를 마우스 커서 기준으로**: `lastCanvasMousePosRef`(ref, 렌더 유발 안 함)로
+   `boardContainerRef` 위에서 마우스가 마지막으로 있던 좌표(%)를 `onPointerMove`로 계속 갱신.
+   `pasteWidgetsFromClipboard`가 기존 "원본에서 3% 비껴 놓기" 대신, 복사한 위젯들 중 최소 x/y를 기준으로
+   상대 배치를 유지한 채 그룹 전체를 마우스 좌표로 옮겨 붙여넣음(마우스가 캔버스 밖에 있었으면 기존 방식
+   으로 폴백).
+2. **좌측 Redis 해시키 목록에 검색 추가**: 키 경로(예: `IC:CTIQ:0`)뿐 아니라 `SUM_CONN_CNT` 같은
+   **필드명**으로도 찾을 수 있음. 단, 필드는 해시키를 펼칠 때(`RedisHashFieldItems`)만 조회되는 lazy
+   구조라 검색 시점엔 비어있을 수 있음 — 검색창 첫 포커스 시 모든 leaf 키의 필드명을 백그라운드로 한 번
+   긁어와(`queryClient.fetchQuery`, 기존 훅과 같은 쿼리키라 캐시 공유) 인덱싱(`fieldIndex` state)한 뒤
+   `filterRedisTree()`로 트리를 재귀 필터링, 검색 중엔 결과 경로를 보여주기 위해 강제 펼침(`forceExpand`).
+   매칭은 공통 fuzzy 유틸(`fuzzyScore`, `@/shared-util`) 사용.
+   **사용자 질문에 대한 답변**: 키 목록은 서버 기동 시 SCAN해서 캐싱하지만, 필드(해시 안의 값)는 트리를
+   끝까지 펼칠 때만 조회하는 구조였음 — 이번 검색 기능은 그 구조를 바꾸지 않고 클라이언트에서 검색 시점에
+   한 번 긁어오는 방식으로 우회. 사용자가 "필드값 전체를 부팅 시 긁어오는 게 어떻겠냐"고 제안했으나, 값
+   (HGETALL) 전체 캐싱은 ①실시간 수치라 캐싱 즉시 stale ②키 많아지면 부팅 지연 우려로 비추천하고, 대신
+   "필드 이름만(HKEYS, 훨씬 가벼움)"을 기존 키 목록 SCAN과 같은 시점에 캐싱하는 BE 변경을 대안으로 제안함
+   (이번엔 미구현, 후속 작업 필요 시 진행).
+3. **위젯 잠금 시 선택한 위젯 강조**: 잠금 중엔 호버 액션 버튼이 사라져서 어떤 위젯을 보고 있는지 표시가
+   약해지는 문제 — 선택 링 스타일을 `locked && isSelected`일 때 기존 흐릿한 흰색 링 대신 `ring-amber-400`
+   + 바깥쪽 amber 글로우(`shadow-[0_0_0_3px_...]`)로 강화해 잠금 상태에서도 선택 위젯이 뚜렷이 보이게 함.
+4. **하이라이트 모션이 값 위치 세밀조정 영역을 못 채우던 문제**: `valueChangeAnimation: 'highlight'`가
+   값 텍스트 div 자체에 배경색을 입혀서, `valueOffsetX/Y`로 텍스트가 옮겨가면 정작 사용자가 잡은 위젯
+   박스 전체가 아니라 텍스트 주변에만 색이 칠해졌음. 텍스트 div에서 하이라이트 클래스/스타일을 떼어내고,
+   위젯 박스 전체를 덮는 별도 오버레이 div(`absolute inset-0`, 텍스트보다 먼저 렌더해 아래에 깔림,
+   `pointer-events-none`)로 옮겨 그림 — TaskCreate/TaskView/RollingDisplay 3곳 모두 동일하게 수정
+   (TaskView/RollingDisplay는 오버레이 기준점을 잡기 위해 바깥 래퍼에 `relative` 추가). pulse/shake/
+   bounce/flash는 기존처럼 텍스트에 그대로 적용(변경 없음).
+- 관련 파일: `pages/board/{TaskCreate,TaskView}.tsx`, `features/board/components/RollingDisplay.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음, 기존 경고만 잔존) + `npx tsc -p
+  apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). **브라우저 실측 미실시** — 4가지 모두 사용자가
+  직접 확인 필요(특히 검색 인덱싱은 해시키 개수가 많을 경우 첫 포커스 시 다소 지연될 수 있음)
+
+## 2026-06-22 세션14
+
+### 위젯 잠금 시 마우스 커서가 "금지" 아이콘으로 보이던 문제 수정
+자유모드에서 위젯이 잠겼을 때 위젯 본체에 `cursor-not-allowed`(브라우저 기본 차단/X 아이콘)를 줬는데,
+잠금은 드래그·리사이즈만 막는 것이고 클릭으로 위젯을 선택해 우측 패널에서 스타일 설정은 그대로 바꿀 수
+있어서 "아예 손댈 수 없다"는 오해를 주는 커서였음. `cursor-pointer`로 교체 — 여전히 클릭 가능한
+인터랙티브 요소임을 정확히 표시.
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시**
+
+## 2026-06-22 세션13
+
+### 위쪽 눈금자 서브픽셀 문제 — 사용자 실측 기반 추가 조치(paddingTop 제거)
+세션12의 `transform` 조건부 제거로는 부족했음 — 사용자가 개발자도구로 직접 `padding-top: 16px`를
+0으로 바꿔보고 "이렇게 하면 잘 나온다"고 확인 후 반영 요청. 눈금자 래퍼의 `paddingTop`을 완전히
+제거(`paddingLeft`는 그대로 유지) — 위쪽 눈금자(16px 띠)는 더는 이미지 위쪽 별도 공간에 배치되지 않고
+이미지 상단과 겹쳐서(오버레이로, z-index가 더 높아 위에 그려짐) 표시됨. 좌측 눈금자는 기존처럼
+paddingLeft 공간에 배치되어 이미지와 겹치지 않음. 사용자가 만든 가이드 오버레이(z-150)는 항상 최상단
+이라 영향 없음.
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시(사용자가 직접 padding-top:0 테스트는 확인했으나 최종 빌드 기준 재확인
+  필요)**
+
+## 2026-06-22 세션12
+
+### 위쪽 눈금자가 브라우저 줌 100%에서 거의 안 보이던 문제 — 실제 원인 확정 및 수정
+사용자가 스크린샷(1.png)으로 직접 보여주며 확인 — "쪼그라들어 보인다"던 것은 위쪽 눈금자(왼쪽 눈금자와
+같은 어두운 띠, 0/10/...100 눈금)였음. 브라우저 자체 줌(Ctrl+스크롤)이 100%일 때는 이 16px 고정 높이
+띠가 거의 안 보일 정도로 얇아지고, 90%로 바꾸면 정상적으로 보임 — 전형적인 서브픽셀 라운딩 증상.
+원인: 눈금자를 감싸는 래�퍼 div에 `transform: scale(zoom)`을 항상 적용하고 있었는데, `zoom`이 기본값
+1(앱 자체 확대/축소 버튼을 안 누른 상태)이라도 `scale(1)`은 브라우저가 별도 컴포지팅 레이어를 생성하게
+만들어, 그 레이어 안에서 16px 고정 높이 같은 정수 픽셀 요소가 브라우저 줌 배율에 따라 서브픽셀로
+어긋나게 렌더링되는 경우가 있음. 조치: `zoom === 1`일 때는 `transform`/`transition` 자체를 style에서
+빼서 컴포지팅 레이어를 생성하지 않게 함(앱 자체 확대/축소를 실제로 사용할 때만 transform 적용) —
+가장 흔한 기본 상태(줌 안 만짐)에서 이 문제가 사라짐.
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시** — 브라우저 줌 100%에서 위쪽 눈금자가 정상적으로(눈금/숫자 보이게)
+  렌더되는지 사용자가 직접 확인 필요. 만약 그래도 재현되면 앱 자체 확대/축소를 0.25~2 단위가 아니라 실제
+  사용 중인 zoom 값이 1이 아닌 다른 값(예: 1.0000001 같은 부동소수점 오차)인지도 같이 확인 필요.
+
+## 2026-06-22 세션11
+
+### 세션9~10 패딩/경계선 변경 원복 — 요구사항을 잘못 짚었음을 사용자가 확인
+사용자가 실제 렌더된 HTML(`padding-top: 40px`)을 직접 캡처해 보여주며 "이쪽 부분은 처음으로 원복"
+요청 + "내가 얘기한 건 HD로 했을 경우 위쪽 가이드라인이 쪼그라들어서 실선처럼 보이는 거였다, 잘못
+수정했다"고 정정. 세션9~10에서 추가한 `TOP_GUIDE_GAP`(24px 기본 여백)·좌측 눈금자 위치 보정·캔버스
+상단 경계선(고정 실선)을 전부 원복 — 바깥 패딩 `16px`(showGuides 시), 좌측 눈금자 `top-4`(원래 코드)로
+복귀. `RULER_SIZE`/`TOP_GUIDE_GAP` 상수 제거. (세션8의 가이드 오버레이를 `DroppableBoard` 밖으로 옮긴
+overflow-clip 수정과 `imageRatio` onLoad 갱신은 패딩/경계선과 무관한 별개 수정이라 그대로 유지.)
+**다음 단계**: "HD 이미지일 때 위쪽 가이드라인이 쪼그라들어 실선처럼 보인다"는 현상을 정확히 재현하기
+위해 사용자에게 스크린샷/더 구체적인 설명 요청 예정 — 지금까지 4차례 추측(이미지 비율, overflow 클리핑,
+패딩 부족, 경계선 부재)이 모두 빗나갔으므로 추가 추측 대신 직접 확인 필요.
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음).
+
+## 2026-06-22 세션10
+
+### 세션9 후속 — 캔버스 상단 경계선을 좌측처럼 고정 실선으로 추가
+- 세션9에서 위쪽에 빈 공간(TOP_GUIDE_GAP)은 생겼지만, 좌측 눈금자처럼 캔버스 경계를 표시하는 고정
+  실선이 위쪽에는 없어서 눈금자 띠와 이미지 사이 빈 공간의 경계가 불분명했음. 좌측 눈금자가
+  `borderRight: '1px solid #334155'`로 이미지 좌측 경계를 항상 표시하는 것과 동일하게, 이미지 상단 경계
+  (`top: RULER_SIZE + TOP_GUIDE_GAP`, 즉 boardContainerRef 시작 위치)에 `left-4 right-0 h-px bg-slate-700`
+  고정 실선을 추가. 사용자가 만든 가이드(드래그 가능, 청록색)와는 별개로 항상 표시되는 캔버스 경계
+  기준선.
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시** — 상단 경계선이 좌측 눈금자 경계선과 같은 높이/정렬로 보이는지 사용자가
+  직접 확인 필요
+
+## 2026-06-22 세션9
+
+### 세션8 후속 정정 2건 — 버튼 명칭 변경, 가이드 여백 재수정(눈금자-이미지 정합 버그 동반 수정)
+1. **"전체 잠금" → "위젯 잠금"으로 버튼 명칭 변경**: 동작은 동일(`canvasLocked`), 툴바 버튼 라벨/title
+   텍스트만 변경.
+2. **가이드라인 위쪽 쏠림 — 세션8 패딩 확대(16→32px)로도 개선이 안 됨, 재분석 후 원인 확정**: 세션8에서
+   바깥 패딩만 32px로 늘렸을 뿐 좌측 눈금자(`top-4`=16px 고정, `bottom-0`)는 그대로 둬서, 눈금자의
+   0~100% 구간이 실제 이미지의 0~100% 구간보다 16px 더 길게 잡히는 정합 버그가 새로 생겼었음(눈금자 눈금
+   위치가 실제 가이드 라인 위치와 미세하게 어긋남). 사용자가 "여전히 똑같다"고 재현 → 구조를 정리해
+   `RULER_SIZE`(16px, 눈금자 띠 두께)와 `TOP_GUIDE_GAP`(24px, 전광판 이미지 위쪽 기본 여백)을 명시적
+   상수로 분리: 바깥 래퍼 `paddingTop = RULER_SIZE + TOP_GUIDE_GAP`(40px), 상단 눈금자는 여전히
+   `top:0, height:16px`로 캔버스 맨 위 고정, **좌측 눈금자의 top을 `RULER_SIZE + TOP_GUIDE_GAP`(40px)로
+   내려서 이미지 상단(paddingTop)과 정확히 같은 위치에서 시작**하도록 수정 — 이제 눈금자 0~100%가 항상
+   이미지 0~100%와 정확히 일치하면서, 눈금자 띠(16px)와 이미지 사이에 24px의 명확한 빈 공간이 생겨
+   맨 위 가까이 만든 가이드 라벨이 그 공간에 표시됨(가로 패딩은 다시 16px로 되돌림 — 이번엔 위쪽만
+   요청받음).
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시** — 맨 위쪽 가이드 라벨이 이제 보이는지, 눈금자 눈금이 실제 가이드 위치와
+  정확히 맞는지 사용자가 직접 확인 필요
+
+## 2026-06-22 세션8
+
+### 세션7 정정 2건 — 가이드라인 쏠림 실제 원인, 위젯 잠금을 위젯별→캔버스 전체 단위로 변경
+1. **가이드라인 위쪽 쏠림 — 세션7의 이미지 비율(`imageRatio`) 수정으로는 해결 안 됨, 진짜 원인 확인**:
+   `DroppableBoard` 컴포넌트 자체가 `rounded-xl overflow-hidden`인데, 가이드 오버레이(`{guides}`)를 그
+   안쪽(`guides` prop)에 자식으로 렌더하고 있었음 — 가이드 라벨이 선 반대쪽에 그려질 때 쓰는 음수
+   top/left 오프셋(예: 수평 라벨 `top:'-11px'`, 수직 라벨 `left:'-20px'`)이 캔버스 가장자리, 특히 위쪽
+   가까이 만든 가이드일수록 이 overflow-hidden 경계에 잘려 잘 안 보였던 것. 이미지 비율과는 무관한
+   구조적 클리핑 버그였음. 조치: 가이드 오버레이를 `DroppableBoard` 밖, `boardContainerRef`(overflow
+   클리핑 없음) 바로 아래 형제로 이동(`guides` prop 제거, `<><DroppableBoard>...</DroppableBoard>
+   {guidesOverlay}</>` 구조로 변경) — 이제 어느 가장자리에서도 라벨이 잘리지 않음. 추가로 사용자 요청대로
+   눈금자 바깥 패딩을 16px→32px로 늘려(눈금자 자체는 여전히 16px) 가장자리 가이드 라벨이 숨 쉴 공간을
+   확보. (세션7의 `imageRatio` onLoad 갱신 자체는 비-16:9 이미지 letterbox 정합성 측면에서 유효한
+   개선이라 되돌리지 않고 유지)
+2. **위젯 잠금: 위젯별 → 캔버스 전체 단위로 변경**: 세션7에 추가한 위젯별 Lock 토글(캔버스 호버 버튼 +
+   우측 패널 스위치, `DroppedWidget.locked`)을 전부 제거하고, 상단 툴바의 자유/그리드 모드 토글·되돌리기
+   /다시실행 버튼 옆에 "전체 잠금" 버튼 하나로 교체(`canvasLocked` 로컬 state, zoom처럼 저장 대상 아님).
+   켜면 모든 위젯의 자유모드 드래그·리사이즈 핸들·방향키 이동(단일/다중)·그리드모드 RGL 자체 드래그/
+   리사이즈(`static: canvasLocked`)가 한꺼번에 차단됨. `CanvasWidgetFree`/`CanvasWidgetGrid`는 위젯별
+   `locked` 대신 부모가 내려주는 `locked: boolean` prop만 받음.
+- 관련 파일: `pages/board/TaskCreate.tsx`, `features/board/types/taskboard.types.ts`(`locked` 필드 제거)
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러
+  없음). **브라우저 실측 미실시** — 가이드라인이 모든 가장자리에서 안 잘리는지, 전체 잠금 켰을 때 자유/
+  그리드 모드 양쪽에서 모든 위젯이 실제로 안 움직이는지 사용자가 직접 확인 필요
+
+## 2026-06-22 세션7
+
+### TaskCreate 3건 — 위젯 잠금, 값-위치 세밀조정+애니메이션 합성, 배경이미지 비율별 가이드라인 보정
+1. **위젯 잠금(Lock)**: `DroppedWidget.locked?: boolean` 신규. 캔버스 위젯 호버 액션 줄에 Lock/Unlock 토글
+   버튼 추가(잠그면 항상 노출, 삭제/복사 버튼은 숨김), 우측 패널에도 "위치/크기 잠금" 스위치 추가.
+   잠금 시: 자유모드 드래그(`onPointerDown`)·리사이즈 핸들 숨김·방향키 이동(단일/다중 선택 모두)·그룹
+   드래그(다중 선택 중 잠긴 위젯은 같이 안 끌려옴)를 모두 차단. 그리드 모드는 `toGridItem()`이 `static:
+   widget.locked === true`를 반환해 react-grid-layout 자체 드래그/리사이즈를 비활성화.
+   복사/붙여넣기를 반복하다 의도치 않게 0.1%씩 밀리는 사고를 막기 위한 요청 — 한 번 자리 잡은 위젯은
+   잠가두면 이후 어떤 경로로도(드래그/리사이즈/방향키/그룹이동) 움직이지 않음
+2. **값 텍스트 위치 세밀조정 ↔ 값변경 애니메이션 합성**: 직전 세션에 추가한 `valueOffsetX/Y`가
+   `pulse`/`shake`/`bounce` 애니메이션 재생 중에는 keyframe의 자체 `transform`이 덮어써서 텍스트가
+   원점으로 순간 복귀했다가 되돌아오는 것처럼 보이는 문제 확인(사용자가 "애니메이션을 주면 박스 전체가
+   움직이는 것처럼 보인다"고 보고한 현상의 원인). `widgetVisualStyle.ts`의 keyframes를 전부
+   `translate(var(--tb-offset-x,0px), var(--tb-offset-y,0px))`를 베이스로 깔고 그 위에 모션을 합성하도록
+   재작성, 신규 `getValueOffsetStyle(style)`가 `--tb-offset-x/y` CSS 변수 + 베이스 transform을 함께
+   반환하도록 분리. TaskCreate/TaskView/RollingDisplay 3곳 모두 기존의 별도 `transform: translate(...)`
+   인라인 코드를 제거하고 `getValueOffsetStyle()` 호출로 교체 — 이제 오프셋과 애니메이션이 항상 같은
+   좌표계를 공유해 애니메이션 중에도 글자만 모션을 타고 박스/오프셋 기준점은 그대로 유지됨
+3. **HD 등 16:9가 아닌 배경 이미지에서 세로 가이드라인이 위로 쏠리는 문제**: 원인은 TaskCreate 편집기
+   캔버스 컨테이너(`boardContainerRef`)가 실제 업로드 이미지의 실제 비율을 한 번도 읽지 않고
+   `imageRatio` state를 하드코딩 기본값 `'16/9'`로만 사용하던 것 — 배경 이미지가 정확히 16:9가 아니면
+   `object-contain` 레터박싱으로 실제 보이는 이미지 영역과 가이드라인 좌표계(컨테이너 기준 %)가 어긋남.
+   FHD 이미지는 대체로 16:9라 우연히 안 보였을 뿐, 어긋남 자체는 모든 비-16:9 이미지에 동일하게 있던
+   구조적 문제. `DroppableBoard`의 배경 `<img>`에 `onLoad` 핸들러를 추가해 `naturalWidth/naturalHeight`로
+   `imageRatio`를 실제 이미지 비율로 갱신하도록 수정 — 이제 어떤 해상도/비율의 이미지든 캔버스 박스가
+   실제 이미지 비율과 항상 일치해 가이드라인이 정확한 위치에 표시됨. (TaskView/RollingDisplay 실행화면은
+   `object-fill`로 이미지를 박스에 맞춰 늘려서 그리는 별도 방식이라 이 문제 자체가 없음 — 확인만 하고
+   미수정)
+- 관련 파일: `pages/board/{TaskCreate,TaskView}.tsx`, `features/board/components/RollingDisplay.tsx`,
+  `features/board/{types/taskboard.types.ts,utils/widgetVisualStyle.ts}`
+- 검증: `npx eslint --fix`(신규 에러 없음, 기존 경고만 동일하게 잔존) + `npx tsc -p
+  apps/taskboard/tsconfig.app.json --noEmit`(에러 없음). **브라우저 실측 미실시** — 특히 비-16:9 이미지
+  업로드 후 가이드라인 정렬, 애니메이션+오프셋 동시 적용 시 움직임, 잠금 상태에서 드래그/리사이즈/방향키
+  전부 막히는지는 사용자가 직접 확인 필요
+
+## 2026-06-22 세션6
+
+### TaskCreate 4건 — 사용자 지정 시계, 스포이드, 값 위치 세밀조정, 데이터 출처 표기 보강
+1. **사용자 지정 시계 포맷**: 기존 3종(날짜/시간/날짜+시간) 옆에 "사용자 지정"(`etc-custom`) 추가. 신규
+   `clockFormat?: string`(`DroppedWidget`)에 `yyyy/mm/dd/hh24/mi/ss` 토큰 포맷 문자열 저장(기본값
+   `yyyy년 mm월 dd일 hh24시 mi분 ss초`). 신규 유틸 `features/board/utils/clockFormat.ts`의
+   `formatCustomClock(date, format)`가 토큰만 치환하고 나머지 글자(공백, "년"/"월" 등)는 그대로 둠.
+   TaskCreate/TaskView/RollingDisplay 3곳의 `ETC_CLOCK_IDS` 세트와 `getLiveValue()`에 동일하게 반영,
+   TaskCreate 우측 패널에 포맷 입력창 + 토큰 안내 + 실시간 미리보기 추가
+2. **텍스트/배경 색상 스포이드**: 브라우저 `EyeDropper` API(Chrome/Edge) 사용 — 화면의 배경 이미지를 포함해
+   어디서든 클릭한 픽셀의 색상을 그대로 가져와 적용. 미지원 브라우저(Firefox/Safari)는 토스트로 안내, 기존
+   `<input type="color">` 직접 선택은 그대로 유지. `핸들러: handlePickColorFromScreen('color'|'bgColor', widgetId)`
+3. **값 텍스트 위치 세밀조정**: `WidgetStyle.valueOffsetX/valueOffsetY`(px) 신규 — `valueAlign`(좌/중/우)으로
+   큰 정렬을 잡은 뒤 1px 단위로 미세 이동 가능. 우측 패널에 ▲▼◀▶ 방향패드 + X/Y 직접입력 + 초기화 버튼 추가.
+   적용은 `transform: translate(x, y)`로 TaskCreate/TaskView/RollingDisplay 3곳 모두 동일하게.
+   ⚠️ 알려진 제약: `valueChangeAnimation`이 `pulse`/`shake`/`bounce`(transform 기반 모션)일 때는 애니메이션
+   재생 중 이 offset transform과 충돌해 순간적으로 위치가 튈 수 있음(`flash`/`highlight`는 opacity/배경색만
+   바꿔서 충돌 없음) — 두 기능을 동시에 강하게 쓰는 조합은 비권장, 필요해지면 후속으로 키프레임에 offset을
+   합성하는 방식으로 개선 가능
+4. **WS 구독/breadcrumb 문의 확인 결과**: 사용자가 캡처한 요청(`IC:CTIQ:0`/`IC:CTIQ:10`/`IC:CTIQ:IN_TOT`
+   3개 + `IC:GROUP:0` 1개)과 응답(`IC:CTIQ:IN_TOT`가 빈 객체)은 **버그가 아님** — `queueMediaTypes`가
+   `tableQueueWidgets`/`queueChartWidgets`에 설정된 모든 고유 `mediaType`의 합집합이라, 미디어타입이 다른
+   큐 위젯을 3개 등록했으면 그대로 3개 구독이 나가는 게 정상(`TaskView.tsx`/`RollingDisplay.tsx` 동일 로직).
+   `IN_TOT` 빈 응답은 해당 큐가 그 미디어타입 해시에 필드가 없다는 뜻으로, Redis/BE 쪽 데이터 유무 문제.
+   다만 "task-create에서 IC:CTIQ까지만 보이고 미디어타입이 안 보인다"는 지적은 실제 보강 포인트였음 —
+   `getWidgetDataSourcePath()`가 `table-queue`/`table-group`/`table-agent`/`chart-bar-queue`/
+   `chart-line-trend`일 때 그동안 `리스트 위젯 > {label}`로만 표시하던 것을, 위젯에 설정된 `item.mediaType`을
+   반영해 `리스트 위젯 > 큐 현황표 (Redis 해시키 > IC > CTIQ > 10)`처럼 실제 구독 대상까지 보이게 수정.
+   (단일 Redis 필드를 드래그한 값 위젯의 `redisHashKey`는 이미 `IC:CTIQ:0`처럼 미디어타입을 포함해 저장되고
+   있어 그 경로는 원래도 정상 — 짧게 보였던 건 테이블/차트 위젯 한정 케이스였음)
+- 관련 파일: `pages/board/{TaskCreate,TaskView}.tsx`, `features/board/components/RollingDisplay.tsx`,
+  `features/board/{types/taskboard.types.ts,utils/clockFormat.ts(신규)}`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시** — 특히 스포이드는 Chrome/Edge에서만 동작하므로 사용 브라우저 확인 필요
+
+## 2026-06-22 세션5
+
+### TaskCreate 캔버스 확대/축소(+/−) 버튼 추가
+- `zoom` state(기본 1, 0.25~2.0, 10%p 단위) 신규 — 저장 대상이 아닌 순수 보기 편의 기능이라 `layoutJson`에는
+  포함하지 않음(새로고침/재진입 시 100%로 초기화)
+- 툴바에 되돌리기/다시실행 그룹 옆에 "−  100%  +" 버튼 그룹 추가. 가운데 퍼센트 버튼 클릭 시 100%로 즉시 초기화
+- 눈금자+캔버스를 함께 감싸는 외부 래퍼에 `transform: scale(zoom)`만 적용 — 레이아웃 박스 자체 크기는 안 바뀌므로
+  드래그/리사이즈 좌표 계산(`getBoundingClientRect()` 기반 비율 계산이라 스케일 무관하게 정확)과 폰트
+  스케일(`ResizeObserver.contentRect` 기반 `containerWidth` — transform 영향 안 받음)에 전혀 영향 없음
+- 캔버스 영역 컨테이너를 `overflow-hidden` → `overflow-auto`로 변경해, 확대해서 캔버스가 영역보다 커져도
+  스크롤로 잘린 부분을 볼 수 있게 함
+
+### 후속 수정 — 확대 시 좌상단으로 스크롤이 안 닿던 버그
+**증상**: 사용자가 확인해보니 확대한 다음 다른 모서리(예: 좌상단 → 우상단)로 스크롤 이동이 안 됨.
+**원인**: 캔버스 래퍼를 `flex items-center justify-center`로 중앙 정렬한 채로 `transform: scale()`을
+적용해서, 중앙에서 사방으로 커지는 구조가 됐음. 브라우저는 overflow 컨테이너에서 콘텐츠의 "끝(bottom/right)"
+방향 overflow만 스크롤로 닿게 해주고 "시작(top/left)" 방향 overflow는 스크롤로 못 닿는 게 기본 동작이라,
+중앙에서 사방으로 커지면 절반(좌/상 방향 증가분)은 스크롤해도 영영 보이지 않음.
+**조치**: `zoom > 1`일 때는 외부 컨테이너의 flex 중앙정렬을 끄고, 캔버스 래퍼에 `origin-top-left`를 줘서
+좌상단을 고정점으로 우/하 방향으로만 커지게 변경(`mx-auto`로 가로 중앙 위치는 유지). 이제 어느 방향으로 확대해도
+스크롤로 전부 닿을 수 있음. `zoom <= 1`(기본/축소)일 때는 기존처럼 flex 중앙정렬 유지(회귀 없음).
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시** — 확대 후 스크롤로 사방 모서리에 전부 닿는지, 드래그·리사이즈 좌표가 어긋나지
+  않는지 사용자가 직접 확인 필요
+
+## 2026-06-22 세션4
+
+### TaskCreate 전체(바깥) 스크롤 버그 수정 — h-screen → h-full
+**증상**: task-create 화면에서 좌측(위젯 팔레트)/가운데(캔버스)/우측(스타일 패널) 각자 내부 스크롤은 정상인데,
+그 바깥에 페이지 전체가 스크롤되는 영역이 하나 더 생겨서 내리면 3단 레이아웃 전체가 같이 밀려 내려감.
+- **원인**: host의 콘텐츠 슬롯(`apps/host/.../Layout.tsx`)이 `<main className="flex-1 h-full p-4
+  overflow-y-auto">`로 `<Outlet/>`을 감싸는데, TaskCreate의 루트가 그 안에서 `h-screen`(뷰포트 100vh 고정)을
+  쓰고 있었음. host 상단 바 등 다른 영역이 이미 일부 높이를 쓰고 있어 `main`의 실제 가용 높이는 100vh보다
+  작은데, TaskCreate가 그와 무관하게 100vh를 그대로 요구하니 `main`(`overflow-y-auto`)이 통째로 스크롤
+  컨테이너가 되어버린 것 — 사용자가 본 "전체 스크롤"이 바로 이 `main`.
+- **조치**: 루트 div를 `h-screen` → `h-full`로 변경. React Router `<Outlet/>`은 별도 DOM 래퍼를 만들지
+  않으므로(App.tsx의 Suspense/useRoutes도 마찬가지) TaskCreate 루트의 실제 DOM 부모는 host의 `<main>`이고,
+  `main`이 이미 구체적인 높이를 갖고 있어 `h-full`이 정확히 그 높이로 맞춰짐 → 바깥 스크롤 제거, 내부 3단
+  패널의 기존 `overflow-y-auto`/`overflow-hidden`은 그대로 유지되어 각자 독립적으로 스크롤됨
+- apps/host는 건드리지 않음(개인 작업 범위 — apps/taskboard 자체 수정만으로 해결됨)
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시** — 사용자가 직접 스크롤 동작 확인 필요
+
+## 2026-06-22 세션3
+
+### TaskCreate 캔버스 헤더 — 큐/그룹/상담사 미리보기 바 제거 + 위젯 데이터 출처 표시
+1. **미리보기 전용 멀티선택 바 완전 제거**: 캔버스 상단의 "큐리스트/상담그룹/상담사" 멀티선택 바(저장 안 되고
+   캔버스 미리보기에만 쓰이던 것)를 삭제. 이 화면은 위젯 배치/스타일만 설정하는 화면으로 한정한다는 사용자
+   요청. 같이 정리된 것: `selectedQueueIds`/`selectedGroupIds`/`selectedAgentIds` state, 드롭다운 open
+   state·ref 3쌍, `useGetCtiQueueList`/`useGetCtiAgentList`/`useGetCtiGroupList` 훅 호출, 외부 클릭 닫기
+   useEffect, `toggleQueue`/`toggleAllQueues` 등 토글 핸들러 6개, `queueItems`/`agentItems`/`groupItems`
+   변환, `savedMeta`의 `selectedQueueIds/selectedGroupIds/selectedAgentIds` 복원 필드, `MultiSelectDropdown`
+   import. (참고: `useGetCtiMediaTypeList`/`mediaTypeItems`는 위젯 단위 미디어타입 설정에 별도로 쓰여서 유지)
+2. **위젯 데이터 출처 표시**: 위젯 선택 시 우측 패널 X/Y/W/H 입력 아래에 "이 위젯이 실제로 바라보는 데이터"
+   경로를 표시. 신규 `getWidgetDataSourcePath(item)` — Redis 위젯은 `Redis 해시키 > {hashKey 콜론 분해} >
+   {redisField} > {redisJsonField?}`, 계산식은 "계산식 위젯", 공지는 "공지사항 > #id" 또는 "키 선택형", 시계는
+   "기타 > 시계 > {label}", 테이블/차트는 "리스트 위젯 > {label}" / "차트 위젯 > {label}"
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시**
+
+## 2026-06-22 세션2
+
+### 위젯 Ctrl+C/Ctrl+V — 다른 브라우저 창(같은 출처)으로도 복사·붙여넣기
+사용자 요청: 창 2개를 띄워놓고 한쪽 캔버스에서 위젯을 복사해 다른 쪽 캔버스에 붙여넣고 싶음.
+- **저장 매체로 시스템 Clipboard API 대신 `localStorage` 채택** — `navigator.clipboard.readText()`는 secure
+  context(HTTPS/localhost)가 필요해서 HTTP+IP로 접속하는 이 프로젝트 개발계에서 동작 안 함(기존
+  `createUUID` 유틸을 둔 이유와 동일한 제약). `localStorage`는 같은 출처면 별도 창/탭 사이에도 공유되고
+  보안 컨텍스트 제약이 없어 더 안정적.
+- `copySelectedWidgets()` — 선택된 위젯(들)을 `{ source, widgets }` 형태로 `localStorage` 키
+  `taskboard-widget-clipboard-v1`에 저장. `pasteWidgetsFromClipboard()` — 저장된 값을 읽어 source 마커로
+  형식 검증 후, 각 위젯에 새 id 부여 + 기존 `duplicateWidget`과 동일한 +3% 오프셋을 적용해 캔버스에 추가하고
+  붙여넣은 위젯들을 선택 상태로 만듦
+- `Ctrl+C`/`Ctrl+V` 전역 keydown 핸들러 추가(기존 Ctrl+Z/Delete/방향키 단축키와 동일한 패턴 — input/select/
+  textarea에 포커스 있을 때는 가로채지 않음). 다중 선택 상태에서 Ctrl+C 하면 선택된 위젯 전체가 함께 복사됨
+- 관련 파일: `pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시** — 창 2개 띄워서 실제로 복사/붙여넣기 되는지 사용자가 직접 확인 필요
+
+## 2026-06-22
+
+### "AI 생성" → "자동생성" 명칭 통일 + 하이라이트 색상 사용자 지정
+1. **명칭 변경**(`TaskBg.tsx`): "png 자동생성 (AI)" → "png 자동생성"(괄호 제거), "AI 생성" → "자동생성"(카드 뱃지,
+   모달 2단계 라벨, "다음 단계" 버튼, 자동생성 파일명 접두사 `AI생성_` → `자동생성_`, 코드 주석 1곳)
+2. **값 변경 애니메이션 "하이라이트" 색상 사용자 지정**: 기존엔 keyframes(`tbValHighlight`)에 노란색이
+   `rgba(255,214,51,0.85)`로 고정 박혀 있었음. `WidgetStyle.highlightColor?: string` 추가, keyframes의
+   `background-color`를 `var(--tb-highlight-color, rgba(255,214,51,0.85))`로 변경(미지정 시 기존 노란색 유지),
+   신규 `getValueAnimationStyle(style)` 헬퍼가 `highlightColor` 설정 시에만 CSS 변수를 인라인 style로 주입.
+   TaskCreate.tsx 스타일 패널에서 "하이라이트" 선택 시에만 색상 picker(`<input type="color">`) 노출.
+   TaskCreate(미리보기)/TaskView/RollingDisplay 3곳 모두 적용.
+- 관련 파일: `pages/board/{TaskBg,TaskCreate,TaskView}.tsx`, `features/board/components/RollingDisplay.tsx`,
+  `features/board/{types/taskboard.types.ts,utils/widgetVisualStyle.ts}`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시**
+
+## 2026-06-21
+
+### 코드 리뷰 후속 조치 — 버그 3건 + FE 데드코드 정리 2건
+배경: fork agent로 TASKBOARD FE+BE 전체 리뷰 수행 후, 사용자가 1/2/3/6/7/8번 항목 진행을 승인.
+
+[버그 수정]
+- **#1/#3 task-mgmt 롤링 재생 시 table-group 컬럼 누락**: `RollingDisplay.tsx`의 `LayoutScreen.renderWidget`이
+  `groupHashRtsFallback`으로 보강한 `tableColumns`을 계산해놓고 `RollingTableWidget`에 전달하지 않던 버그.
+  `RollingTableWidget`에 `ViewTableWidget`(TaskView.tsx)과 동일한 `columns` override prop 추가 + 호출부에서
+  `columns={tableColumns}` 전달. task-view에서는 보이던 자동추론 컬럼이 task-mgmt 롤링에서는 안 보이던 증상 해결.
+- **#2 "1000단위 콤마" 토글이 실행화면에서 무동작**: `formatWidgetValue`를 TaskCreate.tsx 로컬 함수에서
+  `widgetVisualStyle.ts` 공용 유틸로 이동 + 숫자 문자열도 처리하도록 개선(기존엔 `typeof value === 'number'`만
+  체크해서, 실행화면의 Redis/계산식 값처럼 문자열로 내려오는 값에는 애초에 적용될 수 없는 구조였음). `TaskView.tsx`
+  `ViewValueWidget` / `RollingDisplay.tsx` `RollingValueWidget`의 `{displayValue}` 직접 출력을
+  `{formatWidgetValue(displayValue, widget.style.useThousandSep)}`로 교체.
+
+[FE 데드코드 정리]
+- **#8 `WidgetStyle` 미사용 필드 6개 제거**: `widgetLayout`/`titleBgColor`/`valueBgColor`/`valueColor`/`titleIcon`/
+  `valueFontScale` — 세 렌더러(TaskCreate/TaskView/RollingDisplay) 어디서도 안 읽던 "분리형 레이아웃" 미완성
+  기능 흔적(`taskboard.types.ts`).
+- **#7 `useGetRedisHashFields` + `ctiRedisApi.getRedisHashFields` 제거**: 앱 전체 호출처 0건 확인(2026-06-15 즈음
+  `getRedisHashEntries`로 대체된 듯). `useTaskboardQueries.ts`의 훅·쿼리키, `ctiRedisApi.ts`의 API 함수 삭제.
+  ⚠️ **BE 쪽 `/redis/hash-fields/**` 컨트롤러 엔드포인트(`TaskBoardController.getRedisHashFields`)와
+  `TaskBoardService.selectRedisHashFields`는 이번에 안 지움** — FE 호출자가 없어져 같이 고아가 됐을 가능성이 높지만
+  사용자가 명시 승인한 항목(#7)이 FE 한정이라 BE 컨트롤러는 별도 확인 후 정리 권장.
+- 관련 파일: `pages/board/{TaskCreate,TaskView}.tsx`, `features/board/components/RollingDisplay.tsx`,
+  `features/board/{types/taskboard.types.ts,utils/widgetVisualStyle.ts,api/ctiRedisApi.ts,hooks/useTaskboardQueries.ts}`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시**
+
+## 2026-06-20 세션3
+
+### task-mgmt 5건 UI/UX 개선
+1. **헤더 설명문 제거**: `TaskMgmt.tsx`/`TaskList.tsx`/`TaskNotice.tsx` 메인 타이틀(`<h1>`) 아래 설명 `<p>` 삭제.
+   `TaskBg.tsx`는 확인해보니 원래 메인 헤더에 설명문이 없어서(이미 타이틀만) 변경 대상 없음.
+2. **롤링 순서 — 드래그로 재정렬**: `@dnd-kit/sortable`(이미 워크스페이스에 있는 의존성, host
+   `FavoriteBar`/`SortableFavoriteChip` 패턴 그대로 적용) 도입. 위/아래 버튼 제거, X(제거) 버튼은 유지.
+   `SortableRollingSlotRow` 신규 컴포넌트(드래그 핸들 `GripVertical` 아이콘). 같은 전광판이 여러 번 들어갈 수
+   있어 배열 인덱스로는 dnd-kit이 항목을 안정적으로 추적 못 하므로, 상태 모델을 `number[]` → `{uid, layoutId}[]`
+   (`RollingSlot`, `createUUID`로 슬롯마다 고유 uid 부여)로 변경. 저장 시에는 `slots.map(s => s.layoutId)`로
+   풀어서 기존과 동일한 단순 배열 포맷 유지(BE/DB 영향 없음)
+3. **롤링 간격 3~60초 → 3~180초**: range/number 입력 두 곳의 min/max, 라벨 텍스트 동시 수정
+4. **삭제 확인을 모달로 통일**: `TaskMgmt.tsx`(그룹 삭제)·`TaskNotice.tsx`(공지 삭제) 둘 다 `window.confirm` →
+   `TaskBg.tsx`/`TaskList.tsx`와 동일한 모달 패턴(`deleteTarget` state + `fixed inset-0` 오버레이 +
+   `IconTrash` + 취소/삭제 버튼)으로 교체
+5. **그룹 카드 그리드 4열로**: `GroupListView`의 `lg:grid-cols-3` → `lg:grid-cols-4`(넓은 화면에서 3개일 때
+   남는 빈 공간 해소). `md:grid-cols-2`는 그대로 유지(화면 줄어도 2개 유지 요청 그대로)
+- 관련 파일: `pages/board/{TaskMgmt,TaskList,TaskNotice}.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시** — 특히 드래그 재정렬은 코드 리뷰만으로는 실제 동작감(스냅, 터치 등)을 확신할 수
+  없어 사용자가 직접 확인 필요
+
+## 2026-06-20 세션2
+
+### 폰트 크기 48px → 96px 확장 + 실행 화면 반응형 폰트 스케일링 버그 발견·수정
+**사용자 피드백**: "폰트크기 단계를 96px까지 늘려달라" + "반응형으로 만든 건데 화면 크기에 따라 글씨 크기가 같이
+안 바뀌는 구조인 것 같다"는 의심 제기. 확인 결과 실제로 버그였음.
+
+- **FONT_SIZES 확장**: `[10..48]`(12단계) → `[10,12,14,16,18,20,24,28,32,36,42,48,56,64,72,80,88,96]`(18단계,
+  48 이후 8px 단위로 추가). 네이티브 `<select>`라 옵션 추가 외 UI 변경 불필요(`TaskCreate.tsx`)
+- **근본 원인**: TaskCreate 편집기 캔버스는 `fontScale = containerWidth / DESIGN_WIDTH(1024)`를 계산해
+  `getWidgetVisualStyle(style, fontScale)`로 위젯 폰트를 실제 캔버스 폭에 비례해 그리고 있었음(`CanvasWidgetFree`/
+  `CanvasWidgetGrid`). 그런데 **실제 실행 화면(TaskView.tsx `ViewValueWidget`/`ViewTableWidget`/`ViewChartWidget`,
+  RollingDisplay.tsx `RollingValueWidget`/`RollingTableWidget`/`RollingChartWidget`)은 fontScale 없이
+  `widget.style.fontSize`를 그대로 px로 박아 그리고 있어서**, 편집기에서 본 비율과 실제 모니터에서 보이는 비율이
+  어긋났음 — 화면(모니터) 크기가 디자인 기준폭(1024px)과 다르면 글자가 의도보다 작거나 크게 보임. 사용자가
+  의심한 그대로의 버그.
+- **수정**: `widgetVisualStyle.ts`에 `DESIGN_WIDTH` 상수를 공용으로 export(기존 TaskCreate.tsx 로컬 중복 제거,
+  세 파일이 모두 같은 기준값 사용하도록 단일화). 신규 훅 `hooks/useResponsiveFontScale.ts`
+  (`useResponsiveFontScale(imgRatio)`) — 배경 이미지 비율 기준 실제 렌더 폭(`min(100vw, imgRatio*100vh)`)을
+  `DESIGN_WIDTH`와 비교한 배율을 반환(resize 이벤트로 갱신)
+- `TaskView.tsx`/`RollingDisplay.tsx`: `SingleLayoutView`/`LayoutScreen`에서 `fontScale = useResponsiveFontScale(imgRatio)`
+  계산 후 `ViewValueWidget`/`ViewTableWidget`/`ViewChartWidget`(및 Rolling 쪽 동일 3종)에 prop으로 전달, 컨테이너의
+  `getWidgetVisualStyle(widget.style)` 호출도 `getWidgetVisualStyle(widget.style, fontScale)`로 변경. 차트 위젯의
+  recharts 축/툴팁/범례 폰트(기존 하드코딩 8px/10px)도 같은 배율 적용해 위젯 내 텍스트 크기 일관성 유지
+- `AnnouncementWidget.tsx`는 별도 수정 없음 — 내부 텍스트가 `em` 단위라 컨테이너(`getWidgetVisualStyle`)의
+  `fontSize`가 스케일되면 자동으로 같이 커짐/작아짐
+- 관련 파일: `widgetVisualStyle.ts`, `hooks/useResponsiveFontScale.ts`(신규), `pages/board/{TaskCreate,TaskView}.tsx`,
+  `features/board/components/RollingDisplay.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  **브라우저 실측 미실시** — 다른 화면 크기(예: 편집기 창 vs 실제 전광판 모니터)에서 같은 레이아웃을 띄워
+  글자 비율이 일치하는지 사용자가 직접 확인 필요
+
+## 2026-06-20
+
+### TaskCreate 위젯 스타일 — 값 변경 애니메이션 + 임계치 색상 추가
+- **타입**: `WidgetStyle`에 `valueChangeAnimation?: 'none'|'pulse'|'flash'|'shake'|'bounce'|'highlight'`,
+  `thresholdEnabled?: boolean`, `thresholds?: WidgetThresholdRule[]`(`{min,color}[]`) 추가(`taskboard.types.ts`)
+- **공용 유틸**(`widgetVisualStyle.ts`): `VALUE_CHANGE_ANIMATIONS`(옵션 6개: 없음/펄스/깜빡임/흔들림/튀어오름/
+  하이라이트), `VALUE_CHANGE_ANIMATION_CSS`(keyframes 문자열), `getValueAnimationClass(animation)`,
+  `getThresholdColor(value, style)`(thresholdEnabled+thresholds 기준 오름차순 평가, 마지막 매칭 색상 반환,
+  숫자 파싱 안 되면 undefined → 기본 색상 유지) 신규
+- **신규 훅**(`hooks/useValueChangeAnimation.ts`): `useValueChangeKey(value)` — 값이 실제로 바뀔 때만
+  1씩 증가하는 key 반환. 이 key를 값 렌더 엘리먼트의 React `key`로 써서 값이 바뀔 때만 remount시켜
+  CSS 애니메이션이 매번 처음부터 재생되게 함(불필요한 리렌더로 애니메이션 오발동 방지)
+- **TaskCreate.tsx**: 우측 스타일 패널에 "값 변경 애니메이션"(6버튼) / "임계치 색상"(on-off 토글 +
+  기준값·색상 행 추가/삭제 UI, `addThresholdRule`/`updateThresholdRule`/`removeThresholdRule` 신규) 섹션 추가.
+  테이블/차트/공지 위젯에는 숨김(기존 "값 정렬"/"1000단위 콤마"와 동일 조건). 캔버스 미리보기(`WidgetContent`)에도
+  바로 적용해 확인 가능. 페이지 최상단에 `VALUE_CHANGE_ANIMATION_CSS` `<style>` 1회 주입
+- **TaskView.tsx**(`ViewValueWidget`) / **RollingDisplay.tsx**(`RollingValueWidget`): 동일하게
+  `useValueChangeKey` + `getThresholdColor` + `getValueAnimationClass` 적용, 기존 `<style>` 태그에
+  `VALUE_CHANGE_ANIMATION_CSS` 병합 주입(TaskView는 cursor 스타일과 합침, RollingDisplay는 `TRANSITION_CSS`와 합침)
+- **저장 경로 확인**: `handleSave`에서 `widgets: droppedWidgets`를 통째로 `JSON.stringify`(필드 화이트리스트 없음) →
+  새 style 필드도 별도 코드 변경 없이 layoutJson에 자동 포함됨. BE/DB 스키마 변경 불필요(기존 CLOB 컬럼 그대로)
+- **TaskList.tsx 영향 없음 확인**: 이 화면은 위젯을 실제로 렌더링하지 않고 `parseLayoutWidgets(...).length`로
+  위젯 개수만 뱃지로 표시 — 이번 변경과 무관, 코드 변경 안 함
+- 관련 파일: `taskboard.types.ts`, `widgetVisualStyle.ts`, `hooks/useValueChangeAnimation.ts`(신규),
+  `pages/board/{TaskCreate,TaskView}.tsx`, `features/board/components/RollingDisplay.tsx`
+- 검증: `npx eslint --fix`(신규 에러 없음) + `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit`(에러 없음).
+  코드 경로 추적으로 저장→TaskView→RollingDisplay 3곳 모두 같은 데이터를 같은 방식으로 읽는 것 확인.
+  **브라우저 실측은 로그인 정보 부재로 미실시** — 사용자가 직접 확인 필요(체크리스트는 작업 완료 보고에 기재)
+
 ## 2026-06-19 세션5
 
 ### TaskMgmt 그룹 편집 "롤링 순서" 박스 — 길어지면 자체 스크롤

@@ -249,6 +249,7 @@ export interface CampaignAchievementStatItem {
   campaignId?: string;
   campaignName?: string;
   campaignListId?: string;
+  campaignListName?: string;
   seq?: number;
   /** 해피콜 */
   surveyCompleteCnt?: number;
@@ -283,14 +284,6 @@ export interface CampaignAchievementStatList {
   summary: CampaignAchievementStatListItem | null;
   columnDef: UserDefColumnDef[];
 }
-
-/** 활성 테넌트 옵션 — BFF `stat-tenant-options` (V69) */
-export interface TenantOptionItem {
-  tenantId: string;
-  tenantName: string;
-}
-
-export type TenantOptionListItem = TenantOptionItem;
 
 /** 캠페인·시나리오 옵션 — BFF `stat-campaign-options` (V69) */
 export interface CampaignOptionItem {

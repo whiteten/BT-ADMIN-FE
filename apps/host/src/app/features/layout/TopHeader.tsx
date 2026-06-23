@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Maximize2 } from 'lucide-react';
-import { useLayoutStore } from './hooks/useLayoutStore';
+import { useLayoutStore } from '@/shared-store';
 import UserMenuSelector from '../../components/UserMenuSelector';
 import GlobalSearch from '../search/components/GlobalSearch';
 

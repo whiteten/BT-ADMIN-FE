@@ -2,6 +2,7 @@ export * from './lib/useAuthStore';
 // export * from './lib/useFavoriteStore';
 export * from './lib/defaultSelectorKeys';
 export * from './lib/useBreadcrumbStore';
+export * from './lib/useLayoutStore';
 export * from './lib/useMenuStore';
 export * from './lib/useNavigationStore';
 export * from './lib/usePageVariantsStore';

@@ -32,14 +32,14 @@ export const agentApi = {
     const response = await apiClient.get<ApiResponse<{ items: AgentType[] }>>('/agent-types', { params });
     return response.data?.data?.items ?? [];
   },
-  testAgent: async ({ agentId, body }: AgentTestRequest) => {
+  testAgent: async ({ agentId, body, signal }: AgentTestRequest) => {
     // BE 응답 data 가 단계별 결과로 변경: { execute: { result }, run: { result }, ... } + _steps: string[]
     // 옛 단일 result 응답도 호환 (Record<string, unknown> 으로 풀어서 사용처가 step 키로 접근)
-    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>('/aoe-agents-test', body, { params: { agentId } });
+    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>('/aoe-agents-test', body, { params: { agentId }, signal });
     return response.data?.data;
   },
-  refreshAgent: async ({ agentId, body }: AgentTestRequest) => {
-    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>('/aoe-agents-refresh', body, { params: { agentId } });
+  refreshAgent: async ({ agentId, body, signal }: AgentTestRequest) => {
+    const response = await apiClient.post<ApiResponse<Record<string, unknown>>>('/aoe-agents-refresh', body, { params: { agentId }, signal });
     return response.data?.data;
   },
 };

@@ -9,7 +9,7 @@ import { useBreadcrumbStore } from '@/shared-store';
  * 파라미터를 입력하고 시작하면 별도 팝업([RealtimePlayerPage])이 열려 해당 내선의 통화를
  * 실시간 청취한다. 음원은 입력한 api_base(Veloce API)가 제공. (V5 RealTimeTestForm.tsx 이식)
  *
- * 팝업은 host 팝업 라우트 `/vel-eavesdrop/*`(Layout 없음)를 재사용해 띄운다.
+ * 팝업은 chromeless 라우트 `/vel/monitoring/realtime-player`(Chromeless 래퍼로 Layout chrome 제거)로 띄운다.
  * 끝까지 가져갈 페이지가 아니라 데모용.
  */
 
@@ -77,7 +77,7 @@ export default function RealtimeTestPage() {
     const left = Math.max(0, (window.screen.width - w) / 2);
     const top = Math.max(0, (window.screen.height - h) / 2);
     const name = `RealtimePlayer-${mode}-${form.agent_dn}-${Date.now()}`;
-    window.open(`/vel-eavesdrop/monitoring/realtime-player?${qs}`, name, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    window.open(`/vel/monitoring/realtime-player?${qs}`, name, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
   return (
