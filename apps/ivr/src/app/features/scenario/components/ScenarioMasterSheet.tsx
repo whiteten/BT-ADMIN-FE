@@ -10,7 +10,8 @@ import { scenarioQueryKeys, useCreateScenario, useUpdateScenario } from '../hook
 import { SCENARIO_TYPE_OPTIONS, type Scenario, type ScenarioType } from '../types';
 
 interface ScenarioMasterSheetProps {
-  onSuccess?: () => void;
+  /** 성공 콜백. 신규 등록 시 생성된 시나리오 ID 전달(새 카드 포커싱용), 수정 시 인자 없음. */
+  onSuccess?: (createdId?: number) => void;
 }
 
 export interface ScenarioMasterSheetRef {
@@ -62,11 +63,11 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
 
   const { mutate: createMutate, isPending: isCreating } = useCreateScenario({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: (created) => {
         toast.success('시나리오가 등록되었습니다.');
         queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getScenarios._def });
         setVisible(false);
-        onSuccess?.();
+        onSuccess?.((created as Scenario | undefined)?.serviceId);
       },
     },
   });

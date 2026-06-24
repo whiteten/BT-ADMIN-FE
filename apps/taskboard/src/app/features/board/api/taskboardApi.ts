@@ -108,7 +108,7 @@ export const taskboardApi = {
   },
 
   getNoticeListByKey: async (noticeKey: string): Promise<TaskboardNotice[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardNotice[] }>>(`/taskboard-noticelist/${noticeKey}`);
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardNotice[] }>>('/taskboard-noticelist-bykey', { params: { noticeKey } });
     return response.data?.data?.items ?? [];
   },
 
@@ -118,12 +118,12 @@ export const taskboardApi = {
   },
 
   updateNotice: async ({ noticeId, ...payload }: Partial<TaskboardNotice> & { noticeId: number }) => {
-    const response = await apiClient.post(`/taskboard-noticeupdate/${noticeId}`, payload);
+    const response = await apiClient.post('/taskboard-noticeupdate', payload, { params: { noticeId } });
     return response;
   },
 
   deleteNotice: async (noticeId: number) => {
-    const response = await apiClient.delete(`/taskboard-noticedelete/${noticeId}`);
+    const response = await apiClient.delete('/taskboard-noticedelete', { params: { noticeId } });
     return response;
   },
 };

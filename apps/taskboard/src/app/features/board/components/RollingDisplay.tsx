@@ -1,12 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
+import { RedisTableWidget, isRedisTableWidget } from './RedisTableWidget';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
-import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList } from '../hooks/useTaskboardQueries';
+import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
+import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetRedisHashEntries } from '../hooks/useTaskboardQueries';
+import { useValueChangeKey } from '../hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
-import { buildGroupIdsByHashKey, collectRedisWsSubscriptions, getCalcDisplayValue, getRedisDisplayValue, mergeWsSubscriptions } from '../utils/redisValue';
-import { getWidgetVisualStyle, isTransparentBg } from '../utils/widgetVisualStyle';
+import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../utils/clockFormat';
+import {
+  buildSelectionIdsByHashKey,
+  collectRedisWsSubscriptions,
+  getCalcDisplayValue,
+  getRedisDisplayValue,
+  groupSumRedisHashEntries,
+  mergeWsSubscriptions,
+} from '../utils/redisValue';
+import {
+  VALUE_CHANGE_ANIMATION_CSS,
+  formatWidgetValue,
+  getThresholdColor,
+  getValueAnimationClass,
+  getValueAnimationStyle,
+  getValueOffsetStyle,
+  getWidgetVisualStyle,
+  isTransparentBg,
+} from '../utils/widgetVisualStyle';
 
 export interface RollingLayout {
   layoutId: number;
@@ -364,19 +384,30 @@ function buildLiveChartData(
 }
 
 // ── 테이블 위젯 렌더 ────────────────────────────────────────────────────────
-function RollingTableWidget({ widget, liveRows }: { widget: DroppedWidget; liveRows?: Record<string, string | number>[] }) {
+function RollingTableWidget({
+  widget,
+  liveRows,
+  columns: columnsOverride,
+  fontScale = 1,
+}: {
+  widget: DroppedWidget;
+  liveRows?: Record<string, string | number>[];
+  columns?: TableColumn[];
+  fontScale?: number;
+}) {
   const cfg = widget.item.tableConfig;
   if (!cfg) return null;
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const rows = liveRows && liveRows.length > 0 ? liveRows : cfg.sampleRows;
+  const columns = columnsOverride ?? (cfg.columns as TableColumn[]);
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {showTitle && (
         <div
           className="truncate font-semibold px-1 flex-shrink-0"
           style={{
-            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`,
             textAlign: widget.style.titleAlign ?? 'left',
             color: widget.style.color,
             fontFamily: widget.style.fontFamily,
@@ -388,14 +419,21 @@ function RollingTableWidget({ widget, liveRows }: { widget: DroppedWidget; liveR
       <div className="flex-1 overflow-hidden">
         <table
           className="w-full border-collapse"
-          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
+          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
         >
           <thead>
             <tr>
-              {(cfg.columns as TableColumn[]).map((col) => (
+              {columns.map((col) => (
                 <th
                   key={col.key}
-                  style={{ width: col.width, borderBottom: `1px solid ${widget.style.color}40`, padding: '1px 3px', textAlign: 'center', opacity: 0.7, fontWeight: 600 }}
+                  style={{
+                    width: col.width,
+                    borderBottom: `1px solid ${widget.style.color}40`,
+                    padding: '1px 3px',
+                    textAlign: col.align ?? 'center',
+                    opacity: 0.7,
+                    fontWeight: 600,
+                  }}
                 >
                   {col.label}
                 </th>
@@ -405,9 +443,12 @@ function RollingTableWidget({ widget, liveRows }: { widget: DroppedWidget; liveR
           <tbody>
             {rows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
-                {(cfg.columns as TableColumn[]).map((col) => (
-                  <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {row[col.key]}
+                {columns.map((col) => (
+                  <td
+                    key={col.key}
+                    style={{ padding: '1px 3px', textAlign: col.align ?? 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', color: getThresholdColor(row[col.key], col) }}
+                  >
+                    {formatWidgetValue(row[col.key], col.useThousandSep)}
                   </td>
                 ))}
               </tr>
@@ -420,19 +461,21 @@ function RollingTableWidget({ widget, liveRows }: { widget: DroppedWidget; liveR
 }
 
 // ── 차트 위젯 렌더 ───────────────────────────────────────────────────────────
-function RollingChartWidget({ widget, liveData }: { widget: DroppedWidget; liveData: Array<{ name: string; value: number }> }) {
+function RollingChartWidget({ widget, liveData, fontScale = 1 }: { widget: DroppedWidget; liveData: Array<{ name: string; value: number }>; fontScale?: number }) {
   const cfg = widget.item.chartConfig as ChartConfig | undefined;
   const chartType = cfg?.chartType ?? 'bar';
   const data = liveData.length > 0 ? liveData : (cfg?.sampleData ?? []);
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
+  const tickFontSize = Math.round(8 * fontScale);
+  const tooltipFontSize = Math.round(10 * fontScale);
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {showTitle && (
         <div
           className="truncate font-semibold px-1 flex-shrink-0"
           style={{
-            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`,
+            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`,
             textAlign: widget.style.titleAlign ?? 'left',
             color: widget.style.color,
             fontFamily: widget.style.fontFamily,
@@ -446,9 +489,9 @@ function RollingChartWidget({ widget, liveData }: { widget: DroppedWidget; liveD
           {chartType === 'bar' ? (
             <BarChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <YAxis tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <YAxis tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
               <Bar dataKey="value">
                 {data.map((_, i) => (
                   <Cell key={i} fill={CHART_ROLLING_COLORS[i % CHART_ROLLING_COLORS.length]} />
@@ -458,9 +501,9 @@ function RollingChartWidget({ widget, liveData }: { widget: DroppedWidget; liveD
           ) : chartType === 'line' ? (
             <LineChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <YAxis tick={{ fill: widget.style.color, fontSize: 8 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <YAxis tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
               <Line type="monotone" dataKey="value" stroke={widget.item.color} strokeWidth={2} dot={false} />
             </LineChart>
           ) : (
@@ -470,8 +513,8 @@ function RollingChartWidget({ widget, liveData }: { widget: DroppedWidget; liveD
                   <Cell key={i} fill={CHART_ROLLING_COLORS[i % CHART_ROLLING_COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: 10 }} />
-              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 8, color: widget.style.color }} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
+              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: tickFontSize, color: widget.style.color }} />
             </PieChart>
           )}
         </ResponsiveContainer>
@@ -480,18 +523,20 @@ function RollingChartWidget({ widget, liveData }: { widget: DroppedWidget; liveD
   );
 }
 
-const ROLLING_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
+const ROLLING_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime', 'etc-custom']);
 
 function RollingValueWidget({
   widget,
   widgets,
   redisData,
-  groupIdsByHashKey,
+  selectionIdsByHashKey,
+  fontScale = 1,
 }: {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   redisData?: CtiWsDataByHashKey;
-  groupIdsByHashKey?: Record<string, string[]>;
+  selectionIdsByHashKey?: Record<string, string[]>;
+  fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && ROLLING_ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
@@ -513,34 +558,61 @@ function RollingValueWidget({
     if (widget.item.id === 'etc-date') return `${y}${mo}${d}`;
     if (widget.item.id === 'etc-time') return `${h}${mi}${s}`;
     if (widget.item.id === 'etc-datetime') return `${y}${mo}${d} ${h}:${mi}:${s}`;
+    if (widget.item.id === 'etc-custom') return formatCustomClock(now, widget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT);
     return String(widget.item.sampleValue);
   };
 
   const isRedis = widget.item.category === 'Redis' && !!widget.item.redisHashKey;
   const isCalc = widget.item.category === 'Calc';
+  const groupBy = isRedis ? widget.item.groupBy : undefined;
+  const { data: groupByEntries } = useGetRedisHashEntries(widget.item.redisHashKey ?? '', { queryOptions: { enabled: !!groupBy, refetchInterval: 5000 } });
+  const groupBySum = groupBy ? (groupSumRedisHashEntries(groupByEntries ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0) : undefined;
   const displayValue = isEtcClock
     ? getLiveValue()
     : isCalc
-      ? getCalcDisplayValue(widget, widgets, redisData, groupIdsByHashKey)
-      : isRedis
-        ? getRedisDisplayValue(widget, redisData, groupIdsByHashKey)
-        : widget.item.sampleValue;
+      ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
+      : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
+  const animKey = useValueChangeKey(displayValue);
+  const thresholdColor = getThresholdColor(displayValue, widget.style);
   return (
-    <div className="w-full h-full flex flex-col justify-center px-2 overflow-hidden">
+    <div className="relative w-full h-full flex flex-col justify-center px-2 overflow-hidden">
+      {/* 하이라이트 모션은 텍스트가 아니라 위젯 박스 전체를 덮는 오버레이로 그려서, 값 위치 세밀조정으로
+          텍스트가 어디로 이동해 있어도 사용자가 정한 위젯 영역 전체에 배경색이 채워지게 한다. */}
+      {widget.style.valueChangeAnimation === 'highlight' && (
+        <div key={`hl-${animKey}`} className="absolute inset-0 pointer-events-none tb-anim-highlight" style={getValueAnimationStyle(widget.style)} />
+      )}
       {showTitle && (
         <div
           className="truncate mb-0.5 opacity-80 leading-tight"
-          style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px`, textAlign: widget.style.titleAlign ?? 'left' }}
+          style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`, textAlign: widget.style.titleAlign ?? 'left' }}
         >
           {displayTitle}
         </div>
       )}
-      <div className="font-bold leading-tight truncate" style={{ fontSize: widget.style.fontSize, textAlign: widget.style.valueAlign ?? 'left' }}>
-        {displayValue}
+      <div
+        key={animKey}
+        className={`font-bold leading-tight truncate ${widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationClass(widget.style.valueChangeAnimation) : ''}`}
+        style={{
+          fontSize: widget.style.fontSize * fontScale,
+          textAlign: widget.style.valueAlign ?? 'left',
+          color: thresholdColor,
+          ...getValueOffsetStyle(widget.style),
+          ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
+        }}
+      >
+        {formatWidgetValue(displayValue, widget.style.useThousandSep)}
+        {isCalc && widget.calc?.showPercent && (
+          <span
+            className="font-normal ml-0.5 opacity-70"
+            style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * (widget.calc?.percentFontScale ?? 0.65) * fontScale))}px` }}
+          >
+            %
+          </span>
+        )}
         {widget.item.unit && (
-          <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65))}px` }}>
+          <span className="font-normal ml-0.5 opacity-70" style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px` }}>
             {widget.item.unit}
           </span>
         )}
@@ -564,13 +636,21 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
   const widgets = parseLayoutWidgets(layout.layoutJson);
   const selection = parseSelection(layout.selectionJson);
   const [imgRatio, setImgRatio] = useState(16 / 9);
+  const fontScale = useResponsiveFontScale(imgRatio);
 
   // 미디어타입은 이 레이아웃 자신의 위젯(item.mediaType)에서 가져온다 — 디스플레이 선택값이 아님.
   const { queueMediaTypes, groupMediaTypes } = collectTableColumns(widgets);
 
-  // IC:GROUP:* 단일값 위젯이 보여줄 그룹은 이 슬라이드 자신의 선택값(selection.groupIds) 기준으로 결정.
+  // GROUP/CTIQ/AGENT(미디어타입 해시) 단일값 위젯이 보여줄 id들은 이 슬라이드 자신의 선택값 기준으로 결정.
   // (RollingPlayer가 모든 슬라이드를 합산해 구독은 이미 끝냈으므로, 여기서는 받은 데이터 중 이 슬라이드 몫만 골라 읽는다)
-  const groupIdsByHashKey = buildGroupIdsByHashKey(widgets, liveGroups, selection.groupIds ?? []);
+  const selectionIdsByHashKey = buildSelectionIdsByHashKey(widgets, {
+    queueRows: liveQueues,
+    selectedQueueIds: selection.queueIds ?? [],
+    groupRows: liveGroups,
+    selectedGroupIds: selection.groupIds ?? [],
+    agentRows: liveAgents,
+    selectedAgentIds: selection.agentIds ?? [],
+  });
 
   const ctiqWsData = mergeByHashKeys(
     dataByHashKey,
@@ -599,6 +679,7 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
 
   const renderWidget = (widget: DroppedWidget) => {
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} />;
     const dt = widget.item.displayType;
     if (dt === 'table') {
       const cfg = widget.item.tableConfig;
@@ -611,13 +692,13 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
       const liveRows = cfg
         ? buildLiveTableRows(widget.item.id, liveQueues, liveAgents, liveGroups, tableColumns, selection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys)
         : [];
-      return <RollingTableWidget widget={widget} liveRows={liveRows} />;
+      return <RollingTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
     }
     if (dt === 'chart') {
       const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, selection.queueIds ?? []);
-      return <RollingChartWidget widget={widget} liveData={liveChartData} />;
+      return <RollingChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
     }
-    return <RollingValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} groupIdsByHashKey={groupIdsByHashKey} />;
+    return <RollingValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} selectionIdsByHashKey={selectionIdsByHashKey} fontScale={fontScale} />;
   };
 
   return (
@@ -639,7 +720,7 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
               top: `${widget.y}%`,
               width: `${widget.w ?? 13}%`,
               height: `${widget.h ?? 16}%`,
-              ...getWidgetVisualStyle(widget.style),
+              ...getWidgetVisualStyle(widget.style, fontScale),
             }}
             className={isTransparentBg(widget.style) ? '' : 'shadow-xl backdrop-blur-sm'}
           >
@@ -683,7 +764,9 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const needsGroup = allWidgets.some((w) => w.item.id === 'table-group');
   const needsAgent = allWidgets.some((w) => w.item.id === 'table-agent');
 
-  const allQueueIds = needsQueue ? [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))] : [];
+  // GROUP과 동일한 "선택 없음 = 전체" 규칙 — 합집합이 비어있으면(슬라이드 전부 미선택) 마스터 큐 전체를 구독한다.
+  const allSelectedQueueIds = [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))];
+  const allQueueIds = needsQueue ? (allSelectedQueueIds.length > 0 ? allSelectedQueueIds : queueRows.map((q) => q.ctiqId)) : [];
   const allSelectedGroupIds = [...new Set(allSelections.flatMap((s) => s.groupIds ?? []))];
   const groupCompositeKeys = needsGroup
     ? [...new Set(groupRows.filter((g) => allSelectedGroupIds.length === 0 || allSelectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))]
@@ -700,9 +783,19 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const agentHashKeys = Object.keys(agentIdsByGroupId).flatMap((groupId) => agentMediaTypes.map((mt) => `IC:AGENT:${groupId}:${mt}`));
 
   // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 로테이션 내 모든 레이아웃 합산해 같은 WS 소켓으로 구독.
-  // IC:GROUP:* 위젯은 슬라이드마다 선택값이 다를 수 있으므로, 구독은 전체 슬라이드 선택값의 합집합으로 넉넉히 받아두고
-  // 실제 화면 표시는 LayoutScreen에서 그 슬라이드 자신의 선택값으로 다시 골라 읽는다.
-  const widgetRedisSubscriptions = collectRedisWsSubscriptions(allWidgets, buildGroupIdsByHashKey(allWidgets, groupRows, allSelectedGroupIds));
+  // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 슬라이드마다 선택값이 다를 수 있으므로, 구독은 전체 슬라이드 선택값의
+  // 합집합으로 넉넉히 받아두고 실제 화면 표시는 LayoutScreen에서 그 슬라이드 자신의 선택값으로 다시 골라 읽는다.
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(
+    allWidgets,
+    buildSelectionIdsByHashKey(allWidgets, {
+      queueRows,
+      selectedQueueIds: allSelectedQueueIds,
+      groupRows,
+      selectedGroupIds: allSelectedGroupIds,
+      agentRows,
+      selectedAgentIds: allSelectedAgentIds,
+    }),
+  );
 
   // WebSocket — 전체 레이아웃 큐/그룹/상담사 KPI + 단일값 Redis 위젯 실시간 수신 (미디어타입·그룹별 hashKey로 분리 구독)
   const subscriptions: CtiWsSubscription[] = mergeWsSubscriptions([
@@ -764,7 +857,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   if (!current) return null;
 
   const animation = transitionType === 'random' ? (randomAnimation ?? TRANSITION_ANIMATION.fade) : (TRANSITION_ANIMATION[transitionType] ?? TRANSITION_ANIMATION.fade);
-  const styleContent = TRANSITION_CSS + `body { cursor: ${showControls ? 'auto' : 'none'} !important; }`;
+  const styleContent = TRANSITION_CSS + VALUE_CHANGE_ANIMATION_CSS + `body { cursor: ${showControls ? 'auto' : 'none'} !important; }`;
 
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>

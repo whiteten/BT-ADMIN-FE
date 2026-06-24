@@ -52,6 +52,8 @@ export default function IvrEndpointList() {
   const [searchText, setSearchText] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
+  // 신규 등록 직후 그 카드로 스크롤하기 위한 대기 id (목록 갱신 후 1회 사용)
+  const pendingFocusIdRef = useRef<number | null>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const masterSheetRef = useRef<IvrEndpointMasterSheetRef>(null);
@@ -123,6 +125,18 @@ export default function IvrEndpointList() {
     }
   }, [filteredEndpoints, selectedEndpointId]);
 
+  // 신규 등록 후: 목록이 갱신되어 새 카드가 나타나면 해당 카드로 스크롤(1회)
+  useEffect(() => {
+    const id = pendingFocusIdRef.current;
+    if (id == null) return;
+    if (filteredEndpoints.some((ep) => ep.endptId === id)) {
+      pendingFocusIdRef.current = null;
+      requestAnimationFrame(() => {
+        document.getElementById(`ep-card-${id}`)?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      });
+    }
+  }, [filteredEndpoints]);
+
   const selectedEndpoint = useMemo(() => {
     if (!selectedEndpointId) return null;
     return endpoints.find((ep) => ep.endptId === selectedEndpointId) ?? null;
@@ -186,9 +200,18 @@ export default function IvrEndpointList() {
     invalidateEndpoints();
   }, [invalidateMembers, invalidateEndpoints]);
 
-  const handleMasterSheetSuccess = useCallback(() => {
-    invalidateEndpoints();
-  }, [invalidateEndpoints]);
+  const handleMasterSheetSuccess = useCallback(
+    (created?: IvrEndpointMaster) => {
+      invalidateEndpoints();
+      // 신규 등록 시에만 created 전달됨 → 새 카드를 선택하고 보이도록 노드 탭 정렬 + 스크롤 대기
+      if (created) {
+        if (created.nodeId != null) setSelectedNodeId(created.nodeId);
+        setSelectedEndpointId(created.endptId);
+        pendingFocusIdRef.current = created.endptId;
+      }
+    },
+    [invalidateEndpoints],
+  );
 
   const getCardMenuItems = (ep: IvrEndpointMaster) => [
     {
@@ -415,7 +438,7 @@ export default function IvrEndpointList() {
           <div className="flex items-center px-4 py-3 h-[185px]">
             {filteredEndpoints.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} imageStyle={{ height: 40 }} />
+                <Empty description={false} styles={{ image: { height: 40 } }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 EndPoint가 없습니다'}</span>
               </div>
             ) : (

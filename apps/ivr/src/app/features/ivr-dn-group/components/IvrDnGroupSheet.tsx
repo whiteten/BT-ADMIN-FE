@@ -33,7 +33,8 @@ interface Props {
    * 부모(국선) 후보 — 현재 노드 소속 IVR EndPoint 목록 (페이지에서 전달).
    */
   endpoints: { endptId: number; endptName: string; nodeId: number }[];
-  onSuccess: () => void;
+  /** 성공 콜백. 신규 등록 시 생성된 DN 그룹을 전달(새 카드 포커싱용), 수정 시 인자 없음. */
+  onSuccess: (created?: IrDnGroup) => void;
 }
 
 const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId, nodes, endpoints, onSuccess }, ref) => {
@@ -127,12 +128,12 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
   // ─── Mutations ──────────────────────────────────────────────────────────
   const { mutate: createDnGroup, isPending: isCreating } = useCreateDnGroup({
     mutationOptions: {
-      onSuccess: () => {
+      onSuccess: (created) => {
         toast.success('DN 그룹이 등록되었습니다.');
         setVisible(false);
         setEditData(null);
         form.resetFields();
-        onSuccess();
+        onSuccess(created as IrDnGroup | undefined);
       },
       onError: (err: unknown) => {
         toast.error((err as { message?: string })?.message ?? '등록에 실패했습니다.');

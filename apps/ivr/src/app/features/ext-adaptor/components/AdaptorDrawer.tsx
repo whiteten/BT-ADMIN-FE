@@ -37,7 +37,8 @@ export interface AdaptorDrawerRef {
 }
 
 interface Props {
-  onSuccess?: () => void;
+  /** 성공 콜백. 신규 추가 시 생성된 어댑터를 전달(새 그리드 행 포커싱용), 수정/환경파일 저장 시 인자 없음. */
+  onSuccess?: (created?: Adaptor) => void;
 }
 
 const toOptions = (labels: Record<string, string>) => Object.entries(labels).map(([value, label]) => ({ value: Number(value), label }));
@@ -122,10 +123,10 @@ const AdaptorDrawer = forwardRef<AdaptorDrawerRef, Props>(({ onSuccess }, ref) =
       );
     } else {
       createMutation.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: (created) => {
           toast.success('어댑터가 추가되었습니다');
           setOpen(false);
-          onSuccess?.();
+          onSuccess?.(created as Adaptor | undefined);
         },
       });
     }

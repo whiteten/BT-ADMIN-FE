@@ -92,17 +92,20 @@ export const ctiRedisApi = {
     return Array.isArray(list) ? list : [];
   },
 
-  /** Redis Hash 키에 해당하는 모든 필드(컬럼)와 값 조회. BFF가 hashKey를 경로로 치환. */
-  getRedisHashFields: async (hashKey: string): Promise<Record<string, string>> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-hashfields', { params: { hashKey } });
+  /**
+   * 해시키 → 컬럼명(필드명) 목록 캐시 조회. 서버가 기동/새로고침(refresh=true) 시점에 미리 계산해 둔
+   * 캐시를 즉시 반환하므로 Redis를 직접 조회하지 않음 — task-create 좌측 Redis 탐색기의 필드명 검색
+   * (예: SUM_CONN_CNT)에 사용. 최신 캐시가 필요하면 getRedisHashKeys(true)를 먼저 호출.
+   */
+  getRedisHashColumns: async (): Promise<Record<string, string[]>> => {
+    const response = await apiTaskboard.get<any>('/taskboard-redis-hashcolumns');
     const data = response?.data?.data?.value ?? response?.data?.data;
-    return data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, string>) : {};
+    return data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, string[]>) : {};
   },
 
   /**
    * Redis Hash 키의 모든 필드(compositeKey)를 원본 그대로(평탄화 없이) 조회.
-   * "해시그룹"(IC:GROUP:0 등)에서 task-create가 특정 compositeKey(그룹/큐/상담사)를
-   * 선택할 수 있는 UI를 위해 사용 — getRedisHashFields와 달리 첫 필드만 펼치지 않고 전체 field를 그대로 반환.
+   * "해시그룹"(IC:GROUP:0 등)에서 task-create가 특정 compositeKey(그룹/큐/상담사)를 선택할 수 있는 UI를 위해 사용.
    */
   getRedisHashEntries: async (hashKey: string): Promise<Record<string, string>> => {
     const response = await apiTaskboard.get<any>('/taskboard-redis-hashentries', { params: { hashKey } });

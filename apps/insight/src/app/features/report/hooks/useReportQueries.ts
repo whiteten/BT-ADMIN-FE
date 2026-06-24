@@ -49,7 +49,7 @@ export const useUpdateReport = ({ mutationOptions }: { mutationOptions?: UseMuta
 export const useDeleteReport = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) =>
   useMutation({ mutationFn: (reportId: number) => reportApi.deleteReport(reportId), ...mutationOptions });
 
-/** 시스템 장표 승격/해제 — 시스템 관리자 전용. */
+/** 화면 공유/공유 해제 — 소유자 또는 시스템 관리자. (서버 endpoint 는 promote/demote 유지) */
 export const useSetReportSystemFlag = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<ReportDetail, Error, { reportId: number; toSystem: boolean }> } = {}) =>
   useMutation({ mutationFn: ({ reportId, toSystem }) => reportApi.setReportSystemFlag(reportId, toSystem), ...mutationOptions });
 

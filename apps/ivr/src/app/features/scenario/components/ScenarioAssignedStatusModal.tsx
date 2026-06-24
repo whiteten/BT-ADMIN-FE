@@ -2,10 +2,10 @@
  * 시스템별 시나리오 할당 현황 모달 (AS-IS IPR20S6020 '시스템별 시나리오 할당 현황' 팝업).
  *
  * <p>전체(테넌트) 범위 — 현재 상태(TB_IR_DNIS_SERVICE) / 적용 이력(TB_IR_SERVICE_HISTORY) 토글.
- * 레거시 chkHistory 토글 동등.</p>
+ * 카드 "더보기"로 열면 시나리오 컬럼 필터를 해당 시나리오로 <b>미리 선택</b>해 보여준다(필터에서 전체 선택 시 전체 표시).</p>
  */
-import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import type { ColDef, FirstDataRenderedEvent, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Modal, Segmented, Tag } from 'antd';
 import dayjs from 'dayjs';
@@ -15,7 +15,8 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 export interface ScenarioAssignedStatusModalRef {
-  open: () => void;
+  /** serviceId 전달 시 시나리오 컬럼 필터를 그 시나리오로 미리 선택(카드 더보기). 미전달 시 전체(헤더 버튼). */
+  open: (serviceId?: number) => void;
   close: () => void;
 }
 
@@ -25,21 +26,46 @@ const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((
   const { gridOptions } = useAggridOptions();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<StatusTab>('current');
+  // 미리 선택할 시나리오 id (그리드 컬럼 필터 적용용) — 리렌더와 무관히 콜백에서 읽으려 ref 보관
+  const filterServiceIdRef = useRef<number | null>(null);
 
   useImperativeHandle(ref, () => ({
-    open: () => {
+    open: (serviceId?: number) => {
       setTab('current');
+      filterServiceIdRef.current = serviceId ?? null;
       setOpen(true);
     },
     close: () => setOpen(false),
   }));
 
   const isHistory = tab === 'history';
+  // 데이터는 항상 테넌트 전체 — 시나리오 한정은 그리드 컬럼 필터로 처리(사용자가 '전체'로 풀 수 있게).
   const { data: current = [], isFetching: curLoading } = useGetScenarioAssignedStatus({ queryOptions: { enabled: open } });
   const { data: history = [], isFetching: hisLoading } = useGetScenarioAssignedHistory({ queryOptions: { enabled: open && isHistory } });
 
-  const rows = isHistory ? history : current;
   const loading = isHistory ? hisLoading : curLoading;
+
+  // 시스템명 기준 정렬(동률 시 시나리오명)
+  const rows = useMemo(() => {
+    const base = isHistory ? history : current;
+    return [...base].sort((a, b) => (a.systemName ?? '').localeCompare(b.systemName ?? '', 'ko') || (a.serviceName ?? '').localeCompare(b.serviceName ?? '', 'ko'));
+  }, [isHistory, history, current]);
+
+  // 그리드 첫 렌더 후: 미리 선택할 시나리오가 있으면 시나리오 컬럼 셋 필터를 그 이름으로 적용
+  const applyScenarioFilter = (e: FirstDataRenderedEvent<ScenarioAssignedStatusRow>) => {
+    const sid = filterServiceIdRef.current;
+    if (sid == null) {
+      e.api.setFilterModel(null);
+      return;
+    }
+    let name: string | undefined;
+    e.api.forEachNode((n) => {
+      if (!name && n.data?.serviceId === sid) name = n.data?.serviceName ?? undefined;
+    });
+    if (name) {
+      e.api.setFilterModel({ serviceName: { filterType: 'set', values: [name] } });
+    }
+  };
 
   const columnDefs: ColDef<ScenarioAssignedStatusRow>[] = useMemo(
     () => [
@@ -113,6 +139,7 @@ const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((
           loading={loading}
           getRowId={(p) => `${p.data.serviceId}-${p.data.systemId}-${p.data.updateTime ?? ''}-${p.data.svcResvId ?? ''}`}
           defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true, resizable: true }}
+          onFirstDataRendered={applyScenarioFilter}
         />
       </div>
     </Modal>

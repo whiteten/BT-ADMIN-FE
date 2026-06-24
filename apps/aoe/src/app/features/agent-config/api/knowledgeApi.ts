@@ -10,6 +10,7 @@ import type {
   KnowledgeEvalResult,
   KnowledgeEvalUpdateDatas,
   KnowledgeFileItem,
+  KnowledgeFileMeta,
   KnowledgeItem,
   KnowledgeListItem,
   KnowledgeMetadataItem,
@@ -108,6 +109,24 @@ export const knowledgeApi = {
   getKnowledgeChunks: async (params: { fileId: string }) => {
     const response = await apiClient.get<ApiResponse<{ items: KnowledgeChunkItem[] }>>('/aoe-knowledge-chunks', { params });
     return response.data?.data?.items ?? [];
+  },
+  updateKnowledgeChunk: async (data: { fileChunkId: string; chunk: string }) => {
+    await apiClient.put('/aoe-knowledge-chunk-update', data);
+  },
+  getKnowledgeFileMeta: async (params: { fileId: string }) => {
+    // BFF 응답이 배열/{items}/{list} 중 어느 형태로 와도 배열로 정규화
+    const response = await apiClient.get<ApiResponse<KnowledgeFileMeta[] | { items?: KnowledgeFileMeta[]; list?: KnowledgeFileMeta[] }>>('/aoe-knowledge-file-metadata', {
+      params,
+    });
+    const data = response.data?.data;
+    if (Array.isArray(data)) return data;
+    return data?.items ?? data?.list ?? [];
+  },
+  upsertKnowledgeFileMeta: async (data: { fileId: string; metaId: string; metaValue: string }) => {
+    await apiClient.put('/aoe-knowledge-file-metadata-upsert', data);
+  },
+  deleteKnowledgeFileMeta: async (params: { fileMetaId: string }) => {
+    await apiClient.delete('/aoe-knowledge-file-metadata-delete', { params });
   },
   createKnowledgeEval: async ({ params, data }: { params: { documentId: string }; data: KnowledgeEvalCreateDatas }) => {
     await apiClient.post('/aoe-knowledge-eval-create', data, { params });

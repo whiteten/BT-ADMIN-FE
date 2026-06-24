@@ -31,6 +31,9 @@ import { pageVariantQueryKeys, useDeletePageVariant, useUpsertPageVariant } from
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
 
+// host는 MF host라 /app-list에 없어 프론트에서 주입한다. 유저 노출용 라벨은 한 곳에서 관리.
+const HOST_APP_LABEL = '공용';
+
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '시스템', path: '/manager/resource/page-variant' },
   { title: '플랫폼', path: '/manager/resource/page-variant' },
@@ -68,12 +71,17 @@ export default function PageVariantManagement() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
-  const appOptions = useMemo(() => [{ label: '전체 앱', value: '' }, ...apps.map((a) => ({ label: a.appName, value: a.appId }))], [apps]);
+  // host는 MF host라 /app-list(백엔드 앱 등록 목록)에 없다. host 자체 화면도 변형 지정 대상이므로 프론트에서 강제 주입.
+  const appOptions = useMemo(() => {
+    const opts = [{ label: '전체 앱', value: '' }, ...apps.map((a) => ({ label: a.appName, value: a.appId }))];
+    if (!apps.some((a) => a.appId === 'host')) opts.push({ label: HOST_APP_LABEL, value: 'host' });
+    return opts;
+  }, [apps]);
 
   const catalog: CatalogItem[] = useMemo(() => {
     const items: CatalogItem[] = [];
     const byKey = new Map<string, CatalogItem>();
-    const resolveAppName = (appId: string) => apps.find((a) => a.appId === appId)?.appName ?? appId;
+    const resolveAppName = (appId: string) => apps.find((a) => a.appId === appId)?.appName ?? (appId === 'host' ? HOST_APP_LABEL : appId);
 
     // 1) 정식 variants 카탈로그 (각 remote의 pageVariantManifest)
     Object.entries(variantManifest).forEach(([appId, paths]) => {

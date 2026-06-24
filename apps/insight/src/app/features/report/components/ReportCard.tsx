@@ -12,20 +12,24 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 interface ReportCardProps {
   report: ReportListItem;
+  /** 메뉴(QuerySelector)에 등록된 보고서인지 — 등록본은 관리자만 삭제/공유 해제 가능. */
+  isMenuRegistered?: boolean;
 }
 
-export default function ReportCard({ report }: ReportCardProps) {
+export default function ReportCard({ report, isMenuRegistered = false }: ReportCardProps) {
   const navigate = useNavigate();
   const modal = useModal();
   const queryClient = useQueryClient();
   const iconType: ReportIconType = report.iconType ?? 'system';
 
-  // 등록자(소유자) 본인만 편집/삭제 가능. 타인 등록 보고서는 보기만 허용.
-  // 시스템 장표(isSystem)는 모두에게 readonly — 시스템 관리자만 편집/삭제/승격 해제 가능.
+  // 수정/삭제: 소유자 본인 또는 시스템 관리자(공유 여부 무관). 공유 토글: 소유자 또는 관리자.
+  // 시드/시스템 장표는 소유자가 시스템 계정이라 일반 사용자에겐 자동으로 관리자 전용.
   const myUserId = useAuthStore((s) => s.userInfo?.userId);
   const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
   const isOwner = myUserId != null && String(report.ownerUserId) === String(myUserId);
-  const canModify = isSystemAdmin || (isOwner && !report.isSystem);
+  const canModify = isSystemAdmin || isOwner;
+  const canDelete = canModify && (isSystemAdmin || !isMenuRegistered);
+  const canShare = isOwner || isSystemAdmin;
 
   const { mutate: deleteReport } = useDeleteReport({
     mutationOptions: {
@@ -42,7 +46,7 @@ export default function ReportCard({ report }: ReportCardProps) {
     mutationOptions: {
       onSuccess: (_, { toSystem }) => {
         queryClient.invalidateQueries({ queryKey: reportKeys.list._def });
-        toast.success(toSystem ? '시스템 장표로 승격되었습니다.' : '시스템 장표 승격이 해제되었습니다.');
+        toast.success(toSystem ? '화면을 공유했습니다.' : '화면 공유를 해제했습니다.');
       },
       onError: () => toast.error('처리 중 오류가 발생했습니다.'),
     },
@@ -63,10 +67,10 @@ export default function ReportCard({ report }: ReportCardProps) {
     modal.confirm.execute({
       onOk: () => setSystemFlag({ reportId: report.reportId, toSystem }),
       options: {
-        title: toSystem ? '시스템 장표 승격' : '시스템 장표 승격 해제',
+        title: toSystem ? '화면 공유' : '화면 공유 해제',
         content: toSystem
-          ? '시스템 장표로 승격하면 모든 사용자에게 노출되며, 수정/삭제는 관리자만 가능합니다. 계속하시겠습니까?'
-          : '승격을 해제하면 등록자 소유의 일반 장표로 복귀합니다. 계속하시겠습니까?',
+          ? '공유하면 같은 테넌트의 모든 사용자가 이 보고서를 볼 수 있습니다. 수정·삭제는 소유자와 관리자만 가능합니다. 계속하시겠습니까?'
+          : '공유를 해제하면 소유자 본인에게만 보이도록 되돌립니다. 계속하시겠습니까?',
       },
     });
   };
@@ -80,7 +84,7 @@ export default function ReportCard({ report }: ReportCardProps) {
         handleView();
       },
     },
-    // 편집/삭제 — 소유자(일반 장표) 또는 시스템 관리자에게만 노출
+    // 편집 — 소유자 또는 시스템 관리자
     ...(canModify
       ? ([
           {
@@ -91,6 +95,11 @@ export default function ReportCard({ report }: ReportCardProps) {
               handleEdit();
             },
           },
+        ] as NonNullable<MenuProps['items']>)
+      : []),
+    // 삭제 — 메뉴 등록본은 관리자만(죽은 메뉴 참조 방지)
+    ...(canDelete
+      ? ([
           { type: 'divider' },
           {
             key: 'delete',
@@ -103,13 +112,13 @@ export default function ReportCard({ report }: ReportCardProps) {
           },
         ] as NonNullable<MenuProps['items']>)
       : []),
-    // 시스템 승격/해제 — 시스템 관리자 전용
-    ...(isSystemAdmin
+    // 화면 공유/해제 — 소유자 또는 관리자
+    ...(canShare
       ? ([
           { type: 'divider' },
           {
             key: 'toggle-system',
-            label: report.isSystem ? '시스템 승격 해제' : '시스템 장표로 승격',
+            label: report.isSystem ? '화면 공유 해제' : '화면 공유',
             onClick: ({ domEvent }) => {
               domEvent.stopPropagation();
               handleToggleSystem();
@@ -129,7 +138,7 @@ export default function ReportCard({ report }: ReportCardProps) {
       </span>
       {report.isSystem && (
         <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4 shrink-0">
-          시스템
+          공유
         </Tag>
       )}
     </div>

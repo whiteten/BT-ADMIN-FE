@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Dropdown, type MenuProps } from 'antd';
 import { ChevronDown } from 'lucide-react';
-import { useMenuStore } from '@/shared-store';
+import { useMenuStore, useRemoteAvailabilityStore } from '@/shared-store';
 import { findMenuInfo } from '../utils/findMenuInfo';
 import { IconStar } from '@/components/custom/Icons';
 import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
@@ -13,10 +13,13 @@ interface FavoriteOverflowMenuProps {
 export default function FavoriteOverflowMenu({ favorites }: FavoriteOverflowMenuProps) {
   const navigate = useNavigate();
   const { menuConfigs } = useMenuStore();
+  const availableRemotes = useRemoteAvailabilityStore((s) => s.availableRemotes);
 
   const items: MenuProps['items'] = favorites.map((favorite) => {
     const { path, appName, ancestors } = findMenuInfo(menuConfigs, favorite);
     const subLabel = [appName, ...ancestors.slice(0, -1)].filter(Boolean).join(' › ');
+    // 클릭 가능 = 경로 있음 + remote 기동. 미기동이면 disabled로 비활성.
+    const isDisabled = !path || availableRemotes[favorite.appId] !== true;
     return {
       key: favorite.menuKey,
       label: subLabel ? (
@@ -29,8 +32,8 @@ export default function FavoriteOverflowMenu({ favorites }: FavoriteOverflowMenu
       ),
       // 모든 항목이 즐겨찾기이므로 메뉴별 아이콘 대신 별 아이콘으로 통일
       icon: <IconStar className="size-4 text-[var(--color-bt-primary)]" />,
-      disabled: !path,
-      onClick: () => path && navigate(`/${favorite.appId}/${path}`),
+      disabled: isDisabled,
+      onClick: () => !isDisabled && navigate(`/${favorite.appId}/${path}`),
     };
   });
 

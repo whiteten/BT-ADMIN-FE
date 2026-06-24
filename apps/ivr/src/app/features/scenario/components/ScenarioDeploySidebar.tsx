@@ -250,24 +250,24 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
 
             {/* 대상 시스템 — 체크박스 선택 (예약중은 disabled). HA 백업은 배포 제외(읽기전용). */}
             <div className="mb-4">
+              {/* SleeConfig 적용 사이드바와 동일: 좌측 "대상 시스템 (n/n) · 예약중 N개 제외" / 우측 "전체" 체크박스 */}
               <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    checked={allChecked}
-                    indeterminate={!allChecked && someChecked}
-                    disabled={checkableSystems.length === 0}
-                    onChange={(e) => toggleAll(e.target.checked)}
-                  />
-                  <span className="text-[12px] font-semibold text-slate-700">
-                    대상 시스템 ({selectedSystemIds.size}/{checkableSystems.length})
-                  </span>
-                </div>
-                {assignedSystems.some((s) => s.reserved) && <span className="text-[10px] text-slate-400">예약중 {assignedSystems.filter((s) => s.reserved).length} 제외</span>}
+                <span className="text-[12px] font-semibold text-slate-700">
+                  대상 시스템 ({selectedSystemIds.size}/{checkableSystems.length})
+                  {assignedSystems.some((s) => s.reserved) && (
+                    <span className="text-[11px] font-normal text-slate-400"> · 예약중 {assignedSystems.filter((s) => s.reserved).length}개 제외</span>
+                  )}
+                </span>
+                {checkableSystems.length > 0 && (
+                  <Checkbox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={(e) => toggleAll(e.target.checked)}>
+                    <span className="text-[11px] text-slate-500">전체</span>
+                  </Checkbox>
+                )}
               </div>
               <div className="border border-slate-200 rounded-md">
                 {assignedSystems.length === 0 ? (
                   <div className="p-3">
-                    <Empty description="배포 가능한 시스템이 없습니다. 배포 설정에서 시스템을 먼저 할당하세요." imageStyle={{ height: 40 }} />
+                    <Empty description="배포 가능한 시스템이 없습니다. 배포 설정에서 시스템을 먼저 할당하세요." styles={{ image: { height: 40 } }} />
                   </div>
                 ) : (
                   assignedSystems.map((sys: DeployTargetSystem, idx: number) => (

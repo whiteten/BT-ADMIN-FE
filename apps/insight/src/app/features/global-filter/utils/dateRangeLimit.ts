@@ -21,15 +21,12 @@ export const DATE_RANGE_LABEL: Record<TimeUnit, string> = {
 
 /**
  * 단위별 최대 조회 기간(일). limits(통계설정) 우선, 없으면 폴백 기본값.
- * Number.POSITIVE_INFINITY = 제한 없음.
+ * 항상 유한값(무제한 없음).
  */
 export const getMaxDays = (unit: TimeUnit, limits?: Partial<Record<TimeUnit, number>>): number => limits?.[unit] ?? MAX_DATE_RANGE[unit] ?? 15;
 
-/** 경고 메시지용 라벨 — 통계설정 값 반영. 무제한이면 '제한 없음'. */
-export const getRangeLabel = (unit: TimeUnit, limits?: Partial<Record<TimeUnit, number>>): string => {
-  const max = getMaxDays(unit, limits);
-  return Number.isFinite(max) ? `${max}일` : '제한 없음';
-};
+/** 경고 메시지용 라벨 — 통계설정 값 반영. */
+export const getRangeLabel = (unit: TimeUnit, limits?: Partial<Record<TimeUnit, number>>): string => `${getMaxDays(unit, limits)}일`;
 
 // 날짜 범위 검증 (timeUnit별 최대 기간 체크)
 export const validateDateRange = (startDate: Dayjs, endDate: Dayjs, unit: TimeUnit, limits?: Partial<Record<TimeUnit, number>>): boolean => {

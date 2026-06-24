@@ -139,7 +139,7 @@ export default function TemplateWidgetTab() {
   }, [list, domainFilter, searchValue]);
 
   return (
-    <div className="flex flex-col gap-5 w-full h-full">
+    <div className="flex flex-col gap-5 w-full flex-1 min-h-0">
       <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
         <div className="flex items-center w-full gap-3">
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full lg:max-w-[400px]" placeholder="위젯명·데이터셋 검색" allowClear />
@@ -149,7 +149,7 @@ export default function TemplateWidgetTab() {
           추가
         </Button>
       </header>
-      <div className="w-full h-full">
+      <div className="w-full flex-1 min-h-0">
         <AgGridReact<TemplateWidgetDefinitionListItem>
           rowData={filteredList}
           columnDefs={columnDefs}

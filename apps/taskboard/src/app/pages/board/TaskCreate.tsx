@@ -1,29 +1,56 @@
 import { useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactGridLayout, { type LayoutItem as RglItem, type Layout as RglLayout, getCompactor } from 'react-grid-layout';
 import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { Lock, Pipette, Search, Unlock } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 import { useAuthStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { fuzzyScore, toast } from '@/shared-util';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
-import { MultiSelectDropdown } from '../../features/board/components/MultiSelectDropdown';
+import { ROW_ID_COLUMN_KEY, RedisTableWidget, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
 import {
   taskboardQueryKeys,
   useCreateTaskboardLayout,
-  useGetCtiAgentList,
-  useGetCtiGroupList,
   useGetCtiMediaTypeList,
-  useGetCtiQueueList,
   useGetNoticeList,
+  useGetRedisHashColumns,
   useGetRedisHashEntries,
   useGetRedisHashKeys,
   useRefreshRedisHashKeys,
   useUpdateLayout,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { CalcConfig, CalcOperand, CallDataItem, ChartConfig, DroppedWidget, TaskboardBg, TaskboardLayout, WidgetStyle } from '../../features/board/types/taskboard.types';
-import { CALC_WIDGET_ITEM, getCalcDisplayValue } from '../../features/board/utils/redisValue';
-import { SHADOW_PRESETS, getWidgetVisualStyle, isTransparentBg } from '../../features/board/utils/widgetVisualStyle';
+import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnimation';
+import type {
+  CalcConfig,
+  CalcOperand,
+  CallDataItem,
+  ChartConfig,
+  DroppedWidget,
+  TableColumn,
+  TableColumnCalc,
+  TableColumnCalcOperand,
+  TaskboardBg,
+  TaskboardLayout,
+  WidgetStyle,
+  WidgetThresholdRule,
+} from '../../features/board/types/taskboard.types';
+import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
+import { CALC_WIDGET_ITEM, getCalcDisplayValue, validateFormula } from '../../features/board/utils/redisValue';
+import {
+  DESIGN_WIDTH,
+  SHADOW_PRESETS,
+  VALUE_CHANGE_ANIMATIONS,
+  VALUE_CHANGE_ANIMATION_CSS,
+  formatWidgetValue,
+  getThresholdColor,
+  getValueAnimationClass,
+  getValueAnimationStyle,
+  getValueOffsetStyle,
+  getWidgetVisualStyle,
+  isTransparentBg,
+} from '../../features/board/utils/widgetVisualStyle';
 import { Spinner } from '@/components/ui/spinner';
 
 // ─── 전역 상수 ───────────────────────────────────────────────────────────────
@@ -34,8 +61,16 @@ const DEFAULT_W = 13;
 const DEFAULT_H = 16;
 const DEFAULT_GRID_W = 3;
 const DEFAULT_GRID_H = 3;
+
 const DEFAULT_TABLE_GRID_W = 8;
 const DEFAULT_TABLE_GRID_H = 6;
+
+// localStorage 기반 위젯 클립보드 — 시스템 클립보드(Clipboard API) 대신 사용하는 이유:
+// readText()가 secure context(HTTPS/localhost)를 요구해서 HTTP+IP로 접속하는 개발계에서 동작 안 함.
+// localStorage는 같은 출처(origin)면 별도 브라우저 창/탭 사이에도 공유되므로, 창 2개를 띄워놓고
+// 한쪽에서 Ctrl+C, 다른 쪽에서 Ctrl+V 하는 용도로는 이쪽이 더 안정적이다.
+const WIDGET_CLIPBOARD_KEY = 'taskboard-widget-clipboard-v1';
+const WIDGET_CLIPBOARD_SOURCE = 'taskboard-widget-clipboard';
 
 const DEFAULT_STYLE: WidgetStyle = {
   fontSize: 14,
@@ -64,7 +99,7 @@ const FONT_FAMILIES: { label: string; value: string }[] = [
   { label: '코드 (고정폭)', value: "'Courier New', 'Consolas', monospace" },
 ];
 
-const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48];
+const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 80, 88, 96];
 
 const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight']> }[] = [
   { label: '얇게', value: '300' },
@@ -73,17 +108,17 @@ const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight'
   { label: '굵게', value: 'bold' },
 ];
 
-const DESIGN_WIDTH = 1024;
-
 type GuideItem = { id: string; axis: 'h' | 'v'; pct: number };
 type UndoEntry = { widgets: DroppedWidget[]; guides: GuideItem[] };
+
+type ResizeHandle = 'se' | 'sw' | 'ne' | 'nw';
 
 function snapResizeToGuides(
   x: number,
   y: number,
   w: number,
   h: number,
-  handle: 'se' | 'sw',
+  handle: ResizeHandle,
   guides: GuideItem[],
   showGuides: boolean,
 ): { x: number; y: number; w: number; h: number } {
@@ -92,19 +127,32 @@ function snapResizeToGuides(
   const hBounds = [0, ...guides.filter((g) => g.axis === 'h').map((g) => g.pct), 100].sort((a, b) => a - b);
   const nearest = (edge: number, bounds: number[]) => bounds.reduce((best, b) => (Math.abs(b - edge) < Math.abs(best - edge) ? b : best), bounds[0]);
 
+  const isWest = handle === 'sw' || handle === 'nw';
+  const isNorth = handle === 'ne' || handle === 'nw';
+
   let newX = x,
     newW = w;
-  if (handle === 'se') {
-    const snappedRight = nearest(x + w, vBounds);
-    newW = Math.max(5, snappedRight - x);
-  } else {
+  if (isWest) {
     const rightEdge = x + w;
     const snappedLeft = nearest(x, vBounds);
     newX = Math.max(0, snappedLeft);
     newW = Math.max(5, rightEdge - newX);
+  } else {
+    const snappedRight = nearest(x + w, vBounds);
+    newW = Math.max(5, snappedRight - x);
   }
-  const newH = Math.max(4, nearest(y + h, hBounds) - y);
-  return { x: newX, y, w: newW, h: newH };
+
+  let newY = y,
+    newH = h;
+  if (isNorth) {
+    const bottomEdge = y + h;
+    const snappedTop = nearest(y, hBounds);
+    newY = Math.max(0, snappedTop);
+    newH = Math.max(4, bottomEdge - newY);
+  } else {
+    newH = Math.max(4, nearest(y + h, hBounds) - y);
+  }
+  return { x: newX, y: newY, w: newW, h: newH };
 }
 
 function snapToGuideCell(cx: number, cy: number, guides: { axis: 'h' | 'v'; pct: number }[], showGuides: boolean): { x: number; y: number; w: number; h: number } | null {
@@ -133,11 +181,6 @@ function snapToGuideCell(cx: number, cy: number, guides: { axis: 'h' | 'v'; pct:
   return { x: left, y: top, w: right - left, h: bottom - top };
 }
 
-const formatWidgetValue = (value: string | number, useThousandSep?: boolean): string => {
-  if (useThousandSep && typeof value === 'number') return value.toLocaleString('ko-KR');
-  return String(value);
-};
-
 // flex 컨테이너에서는 textAlign이 자식 정렬에 영향을 주지 않으므로 justifyContent로도 매핑
 const ALIGN_TO_JUSTIFY: Record<'left' | 'center' | 'right', React.CSSProperties['justifyContent']> = {
   left: 'flex-start',
@@ -146,7 +189,7 @@ const ALIGN_TO_JUSTIFY: Record<'left' | 'center' | 'right', React.CSSProperties[
 };
 
 // ─── 그리드 변환 유틸 ────────────────────────────────────────────────────────
-function toGridItem(widget: DroppedWidget): RglItem {
+function toGridItem(widget: DroppedWidget, canvasLocked = false): RglItem {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
   const gw = Math.max(1, Math.min(GRID_COLS, Math.round((w / 100) * GRID_COLS)));
@@ -157,6 +200,8 @@ function toGridItem(widget: DroppedWidget): RglItem {
     y: Math.min(GRID_ROWS - gh, Math.max(0, Math.round((widget.y / 100) * GRID_ROWS))),
     w: gw,
     h: gh,
+    // 전체 잠금 — react-grid-layout이 static 항목은 드래그/리사이즈 자체를 막아줌
+    static: canvasLocked,
   };
 }
 
@@ -229,7 +274,14 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
               {cfg.columns.map((col) => (
                 <th
                   key={col.key}
-                  style={{ width: col.width, borderBottom: `1px solid ${widget.style.color}40`, padding: '1px 3px', textAlign: 'center', opacity: 0.7, fontWeight: 600 }}
+                  style={{
+                    width: col.width,
+                    borderBottom: `1px solid ${widget.style.color}40`,
+                    padding: '1px 3px',
+                    textAlign: col.align ?? 'center',
+                    opacity: 0.7,
+                    fontWeight: 600,
+                  }}
                 >
                   {col.label}
                 </th>
@@ -240,8 +292,11 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
             {cfg.sampleRows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
                 {cfg.columns.map((col) => (
-                  <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {row[col.key]}
+                  <td
+                    key={col.key}
+                    style={{ padding: '1px 3px', textAlign: col.align ?? 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', color: getThresholdColor(row[col.key], col) }}
+                  >
+                    {formatWidgetValue(row[col.key], col.useThousandSep)}
                   </td>
                 ))}
               </tr>
@@ -405,6 +460,34 @@ function groupRedisKeys(keys: string[], prefix: string, depth: number): RedisKey
     });
 }
 
+/**
+ * Redis 해시키 트리를 검색어로 필터링 — 키 경로(fullKey)뿐 아니라, fieldIndex(미리 색인해 둔 해시키별
+ * 필드명 목록)가 있으면 필드명(예: SUM_CONN_CNT)으로도 매치한다. 리프가 매치하면 그 조상 노드들은
+ * children을 매치된 것만으로 추려서 그대로 남긴다(검색 결과로 가는 경로를 보여주기 위해).
+ */
+function filterRedisTree(nodes: RedisKeyNode[], query: string, fieldIndex: Record<string, string[]> | null): RedisKeyNode[] {
+  const q = query.trim();
+  if (!q) return nodes;
+
+  const leafMatches = (node: RedisKeyNode): boolean => {
+    if (!node.fullKey) return false;
+    if (fuzzyScore(q, node.fullKey) >= 0) return true;
+    const fields = fieldIndex?.[node.fullKey];
+    return fields?.some((f) => fuzzyScore(q, f) >= 0) ?? false;
+  };
+
+  const walk = (node: RedisKeyNode): RedisKeyNode | null => {
+    if (node.children.length === 0) {
+      return leafMatches(node) ? node : null;
+    }
+    const filteredChildren = node.children.map(walk).filter((n): n is RedisKeyNode => n !== null);
+    if (filteredChildren.length === 0) return null;
+    return { ...node, children: filteredChildren, leafCount: filteredChildren.reduce((s, c) => s + c.leafCount, 0) };
+  };
+
+  return nodes.map(walk).filter((n): n is RedisKeyNode => n !== null);
+}
+
 // ─── Redis Hash 탐색기 — JSON 필드 드래그 아이템 ────────────────────────────
 // "해시그룹"(예: IC:GROUP:0처럼 한 hashKey 안에 compositeKey가 여러 개, 값이 각각 JSON인 구조)이어도
 // 디자인 시점에는 "어떤 메트릭(JSON 컬럼)"을 쓸지만 고르면 되고, "어떤 그룹"을 보여줄지는 디스플레이
@@ -470,8 +553,14 @@ function RedisHashFieldItems({ hashKey, siblingKeys }: { hashKey: string; siblin
 }
 
 // ─── Redis Hash 탐색기 — 트리 노드 ───────────────────────────────────────────
-function RedisTreeNode({ node, depth }: { node: RedisKeyNode; depth: number }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+function RedisTreeNode({ node, depth, forceExpand }: { node: RedisKeyNode; depth: number; forceExpand?: boolean }) {
+  const [isExpandedState, setIsExpandedState] = useState(false);
+  // 해시그룹의 "전체 합계" 필드 아이템은 펼침과 별개로, 사용자가 명시적으로 눌렀을 때만 보여준다 —
+  // 그룹을 펼치자마자 자동으로 합계 컬럼이 로딩→표시되면 방금 본 개별 키 목록이 컬럼값으로
+  // 갑자기 바뀐 것처럼 보여 혼란을 준다는 피드백 반영.
+  const [showAggregate, setShowAggregate] = useState(false);
+  // 검색 중(forceExpand)에는 사용자가 직접 접었어도 결과 경로를 보여주기 위해 강제로 펼친 채로 둔다.
+  const isExpanded = isExpandedState || !!forceExpand;
   const hasChildren = node.children.length > 0;
   const isLeaf = !!node.fullKey && !hasChildren;
 
@@ -488,7 +577,7 @@ function RedisTreeNode({ node, depth }: { node: RedisKeyNode; depth: number }) {
     <div>
       <button
         onClick={() => {
-          if (canExpand) setIsExpanded((v) => !v);
+          if (canExpand) setIsExpandedState((v) => !v);
         }}
         title={isHashGroup ? `${node.leafCount}개 해시 키 (대표: ${representativeKey})` : (node.fullKey ?? node.label)}
         className={`w-full flex items-center gap-2 py-1.5 text-left transition-all duration-100
@@ -530,17 +619,34 @@ function RedisTreeNode({ node, depth }: { node: RedisKeyNode; depth: number }) {
         {hasChildren && !isHashGroup && <span className="flex-shrink-0 text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none">{node.leafCount}</span>}
       </button>
 
-      {/* 일반 부모: 자식 재귀 */}
-      {hasChildren && !isHashGroup && isExpanded && (
+      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시 (그룹 아님 — 혼란 없음) */}
+      {isLeaf && !isHashGroup && isExpanded && representativeKey && <RedisHashFieldItems hashKey={representativeKey} />}
+
+      {hasChildren && isExpanded && (
         <div className="border-l border-slate-100 ml-4">
+          {/* 해시그룹의 "전체 합계" 필드 아이템 — 별도 버튼을 눌러야만 표시(자동 표시 금지) */}
+          {isHashGroup && (
+            <button
+              onClick={() => setShowAggregate((v) => !v)}
+              title={`${node.leafCount}개 키 전체 합산 (대표: ${representativeKey})`}
+              className={`w-full flex items-center gap-2 py-1 text-left transition-all duration-100 hover:bg-amber-50 ${showAggregate ? 'bg-amber-50/60' : ''}`}
+              style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: 8 }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+              <span className="text-[10px] text-amber-700 font-semibold">∑ 전체 합계</span>
+              <span className="flex-shrink-0 text-[9px] font-bold text-amber-600 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full leading-none">
+                {node.leafCount}개 키
+              </span>
+            </button>
+          )}
+          {isHashGroup && showAggregate && representativeKey && <RedisHashFieldItems hashKey={representativeKey} siblingKeys={siblingKeys} />}
+
+          {/* 자식 재귀 — 해시그룹이어도 마지막 구분자(0, 10, IN_TOT 등) 개별 키까지 그대로 펼쳐 보여준다 */}
           {node.children.map((child) => (
-            <RedisTreeNode key={child.label} node={child} depth={depth + 1} />
+            <RedisTreeNode key={child.label} node={child} depth={depth + 1} forceExpand={forceExpand} />
           ))}
         </div>
       )}
-
-      {/* 해시 그룹 / 단독 리프: JSON 필드 드래그 아이템 */}
-      {(isHashGroup || isLeaf) && isExpanded && representativeKey && <RedisHashFieldItems hashKey={representativeKey} siblingKeys={siblingKeys} />}
     </div>
   );
 }
@@ -572,69 +678,29 @@ const CLOCK_WIDGET_ITEMS: CallDataItem[] = [
     color: '#8b5cf6',
     isRealtime: true,
   },
+  {
+    id: 'etc-custom',
+    category: 'etc',
+    label: '사용자 지정',
+    sampleValue: '2025년 06월 05일 14시 30분 22초',
+    color: '#8b5cf6',
+    isRealtime: true,
+  },
 ];
 
 const TABLE_WIDGET_ITEMS: CallDataItem[] = [
   {
-    id: 'table-queue',
-    category: 'List',
-    label: '큐 현황표',
+    // 큐/그룹/상담사처럼 DB 마스터 목록과 조인하는 고정 테이블이 아니라, 임의 Redis 해시키 1개를
+    // 통째로 테이블로 보여주는 범용 위젯. 미디어타입은 별도 선택 UI 없이 해시키 문자열에 그대로
+    // 포함해서 입력(예: "IC:CTIQ:0") — RedisTableWidget.tsx 참고.
+    id: 'table-redis',
+    category: 'Redis',
+    label: 'Redis 테이블',
     sampleValue: '',
-    color: '#3b82f6',
+    color: '#0ea5e9',
     displayType: 'table',
     isRealtime: true,
-    tableConfig: {
-      columns: [
-        { key: 'name', label: '큐명' },
-        { key: 'wait', label: '대기' },
-        { key: 'talk', label: '통화' },
-      ],
-      sampleRows: [
-        { name: '일반상담', wait: 3, talk: 12 },
-        { name: 'VIP상담', wait: 1, talk: 5 },
-      ],
-    },
-  },
-  {
-    id: 'table-agent',
-    category: 'List',
-    label: '상담사 현황표',
-    sampleValue: '',
-    color: '#10b981',
-    displayType: 'table',
-    isRealtime: true,
-    tableConfig: {
-      columns: [
-        { key: 'name', label: '이름' },
-        { key: 'status', label: '상태' },
-        { key: 'count', label: '건수' },
-      ],
-      sampleRows: [
-        { name: '홍길동', status: '통화중', count: 8 },
-        { name: '김영희', status: '대기', count: 15 },
-      ],
-    },
-  },
-  {
-    id: 'table-group',
-    category: 'List',
-    label: '그룹 현황표',
-    sampleValue: '',
-    color: '#8b5cf6',
-    displayType: 'table',
-    isRealtime: true,
-    tableConfig: {
-      columns: [
-        { key: 'name', label: '그룹명' },
-        { key: 'agents', label: '인원' },
-        { key: 'talk', label: '통화' },
-        { key: 'rts_ready', label: 'RTS준비' },
-      ],
-      sampleRows: [
-        { name: '1팀', agents: 10, talk: 4, rts_ready: 3 },
-        { name: '2팀', agents: 8, talk: 2, rts_ready: 1 },
-      ],
-    },
+    tableConfig: { columns: [], sampleRows: [] },
   },
 ];
 
@@ -669,9 +735,23 @@ function FixedItemsSection() {
 
       {isOpen && (
         <div className="px-2 py-2 space-y-2">
-          {/* 공지사항 — DB에서 가져온 항목별 개별 드래그 */}
+          {/* 공지사항 키 그룹 — 같은 noticeKey의 공지 여러 건을 한 위젯에서 회전(슬라이드)해서 보여줌 */}
           <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항{activeNotices.length > 0 && ` (${activeNotices.length})`}</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항 (키 그룹)</p>
+            <DraggableSourceItem
+              item={{
+                id: 'etc-announcement',
+                category: 'notice',
+                label: '공지 그룹 (여러 건 슬라이드)',
+                sampleValue: '',
+                color: '#f59e0b',
+              }}
+            />
+            <p className="text-[9px] text-slate-400 px-1 mt-1">캔버스에 놓은 뒤 우측 속성 패널에서 공지 키를 선택하세요. 같은 키의 공지가 여러 건이면 회전하며 표시됩니다.</p>
+          </div>
+          {/* 공지사항 — DB에서 가져온 항목별 개별 드래그(특정 1건만 고정 표시하고 싶을 때) */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항 (1건 고정){activeNotices.length > 0 && ` (${activeNotices.length})`}</p>
             {noticesLoading ? (
               <div className="text-[10px] text-slate-400 text-center py-1">로딩 중...</div>
             ) : activeNotices.length === 0 ? (
@@ -726,6 +806,12 @@ function FixedItemsSection() {
 // ─── Redis Hash 탐색기 — 메인 섹션 (진입 시 자동 로드) ─────────────────────
 function RedisHashSection() {
   const [isOpen, setIsOpen] = useState(true);
+  const [search, setSearch] = useState('');
+  // 필드명(SUM_CONN_CNT 등) 검색 색인 — 서버가 해시키 목록과 같은 시점(기동/새로고침)에 미리 계산해
+  // 둔 컬럼명 캐시를 그대로 받아온다. 이전엔 클라이언트가 검색 시작 시 해시키 개수만큼 엔트리를 직접
+  // 병렬 조회해 색인을 만들었는데, 키가 많을 때 한꺼번에 수십~수백 개 요청이 나가 페이지 전체가
+  // 느려지는 문제가 있어 서버 캐시 방식으로 교체.
+  const { data: fieldIndex = {} } = useGetRedisHashColumns();
 
   const { data: hashKeys = [], isLoading: keysLoading } = useGetRedisHashKeys({
     queryOptions: { enabled: true },
@@ -734,6 +820,7 @@ function RedisHashSection() {
 
   const tree = hashKeys.length > 0 ? groupRedisKeys(hashKeys, '', 0) : [];
   const isLoading = keysLoading || isRefreshing;
+  const filteredTree = filterRedisTree(tree, search, fieldIndex);
 
   return (
     <div className="flex flex-col">
@@ -781,6 +868,22 @@ function RedisHashSection() {
         </>
       )}
 
+      {/* 검색 — 키 경로뿐 아니라 SUM_CONN_CNT 같은 필드명으로도 찾을 수 있다 */}
+      {isOpen && !isLoading && hashKeys.length > 0 && (
+        <div className="px-2 pt-1.5 pb-1 flex-shrink-0">
+          <div className="relative">
+            <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="키/필드명 검색 (예: SUM_CONN_CNT)"
+              className="w-full pl-6 pr-2 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:border-rose-300 bg-slate-50"
+            />
+          </div>
+        </div>
+      )}
+
       {/* 트리 */}
       {isOpen && (
         <div className="py-1">
@@ -789,15 +892,15 @@ function RedisHashSection() {
               <Spinner variant="circle" size={20} className="text-rose-400" />
               <span className="text-[10px] text-slate-400">불러오는 중...</span>
             </div>
-          ) : tree.length === 0 ? (
+          ) : filteredTree.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
                 <span className="text-slate-300 text-lg">∅</span>
               </div>
-              <p className="text-[10px] text-slate-400 text-center">Hash 타입 키가 없습니다</p>
+              <p className="text-[10px] text-slate-400 text-center">{search.trim() ? '검색 결과가 없습니다' : 'Hash 타입 키가 없습니다'}</p>
             </div>
           ) : (
-            tree.map((node) => <RedisTreeNode key={node.label} node={node} depth={0} />)
+            filteredTree.map((node) => <RedisTreeNode key={node.label} node={node} depth={0} forceExpand={!!search.trim()} />)
           )}
         </div>
       )}
@@ -826,8 +929,34 @@ function NoticeKeyPanel({ noticeKey, onChange }: { noticeKey?: string; onChange:
   );
 }
 
+// ─── 위젯이 어떤 데이터를 바라보는지 — 우측 패널 X/Y/W/H 아래 표시용 경로 문자열 ──────
+// 예: Redis 해시키 > IC > CTIQ > SUM_DENY_CNT
+function getWidgetDataSourcePath(item: CallDataItem): string | null {
+  if (item.category === 'Redis' && item.redisHashKey) {
+    const parts = [...item.redisHashKey.split(':'), item.redisField, item.redisJsonField].filter((v): v is string => !!v);
+    return ['Redis 해시키', ...parts].join(' > ');
+  }
+  if (item.category === 'Calc') return '계산식 위젯';
+  if (item.category === 'notice') return item.noticeId ? `공지사항 > #${item.noticeId}` : '공지사항 > 키 선택형';
+  if (item.category === 'etc') return `기타 > 시계 > ${item.label}`;
+  // 테이블/차트 위젯은 단일 redisHashKey가 아니라 위젯의 미디어타입(item.mediaType) 설정에 따라
+  // 실행 시점에 IC:XXX:{미디어타입} 해시를 구독한다 — 어느 미디어타입을 보는지 같이 표기한다.
+  if (item.id === 'table-queue' || item.id === 'chart-bar-queue' || item.id === 'chart-line-trend') {
+    return `리스트 위젯 > ${item.label} (Redis 해시키 > IC > CTIQ > ${item.mediaType ?? '0'})`;
+  }
+  if (item.id === 'table-group') {
+    return `리스트 위젯 > ${item.label} (Redis 해시키 > IC > GROUP > ${item.mediaType ?? '0'})`;
+  }
+  if (item.id === 'table-agent') {
+    return `리스트 위젯 > ${item.label} (Redis 해시키 > IC > AGENT > {그룹ID} > ${item.mediaType ?? '0'})`;
+  }
+  if (item.displayType === 'table') return `리스트 위젯 > ${item.label}`;
+  if (item.displayType === 'chart') return `차트 위젯 > ${item.label}`;
+  return null;
+}
+
 // ─── 위젯 콘텐츠 (공유) ──────────────────────────────────────────────────────
-const ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime']);
+const ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime', 'etc-custom']);
 
 function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: DroppedWidget[] }) {
   const isEtcClock = widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id);
@@ -850,6 +979,7 @@ function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: Dr
     if (widget.item.id === 'etc-date') return `${y}${mo}${d}`;
     if (widget.item.id === 'etc-time') return `${h}${mi}${s}`;
     if (widget.item.id === 'etc-datetime') return `${y}${mo}${d} ${h}:${mi}:${s}`;
+    if (widget.item.id === 'etc-custom') return formatCustomClock(now, widget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT);
     return String(widget.item.sampleValue);
   };
 
@@ -858,11 +988,15 @@ function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: Dr
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const displayValue = isEtcClock ? getLiveValue() : isCalc ? getCalcDisplayValue(widget, widgets) : widget.item.sampleValue;
+  const animKey = useValueChangeKey(displayValue);
 
   const isChart = widget.item.displayType === 'chart';
+  if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} />;
   if (isTable) return <TableWidget widget={widget} />;
   if (isChart) return <ChartWidget widget={widget} />;
   if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
+
+  const thresholdColor = getThresholdColor(displayValue, widget.style);
 
   return (
     <>
@@ -874,16 +1008,31 @@ function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: Dr
           {displayTitle}
         </div>
       )}
+      {/* 하이라이트 모션은 텍스트 div가 아니라 위젯 박스 전체(가장 가까운 position 조상 = 캔버스 위젯
+          루트 div)를 덮는 오버레이로 그려서, 값 위치 세밀조정(valueOffsetX/Y)으로 텍스트가 어디로 이동해
+          있어도 사용자가 정한 위젯 영역 전체에 배경색이 채워지게 한다. */}
+      {widget.style.valueChangeAnimation === 'highlight' && (
+        <div key={`hl-${animKey}`} className="absolute inset-0 pointer-events-none tb-anim-highlight" style={getValueAnimationStyle(widget.style)} />
+      )}
       <div
-        className="leading-tight truncate flex items-baseline gap-1"
+        key={animKey}
+        className={`leading-tight truncate flex items-baseline gap-1 ${widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationClass(widget.style.valueChangeAnimation) : ''}`}
         style={{
           textAlign: widget.style.valueAlign ?? 'left',
           justifyContent: ALIGN_TO_JUSTIFY[widget.style.valueAlign ?? 'left'],
           fontFamily: widget.style.fontFamily,
           fontWeight: widget.style.fontWeight ?? 'normal',
+          color: thresholdColor,
+          ...getValueOffsetStyle(widget.style),
+          ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
+        {isCalc && widget.calc?.showPercent && (
+          <span className="font-normal opacity-70" style={{ fontSize: `${widget.calc?.percentFontScale ?? 0.65}em` }}>
+            %
+          </span>
+        )}
         {widget.item.unit && (
           <span className="font-normal opacity-70" style={{ fontSize: '0.65em' }}>
             {widget.item.unit}
@@ -895,6 +1044,7 @@ function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: Dr
 }
 
 // ─── 위젯 참조 드래그 핸들 — 계산식 위젯의 변수에 캔버스 위젯을 연결할 때 사용 ──────────
+// WidgetActionsMenu 드롭다운 내부의 메뉴 행 형태로 렌더(드롭다운 자체가 조건부 마운트라 항상 보임).
 function WidgetRefHandle({ widgetId, label }: { widgetId: string; label: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `widget-ref-${widgetId}`,
@@ -907,11 +1057,101 @@ function WidgetRefHandle({ widgetId, label }: { widgetId: string; label: string 
       {...listeners}
       {...attributes}
       onClick={(e) => e.stopPropagation()}
-      className={`w-5 h-5 bg-violet-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
+      className={`flex items-center gap-2 h-8 px-3 text-[11px] text-violet-600 hover:bg-violet-50 text-left w-full cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
       title="계산식 위젯의 변수로 드래그하여 연결"
     >
-      🔗
+      <span>🔗</span> 계산식
     </button>
+  );
+}
+
+// ─── 위젯 옵션 메뉴 — 톱니바퀴 클릭 시 팝오버로 복사/삭제/계산식 변수 드래그를 모아 보여줌 ──────────
+// 위젯 자체가 backdrop-blur(필터)+overflow:hidden이라 absolute로 띄우면 위젯 박스 밖으로 못 나가
+// 작은 위젯에서 팝오버가 잘리는 문제가 있었음 — document.body에 포탈로 띄워 완전히 빠져나가게 한다.
+function WidgetActionsMenu({
+  widgetId,
+  label,
+  isCalc,
+  onDuplicate,
+  onRemove,
+}: {
+  widgetId: string;
+  label: string;
+  isCalc: boolean;
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node) || triggerRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <div className="absolute top-1.5 right-6 z-20 hidden group-hover:block">
+      <button
+        ref={triggerRef}
+        onClick={handleToggle}
+        className="w-5 h-5 bg-slate-700/90 text-white rounded text-[10px] flex items-center justify-center leading-none font-bold shadow-md backdrop-blur-sm"
+        title="위젯 옵션"
+      >
+        ⚙
+      </button>
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed z-[1000] bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-40 flex flex-col tb-menu-pop-in"
+            style={{ top: menuPos.top, right: menuPos.right }}
+          >
+            <button
+              onClick={() => {
+                onDuplicate();
+                setOpen(false);
+              }}
+              className="flex items-center gap-2 h-8 px-3 text-[11px] text-slate-600 hover:bg-slate-50 text-left"
+            >
+              <span>⧉</span> 복사
+            </button>
+            <button
+              onClick={() => {
+                onRemove();
+                setOpen(false);
+              }}
+              className="flex items-center gap-2 h-8 px-3 text-[11px] text-red-500 hover:bg-red-50 text-left"
+            >
+              <span>×</span> 삭제
+            </button>
+            {!isCalc && (
+              <>
+                <div className="border-t border-slate-100" />
+                <WidgetRefHandle widgetId={widgetId} label={label} />
+              </>
+            )}
+          </div>,
+          document.body,
+        )}
+    </div>
   );
 }
 
@@ -983,20 +1223,47 @@ function CalcOperandDropZone({
   );
 }
 
+// ─── 테이블 컬럼 계산식 변수 바인딩 영역 — 좌측 Redis 항목을 드래그하면 "같은 행"의 필드명으로 설정 ──
+function TableColCalcOperandDropZone({ widgetId, colKey, operand, onRemove }: { widgetId: string; colKey: string; operand: TableColumnCalcOperand; onRemove: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `table-col-operand-${widgetId}__${colKey}__${operand.var}` });
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="w-5 h-5 flex items-center justify-center rounded bg-violet-100 text-violet-600 text-[10px] font-bold flex-shrink-0">{operand.var}</span>
+      <div
+        ref={setNodeRef}
+        className={`flex-1 min-w-0 h-7 flex items-center px-2 rounded border text-[10px] truncate font-mono transition-colors ${
+          isOver ? 'border-[#0f5b9e] bg-[#0f5b9e]/10' : operand.field ? 'border-slate-200 bg-white text-slate-700' : 'border-dashed border-slate-300 bg-slate-50 text-slate-400'
+        }`}
+      >
+        {operand.field ?? '🔗 같은 행의 필드를 여기로 드래그'}
+      </div>
+      <button
+        onClick={onRemove}
+        className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 text-xs font-bold"
+        title="변수 삭제"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 // ─── 자유 모드 캔버스 위젯 ───────────────────────────────────────────────────
 interface CanvasWidgetFreeProps {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   isSelected: boolean;
+  locked: boolean;
   onSelect: (shiftKey: boolean) => void;
   onRemove: () => void;
   onDuplicate: () => void;
   onDragStart: (widgetId: string, e: React.PointerEvent) => void;
-  onResizeStart: (widgetId: string, clientX: number, clientY: number, handle: 'se' | 'sw') => void;
+  onResizeStart: (widgetId: string, clientX: number, clientY: number, handle: ResizeHandle) => void;
   fontScale?: number;
 }
 
-function CanvasWidgetFree({ widget, widgets, isSelected, onSelect, onRemove, onDuplicate, onDragStart, onResizeStart, fontScale = 1 }: CanvasWidgetFreeProps) {
+function CanvasWidgetFree({ widget, widgets, isSelected, locked, onSelect, onRemove, onDuplicate, onDragStart, onResizeStart, fontScale = 1 }: CanvasWidgetFreeProps) {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
   const widgetIsTransparentBg = isTransparentBg(widget.style);
@@ -1016,80 +1283,100 @@ function CanvasWidgetFree({ widget, widgets, isSelected, onSelect, onRemove, onD
         e.stopPropagation();
         onSelect(e.shiftKey);
       }}
-      className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
+      className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
+      }`}
     >
-      {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) */}
-      <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-20 pointer-events-none group-hover:pointer-events-auto">
-        <div className="flex gap-1">
-          {widget.item.category !== 'Calc' && <WidgetRefHandle widgetId={widget.id} label={widget.customTitle ?? widget.item.label} />}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDuplicate();
-            }}
-            className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-            title="복사"
-          >
-            ⧉
-          </button>
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className="w-5 h-5 bg-red-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-          title="삭제"
-        >
-          ×
-        </button>
-      </div>
+      {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
+      {!locked && (
+        <WidgetActionsMenu
+          widgetId={widget.id}
+          label={widget.customTitle ?? widget.item.label}
+          isCalc={widget.item.category === 'Calc'}
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+        />
+      )}
 
       {isSelected && (
-        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-30 pointer-events-none whitespace-nowrap leading-tight">
+        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-30 pointer-events-none whitespace-nowrap leading-tight flex items-center gap-1">
+          {locked && <Lock className="w-2.5 h-2.5 text-amber-400" />}
           X:{widget.x.toFixed(1)}% Y:{widget.y.toFixed(1)}% W:{w.toFixed(1)}% H:{h.toFixed(1)}%
         </div>
       )}
 
       <div
-        className="cursor-grab active:cursor-grabbing w-full h-full flex flex-col justify-center"
+        className={`w-full h-full flex flex-col justify-center ${locked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
         style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
         onPointerDown={(e) => {
           e.stopPropagation();
+          if (locked) return;
           onDragStart(widget.id, e);
         }}
       >
         <WidgetContent widget={widget} widgets={widgets} />
       </div>
 
-      {/* SE 핸들 */}
-      <div
-        className="absolute bottom-0 right-0 w-5 h-5 flex items-center justify-center cursor-se-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ touchAction: 'none' }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onResizeStart(widget.id, e.clientX, e.clientY, 'se');
-        }}
-      >
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-          <path d="M7 1L1 7M7 4L4 7M7 7H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </div>
-      {/* SW 핸들 */}
-      <div
-        className="absolute bottom-0 left-0 w-5 h-5 flex items-center justify-center cursor-sw-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ touchAction: 'none' }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          onResizeStart(widget.id, e.clientX, e.clientY, 'sw');
-        }}
-      >
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-          <path d="M1 1L7 7M1 4L4 7M1 7H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-      </div>
+      {!locked && (
+        <>
+          {/* SE 핸들 */}
+          <div
+            className="absolute bottom-0 right-0 w-5 h-5 flex items-center justify-center cursor-se-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart(widget.id, e.clientX, e.clientY, 'se');
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M7 1L1 7M7 4L4 7M7 7H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          {/* SW 핸들 */}
+          <div
+            className="absolute bottom-0 left-0 w-5 h-5 flex items-center justify-center cursor-sw-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart(widget.id, e.clientX, e.clientY, 'sw');
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1 1L7 7M1 4L4 7M1 7H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          {/* NE 핸들 */}
+          <div
+            className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center cursor-ne-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart(widget.id, e.clientX, e.clientY, 'ne');
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M7 7L1 1M7 4L4 1M7 1H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          {/* NW 핸들 */}
+          <div
+            className="absolute top-0 left-0 w-5 h-5 flex items-center justify-center cursor-nw-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart(widget.id, e.clientX, e.clientY, 'nw');
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1 7L7 1M1 4L4 1M1 1H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1099,13 +1386,14 @@ interface CanvasWidgetGridProps {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   isSelected: boolean;
+  locked: boolean;
   onSelect: () => void;
   onRemove: () => void;
   onDuplicate: () => void;
   fontScale?: number;
 }
 
-function CanvasWidgetGrid({ widget, widgets, isSelected, onSelect, onRemove, onDuplicate, fontScale = 1 }: CanvasWidgetGridProps) {
+function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRemove, onDuplicate, fontScale = 1 }: CanvasWidgetGridProps) {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
   const widgetIsTransparentBg = isTransparentBg(widget.style);
@@ -1122,43 +1410,30 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, onSelect, onRemove, onD
         position: 'relative',
         ...getWidgetVisualStyle(widget.style, fontScale),
       }}
-      className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}`}
+      className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
+      }`}
     >
-      {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) */}
-      <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-[2] pointer-events-none group-hover:pointer-events-auto">
-        <div className="flex gap-1">
-          {widget.item.category !== 'Calc' && <WidgetRefHandle widgetId={widget.id} label={widget.customTitle ?? widget.item.label} />}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDuplicate();
-            }}
-            className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-            title="복사"
-          >
-            ⧉
-          </button>
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className="w-5 h-5 bg-red-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-          title="삭제"
-        >
-          ×
-        </button>
-      </div>
+      {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
+      {!locked && (
+        <WidgetActionsMenu
+          widgetId={widget.id}
+          label={widget.customTitle ?? widget.item.label}
+          isCalc={widget.item.category === 'Calc'}
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+        />
+      )}
 
       {isSelected && (
-        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-[3] pointer-events-none whitespace-nowrap leading-tight">
+        <div className="absolute -top-5 left-0 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded font-mono z-[3] pointer-events-none whitespace-nowrap leading-tight flex items-center gap-1">
+          {locked && <Lock className="w-2.5 h-2.5 text-amber-400" />}
           X:{widget.x.toFixed(1)}% Y:{widget.y.toFixed(1)}% W:{w.toFixed(1)}% H:{h.toFixed(1)}%
         </div>
       )}
 
       <div
-        className="drag-handle cursor-grab active:cursor-grabbing w-full h-full flex flex-col justify-center"
+        className={`${locked ? '' : 'drag-handle cursor-grab active:cursor-grabbing'} w-full h-full flex flex-col justify-center`}
         style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
       >
         <WidgetContent widget={widget} widgets={widgets} />
@@ -1180,7 +1455,7 @@ interface DroppableBoardProps {
   gridMargin?: [number, number];
   containerPadding?: [number, number];
   onLayoutChange?: (layout: RglLayout) => void;
-  guides?: React.ReactNode;
+  onImageLoad?: (naturalWidth: number, naturalHeight: number) => void;
 }
 
 function DroppableBoard({
@@ -1195,7 +1470,7 @@ function DroppableBoard({
   gridMargin,
   containerPadding,
   onLayoutChange,
-  guides,
+  onImageLoad,
 }: DroppableBoardProps) {
   const { setNodeRef, isOver } = useDroppable({ id: 'board-canvas' });
   const margin = gridMargin ?? [0, 0];
@@ -1208,7 +1483,12 @@ function DroppableBoard({
       className={`relative w-full h-full rounded-xl overflow-hidden border-2 transition-all ${isOver ? 'border-[#0f5b9e] ring-2 ring-[#0f5b9e]/30' : 'border-slate-300'}`}
     >
       {fileName ? (
-        <img src={fileName} alt={pageName} className="absolute inset-0 w-full h-full object-contain pointer-events-none" />
+        <img
+          src={fileName}
+          alt={pageName}
+          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+          onLoad={(e) => onImageLoad?.(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+        />
       ) : (
         <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
           <span className="text-slate-500 text-sm">배경 이미지 없음</span>
@@ -1220,8 +1500,6 @@ function DroppableBoard({
           <span className="bg-[#0f5b9e] text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg">여기에 드랍</span>
         </div>
       )}
-
-      {guides}
 
       {layoutMode === 'free' && (
         <div className="absolute inset-0" style={{ padding: `${padding[1]}px ${padding[0]}px` }}>
@@ -1242,7 +1520,7 @@ function DroppableBoard({
               maxRows: GRID_ROWS,
             }}
             dragConfig={{ enabled: true, handle: '.drag-handle' }}
-            resizeConfig={{ enabled: true, handles: ['se'] as const }}
+            resizeConfig={{ enabled: true, handles: ['se', 'sw', 'ne', 'nw'] as const }}
             compactor={getCompactor(null, false, true)}
             onDragStop={(layout) => {
               onLayoutChange(layout);
@@ -1281,9 +1559,6 @@ export default function TaskCreate() {
         layoutMode?: LayoutMode;
         gridMargin?: [number, number];
         containerPadding?: [number, number];
-        selectedQueueIds?: string[];
-        selectedGroupIds?: string[];
-        selectedAgentIds?: string[];
         guides?: { id: string; axis: 'h' | 'v'; pct: number }[];
         showGuides?: boolean;
       };
@@ -1297,56 +1572,28 @@ export default function TaskCreate() {
   // ── 기본 상태 ────────────────────────────────────────────────────────────
   const [boardTitle, setBoardTitle] = useState(layout?.layoutName ?? bg?.pageName ?? '새 전광판');
   const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
+  const [colorPickingMode, setColorPickingMode] = useState<{ field: 'color' | 'bgColor'; widgetId: string } | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleText, setEditingTitleText] = useState('');
   const [newColKey, setNewColKey] = useState('');
   const [newColLabel, setNewColLabel] = useState('');
+  const [expandedColKey, setExpandedColKey] = useState<string | null>(null);
+  // 배경 이미지 실제 비율 — 로드 전 기본값 16/9, onImageLoad에서 naturalWidth/naturalHeight로 갱신.
+  // 하드코딩된 16/9로 고정해두면 FHD(16:9)가 아닌 이미지(예: HD 4:3 등)는 object-contain 레터박싱으로
+  // 보이는 이미지 영역과 가이드라인 좌표계(컨테이너 기준 %)가 어긋나 가이드선이 위로 쏠려 보이는 원인이 됨.
   const [imageRatio, setImageRatio] = useState<string>('16/9');
+  // 캔버스 확대/축소 — 순수 보기 편의 기능이라 저장하지 않음(layoutJson과 무관). CSS transform만 적용하므로
+  // 위젯 드래그/리사이즈 좌표 계산(getBoundingClientRect 기반 비율 계산)과 폰트 스케일(ResizeObserver 기반)에는 영향 없음.
+  const [zoom, setZoom] = useState(1);
+  // 전체 잠금 — 위젯별이 아니라 캔버스 전체 단위 스위치. zoom과 동일하게 편집 세션 중 보조 토글이라 저장 대상 아님.
+  const [canvasLocked, setCanvasLocked] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(savedMeta?.layoutMode ?? 'free');
   const [gridMargin, setGridMargin] = useState<[number, number]>(savedMeta?.gridMargin ?? [4, 4]);
   const [containerPadding, setContainerPadding] = useState<[number, number]>(savedMeta?.containerPadding ?? [0, 0]);
 
-  // ── 큐리스트 멀티 선택 상태 ──────────────────────────────────────────
-  const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>(savedMeta?.selectedQueueIds ?? []);
-  const [queueDropdownOpen, setQueueDropdownOpen] = useState(false);
-  const queueDropdownRef = useRef<HTMLDivElement>(null);
-  const { data: queueRows = [], isFetching: queueFetching, refetch: refetchQueue } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-
-  // ── 상담사 멀티 선택 상태 ─────────────────────────────────────────────
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(savedMeta?.selectedAgentIds ?? []);
-  const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
-  const agentDropdownRef = useRef<HTMLDivElement>(null);
-  const { data: agentRows = [], isFetching: agentFetching } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
-
-  // ── 상담그룹 멀티 선택 상태 ───────────────────────────────────────────
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(savedMeta?.selectedGroupIds ?? []);
-  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
-  const groupDropdownRef = useRef<HTMLDivElement>(null);
-  const { data: groupRows = [], isFetching: groupFetching } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
-
   // 미디어타입은 디스플레이 선택값이 아니라 위젯(테이블/차트) 단위 설정으로 옮김 — 목록만 여기서 가져와 위젯 설정 패널 옵션으로 사용
   const { data: mediaTypeRows = [] } = useGetCtiMediaTypeList({ queryOptions: { refetchInterval: false } });
-
-  // 외부 클릭 닫기 (큐/상담사/그룹 드롭다운)
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (queueDropdownRef.current && !queueDropdownRef.current.contains(e.target as Node)) setQueueDropdownOpen(false);
-      if (agentDropdownRef.current && !agentDropdownRef.current.contains(e.target as Node)) setAgentDropdownOpen(false);
-      if (groupDropdownRef.current && !groupDropdownRef.current.contains(e.target as Node)) setGroupDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const toggleQueue = (id: string) => setSelectedQueueIds((prev) => (prev.includes(id) ? prev.filter((q) => q !== id) : [...prev, id]));
-  const toggleAllQueues = () => setSelectedQueueIds((prev) => (prev.length === queueRows.length && queueRows.length > 0 ? [] : queueRows.map((q) => q.ctiqId)));
-
-  const toggleAgent = (id: string) => setSelectedAgentIds((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
-  const toggleAllAgents = () => setSelectedAgentIds((prev) => (prev.length === agentRows.length && agentRows.length > 0 ? [] : agentRows.map((a) => a.agentId)));
-
-  const toggleGroup = (id: string) => setSelectedGroupIds((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
-  const toggleAllGroups = () => setSelectedGroupIds((prev) => (prev.length === groupRows.length && groupRows.length > 0 ? [] : groupRows.map((g) => g.groupId)));
 
   // ── 그리드 모드 컨테이너 크기 ────────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(1024);
@@ -1452,6 +1699,9 @@ export default function TaskCreate() {
   }, [isDirty, navigator]);
 
   const boardContainerRef = useRef<HTMLDivElement>(null);
+  // Ctrl+V 붙여넣기 위치 기준 — 캔버스 위에서 마우스가 마지막으로 있던 좌표(%). 렌더를 유발할 필요가
+  // 없으므로 state가 아니라 ref로 보관.
+  const lastCanvasMousePosRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const el = boardContainerRef.current;
@@ -1509,6 +1759,7 @@ export default function TaskCreate() {
   const lastDragOccurredRef = useRef(false);
 
   const handleFreeDragStart = (widgetId: string, e: React.PointerEvent) => {
+    if (canvasLocked) return;
     const isInSelection = selectedWidgetIds.includes(widgetId);
     const idsToMove = isInSelection ? selectedWidgetIds : [widgetId];
     if (!isInSelection) setSelectedWidgetIds([widgetId]);
@@ -1559,13 +1810,14 @@ export default function TaskCreate() {
     startMouseY: number;
     startW: number;
     startH: number;
-    handle: 'se' | 'sw';
+    handle: ResizeHandle;
     startWidgetX: number;
     startWidgetY: number;
   } | null>(null);
   const resizeFinalRef = useRef<{ widgetId: string; x: number; y: number; w: number; h: number } | null>(null);
 
-  const handleResizeStart = (widgetId: string, clientX: number, clientY: number, handle: 'se' | 'sw') => {
+  const handleResizeStart = (widgetId: string, clientX: number, clientY: number, handle: ResizeHandle) => {
+    if (canvasLocked) return;
     const widget = droppedWidgets.find((w) => w.id === widgetId);
     if (!widget) return;
     pushUndo(droppedWidgets, guides);
@@ -1648,19 +1900,29 @@ export default function TaskCreate() {
       if (resize) {
         const dx = ((e.clientX - resize.startMouseX) / rect.width) * 100;
         const dy = ((e.clientY - resize.startMouseY) / rect.height) * 100;
-        if (resize.handle === 'sw') {
-          const newX = Math.max(0, resize.startWidgetX + dx);
-          const actualDx = newX - resize.startWidgetX;
-          const newW = Math.max(5, resize.startW - actualDx);
-          const newH = Math.max(4, resize.startH + dy);
-          setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, x: newX, w: newW, h: newH } : w)));
-          resizeFinalRef.current = { widgetId: resize.widgetId, x: newX, y: resize.startWidgetY, w: newW, h: newH };
+        const isWest = resize.handle === 'sw' || resize.handle === 'nw';
+        const isNorth = resize.handle === 'ne' || resize.handle === 'nw';
+
+        let newX = resize.startWidgetX;
+        let newW = resize.startW;
+        if (isWest) {
+          newX = Math.max(0, resize.startWidgetX + dx);
+          newW = Math.max(5, resize.startW - (newX - resize.startWidgetX));
         } else {
-          const newW = Math.max(5, resize.startW + dx);
-          const newH = Math.max(4, resize.startH + dy);
-          setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, w: newW, h: newH } : w)));
-          resizeFinalRef.current = { widgetId: resize.widgetId, x: resize.startWidgetX, y: resize.startWidgetY, w: newW, h: newH };
+          newW = Math.max(5, resize.startW + dx);
         }
+
+        let newY = resize.startWidgetY;
+        let newH = resize.startH;
+        if (isNorth) {
+          newY = Math.max(0, resize.startWidgetY + dy);
+          newH = Math.max(4, resize.startH - (newY - resize.startWidgetY));
+        } else {
+          newH = Math.max(4, resize.startH + dy);
+        }
+
+        setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, x: newX, y: newY, w: newW, h: newH } : w)));
+        resizeFinalRef.current = { widgetId: resize.widgetId, x: newX, y: newY, w: newW, h: newH };
       }
     };
 
@@ -1791,6 +2053,26 @@ export default function TaskCreate() {
       return;
     }
 
+    // 테이블 컬럼 계산식의 변수(operand) 바인딩 영역에 드롭 — 좌측 Redis 항목을 "같은 행"의 필드명으로 연결
+    if (typeof over?.id === 'string' && over.id.startsWith('table-col-operand-')) {
+      const [tcWidgetId, colKey, varName] = over.id.slice('table-col-operand-'.length).split('__');
+      if (info.type === 'source' && info.item.category === 'Redis') {
+        const field = info.item.redisJsonField ?? info.item.redisField;
+        if (!field) return;
+        pushUndo(droppedWidgets, guides);
+        setDroppedWidgets((prev) =>
+          prev.map((w) => {
+            if (w.id !== tcWidgetId || !w.item.tableConfig) return w;
+            const columns = w.item.tableConfig.columns.map((c) =>
+              c.key === colKey && c.calc ? { ...c, calc: { ...c.calc, operands: c.calc.operands.map((op) => (op.var === varName ? { ...op, field } : op)) } } : c,
+            );
+            return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+          }),
+        );
+      }
+      return;
+    }
+
     // 위젯 참조(🔗) 드래그가 계산식 변수 영역이 아닌 곳에 드롭되면 무시
     if (info.type === 'widget-ref') return;
 
@@ -1810,6 +2092,19 @@ export default function TaskCreate() {
         wh = w.h ?? DEFAULT_H;
       return xCenterPct >= w.x && xCenterPct <= w.x + ww && yCenterPct >= w.y && yCenterPct <= w.y + wh;
     });
+    // 테이블형 위젯(table-queue/group/agent) 위에 좌측 Redis 항목을 드롭하면 위젯을 통째로 바꾸는 게
+    // 아니라 그 필드를 테이블 컬럼으로 추가한다 — 리스트 칸(예: CTIQ_NAME)이든 값 칸(예: SUM_CONN_CNT)
+    // 이든 똑같이 컬럼 1개로 추가되고, WS 구독 columns에도 그대로 반영된다(addWidgetTableColumn과 동일 경로).
+    if (targetWidget?.item.tableConfig && info.type === 'source' && info.item.category === 'Redis') {
+      const fieldKey = info.item.redisJsonField ?? info.item.redisField;
+      if (fieldKey) {
+        pushUndo(droppedWidgets, guides);
+        addWidgetTableColumn(targetWidget.id, fieldKey, fieldKey);
+        setSelectedWidgetIds([targetWidget.id]);
+      }
+      return;
+    }
+
     if (targetWidget) {
       pushUndo(droppedWidgets, guides);
       setDroppedWidgets((prev) => prev.map((w) => (w.id === targetWidget.id ? { ...w, item: info.item } : w)));
@@ -1858,6 +2153,7 @@ export default function TaskCreate() {
       showTitle: true,
       style: { ...DEFAULT_STYLE },
       ...(info.item.category === 'Calc' ? { calc: { formula: '', operands: [] } } : {}),
+      ...(info.item.id === 'etc-custom' ? { clockFormat: DEFAULT_CUSTOM_CLOCK_FORMAT } : {}),
     };
     setDroppedWidgets((prev) => [...prev, newWidget]);
     setSelectedWidgetIds([newWidget.id]);
@@ -1885,11 +2181,150 @@ export default function TaskCreate() {
     setSelectedWidgetIds([copy.id]);
   };
 
+  // ── Ctrl+C/Ctrl+V — 선택한 위젯을 복사해 같은 출처의 다른 창/탭에도 붙여넣을 수 있게 한다 ──
+  const copySelectedWidgets = () => {
+    const widgets = droppedWidgets.filter((w) => selectedWidgetIds.includes(w.id));
+    if (widgets.length === 0) return;
+    try {
+      localStorage.setItem(WIDGET_CLIPBOARD_KEY, JSON.stringify({ source: WIDGET_CLIPBOARD_SOURCE, widgets }));
+      toast.success(`위젯 ${widgets.length}개 복사됨`);
+    } catch {
+      toast.error('복사에 실패했습니다.');
+    }
+  };
+
+  const pasteWidgetsFromClipboard = () => {
+    let raw: string | null;
+    try {
+      raw = localStorage.getItem(WIDGET_CLIPBOARD_KEY);
+    } catch {
+      raw = null;
+    }
+    if (!raw) return;
+    let parsed: { source?: string; widgets?: DroppedWidget[] };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (parsed.source !== WIDGET_CLIPBOARD_SOURCE || !Array.isArray(parsed.widgets) || parsed.widgets.length === 0) return;
+
+    pushUndo(droppedWidgets, guides);
+    // 붙여넣기 위치 — 마우스가 캔버스 위에 있었다면 그 좌표를 기준점으로 삼아, 복사한 위젯들의 상대적
+    // 배치(서로 간 위치 차이)는 유지한 채 그룹 전체를 마우스 위치로 옮긴다. 마우스 위치 정보가 없으면
+    // (캔버스 밖에서 붙여넣기 등) 기존처럼 원본에서 3%만큼 비껴 놓는다.
+    const minX = Math.min(...parsed.widgets.map((w) => w.x));
+    const minY = Math.min(...parsed.widgets.map((w) => w.y));
+    const mousePos = lastCanvasMousePosRef.current;
+    const targetX = mousePos ? mousePos.x : minX + 3;
+    const targetY = mousePos ? mousePos.y : minY + 3;
+    const pasted = parsed.widgets.map((src, i) => {
+      const w = src.w ?? DEFAULT_W;
+      const h = src.h ?? DEFAULT_H;
+      const newX = Math.max(0, Math.min(100 - w, targetX + (src.x - minX)));
+      const newY = Math.max(0, Math.min(100 - h, targetY + (src.y - minY)));
+      return { ...src, id: `widget-${Date.now()}-${i}`, x: newX, y: newY };
+    });
+    setDroppedWidgets((prev) => [...prev, ...pasted]);
+    setSelectedWidgetIds(pasted.map((w) => w.id));
+    toast.success(`위젯 ${pasted.length}개 붙여넣기 완료`);
+  };
+
   const updateWidgetStyle = (id: string, patch: Partial<WidgetStyle>) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, ...patch } } : w)));
   };
 
-  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey' | 'aggregation'>>) => {
+  // 스포이드 색상 추출 — HTTPS/localhost면 EyeDropper API, HTTP면 보드 배경 이미지 클릭 모드로 폴백.
+  const handlePickColorFromScreen = async (field: 'color' | 'bgColor', widgetId: string) => {
+    if (window.isSecureContext) {
+      if (!('EyeDropper' in window)) {
+        toast.error('스포이드 기능은 Chrome/Edge 브라우저에서만 지원됩니다.');
+        return;
+      }
+      try {
+        const eyeDropper = new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
+        const result = await eyeDropper.open();
+        updateWidgetStyle(widgetId, { [field]: result.sRGBHex });
+      } catch {
+        /* 사용자가 Esc로 취소한 경우 — 무시 */
+      }
+    } else {
+      // HTTP 접속 — EyeDropper API 없음. 보드 배경 이미지를 canvas로 샘플링하는 클릭 모드로 전환.
+      if (!fileName) {
+        toast.error('배경 이미지가 없어 스포이드를 사용할 수 없습니다.');
+        return;
+      }
+      setColorPickingMode({ field, widgetId });
+      toast.info('보드 위를 클릭하여 색상을 추출하세요. ESC로 취소');
+    }
+  };
+
+  // 보드 배경 이미지에서 클릭 좌표 픽셀 색상 추출 (HTTP 폴백용)
+  const sampleColorFromBoardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!colorPickingMode || !fileName) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      // object-contain 렌더 기준으로 클릭 좌표를 이미지 픽셀 좌표로 변환
+      const boardW = rect.width;
+      const boardH = rect.height;
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      const boardAspect = boardW / boardH;
+      let imgX: number, imgY: number;
+      if (imgAspect > boardAspect) {
+        const scale = boardW / img.naturalWidth;
+        const scaledH = img.naturalHeight * scale;
+        const offsetY = (boardH - scaledH) / 2;
+        imgX = (clickX / boardW) * img.naturalWidth;
+        imgY = ((clickY - offsetY) / scaledH) * img.naturalHeight;
+      } else {
+        const scale = boardH / img.naturalHeight;
+        const scaledW = img.naturalWidth * scale;
+        const offsetX = (boardW - scaledW) / 2;
+        imgX = ((clickX - offsetX) / scaledW) * img.naturalWidth;
+        imgY = (clickY / boardH) * img.naturalHeight;
+      }
+      if (imgX < 0 || imgY < 0 || imgX >= img.naturalWidth || imgY >= img.naturalHeight) {
+        toast.warning('배경 이미지 영역 밖입니다. 이미지 위를 클릭해주세요.');
+        return;
+      }
+      const pixel = ctx.getImageData(Math.floor(imgX), Math.floor(imgY), 1, 1).data;
+      const hex = `#${pixel[0].toString(16).padStart(2, '0')}${pixel[1].toString(16).padStart(2, '0')}${pixel[2].toString(16).padStart(2, '0')}`;
+      updateWidgetStyle(colorPickingMode.widgetId, { [colorPickingMode.field]: hex });
+      setColorPickingMode(null);
+    };
+    img.onerror = () => {
+      toast.error('이미지를 불러올 수 없습니다. 서버 CORS 설정을 확인하세요.');
+      setColorPickingMode(null);
+    };
+    img.src = fileName;
+  };
+
+  // 임계치 색상 규칙 CRUD — 위젯 style.thresholds 배열을 다룬다
+  const addThresholdRule = (id: string) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, thresholds: [...(w.style.thresholds ?? []), { min: 0, color: '#000000' }] } } : w)));
+  };
+
+  const updateThresholdRule = (id: string, index: number, patch: Partial<WidgetThresholdRule>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, thresholds: (w.style.thresholds ?? []).map((rule, i) => (i === index ? { ...rule, ...patch } : rule)) } } : w)),
+    );
+  };
+
+  const removeThresholdRule = (id: string, index: number) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, thresholds: (w.style.thresholds ?? []).filter((_, i) => i !== index) } } : w)));
+  };
+
+  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey' | 'aggregation' | 'clockFormat' | 'slideIntervalSec'>>) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
   };
 
@@ -1959,9 +2394,115 @@ export default function TaskCreate() {
     );
   };
 
+  // 테이블 컬럼별 스타일(정렬/천단위/임계치) — 단일값 위젯의 style 옵션을 컬럼 단위로 재사용
+  const updateWidgetTableColumn = (id: string, key: string, patch: Partial<TableColumn>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, ...patch } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const addColumnThresholdRule = (id: string, key: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, thresholds: [...(c.thresholds ?? []), { min: 0, color: '#000000' }] } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const updateColumnThresholdRule = (id: string, key: string, index: number, patch: Partial<WidgetThresholdRule>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) =>
+          c.key === key ? { ...c, thresholds: (c.thresholds ?? []).map((rule, i) => (i === index ? { ...rule, ...patch } : rule)) } : c,
+        );
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const removeColumnThresholdRule = (id: string, key: string, index: number) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, thresholds: (c.thresholds ?? []).filter((_, i) => i !== index) } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  // 테이블 컬럼 계산식 — 캔버스 위젯이 아니라 같은 행의 다른 JSON 필드를 변수로 참조(Redis 테이블 전용)
+  const updateColumnCalc = (id: string, key: string, patch: Partial<TableColumnCalc>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, calc: { formula: '', operands: [], ...c.calc, ...patch } } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const toggleColumnCalcEnabled = (id: string, key: string, enabled: boolean) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, calc: enabled ? (c.calc ?? { formula: '', operands: [] }) : undefined } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const addColumnCalcOperand = (id: string, key: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => {
+          if (c.key !== key || !c.calc) return c;
+          const usedVars = new Set(c.calc.operands.map((op) => op.var));
+          const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
+          return { ...c, calc: { ...c.calc, operands: [...c.calc.operands, { var: nextVar }] } };
+        });
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const removeColumnCalcOperand = (id: string, key: string, varName: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) =>
+          c.key === key && c.calc ? { ...c, calc: { ...c.calc, operands: c.calc.operands.filter((op) => op.var !== varName) } } : c,
+        );
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
   // 미디어타입 변경 — table-queue/table-group/table-agent/chart-bar-queue/chart-line-trend 위젯이 어느 IC:XXX:{미디어타입} 해시를 볼지 결정
   const updateWidgetMediaType = (id: string, mediaType: string) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, mediaType } } : w)));
+  };
+
+  // Redis 테이블 위젯(table-redis)이 통째로 바인딩할 해시키 — 예: "IC:CTIQ:0"
+  const updateWidgetRedisHashKey = (id: string, redisHashKey: string) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, redisHashKey } } : w)));
+  };
+
+  // Redis 테이블의 그룹별 합계 설정 — byKey 값으로 묶어서 aggKey를 합산한 1행씩으로 축약
+  const updateWidgetTableGroupBy = (id: string, groupBy: { byKey: string; aggKey: string } | undefined) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id && w.item.tableConfig ? { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, groupBy } } } : w)));
+  };
+
+  // 단일값 Redis 위젯의 그룹별 합계 설정 — byKey/matchValue로 한 그룹만 골라 aggKey를 합산한 숫자 1개를 보여줌
+  const updateWidgetItemGroupBy = (id: string, groupBy: { byKey: string; aggKey: string; matchValue: string } | undefined) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, groupBy } } : w)));
   };
 
   // 차트 종류 변경 (막대/선/파이/도넛)
@@ -2017,6 +2558,7 @@ export default function TaskCreate() {
       if (!arrowKeys.includes(e.key)) return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (canvasLocked) return;
       e.preventDefault();
 
       if (layoutMode === 'free') {
@@ -2052,11 +2594,15 @@ export default function TaskCreate() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWidgetIds, droppedWidgets, layoutMode]);
+  }, [selectedWidgetIds, droppedWidgets, layoutMode, canvasLocked]);
 
   // ── Delete 키: 선택한 위젯 일괄 삭제 ────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setColorPickingMode(null);
+        return;
+      }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
@@ -2065,6 +2611,25 @@ export default function TaskCreate() {
       pushUndo(droppedWidgets, guides);
       setDroppedWidgets((prev) => prev.filter((w) => !selectedWidgetIds.includes(w.id)));
       setSelectedWidgetIds([]);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedWidgetIds, droppedWidgets, guides]);
+
+  // ── Ctrl+C/Ctrl+V: 위젯 복사·붙여넣기(localStorage 클립보드 — 같은 출처의 다른 창/탭에도 동작) ──
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (e.key === 'c' || e.key === 'C') {
+        if (selectedWidgetIds.length === 0) return;
+        e.preventDefault();
+        copySelectedWidgets();
+      } else if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        pasteWidgetsFromClipboard();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -2116,6 +2681,7 @@ export default function TaskCreate() {
   const handleExport = () => {
     const exportData = {
       version: 2,
+      boardTitle,
       layoutMode,
       gridMargin,
       containerPadding,
@@ -2144,6 +2710,7 @@ export default function TaskCreate() {
         try {
           const raw = JSON.parse(ev.target?.result as string) as {
             version?: number;
+            boardTitle?: string;
             layoutMode?: LayoutMode;
             gridMargin?: [number, number];
             containerPadding?: [number, number];
@@ -2156,6 +2723,7 @@ export default function TaskCreate() {
             return;
           }
           pushUndo(droppedWidgets, guides);
+          if (raw.boardTitle) setBoardTitle(raw.boardTitle);
           if (raw.layoutMode) setLayoutMode(raw.layoutMode);
           if (raw.gridMargin) setGridMargin(raw.gridMargin);
           if (raw.containerPadding) setContainerPadding(raw.containerPadding);
@@ -2175,17 +2743,15 @@ export default function TaskCreate() {
 
   const selectedWidgetId = selectedWidgetIds.length === 1 ? selectedWidgetIds[0] : null;
   const selectedWidget = selectedWidgetId ? (droppedWidgets.find((w) => w.id === selectedWidgetId) ?? null) : null;
-  const gridLayout = droppedWidgets.map(toGridItem);
+  const gridLayout = droppedWidgets.map((w) => toGridItem(w, canvasLocked));
 
   // 드롭다운용 아이템 변환
-  const queueItems = queueRows.map((q) => ({ id: q.ctiqId, name: q.ctiqName }));
-  const agentItems = agentRows.map((a) => ({ id: a.agentId, name: a.agentName }));
-  const groupItems = groupRows.map((g) => ({ id: g.groupId, name: g.groupName }));
   const mediaTypeItems = mediaTypeRows.map((m) => ({ id: m.mediaType, name: `${m.mediaAlias} (:${m.mediaType})` }));
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
+      <style dangerouslySetInnerHTML={{ __html: VALUE_CHANGE_ANIMATION_CSS }} />
+      <div className="flex h-full bg-slate-100 font-sans overflow-hidden">
         {/* ── 왼쪽 패널: 데이터 소스 ── */}
         <div className="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden relative z-10">
           <div className="flex-1 overflow-y-auto min-h-0">
@@ -2282,6 +2848,44 @@ export default function TaskCreate() {
                   ↪
                 </button>
               </div>
+              {/* 위젯 잠금 — 켜면 모든 위젯의 드래그/리사이즈/방향키 이동을 한꺼번에 차단(복사·붙여넣기
+                  반복 중 의도치 않게 미세하게 밀리는 사고 방지). 위젯별이 아니라 캔버스 전체 단위 스위치. */}
+              <button
+                onClick={() => setCanvasLocked((v) => !v)}
+                title={canvasLocked ? '위젯 잠금 해제' : '위젯 잠금 — 모든 위젯 이동/리사이즈 차단'}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+                  canvasLocked ? 'bg-amber-500 text-white border-amber-500' : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {canvasLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+                위젯 잠금
+              </button>
+              {/* 캔버스 확대/축소 */}
+              <div className="flex items-center border border-slate-200 rounded-md overflow-hidden">
+                <button
+                  onClick={() => setZoom((z) => Math.max(0.25, Math.round((z - 0.1) * 100) / 100))}
+                  disabled={zoom <= 0.25}
+                  title="축소"
+                  className="px-2.5 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => setZoom(1)}
+                  title="100%로 초기화"
+                  className="px-2 py-1.5 text-[11px] font-mono font-semibold text-slate-600 hover:bg-slate-50 border-x border-slate-200 min-w-[44px] transition-colors"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  onClick={() => setZoom((z) => Math.min(2, Math.round((z + 0.1) * 100) / 100))}
+                  disabled={zoom >= 2}
+                  title="확대"
+                  className="px-2.5 py-1.5 text-sm font-bold text-slate-500 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  +
+                </button>
+              </div>
               {/* 가이드선 토글 */}
               <div className="flex items-center border border-slate-200 rounded-md overflow-hidden text-xs">
                 <button
@@ -2376,80 +2980,35 @@ export default function TaskCreate() {
             </div>
           </div>
 
-          {/* ── 큐리스트/상담그룹/상담사 멀티선택 바 — 캔버스 미리보기 전용, 저장 안 됨 ── */}
-          <div className="px-3 py-2 bg-gradient-to-r from-cyan-50 to-blue-50 border-b border-cyan-200 flex items-center gap-2 flex-shrink-0">
-            <span className="text-[10px] font-semibold text-slate-400 whitespace-nowrap flex-shrink-0 px-1.5 py-0.5 bg-white/70 rounded border border-slate-200">
-              미리보기 전용 — 실제 표시값은 뷰 그룹 관리에서 설정
-            </span>
-            <div className="w-px h-4 bg-cyan-200 flex-shrink-0 mx-1" />
-            {/* 큐리스트 */}
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse flex-shrink-0" />
-            <span className="text-[11px] font-semibold text-cyan-800 whitespace-nowrap flex-shrink-0">큐리스트</span>
-            <MultiSelectDropdown
-              label="큐"
-              color="#0891b2"
-              isFetching={queueFetching}
-              items={queueItems}
-              selectedIds={selectedQueueIds}
-              isOpen={queueDropdownOpen}
-              dropdownRef={queueDropdownRef}
-              onToggleOpen={() => setQueueDropdownOpen((prev) => !prev)}
-              onToggleItem={toggleQueue}
-              onToggleAll={toggleAllQueues}
-              emptyText="큐 데이터 없음"
-            />
-
-            <div className="w-px h-4 bg-cyan-200 flex-shrink-0 mx-1" />
-
-            {/* 상담그룹 */}
-            <span className="text-[11px] font-semibold text-violet-700 whitespace-nowrap flex-shrink-0">상담그룹</span>
-            <MultiSelectDropdown
-              label="상담그룹"
-              color="#7c3aed"
-              isFetching={groupFetching}
-              items={groupItems}
-              selectedIds={selectedGroupIds}
-              isOpen={groupDropdownOpen}
-              dropdownRef={groupDropdownRef}
-              onToggleOpen={() => setGroupDropdownOpen((prev) => !prev)}
-              onToggleItem={toggleGroup}
-              onToggleAll={toggleAllGroups}
-              emptyText="그룹 데이터 없음"
-            />
-
-            <div className="w-px h-4 bg-cyan-200 flex-shrink-0 mx-1" />
-
-            {/* 상담사 */}
-            <span className="text-[11px] font-semibold text-emerald-700 whitespace-nowrap flex-shrink-0">상담사</span>
-            <MultiSelectDropdown
-              label="상담사"
-              color="#059669"
-              isFetching={agentFetching}
-              items={agentItems}
-              selectedIds={selectedAgentIds}
-              isOpen={agentDropdownOpen}
-              dropdownRef={agentDropdownRef}
-              onToggleOpen={() => setAgentDropdownOpen((prev) => !prev)}
-              onToggleItem={toggleAgent}
-              onToggleAll={toggleAllAgents}
-              emptyText="상담사 데이터 없음"
-            />
-
-            <button onClick={() => void refetchQueue()} className="flex-shrink-0 text-[11px] text-cyan-500 hover:text-cyan-700 px-1.5 font-bold ml-auto" title="새로고침">
-              ↻
-            </button>
-          </div>
-
-          {/* 캔버스 영역 */}
-          <div className="flex-1 p-6 flex items-center justify-center overflow-hidden min-h-0 relative">
-            {/* 드래그 중 좌표 표시 — fixed로 overflow-hidden 제약 없이 표시 */}
+          {/* 캔버스 영역 — 확대 시 overflow-auto로 스크롤해서 모든 모서리로 이동 가능하게.
+              zoom<=1일 때만 flex로 중앙 정렬하고, 확대(zoom>1)되면 중앙정렬을 끔 — flex 중앙정렬 + transform:scale을
+              같이 쓰면 브라우저가 "시작(top/left)" 방향 overflow는 스크롤로 못 닿는 문제가 있어서(중앙에서 사방으로
+              커지는데, 끝(bottom/right) 방향 overflow만 스크롤 가능) 확대했을 때 좌상단 쪽으로 못 옮겨가던 원인이었음. */}
+          <div className={`flex-1 p-6 overflow-auto min-h-0 relative ${zoom <= 1 ? 'flex items-center justify-center' : ''}`}>
+            {/* 드래그 중 좌표 표시 — fixed로 overflow 제약 없이 표시 */}
             {dragCoord && (
               <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] px-5 py-2 bg-black/80 text-white text-sm font-mono rounded-full shadow-xl pointer-events-none select-none tracking-wide">
                 X: {dragCoord.x.toFixed(1)}% &nbsp;&nbsp; Y: {dragCoord.y.toFixed(1)}%
               </div>
             )}
-            {/* 눈금자 포함 외부 래퍼 — showGuides 시 16px 패딩으로 이미지 바깥에 눈금자 배치 */}
-            <div className="w-full max-w-5xl relative" style={{ paddingTop: showGuides ? '16px' : '0', paddingLeft: showGuides ? '16px' : '0' }}>
+            {/* 눈금자 포함 외부 래퍼 — showGuides 시 paddingLeft(16px)로 좌측에만 눈금자 배치 공간을 둠.
+                paddingTop은 일부러 안 둠 — top 패딩이 있으면(이전 시도) 위쪽 눈금자(16px 고정 높이 띠)가
+                브라우저 자체 줌(Ctrl+스크롤) 100%에서 서브픽셀 라운딩으로 거의 안 보이게 얇아지는 문제가
+                있었고, 사용자가 직접 padding-top을 0으로 바꿔보고 정상적으로 보임을 확인함 — 위쪽 눈금자는
+                이미지 상단과 겹쳐서(오버레이로) 그려지는 트레이드오프를 감수.
+                zoom은 transform만 적용되어 레이아웃 박스 크기(getBoundingClientRect 기반 드래그 좌표 계산,
+                ResizeObserver 기반 containerWidth/fontScale)에는 영향 없음.
+                origin-top-left: 좌상단을 기준으로 우/하 방향으로만 커지게 해서 항상 스크롤로 닿을 수 있게 한다.
+                zoom===1(기본값)일 때는 transform 자체를 안 줌 — scale(1)도 브라우저가 별도 컴포지팅
+                레이어를 만들어버려 서브픽셀 라운딩 문제를 유발할 수 있어서, 앱 자체 확대/축소를 실제로
+                쓸 때만 transform 적용. */}
+            <div
+              className={`w-full max-w-5xl relative origin-top-left ${zoom > 1 ? 'mx-auto' : ''}`}
+              style={{
+                paddingLeft: showGuides ? '16px' : '0',
+                ...(zoom !== 1 ? { transform: `scale(${zoom})`, transition: 'transform 0.15s ease' } : {}),
+              }}
+            >
               {/* ── 눈금자 오버레이 (이미지 바깥 패딩 영역) ── */}
               {showGuides && (
                 <>
@@ -2516,7 +3075,19 @@ export default function TaskCreate() {
                 </>
               )}
               {/* boardContainerRef — 실제 이미지/캔버스 영역만 감쌈 */}
-              <div ref={boardContainerRef} className="w-full relative" style={{ aspectRatio: imageRatio }}>
+              <div
+                ref={boardContainerRef}
+                className="w-full relative"
+                style={{ aspectRatio: imageRatio }}
+                onPointerMove={(e) => {
+                  const rect = boardContainerRef.current?.getBoundingClientRect();
+                  if (!rect || rect.width === 0 || rect.height === 0) return;
+                  lastCanvasMousePosRef.current = {
+                    x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+                    y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+                  };
+                }}
+              >
                 {(() => {
                   const guidesOverlay = showGuides ? (
                     <div className="absolute inset-0 pointer-events-none z-[150]">
@@ -2657,59 +3228,73 @@ export default function TaskCreate() {
                   ) : null;
 
                   const fontScale = containerWidth > 0 ? containerWidth / DESIGN_WIDTH : 1;
+                  // guidesOverlay는 DroppableBoard 안(guides prop)이 아니라 boardContainerRef 바로 아래
+                  // 형제로 렌더 — DroppableBoard 자체가 rounded-xl overflow-hidden이라, 그 안에 있으면
+                  // 가이드 라벨의 음수 top/left 오프셋(선 반대쪽에 그려질 때)이 캔버스 가장자리에서 잘려
+                  // 잘 안 보이는 문제가 있었음(특히 위쪽 가까이 만든 가이드).
                   return (
-                    <DroppableBoard
-                      fileName={fileName}
-                      pageName={boardTitle}
-                      layoutMode={layoutMode}
-                      onClickCanvas={() => {
-                        setSelectedWidgetIds([]);
-                        setSelectedGuideIds([]);
-                      }}
-                      gridLayout={gridLayout}
-                      containerWidth={containerWidth}
-                      rowHeight={rowHeight}
-                      gridMargin={gridMargin}
-                      containerPadding={containerPadding}
-                      onLayoutChange={handleGridLayoutChange}
-                      guides={guidesOverlay}
-                    >
-                      {layoutMode === 'free'
-                        ? droppedWidgets.map((widget) => (
-                            <CanvasWidgetFree
-                              key={widget.id}
-                              widget={widget}
-                              widgets={droppedWidgets}
-                              isSelected={selectedWidgetIds.includes(widget.id)}
-                              onSelect={(shiftKey) => {
-                                if (lastDragOccurredRef.current) return;
-                                if (shiftKey) {
-                                  setSelectedWidgetIds((prev) => (prev.includes(widget.id) ? prev.filter((id) => id !== widget.id) : [...prev, widget.id]));
-                                } else {
-                                  setSelectedWidgetIds([widget.id]);
-                                }
-                              }}
-                              onRemove={() => removeWidget(widget.id)}
-                              onDuplicate={() => duplicateWidget(widget.id)}
-                              onDragStart={handleFreeDragStart}
-                              onResizeStart={handleResizeStart}
-                              fontScale={fontScale}
-                            />
-                          ))
-                        : droppedWidgets.map((widget) => (
-                            <div key={widget.id}>
-                              <CanvasWidgetGrid
+                    <>
+                      <DroppableBoard
+                        fileName={fileName}
+                        pageName={boardTitle}
+                        layoutMode={layoutMode}
+                        onClickCanvas={() => {
+                          setSelectedWidgetIds([]);
+                          setSelectedGuideIds([]);
+                        }}
+                        gridLayout={gridLayout}
+                        containerWidth={containerWidth}
+                        rowHeight={rowHeight}
+                        gridMargin={gridMargin}
+                        containerPadding={containerPadding}
+                        onLayoutChange={handleGridLayoutChange}
+                        onImageLoad={(naturalWidth, naturalHeight) => {
+                          if (naturalWidth > 0 && naturalHeight > 0) setImageRatio(`${naturalWidth}/${naturalHeight}`);
+                        }}
+                      >
+                        {layoutMode === 'free'
+                          ? droppedWidgets.map((widget) => (
+                              <CanvasWidgetFree
+                                key={widget.id}
                                 widget={widget}
                                 widgets={droppedWidgets}
                                 isSelected={selectedWidgetIds.includes(widget.id)}
-                                onSelect={() => setSelectedWidgetIds([widget.id])}
+                                onSelect={(shiftKey) => {
+                                  if (lastDragOccurredRef.current) return;
+                                  if (shiftKey) {
+                                    setSelectedWidgetIds((prev) => (prev.includes(widget.id) ? prev.filter((id) => id !== widget.id) : [...prev, widget.id]));
+                                  } else {
+                                    setSelectedWidgetIds([widget.id]);
+                                  }
+                                }}
+                                locked={canvasLocked}
                                 onRemove={() => removeWidget(widget.id)}
                                 onDuplicate={() => duplicateWidget(widget.id)}
+                                onDragStart={handleFreeDragStart}
+                                onResizeStart={handleResizeStart}
                                 fontScale={fontScale}
                               />
-                            </div>
-                          ))}
-                    </DroppableBoard>
+                            ))
+                          : droppedWidgets.map((widget) => (
+                              <div key={widget.id}>
+                                <CanvasWidgetGrid
+                                  widget={widget}
+                                  widgets={droppedWidgets}
+                                  isSelected={selectedWidgetIds.includes(widget.id)}
+                                  locked={canvasLocked}
+                                  onSelect={() => setSelectedWidgetIds([widget.id])}
+                                  onRemove={() => removeWidget(widget.id)}
+                                  onDuplicate={() => duplicateWidget(widget.id)}
+                                  fontScale={fontScale}
+                                />
+                              </div>
+                            ))}
+                      </DroppableBoard>
+                      {colorPickingMode && (
+                        <div className="absolute inset-0 z-[500]" style={{ cursor: 'crosshair' }} title="클릭하여 색상 추출 / ESC로 취소" onClick={sampleColorFromBoardClick} />
+                      )}
+                      {guidesOverlay}
+                    </>
                   );
                 })()}
               </div>
@@ -2775,6 +3360,17 @@ export default function TaskCreate() {
                 <div className="px-2 py-1 bg-slate-50 rounded border border-slate-200 text-[9px] text-slate-400 text-center">
                   {layoutMode === 'free' ? '방향키: 0.5% · Shift: 2% · 드래그: 자유이동' : '방향키: 1칸 · Shift: 3칸 · 드래그: 그리드 스냅'}
                 </div>
+
+                {/* 데이터 출처 — 이 위젯이 실제로 바라보는 항목의 경로 */}
+                {(() => {
+                  const sourcePath = getWidgetDataSourcePath(selectedWidget.item);
+                  return sourcePath ? (
+                    <div className="px-2 py-1.5 bg-slate-50 rounded border border-slate-200">
+                      <div className="text-[8px] text-slate-400 font-semibold uppercase tracking-wide mb-0.5">데이터 출처</div>
+                      <div className="text-[10px] text-slate-600 font-mono break-all leading-snug">{sourcePath}</div>
+                    </div>
+                  ) : null;
+                })()}
 
                 {/* 타이틀 토글 */}
                 <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
@@ -2883,25 +3479,228 @@ export default function TaskCreate() {
                   </div>
                 )}
 
-                {/* 테이블 컬럼 — table-queue/table-group/table-agent 전용. 여기서 추가한 필드명이 그대로 WS 구독 컬럼으로 쓰여 그 컬럼만 받아온다. */}
-                {['table-queue', 'table-group', 'table-agent'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
+                {/* Redis 해시키 — table-redis 전용. 행은 이 해시에 실제로 존재하는 field를 그대로 쓴다(DB 마스터 조인 없음). */}
+                {selectedWidget.item.id === 'table-redis' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                      Redis 해시키 <span className="text-slate-300 font-normal normal-case">(미디어타입까지 포함 — 예: IC:CTIQ:0)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedWidget.item.redisHashKey ?? ''}
+                      onChange={(e) => updateWidgetRedisHashKey(selectedWidget.id, e.target.value)}
+                      placeholder="IC:CTIQ:0"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                    />
+                    <p className="text-[9px] text-slate-400 px-1 mt-1">
+                      행은 이 해시에 실제로 있는 키를 그대로 씁니다. 컬럼은 아래에 직접 추가하거나 좌측 탐색기에서 필드를 드래그하세요.
+                    </p>
+                  </div>
+                )}
+
+                {/* 그룹화(합계) — table-redis 전용. byKey 값으로 묶어서 aggKey를 합산한 1행씩으로 축약(예: REASON_CODE별 AGENT_CNT 합계) */}
+                {selectedWidget.item.id === 'table-redis' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">그룹별 합계</label>
+                      <button
+                        onClick={() => updateWidgetTableGroupBy(selectedWidget.id, selectedWidget.item.tableConfig?.groupBy ? undefined : { byKey: '', aggKey: '' })}
+                        className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.item.tableConfig?.groupBy ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.item.tableConfig?.groupBy ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    {selectedWidget.item.tableConfig?.groupBy && (
+                      <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
+                        <p className="text-[9px] text-slate-400 leading-snug">행 전체를 펼치는 대신, 기준 필드 값으로 묶어서 합계 필드를 더한 1행씩만 보여줍니다.</p>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">기준 필드 (예: REASON_CODE)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.tableConfig.groupBy.byKey}
+                            onChange={(e) =>
+                              updateWidgetTableGroupBy(selectedWidget.id, { ...(selectedWidget.item.tableConfig?.groupBy ?? { byKey: '', aggKey: '' }), byKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">합계 필드 (예: AGENT_CNT)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.tableConfig.groupBy.aggKey}
+                            onChange={(e) =>
+                              updateWidgetTableGroupBy(selectedWidget.id, { ...(selectedWidget.item.tableConfig?.groupBy ?? { byKey: '', aggKey: '' }), aggKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 테이블 컬럼 — table-queue/table-group/table-agent/table-redis. 여기서 추가한 필드명이 그대로 WS 구독(또는 Redis 테이블) 컬럼으로 쓰인다. */}
+                {['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
                   <div>
                     <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
                       테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
                     </label>
                     <div className="space-y-1 mb-1.5">
                       {selectedWidget.item.tableConfig.columns.map((col) => (
-                        <div key={col.key} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded px-2 py-1">
-                          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
-                          <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
-                          {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                        <div key={col.key} className="bg-white border border-slate-200 rounded">
+                          <div className="flex items-center gap-1.5 px-2 py-1">
+                            <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
+                            <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
                             <button
-                              onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
-                              className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
-                              title="컬럼 삭제"
+                              onClick={() => setExpandedColKey((k) => (k === col.key ? null : col.key))}
+                              className={`text-[10px] flex-shrink-0 ${expandedColKey === col.key ? 'text-[#0f5b9e]' : 'text-slate-300 hover:text-slate-500'}`}
+                              title="컬럼 스타일"
                             >
-                              ×
+                              ⚙
                             </button>
+                            {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                              <button
+                                onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
+                                className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
+                                title="컬럼 삭제"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                          {expandedColKey === col.key && (
+                            <div className="px-2 pb-2 pt-1.5 border-t border-slate-100 space-y-1.5">
+                              {/* 정렬 */}
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">정렬</span>
+                                {[
+                                  { value: 'left' as const, label: '좌' },
+                                  { value: 'center' as const, label: '중' },
+                                  { value: 'right' as const, label: '우' },
+                                ].map((al) => (
+                                  <button
+                                    key={al.value}
+                                    onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { align: al.value })}
+                                    className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                      (col.align ?? 'center') === al.value
+                                        ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                        : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                    }`}
+                                  >
+                                    {al.label}
+                                  </button>
+                                ))}
+                              </div>
+                              {/* 천단위 콤마 */}
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] text-slate-400">천단위 콤마</span>
+                                <button
+                                  onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { useThousandSep: !col.useThousandSep })}
+                                  className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.useThousandSep ? 'translate-x-3' : 'translate-x-0'}`}
+                                  />
+                                </button>
+                              </div>
+                              {/* 임계치 색상 */}
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] text-slate-400">임계치 색상</span>
+                                  <button
+                                    onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { thresholdEnabled: !col.thresholdEnabled })}
+                                    className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                  >
+                                    <span
+                                      className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.thresholdEnabled ? 'translate-x-3' : 'translate-x-0'}`}
+                                    />
+                                  </button>
+                                </div>
+                                {col.thresholdEnabled && (
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    {(col.thresholds ?? []).map((rule, idx) => (
+                                      <div key={idx} className="flex items-center gap-1">
+                                        <span className="text-[9px] text-slate-400 flex-shrink-0">≥</span>
+                                        <input
+                                          type="number"
+                                          value={rule.min}
+                                          onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { min: Number(e.target.value) })}
+                                          className="w-12 text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
+                                        />
+                                        <input
+                                          type="color"
+                                          value={rule.color}
+                                          onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { color: e.target.value })}
+                                          className="w-6 h-6 rounded border border-slate-200 cursor-pointer flex-shrink-0"
+                                        />
+                                        <button
+                                          onClick={() => removeColumnThresholdRule(selectedWidget.id, col.key, idx)}
+                                          className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0 ml-auto"
+                                          title="삭제"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button
+                                      onClick={() => addColumnThresholdRule(selectedWidget.id, col.key)}
+                                      className="text-[9px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-0.5 hover:bg-[#0f5b9e]/5 transition-colors"
+                                    >
+                                      + 기준 추가
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              {/* 계산식 — Redis 테이블 전용. 원본 필드 대신 같은 행의 다른 필드들로 계산한 값을 표시 */}
+                              {selectedWidget.item.id === 'table-redis' && (
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] text-slate-400">계산식</span>
+                                    <button
+                                      onClick={() => toggleColumnCalcEnabled(selectedWidget.id, col.key, !col.calc)}
+                                      className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.calc ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                    >
+                                      <span
+                                        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.calc ? 'translate-x-3' : 'translate-x-0'}`}
+                                      />
+                                    </button>
+                                  </div>
+                                  {col.calc && (
+                                    <div className="flex flex-col gap-1.5 mt-1 p-2 bg-white rounded border border-slate-200">
+                                      <p className="text-[9px] text-slate-400 leading-snug">원본 필드값 대신 같은 행의 다른 필드로 계산한 값을 보여줍니다(예: A / B * 100).</p>
+                                      <input
+                                        type="text"
+                                        value={col.calc.formula}
+                                        onChange={(e) => updateColumnCalc(selectedWidget.id, col.key, { formula: e.target.value })}
+                                        placeholder="예: A + B"
+                                        className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                                      />
+                                      <div className="space-y-1">
+                                        {col.calc.operands.map((op) => (
+                                          <TableColCalcOperandDropZone
+                                            key={op.var}
+                                            widgetId={selectedWidget.id}
+                                            colKey={col.key}
+                                            operand={op}
+                                            onRemove={() => removeColumnCalcOperand(selectedWidget.id, col.key, op.var)}
+                                          />
+                                        ))}
+                                      </div>
+                                      <button
+                                        onClick={() => addColumnCalcOperand(selectedWidget.id, col.key)}
+                                        disabled={col.calc.operands.length >= 26}
+                                        className="py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                                      >
+                                        + 변수 추가
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}
@@ -2911,7 +3710,7 @@ export default function TaskCreate() {
                         type="text"
                         value={newColKey}
                         onChange={(e) => setNewColKey(e.target.value)}
-                        placeholder="필드명 (RTS_LOGIN)"
+                        placeholder={selectedWidget.item.id === 'table-redis' ? `필드명 (CTIQ_NAME, 또는 행 키 자체는 ${ROW_ID_COLUMN_KEY})` : '필드명 (RTS_LOGIN)'}
                         className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
                       />
                       <input
@@ -3043,6 +3842,92 @@ export default function TaskCreate() {
                   </div>
                 )}
 
+                {/* 값 위치 세밀조정 — valueAlign으로 큰 정렬을 잡은 뒤 px 단위로 상하좌우 미세 이동 */}
+                {selectedWidget.item.displayType !== 'table' && selectedWidget.item.displayType !== 'chart' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">값 위치 세밀조정</label>
+                      {((selectedWidget.style.valueOffsetX ?? 0) !== 0 || (selectedWidget.style.valueOffsetY ?? 0) !== 0) && (
+                        <button
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueOffsetX: 0, valueOffsetY: 0 })}
+                          className="text-[9px] text-slate-400 hover:text-red-500 font-semibold"
+                        >
+                          초기화
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3 p-2 bg-slate-50 rounded border border-slate-200">
+                      {/* 상하좌우 방향패드 */}
+                      <div className="grid grid-cols-3 gap-0.5 w-[84px] flex-shrink-0">
+                        <span />
+                        <button
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueOffsetY: (selectedWidget.style.valueOffsetY ?? 0) - 1 })}
+                          title="위로 1px"
+                          className="h-6 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-[#0f5b9e] text-[10px]"
+                        >
+                          ▲
+                        </button>
+                        <span />
+                        <button
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueOffsetX: (selectedWidget.style.valueOffsetX ?? 0) - 1 })}
+                          title="왼쪽으로 1px"
+                          className="h-6 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-[#0f5b9e] text-[10px]"
+                        >
+                          ◀
+                        </button>
+                        <button
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueOffsetX: 0, valueOffsetY: 0 })}
+                          title="가운데로(초기화)"
+                          className="h-6 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-400 hover:bg-slate-100 text-[9px]"
+                        >
+                          ●
+                        </button>
+                        <button
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueOffsetX: (selectedWidget.style.valueOffsetX ?? 0) + 1 })}
+                          title="오른쪽으로 1px"
+                          className="h-6 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-[#0f5b9e] text-[10px]"
+                        >
+                          ▶
+                        </button>
+                        <span />
+                        <button
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueOffsetY: (selectedWidget.style.valueOffsetY ?? 0) + 1 })}
+                          title="아래로 1px"
+                          className="h-6 flex items-center justify-center rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-[#0f5b9e] text-[10px]"
+                        >
+                          ▼
+                        </button>
+                        <span />
+                      </div>
+                      {/* 직접 입력 */}
+                      <div className="flex flex-col gap-1">
+                        <label className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                          <span className="w-3">X</span>
+                          <input
+                            type="number"
+                            step={1}
+                            value={selectedWidget.style.valueOffsetX ?? 0}
+                            onChange={(e) => updateWidgetStyle(selectedWidget.id, { valueOffsetX: Number(e.target.value) || 0 })}
+                            className="w-14 text-[10px] font-mono border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
+                          />
+                          <span className="text-slate-400">px</span>
+                        </label>
+                        <label className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                          <span className="w-3">Y</span>
+                          <input
+                            type="number"
+                            step={1}
+                            value={selectedWidget.style.valueOffsetY ?? 0}
+                            onChange={(e) => updateWidgetStyle(selectedWidget.id, { valueOffsetY: Number(e.target.value) || 0 })}
+                            className="w-14 text-[10px] font-mono border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
+                          />
+                          <span className="text-slate-400">px</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 1000단위 콤마 */}
                 {selectedWidget.item.displayType !== 'table' && selectedWidget.item.displayType !== 'chart' && (
                   <div className="flex items-center justify-between py-1 px-2 bg-white rounded border border-slate-200">
@@ -3061,11 +3946,195 @@ export default function TaskCreate() {
                   </div>
                 )}
 
+                {/* 값 변경 애니메이션 */}
+                {selectedWidget.item.displayType !== 'table' && selectedWidget.item.displayType !== 'chart' && !isAnnouncementWidget(selectedWidget) && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">값 변경 애니메이션</label>
+                    <div className="grid grid-cols-3 gap-1">
+                      {VALUE_CHANGE_ANIMATIONS.map((a) => (
+                        <button
+                          key={a.value}
+                          onClick={() => updateWidgetStyle(selectedWidget.id, { valueChangeAnimation: a.value })}
+                          className={`py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            (selectedWidget.style.valueChangeAnimation ?? 'none') === a.value
+                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                          }`}
+                        >
+                          {a.label}
+                        </button>
+                      ))}
+                    </div>
+                    {selectedWidget.style.valueChangeAnimation === 'highlight' && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] text-slate-500">하이라이트 색상</span>
+                        <input
+                          type="color"
+                          value={selectedWidget.style.highlightColor ?? '#ffd633'}
+                          onChange={(e) => updateWidgetStyle(selectedWidget.id, { highlightColor: e.target.value })}
+                          className="w-7 h-7 rounded border border-slate-200 cursor-pointer flex-shrink-0"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 임계치 색상 — 값이 기준 이상이면 지정한 색으로 표시(여러 구간 등록 가능) */}
+                {selectedWidget.item.displayType !== 'table' && selectedWidget.item.displayType !== 'chart' && !isAnnouncementWidget(selectedWidget) && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">임계치 색상</label>
+                      <button
+                        onClick={() => updateWidgetStyle(selectedWidget.id, { thresholdEnabled: !selectedWidget.style.thresholdEnabled })}
+                        className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.style.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.style.thresholdEnabled ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    {selectedWidget.style.thresholdEnabled && (
+                      <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
+                        <p className="text-[9px] text-slate-400 leading-snug">값이 기준 이상이면 지정한 색으로 표시됩니다. (예: 5 이상 노랑, 10 이상 빨강)</p>
+                        {(selectedWidget.style.thresholds ?? []).map((rule, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-slate-400 flex-shrink-0">≥</span>
+                            <input
+                              type="number"
+                              value={rule.min}
+                              onChange={(e) => updateThresholdRule(selectedWidget.id, idx, { min: Number(e.target.value) })}
+                              className="w-16 text-[11px] border border-slate-200 rounded px-1.5 py-1 focus:outline-none focus:border-[#0f5b9e]"
+                            />
+                            <input
+                              type="color"
+                              value={rule.color}
+                              onChange={(e) => updateThresholdRule(selectedWidget.id, idx, { color: e.target.value })}
+                              className="w-7 h-7 rounded border border-slate-200 cursor-pointer flex-shrink-0"
+                            />
+                            <span className="text-[10px] text-slate-400 flex-1 min-w-0 truncate">이상</span>
+                            <button onClick={() => removeThresholdRule(selectedWidget.id, idx)} className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0" title="삭제">
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => addThresholdRule(selectedWidget.id)}
+                          className="text-[10px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-1 hover:bg-[#0f5b9e]/5 transition-colors"
+                        >
+                          + 기준 추가
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 공지 키 선택 — noticeId 없는 공지 위젯(전체/키 필터) 전용 */}
                 {isAnnouncementWidget(selectedWidget) && !selectedWidget.item.noticeId && (
                   <div>
                     <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">공지 키</label>
                     <NoticeKeyPanel noticeKey={selectedWidget.noticeKey} onChange={(key) => updateWidgetMeta(selectedWidget.id, { noticeKey: key })} />
+                  </div>
+                )}
+
+                {/* 슬라이드 속도 — 공지사항 위젯(키 그룹/1건 고정 공통). 회전 전환 주기 + 마퀴 흐름 속도에 같이 적용 */}
+                {isAnnouncementWidget(selectedWidget) && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                      슬라이드 속도(초) <span className="text-slate-300 font-normal normal-case">(여러 건 회전 주기 + 글자 흐름 속도)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      step={0.5}
+                      value={selectedWidget.slideIntervalSec ?? 5}
+                      onChange={(e) => updateWidgetMeta(selectedWidget.id, { slideIntervalSec: Math.max(1, Math.min(60, Number(e.target.value) || 5)) })}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
+                    />
+                  </div>
+                )}
+
+                {/* 사용자 지정 시계 포맷 — item.id='etc-custom' 전용 */}
+                {selectedWidget.item.id === 'etc-custom' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">시계 포맷</label>
+                    <input
+                      type="text"
+                      value={selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT}
+                      onChange={(e) => updateWidgetMeta(selectedWidget.id, { clockFormat: e.target.value })}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white font-mono"
+                      placeholder={DEFAULT_CUSTOM_CLOCK_FORMAT}
+                    />
+                    <p className="text-[9px] text-slate-400 mt-1 leading-snug">
+                      토큰: <span className="font-mono text-slate-500">yyyy</span> 연도 · <span className="font-mono text-slate-500">mm</span> 월 ·{' '}
+                      <span className="font-mono text-slate-500">dd</span> 일 · <span className="font-mono text-slate-500">hh24</span> 시(0~23) ·{' '}
+                      <span className="font-mono text-slate-500">mi</span> 분 · <span className="font-mono text-slate-500">ss</span> 초. 그 외 글자는 그대로 표시됩니다.
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-1 font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1">
+                      {formatCustomClock(new Date(), selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT)}
+                    </p>
+                  </div>
+                )}
+
+                {/* 그룹별 합계 — 단일값 Redis 위젯 전용. redisField로 행 1개를 직접 가리키는 대신,
+                    해시 전체를 byKey로 묶어 matchValue와 일치하는 그룹의 aggKey 합계를 보여준다.
+                    (Redis 테이블의 그룹별 합계와 동일 로직 — 결과를 1개 숫자로 표시) */}
+                {selectedWidget.item.category === 'Redis' && !!selectedWidget.item.redisHashKey && selectedWidget.item.displayType !== 'table' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">그룹별 합계</label>
+                      <button
+                        onClick={() => updateWidgetItemGroupBy(selectedWidget.id, selectedWidget.item.groupBy ? undefined : { byKey: '', aggKey: '', matchValue: '' })}
+                        className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.item.groupBy ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.item.groupBy ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    {selectedWidget.item.groupBy && (
+                      <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
+                        <p className="text-[9px] text-slate-400 leading-snug">
+                          이 해시(redisHashKey)의 모든 행을 기준 필드 값으로 묶어, 일치값과 같은 그룹의 합계 필드를 더한 숫자 1개를 보여줍니다.
+                        </p>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">기준 필드 (예: REASON_CODE)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.groupBy.byKey}
+                            onChange={(e) =>
+                              updateWidgetItemGroupBy(selectedWidget.id, { ...(selectedWidget.item.groupBy ?? { byKey: '', aggKey: '', matchValue: '' }), byKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">일치값 (예: 5)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.groupBy.matchValue}
+                            onChange={(e) =>
+                              updateWidgetItemGroupBy(selectedWidget.id, {
+                                ...(selectedWidget.item.groupBy ?? { byKey: '', aggKey: '', matchValue: '' }),
+                                matchValue: e.target.value,
+                              })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">합계 필드 (예: AGENT_CNT)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.groupBy.aggKey}
+                            onChange={(e) =>
+                              updateWidgetItemGroupBy(selectedWidget.id, { ...(selectedWidget.item.groupBy ?? { byKey: '', aggKey: '', matchValue: '' }), aggKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -3109,13 +4178,29 @@ export default function TaskCreate() {
                   <div className="space-y-2">
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">수식</label>
-                      <input
-                        type="text"
-                        value={selectedWidget.calc?.formula ?? ''}
-                        onChange={(e) => updateWidgetCalc(selectedWidget.id, { formula: e.target.value })}
-                        placeholder="예: A * 1.5 + B"
-                        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                      />
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={selectedWidget.calc?.formula ?? ''}
+                          onChange={(e) => updateWidgetCalc(selectedWidget.id, { formula: e.target.value })}
+                          placeholder="예: A * 1.5 + B"
+                          className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                        />
+                        <button
+                          onClick={() => {
+                            const declaredVars = (selectedWidget.calc?.operands ?? []).map((op) => op.var);
+                            const result = validateFormula(selectedWidget.calc?.formula ?? '', declaredVars);
+                            if (result.ok) {
+                              toast.success(`수식 검증 성공 (변수 1일 때 결과: ${result.sampleResult})`);
+                            } else {
+                              toast.error(`수식 검증 실패: ${result.message}`);
+                            }
+                          }}
+                          className="flex-shrink-0 px-2.5 py-1.5 text-xs font-semibold rounded border border-slate-200 text-slate-600 hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors"
+                        >
+                          검증
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
@@ -3160,6 +4245,33 @@ export default function TaskCreate() {
                         onChange={(e) => updateWidgetCalc(selectedWidget.id, { decimals: Math.max(0, Math.min(6, Number(e.target.value) || 0)) })}
                         className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
                       />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">% 표시</label>
+                        <button
+                          onClick={() => updateWidgetCalc(selectedWidget.id, { showPercent: !selectedWidget.calc?.showPercent })}
+                          className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.calc?.showPercent ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                        >
+                          <span
+                            className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.calc?.showPercent ? 'translate-x-4' : 'translate-x-0'}`}
+                          />
+                        </button>
+                      </div>
+                      {selectedWidget.calc?.showPercent && (
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-normal normal-case block mb-1">% 크기 (값 폰트 대비 배율 — 폰트는 값과 동일)</label>
+                          <input
+                            type="number"
+                            min={0.3}
+                            max={1.5}
+                            step={0.05}
+                            value={selectedWidget.calc?.percentFontScale ?? 0.65}
+                            onChange={(e) => updateWidgetCalc(selectedWidget.id, { percentFontScale: Math.max(0.3, Math.min(1.5, Number(e.target.value) || 0.65)) })}
+                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                      )}
                     </div>
                     {!!selectedWidget.calc?.formula.trim() && (
                       <div className="text-[10px] text-slate-400">
@@ -3224,7 +4336,7 @@ export default function TaskCreate() {
                     </select>
                     <div
                       className="mt-1 px-2 py-1 bg-slate-800 rounded text-center text-white"
-                      style={{ fontFamily: selectedWidget.style.fontFamily, fontSize: selectedWidget.style.fontSize, fontWeight: selectedWidget.style.fontWeight ?? 'normal' }}
+                      style={{ fontFamily: selectedWidget.style.fontFamily, fontSize: 16, fontWeight: selectedWidget.style.fontWeight ?? 'normal' }}
                     >
                       Aa 가나다 123
                     </div>
@@ -3234,21 +4346,39 @@ export default function TaskCreate() {
                   <div className="flex gap-2 items-center mb-2">
                     <div className="flex-1">
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">텍스트</label>
-                      <input
-                        type="color"
-                        value={selectedWidget.style.color}
-                        onChange={(e) => updateWidgetStyle(selectedWidget.id, { color: e.target.value })}
-                        className="w-full h-7 rounded border border-slate-200 cursor-pointer"
-                      />
+                      <div className="flex gap-1">
+                        <input
+                          type="color"
+                          value={selectedWidget.style.color}
+                          onChange={(e) => updateWidgetStyle(selectedWidget.id, { color: e.target.value })}
+                          className="flex-1 min-w-0 h-7 rounded border border-slate-200 cursor-pointer"
+                        />
+                        <button
+                          onClick={() => handlePickColorFromScreen('color', selectedWidget.id)}
+                          title="스포이드로 화면에서 색상 추출 (Chrome/Edge 전용)"
+                          className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[#0f5b9e] hover:border-[#0f5b9e] transition-colors"
+                        >
+                          <Pipette className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <div className="flex-1">
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">배경</label>
-                      <input
-                        type="color"
-                        value={selectedWidget.style.bgColor.startsWith('rgba') ? '#000000' : selectedWidget.style.bgColor}
-                        onChange={(e) => updateWidgetStyle(selectedWidget.id, { bgColor: e.target.value })}
-                        className="w-full h-7 rounded border border-slate-200 cursor-pointer"
-                      />
+                      <div className="flex gap-1">
+                        <input
+                          type="color"
+                          value={selectedWidget.style.bgColor.startsWith('rgba') ? '#000000' : selectedWidget.style.bgColor}
+                          onChange={(e) => updateWidgetStyle(selectedWidget.id, { bgColor: e.target.value })}
+                          className="flex-1 min-w-0 h-7 rounded border border-slate-200 cursor-pointer"
+                        />
+                        <button
+                          onClick={() => handlePickColorFromScreen('bgColor', selectedWidget.id)}
+                          title="스포이드로 화면에서 색상 추출 (Chrome/Edge 전용)"
+                          className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-[#0f5b9e] hover:border-[#0f5b9e] transition-colors"
+                        >
+                          <Pipette className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 

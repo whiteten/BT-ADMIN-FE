@@ -6,6 +6,8 @@ export interface AgentTestRequest {
     threadId: string;
     userInput: string;
   };
+  /** 세션 교체 시 진행 중 요청 취소용 (서버 호출은 진행되나 클라이언트는 응답 대기 중단) */
+  signal?: AbortSignal;
 }
 
 export interface AgentTestResponse {

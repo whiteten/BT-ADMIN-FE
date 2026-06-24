@@ -17,6 +17,7 @@ const APP_ID = 'insight';
 
 const _selectors = {
   ReportSelector: lazy(() => import('./selectors/ReportSelector')),
+  DashboardSelector: lazy(() => import('./selectors/DashboardSelector')),
 } satisfies Record<string, QuerySelectorComponent>;
 
 export const querySelectors = _selectors;

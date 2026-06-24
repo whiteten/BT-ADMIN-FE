@@ -22,7 +22,6 @@ import type {
   SlotOptionListItem,
   SlotStatList,
   SlotStatListItem,
-  TenantOptionListItem,
   UserDefColumnDef,
   UserDefStatList,
   UserDefStatListItem,
@@ -182,13 +181,7 @@ export const statisticsApi = {
     return await apiClient.post<Blob>('/stat-campaign-achievement-result-export', params, { responseType: 'blob' });
   },
 
-  // 테넌트 옵션 목록 조회 (BFF: stat-tenant-options)
-  getTenantOptionList: async (params?: Record<string, unknown>): Promise<TenantOptionListItem[]> => {
-    const response = await apiClient.post<ApiResponse<{ items: TenantOptionListItem[] }>>('/stat-tenant-options', params ?? {});
-    return response.data?.data?.items ?? [];
-  },
-
-  // 캠페인 옵션 목록 조회 (BFF: stat-campaign-options)
+  // 캠페인 옵션 목록 조회 (BFF: stat-campaign-options, 세션 테넌트 기준)
   getCampaignOptionList: async (params?: Record<string, unknown>): Promise<CampaignOptionListItem[]> => {
     const response = await apiClient.post<ApiResponse<{ items: CampaignOptionListItem[] }>>('/stat-campaign-options', params ?? {});
     return response.data?.data?.items ?? [];

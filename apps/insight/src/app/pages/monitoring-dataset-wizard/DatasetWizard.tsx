@@ -19,12 +19,13 @@ import { toast } from '@/shared-util';
 import SourceValidationResultModal, { type SourceValidationResultModalRef } from './SourceValidationResultModal';
 import CalcFieldEditor from '../../features/monitoring/components/calcfield/CalcFieldEditor';
 import LookupEditDrawer, { type LookupEditDrawerRef } from '../../features/monitoring/components/lookup/LookupEditDrawer';
-import { COLUMN_FORMAT_OPTIONS, DOMAIN_OPTIONS } from '../../features/monitoring/constants/monitoringConstants';
+import { COLUMN_FORMAT_OPTIONS, DOMAIN_LABELS, DOMAIN_OPTIONS } from '../../features/monitoring/constants/monitoringConstants';
 import {
   monitoringDatasetKeys,
   useCreateMonitoringDataset,
   useGetMonitoringDataset,
   useUpdateMonitoringDataset,
+  useValidateMonitoringDataset,
   useValidateMonitoringDatasetSource,
 } from '../../features/monitoring/hooks/useDatasetQueries';
 import type { CalcField, ColumnFormat, DatasetBaseType, DatasetCreateDatas, DatasetField, DatasetLookup, DomainCode, FieldDataType } from '../../features/monitoring/types';
@@ -170,7 +171,52 @@ function SortableItem({ id, children }: { id: string; children: (s: ReturnType<t
   return <>{children(sortable)}</>;
 }
 
-// ────────── FieldConfigGrid — 필드 구성 그리드만 분리 ──────────
+// ────────── 검증 상태 칩 (통계 WizardStepB 패턴) ──────────
+type ValidationStatus = 'unchecked' | 'checking' | 'valid' | 'invalid' | 'stale';
+
+function formatTimeAgo(date: Date): string {
+  const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diffMin < 1) return '방금 전 검증';
+  if (diffMin < 60) return `${diffMin}분 전 검증`;
+  return `${Math.floor(diffMin / 60)}시간 전 검증`;
+}
+
+function ValidationChip({ status, checkedAt, errors }: { status: ValidationStatus; checkedAt?: Date; errors?: string[] }) {
+  if (status === 'unchecked') return <Tag className="select-none">미검증</Tag>;
+  if (status === 'checking')
+    return (
+      <Tag color="processing" className="select-none">
+        검증 중…
+      </Tag>
+    );
+  if (status === 'valid') {
+    return (
+      <Tooltip title={checkedAt ? formatTimeAgo(checkedAt) : undefined}>
+        <Tag color="success" className="select-none cursor-default">
+          유효 ✓
+        </Tag>
+      </Tooltip>
+    );
+  }
+  if (status === 'stale') {
+    return (
+      <Tooltip title="필드가 변경되어 재검증이 필요합니다">
+        <Tag color="warning" className="select-none cursor-default">
+          재검증 필요
+        </Tag>
+      </Tooltip>
+    );
+  }
+  return (
+    <Tooltip title={errors?.length ? errors.join(' / ') : '검증 실패'}>
+      <Tag color="error" className="select-none cursor-default">
+        무효 ✕
+      </Tag>
+    </Tooltip>
+  );
+}
+
+// ────────── FieldConfigGrid — 컬럼 구성 그리드만 분리 ──────────
 // 분리 목적:
 //  1) useMemo로 columnDefs/unifiedRows 캐싱 → 사용 체크박스 토글 시 ag-grid 전체 재렌더 회피 (버벅임 제거)
 //  2) Form.useWatch('fields'/'calcFields', form)로 정확히 watch → 계산필드 추가/삭제 즉시 반영
@@ -210,6 +256,75 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
   const gridRef = useRef<AgGridReact<UnifiedFieldRow>>(null);
 
   const visibleCount = useMemo(() => fields.filter((f) => f.isVisible).length, [fields]);
+
+  // ─── 검증 실행 (통계 WizardStepB 패턴) ──────────────────────────────────────
+  const { mutateAsync: runValidate, isPending: isChecking } = useValidateMonitoringDataset();
+  const [validationStatus, setValidationStatus] = useState<ValidationStatus>('unchecked');
+  const [validationCheckedAt, setValidationCheckedAt] = useState<Date | undefined>();
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+
+  // fingerprint — 검증 후 필드/계산식/룩업이 바뀌면 stale 처리
+  const fieldFingerprint = useMemo(() => {
+    const fStr = fields.map((f) => `${f.columnName}:${f.classification}:${f.displayName}:${f.columnFormat}:${f.isVisible}`).join('|');
+    const cStr = calcFields.map((c) => `${c.fieldCode}:${c.rowExpression}:${c.displayName}:${c.columnFormat}`).join('|');
+    const lStr = lookups.map((l) => `${l.sourceField}:${l.lookupCatalogId}:${l.fields.map((x) => x.outputFieldName).join(',')}`).join('|');
+    return `${fStr}__${cStr}__${lStr}`;
+  }, [fields, calcFields, lookups]);
+
+  const validationStatusRef = useRef<ValidationStatus>('unchecked');
+  useEffect(() => {
+    validationStatusRef.current = validationStatus;
+  }, [validationStatus]);
+
+  const prevFingerprintRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevFingerprintRef.current;
+    prevFingerprintRef.current = fieldFingerprint;
+    if (prev === null || prev === fieldFingerprint) return;
+    const s = validationStatusRef.current;
+    if (s === 'valid' || s === 'invalid') setValidationStatus('stale');
+  }, [fieldFingerprint]);
+
+  const handleValidate = async () => {
+    setValidationStatus('checking');
+    try {
+      // 저장 시점(onFinish)과 동일하게 가상 필드 합성 + 노출 필드만 전송
+      const allFields = rebuildFieldsWithVirtuals(fields, lookups);
+      const visibleFields = allFields.filter((f) => f.isVisible !== false);
+      const payload: DatasetCreateDatas = {
+        datasetCode: (form.getFieldValue('datasetCode') as string) ?? '',
+        datasetName: (form.getFieldValue('datasetName') as string) ?? '',
+        domainCode: form.getFieldValue('domainCode') as DomainCode,
+        description: form.getFieldValue('description') as string | undefined,
+        baseType: form.getFieldValue('baseType') as DatasetBaseType,
+        schemaSnapshot: (form.getFieldValue('schemaSnapshot') as string) ?? '',
+        fields: visibleFields,
+        calcFields,
+        lookups,
+      };
+      const result = await runValidate(payload);
+      setValidationWarnings(result.warnings ?? []);
+      if (result.ok) {
+        setValidationErrors([]);
+        setValidationCheckedAt(new Date());
+        setValidationStatus('valid');
+        if (result.warnings?.length) toast.warning(`검증을 통과했습니다. (경고 ${result.warnings.length}건)`);
+        else toast.success('모든 필드가 유효합니다.');
+      } else {
+        const errors = result.errors?.length ? result.errors : ['검증 실패'];
+        setValidationErrors(errors);
+        setValidationStatus('invalid');
+        errors.forEach((e) => toast.error(e));
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '검증 실행 중 오류가 발생했습니다.';
+      setValidationErrors([msg]);
+      setValidationWarnings([]);
+      setValidationStatus('invalid');
+      toast.error(msg);
+    }
+  };
 
   // BASE + VIRTUAL + CALC 통합 행 — fields(base+virtual)/calcFields/lookups 변경 시 재계산
   const unifiedRows = useMemo<UnifiedFieldRow[]>(() => {
@@ -379,7 +494,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
       },
       {
         field: 'columnName',
-        headerName: '컬럼명',
+        headerName: '컬럼',
         flex: 1,
         minWidth: 180,
         editable: false,
@@ -511,7 +626,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <div className="mb-2 flex items-center gap-2">
-        <span className="text-sm font-semibold">필드 구성</span>
+        <span className="text-sm font-semibold">컬럼 구성</span>
         <span className="text-xs text-[var(--color-bt-fg-muted)]">— 노출할 필드를 선택하고 분류·서식·표시명을 지정하세요</span>
         <span className="ml-auto inline-flex items-center gap-3">
           <span className="text-xs text-[var(--color-bt-fg-muted)]">
@@ -529,6 +644,11 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
               </>
             )}
           </span>
+          <ValidationChip status={validationStatus} checkedAt={validationCheckedAt} errors={validationErrors} />
+          <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
+            검증 실행
+          </Button>
+          <Divider type="vertical" className="mx-0" />
           <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={onLookupAdd}>
             룩업 추가
           </Button>
@@ -537,6 +657,29 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
           </Button>
         </span>
       </div>
+
+      {/* 검증 결과 인라인 박스 — invalid 시 오류, valid+경고 시 경고 노출 */}
+      {validationStatus === 'invalid' && validationErrors.length > 0 && (
+        <div className="mb-2 rounded border border-red-200 bg-red-50 px-3 py-2 space-y-1">
+          <div className="text-xs font-semibold text-red-600">검증 실패 — 서버에서 반환된 오류</div>
+          {validationErrors.map((e, i) => (
+            <div key={i} className="font-mono text-xs text-red-700 break-all">
+              {e}
+            </div>
+          ))}
+        </div>
+      )}
+      {validationStatus === 'valid' && validationWarnings.length > 0 && (
+        <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 space-y-1">
+          <div className="text-xs font-semibold text-amber-600">검증 경고</div>
+          {validationWarnings.map((w, i) => (
+            <div key={i} className="font-mono text-xs text-amber-700 break-all">
+              {w}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex-1 min-h-0 w-full">
         <AgGridReact<UnifiedFieldRow>
           ref={gridRef}
@@ -544,7 +687,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
           columnDefs={columnDefs}
           gridOptions={gridOptions}
           // 공통 gridOptions는 페이지네이션(20) + statusBar(페이지네이션 패널) 기본.
-          // 데이터셋 필드 구성은 전체 한눈에 + 스크롤로 보는 게 자연스러워 둘 다 끔.
+          // 데이터셋 컬럼 구성은 전체 한눈에 + 스크롤로 보는 게 자연스러워 둘 다 끔.
           pagination={false}
           statusBar={{ statusPanels: [] }}
           getRowId={(p) => p.data.rowId}
@@ -913,6 +1056,9 @@ export default function DatasetWizard() {
 
   // ────────── Step 1: 기본 정보 ──────────
   function renderStep1() {
+    // 통계 WizardStepA 패턴 — 큰 입력 + 3열 선택 카드. 카드는 form의 domainCode를 직접 세팅
+    const domainCode = (formValues?.domainCode ?? '') as DomainCode | '';
+    const DOMAINS: DomainCode[] = ['IE', 'IC', 'IR'];
     return (
       <>
         <Row gutter={20}>
@@ -929,7 +1075,7 @@ export default function DatasetWizard() {
                 { max: 60, message: '60자까지 입력 가능합니다.' },
               ]}
             >
-              <Input placeholder="예: dept_call_status" className="font-mono" disabled={isEdit} />
+              <Input placeholder="예: dept_call_status" className="font-mono" size="large" disabled={isEdit} />
             </Form.Item>
           </Col>
           <Col span={12}>
@@ -944,22 +1090,54 @@ export default function DatasetWizard() {
                 { max: 120, message: '120자까지 입력 가능합니다.' },
               ]}
             >
-              <Input placeholder="예: 부서별 통화 현황" />
+              <Input placeholder="예: 부서별 통화 현황" size="large" />
             </Form.Item>
           </Col>
         </Row>
-        <Row gutter={20}>
-          <Col span={8}>
-            <Form.Item name="domainCode" label="도메인" required hasFeedback rules={[{ required: true, message: '도메인을 선택해 주세요.' }]}>
-              <Select options={DOMAIN_OPTIONS.map((o) => ({ value: o.value, label: o.label }))} placeholder="도메인 선택" />
-            </Form.Item>
-          </Col>
-          <Col span={16}>
-            <Form.Item name="description" label="설명" rules={[{ max: 500, message: '500자까지 입력 가능합니다.' }]}>
-              <Input.TextArea rows={1} autoSize={{ minRows: 1, maxRows: 3 }} placeholder="이 데이터셋의 용도·범위를 간단히" />
-            </Form.Item>
-          </Col>
-        </Row>
+
+        <Form.Item name="description" label="설명" rules={[{ max: 500, message: '500자까지 입력 가능합니다.' }]}>
+          <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} maxLength={500} showCount placeholder="이 데이터셋의 용도·범위를 간단히 (목록 카드에 표시됩니다)" />
+        </Form.Item>
+
+        <Divider />
+
+        {/* 도메인 — 통계 카테고리 카드 패턴. 검증/요약 연동을 위해 값은 hidden Form.Item에 보관 */}
+        <Form.Item name="domainCode" hidden rules={[{ required: true, message: '도메인을 선택해 주세요.' }]}>
+          <Input />
+        </Form.Item>
+        <div className="mb-2 text-sm font-medium">
+          <span style={{ color: '#ff4d4f' }}>* </span>도메인
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          {DOMAINS.map((domain) => {
+            const isSelected = domainCode === domain;
+            return (
+              <button
+                key={domain}
+                type="button"
+                onClick={() => form.setFieldsValue({ domainCode: domain })}
+                className={`rounded-md p-4 text-left transition-all border-2 ${
+                  isSelected ? 'bg-blue-50/40 shadow-md' : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
+                }`}
+                style={isSelected ? { borderColor: '#085fb5' } : undefined}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
+                    {domain}
+                  </span>
+                  {isSelected && (
+                    <span className="rounded px-2 py-1 text-xs font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
+                      선택됨
+                    </span>
+                  )}
+                </div>
+                <div className="text-sm font-bold" style={isSelected ? { color: '#085fb5' } : { color: '#1f2937' }}>
+                  {DOMAIN_LABELS[domain]}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </>
     );
   }
@@ -1106,7 +1284,7 @@ export default function DatasetWizard() {
     );
   }
 
-  // ────────── Step 3: 필드 구성 + 계산필드 (통계 WizardStepB 패턴) ──────────
+  // ────────── Step 3: 컬럼 구성 + 계산필드 (통계 WizardStepB 패턴) ──────────
   function renderStep3() {
     const fields = (formValues?.fields as DatasetField[]) ?? [];
     const calcFields = (formValues?.calcFields as CalcField[]) ?? [];
@@ -1140,7 +1318,7 @@ export default function DatasetWizard() {
         {/* 통계 WizardStepB 골격 — 좌측 팔레트 + 우측 메인 그리드. flex-1 + min-h-0으로 본문 가용 공간 전체 채움 */}
         <div className="flex flex-1 min-h-0">
           {/* ── 좌측: 노출 필드 팔레트 ── */}
-          <aside className="w-64 shrink-0 bg-[var(--color-bt-bg-muted)]/20 p-4 overflow-y-auto">
+          <aside className="w-64 shrink-0 border-r border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/20 p-4 overflow-y-auto">
             {/* 헤더 — border 없이 텍스트만으로 정보 위계 */}
             <div className="mb-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">데이터 소스</div>
@@ -1294,7 +1472,7 @@ export default function DatasetWizard() {
             )}
           </aside>
 
-          {/* ── 우측: 필드 구성 그리드 (전체 차지) ── */}
+          {/* ── 우측: 컬럼 구성 그리드 (전체 차지) ── */}
           <div className="flex-1 bg-white min-w-0 flex flex-col p-5">
             <FieldConfigGrid
               form={form}
@@ -1406,34 +1584,18 @@ export default function DatasetWizard() {
   function renderFooter() {
     const isLast = currentStep === steps.length - 1;
     return (
-      <Row gutter={20} justify="center">
-        <Col>
-          <Button variant="solid" onClick={() => navigate('/insight/monitoring/datasets')}>
-            취소
+      <div className="flex items-center justify-between">
+        <Button onClick={currentStep === 0 ? () => navigate('/insight/monitoring/datasets') : handlePrev}>{currentStep === 0 ? '취소' : '이전'}</Button>
+        {isLast ? (
+          <Button type="primary" onClick={handleSubmitBtn} loading={isCreating || isUpdating}>
+            {isEdit ? '수정 저장' : '저장'}
           </Button>
-        </Col>
-        {currentStep > 0 && (
-          <Col>
-            <Button variant="solid" onClick={handlePrev}>
-              이전
-            </Button>
-          </Col>
+        ) : (
+          <Button type="primary" onClick={handleNext}>
+            다음
+          </Button>
         )}
-        {!isLast && (
-          <Col>
-            <Button variant="solid" color="primary" onClick={handleNext}>
-              다음
-            </Button>
-          </Col>
-        )}
-        {isLast && (
-          <Col>
-            <Button variant="solid" color="primary" onClick={handleSubmitBtn} loading={isCreating || isUpdating}>
-              {isEdit ? '수정 저장' : '저장'}
-            </Button>
-          </Col>
-        )}
-      </Row>
+      </div>
     );
   }
 
@@ -1462,7 +1624,7 @@ export default function DatasetWizard() {
                 ))}
               </Form>
             </div>
-            <div className="w-full px-7 py-3">{renderFooter()}</div>
+            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">{renderFooter()}</div>
           </div>
           <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
             <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">입력 정보 요약</div>

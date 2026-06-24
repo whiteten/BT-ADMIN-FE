@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CellStyle, ColDef } from 'ag-grid-community';
+import type { CellStyle } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Download, Search } from 'lucide-react';
+import { ChevronDown, Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup } from './campaignResultStatGridColumns';
+import { type CampaignResultStatColDef, buildCampaignResultStatRowId, createCampaignResultStatMetricColumns, createPsrTimeKeyColumnDef } from './campaignResultStatGridColumns';
+import { CampaignStatExcludeFilterRow, buildCampaignExcludeFilterParams } from './campaignStatExcludeFilters';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/fca/statistics' },
@@ -42,13 +44,6 @@ const getDatePickerFormat = (unit: string): string => {
   if (unit === 'YY') return 'YYYY';
   return 'YYYY-MM-DD';
 };
-
-/** defaultColDef.flex 상속 방지 — 날짜 컬럼은 내용 길이만큼만 차지 */
-const dateColDef = (displayTimeUnit: string): Pick<ColDef, 'flex' | 'minWidth' | 'maxWidth'> => ({
-  flex: 0,
-  minWidth: displayTimeUnit === 'YY' ? 88 : displayTimeUnit === 'MM' ? 96 : 112,
-  maxWidth: displayTimeUnit === 'YY' ? 100 : displayTimeUnit === 'MM' ? 110 : 130,
-});
 
 const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   if (end.isBefore(start, 'day')) return false;
@@ -90,9 +85,13 @@ export default function CampaignResultStatistics() {
   const [timeUnit, setTimeUnit] = useState<string>('DD');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day').startOf('day'));
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
+  const [excludeDays, setExcludeDays] = useState<string[]>([]);
+  const [excludeBusinessHoliday, setExcludeBusinessHoliday] = useState(false);
+  const [excludeStatHoliday, setExcludeStatHoliday] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(true);
 
-  const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
+  const pendingTimeUnitRef = useRef(timeUnit);
   const [rowData, setRowData] = useState<CampaignResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -118,8 +117,9 @@ export default function CampaignResultStatistics() {
       timeUnit,
       fromTime,
       toTime,
+      ...buildCampaignExcludeFilterParams(timeUnit, excludeDays, excludeBusinessHoliday, excludeStatHoliday),
     }),
-    [timeUnit, fromTime, toTime],
+    [timeUnit, fromTime, toTime, excludeDays, excludeBusinessHoliday, excludeStatHoliday],
   );
 
   const {
@@ -132,10 +132,17 @@ export default function CampaignResultStatistics() {
   });
 
   useEffect(() => {
-    if (campaignResultStatData !== undefined) setRowData(campaignResultStatData.items);
+    if (campaignResultStatData === undefined) return;
+    setRowData(campaignResultStatData.items);
+    setDisplayTimeUnit(pendingTimeUnitRef.current);
   }, [campaignResultStatData]);
 
-  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계' }] : [];
+  const summaryRow = useMemo<CampaignResultStatListItem[]>(
+    () => (campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계' }] : []),
+    [campaignResultStatData?.summary],
+  );
+
+  const { gridOptions } = useAggridOptions();
 
   useEffect(() => {
     if (startDate && endDate) {
@@ -165,34 +172,14 @@ export default function CampaignResultStatistics() {
       return;
     }
 
-    setDisplayTimeUnit(timeUnit);
+    pendingTimeUnitRef.current = timeUnit;
     refetch();
   };
 
-  const columnDefs: CampaignResultStatColDef[] = [
-    {
-      headerName: '날짜',
-      field: 'psrTimeKey',
-      ...dateColDef(displayTimeUnit),
-      pinned: 'left',
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
-      },
-      cellStyle: textCellStyle,
-    },
-    { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
-    { headerName: '발신진행건수(실시간)', field: 'outboundProgressCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '총발신시도건수(누적)', field: 'outboundAttemptCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '진행율', field: 'progressRatePct', width: 90, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '재시도발신건수', field: 'retryOutboundCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '본인통화건수', field: 'selfCallCnt', width: 110, cellStyle: numberCellStyle },
-    { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
-    { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
-    createAttemptSelfCallSuccessRateColumnGroup(numberCellStyle),
-    { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-  ];
+  const columnDefs = useMemo<CampaignResultStatColDef[]>(
+    () => [createPsrTimeKeyColumnDef<CampaignResultStatListItem>(displayTimeUnit, textCellStyle), ...createCampaignResultStatMetricColumns(numberCellStyle)],
+    [displayTimeUnit],
+  );
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-campaign-result:export');
@@ -210,6 +197,7 @@ export default function CampaignResultStatistics() {
       const response = await statisticsApi.exportCampaignResultStatExcel({
         ...campaignStatParams,
         timeUnit: displayTimeUnit,
+        ...buildCampaignExcludeFilterParams(displayTimeUnit, excludeDays, excludeBusinessHoliday, excludeStatHoliday),
       });
       const fileName = extractFileName(response.headers['content-disposition'], `CAMPAIGN_RESULT_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`);
       downloadBlob(response.data, fileName);
@@ -223,61 +211,84 @@ export default function CampaignResultStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full min-h-0">
       <div className="flex flex-col gap-5 w-full h-full min-h-0 bg-white bt-shadow p-5">
-        <header className="flex items-start gap-3 shrink-0">
-          <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
-              <Select
-                value={timeUnit}
-                onChange={(v) => setTimeUnit(v)}
-                options={[
-                  { label: '일간', value: 'DD' },
-                  { label: '월간', value: 'MM' },
-                  { label: '년간', value: 'YY' },
-                ]}
-                className="!max-w-[110px] !min-w-[90px]"
-                popupMatchSelectWidth={false}
-                defaultValue="DD"
-              />
-              <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
-              <DatePicker
-                value={startDate}
-                onChange={(date) => setStartDate(date)}
-                picker={getPickerMode(timeUnit)}
-                format={getDatePickerFormat(timeUnit)}
-                disabledDate={disabledDate}
-                inputReadOnly
-                allowClear={false}
-              />
-              <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
-              <DatePicker
-                value={endDate}
-                onChange={(date) => setEndDate(date)}
-                picker={getPickerMode(timeUnit)}
-                format={getDatePickerFormat(timeUnit)}
-                disabledDate={disabledEndDate}
-                inputReadOnly
-                allowClear={false}
-              />
+        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <header className="flex flex-col gap-3 shrink-0">
+            <div className="flex items-start gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-[#495057] shrink-0">구분</span>
+                  <Select
+                    value={timeUnit}
+                    onChange={(v) => setTimeUnit(v)}
+                    options={[
+                      { label: '일간', value: 'DD' },
+                      { label: '월간', value: 'MM' },
+                      { label: '년간', value: 'YY' },
+                    ]}
+                    className="!max-w-[110px] !min-w-[90px]"
+                    popupMatchSelectWidth={false}
+                    defaultValue="DD"
+                  />
+                  <span className="text-sm font-medium text-[#495057] shrink-0">조회기간</span>
+                  <DatePicker
+                    value={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                  <span className="text-sm font-medium text-[#495057] shrink-0">~</span>
+                  <DatePicker
+                    value={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    picker={getPickerMode(timeUnit)}
+                    format={getDatePickerFormat(timeUnit)}
+                    disabledDate={disabledEndDate}
+                    inputReadOnly
+                    allowClear={false}
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <CollapsibleTrigger asChild>
+                    <Button type="default" icon={<ChevronDown className={cn('size-4 transition-transform', isFilterOpen && 'rotate-180')} />} className="!size-8 !min-w-8" />
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
+                  조회
+                </Button>
+                {hasExcelPermission && (
+                  <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
+                    Export
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
-              조회
-            </Button>
-            {hasExcelPermission && (
-              <Button color="cyan" variant="solid" loading={isExporting} icon={<Download className="size-4" />} onClick={handleExcelDownload}>
-                Export
-              </Button>
-            )}
-          </div>
-        </header>
+            {timeUnit !== 'MM' && timeUnit !== 'YY' ? (
+              <CollapsibleContent>
+                <div className="flex flex-wrap items-center gap-3">
+                  <CampaignStatExcludeFilterRow
+                    excludeDays={excludeDays}
+                    onExcludeDaysChange={setExcludeDays}
+                    excludeBusinessHoliday={excludeBusinessHoliday}
+                    onExcludeBusinessHolidayChange={setExcludeBusinessHoliday}
+                    excludeStatHoliday={excludeStatHoliday}
+                    onExcludeStatHolidayChange={setExcludeStatHoliday}
+                  />
+                </div>
+              </CollapsibleContent>
+            ) : null}
+          </header>
+        </Collapsible>
         <div className="flex-1 min-h-0 w-full">
           <AgGridReact<CampaignResultStatListItem>
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
-            getRowId={(params) => `${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey}_${params.data.seq}`}
+            getRowId={(params) => buildCampaignResultStatRowId(params.data)}
             columnDefs={columnDefs}
             gridOptions={{ ...gridOptions, statusBar: undefined }}
             loading={isLoadingCampaignResultStatList}
