@@ -1,23 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColDef } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { fuzzyFilter, toast } from '@/shared-util';
-import {
-  SCHEDULE_STATUS_FILTER_OPTIONS,
-  SCHEDULE_STATUS_LABELS,
-  SCHEDULE_TYPE_FILTER_OPTIONS,
-  SCHEDULE_TYPE_LABELS,
-  type ScheduleStatus,
-  type ScheduleType,
-} from '../../features/schedule/constants/scheduleConstants';
+import ScheduleListGrid from '../../features/schedule/components/ScheduleListGrid';
+import { SCHEDULE_STATUS_FILTER_OPTIONS, SCHEDULE_TYPE_FILTER_OPTIONS, type ScheduleStatus, type ScheduleType } from '../../features/schedule/constants/scheduleConstants';
 import { MOCK_SCHEDULE_LIST } from '../../features/schedule/constants/scheduleMockData';
-import type { ScheduleListItem } from '../../features/schedule/types';
 import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
-import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '스케줄', path: '/campaign/schedule' },
@@ -44,8 +34,6 @@ const INITIAL_APPLIED_FILTERS: AppliedFilters = {
   scheduleTypeFilter: null,
   scheduleStatusFilter: null,
 };
-
-const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
 
 function parseCampaignIds(selections: string[]): string[] {
   const campaignIds: string[] = [];
@@ -77,7 +65,6 @@ export default function ScheduleList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { gridOptions } = useAggridOptions();
   const isInitialTenantHydrationDone = useRef(false);
   const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(SCHEDULE_LIST_TENANT_STORAGE_KEY));
   const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(SCHEDULE_LIST_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
@@ -159,36 +146,6 @@ export default function ScheduleList() {
 
     return items;
   }, [appliedFilters]);
-
-  const columnDefs: ColDef<ScheduleListItem>[] = [
-    { headerName: '스케줄명', field: 'scheduleName', flex: 1.5, minWidth: 160 },
-    {
-      headerName: '스케줄 구분',
-      field: 'scheduleType',
-      flex: 1,
-      minWidth: 110,
-      valueFormatter: ({ value }) => SCHEDULE_TYPE_LABELS[value as keyof typeof SCHEDULE_TYPE_LABELS] ?? '-',
-    },
-    { headerName: '시작시간', field: 'startTime', flex: 1.2, minWidth: 160, valueFormatter: ({ value }) => formatDateTime(value as string) },
-    { headerName: '종료시간', field: 'endTime', flex: 1.2, minWidth: 160, valueFormatter: ({ value }) => formatDateTime(value as string) },
-    {
-      headerName: '상태',
-      field: 'status',
-      flex: 0.8,
-      minWidth: 90,
-      valueFormatter: ({ value }) => SCHEDULE_STATUS_LABELS[value as keyof typeof SCHEDULE_STATUS_LABELS] ?? '-',
-    },
-    { headerName: '상태메시지', field: 'statusMessage', flex: 1.5, minWidth: 140 },
-    { headerName: '테넌트명', field: 'tenantName', flex: 1.2, minWidth: 120 },
-    { headerName: '작업자', field: 'worker', flex: 0.8, minWidth: 90 },
-    {
-      headerName: '작업일시',
-      field: 'workDateTime',
-      flex: 1.2,
-      minWidth: 160,
-      valueFormatter: ({ value }) => formatDateTime(value as string),
-    },
-  ];
 
   const handleSearch = () => {
     if (tenantIds.length === 0) {
@@ -345,13 +302,7 @@ export default function ScheduleList() {
           </div>
         </header>
         <div className="w-full h-full">
-          <AgGridReact<ScheduleListItem>
-            rowModelType="clientSide"
-            rowData={filteredList}
-            getRowId={(params) => params.data.scheduleId}
-            columnDefs={columnDefs}
-            gridOptions={gridOptions}
-          />
+          <ScheduleListGrid rowData={filteredList} />
         </div>
       </div>
     </div>

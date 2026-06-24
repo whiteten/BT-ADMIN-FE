@@ -1,6 +1,12 @@
 import { SCHEDULE_STATUS, SCHEDULE_TYPE } from './scheduleConstants';
 import type { ScheduleListItem } from '../types';
 
+/** API 미연동 시 테넌트 선택 fallback */
+export const MOCK_SCHEDULE_TENANT_OPTIONS = [
+  { label: '기본테넌트', value: '1' },
+  { label: '데모 테넌트', value: '2' },
+] as const;
+
 export const MOCK_SCHEDULE_LIST: ScheduleListItem[] = [
   {
     scheduleId: 'schedule-001',
