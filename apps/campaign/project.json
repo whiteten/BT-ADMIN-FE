@@ -57,7 +57,8 @@
       "options": {
         "buildTarget": "campaign:build",
         "hmr": true,
-        "port": 4209
+        "port": 4209,
+        "proxyConfig": "apps/campaign/proxy.config.js"
       },
       "configurations": {
         "development": {

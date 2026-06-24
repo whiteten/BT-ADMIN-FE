@@ -18,6 +18,9 @@ const ExecutionTargetDetail = React.lazy(() => import('./pages/execution/Executi
 const CampaignScenario = React.lazy(() => import('./pages/management/CampaignScenario'));
 const CampaignScenarioDetail = React.lazy(() => import('./pages/management/CampaignScenarioDetail'));
 const CampaignScenarioCreate = React.lazy(() => import('./pages/management/CampaignScenarioCreate'));
+const IngestionMappingList = React.lazy(() => import('./pages/ingestion/IngestionMappingList'));
+const IngestionMappingEdit = React.lazy(() => import('./pages/ingestion/IngestionMappingEdit'));
+const IngestionHistory = React.lazy(() => import('./pages/ingestion/IngestionHistory'));
 
 export const routes = [
   {
@@ -74,6 +77,23 @@ export const routes = [
           { path: 'execution-management/targets/:targetId', element: <ExecutionTargetDetail /> },
           { path: 'execution-management/:executionId', element: <ExecutionDetail /> },
           { path: 'execution-management', element: <ExecutionManagement /> },
+        ],
+      },
+      {
+        path: 'ingestion',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="mapping" replace /> },
+          {
+            path: 'mapping',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <IngestionMappingList /> },
+              { path: 'create', element: <IngestionMappingEdit /> },
+              { path: ':mappingId', element: <IngestionMappingEdit /> },
+            ],
+          },
+          { path: 'history', element: <IngestionHistory /> },
         ],
       },
     ],
