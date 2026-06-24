@@ -8,7 +8,6 @@ import { toast } from '@/shared-util';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
 import { useGetDataset, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { ColumnFormatValue, DataSourceFieldRequest, FieldMetaItem, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
-import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
@@ -95,7 +94,8 @@ function buildFieldRequests(displays: LocalFieldDisplay[], calcs: LocalCalcField
       fieldName: f.fieldName,
       displayName: f.displayName,
       fieldType: f.rawFieldType ?? 'STRING',
-      fieldRole: f.rawFieldRole ?? (f.fieldType === 'MSR' ? 'MEASURE' : 'DIMENSION'),
+      // 역할은 현재 DIM/MSR 상태에서 도출(드래그 변경 반영). DIM이면 원본 TIMESTAMP 역할 보존.
+      fieldRole: f.fieldType === 'MSR' ? 'MEASURE' : f.rawFieldRole && f.rawFieldRole !== 'MEASURE' ? f.rawFieldRole : 'DIMENSION',
       formatterType: COLUMN_FORMAT_TO_FORMATTER[f.columnFormat] ?? 'NONE',
       isVisible: f.isVisible,
       sortOrder: f.sortOrder,
@@ -152,14 +152,6 @@ export default function StatDatasetEdit() {
       onError: () => toast.error('저장 중 오류가 발생했습니다.'),
     },
   });
-
-  // 데이터셋 명 인라인 편집 — 로컬 상태만 변경. 실제 저장은 [저장] 버튼에서 전체 payload로 전송.
-  // (백엔드 update DTO는 dbViewPrefix @NotBlank 필수 → 이름만 부분 전송 시 400)
-  const handleRename = (value: string) => {
-    const next = value.trim();
-    if (!next) return;
-    setDatasourceName(next);
-  };
 
   useEffect(() => {
     if (dataset) {
@@ -263,17 +255,11 @@ export default function StatDatasetEdit() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-col justify-center gap-1 w-full min-h-[58px] bg-white bt-shadow px-7 py-2">
+        {/* 데이터셋명·설명은 정보수정(드로어)에서만 변경 — 여기선 표시 전용 */}
         <div className="flex items-center gap-2.5">
-          <Typography.Title
-            level={4}
-            className="!mb-0 !text-lg !font-semibold !leading-none"
-            editable={readOnly ? false : { onChange: handleRename, triggerType: ['icon', 'text'], tooltip: '클릭하여 데이터셋 명 수정 (저장 시 반영)', maxLength: 100 }}
-          >
+          <Typography.Title level={4} className="!mb-0 !text-lg !font-semibold !leading-none">
             {datasourceName}
           </Typography.Title>
-          <Tag color={DOMAIN_TAG_COLOR[dataset!.productCode]} className="!mb-0 !mr-0 font-bold">
-            {dataset!.productCode}
-          </Tag>
           {dataset!.isSystem && (
             <Tag color="purple" className="!mb-0 !mr-0">
               시스템
@@ -284,24 +270,11 @@ export default function StatDatasetEdit() {
             <span className="text-xs font-mono text-bt-fg-muted">{dataset!.dbViewPrefix}</span>
           </span>
         </div>
-        {/* 설명 인라인 편집 — 목록 카드에 노출되는 텍스트. 저장 버튼으로 함께 저장. */}
-        <Typography.Text
-          type="secondary"
-          className="!text-xs"
-          editable={
-            readOnly
-              ? false
-              : {
-                  text: description,
-                  onChange: (v) => setDescription(v),
-                  triggerType: ['icon', 'text'],
-                  tooltip: '클릭하여 설명 수정 (저장 시 반영)',
-                  maxLength: 500,
-                }
-          }
-        >
-          {description || (readOnly ? '' : '설명 추가…')}
-        </Typography.Text>
+        {description && (
+          <Typography.Text type="secondary" className="!text-xs">
+            {description}
+          </Typography.Text>
+        )}
         {readOnly && <Alert type="info" showIcon className="!mt-1 !py-1 !px-3" message="시스템 기본 데이터셋은 읽기 전용입니다. 수정은 시스템 관리자만 가능합니다." />}
       </div>
 
@@ -363,13 +336,6 @@ export default function StatDatasetEdit() {
               <span className="text-xs font-semibold text-bt-fg-muted uppercase tracking-wide">기본 정보</span>
             </div>
             <div className="space-y-1">
-              <div className="flex items-center justify-between py-1.5">
-                <span className="text-sm text-bt-fg-muted">제품</span>
-                <span className="text-sm font-medium text-bt-fg">
-                  {dataset!.productCode}
-                  {DOMAIN_LABELS[dataset!.productCode] && <span className="text-bt-fg-muted"> · {DOMAIN_LABELS[dataset!.productCode]}</span>}
-                </span>
-              </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="text-sm text-bt-fg-muted">상태</span>
                 <Tag color={dataset!.isActive ? 'success' : 'default'} className="!mb-0 !mr-0">

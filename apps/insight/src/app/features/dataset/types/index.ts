@@ -34,10 +34,10 @@ export interface DatasetListItem {
   availableUnits: string[];
   tenantColumn: string;
   description?: string;
+  /** 데이터셋 태그 (카테고리 대체). */
+  tags?: string[];
   isSystem: boolean;
   isActive: boolean;
-  /** 데이터셋 태그. 백엔드 제공 전 과도기에는 화면에서 임시 시드(seedTags)로 채운다. */
-  tags?: string[];
 }
 
 export interface DatasetDetail extends DatasetListItem {
@@ -58,6 +58,7 @@ export interface DatasetCreateRequest {
   availableUnits?: string;
   tenantColumn?: string;
   description?: string;
+  tags?: string[];
   fields?: DataSourceFieldRequest[];
 }
 
@@ -67,6 +68,8 @@ export interface DatasetUpdateRequest {
   availableUnits?: string;
   tenantColumn?: string;
   description?: string;
+  /** 태그 — null/undefined면 미변경. */
+  tags?: string[];
   fields?: DataSourceFieldRequest[];
   /** true면 이 데이터셋을 사용하는 기존 보고서들의 계산필드도 함께 동기화 (opt-in). */
   applyToReports?: boolean;
