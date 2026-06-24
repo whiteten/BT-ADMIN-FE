@@ -13,6 +13,8 @@ const ScheduleManagement = React.lazy(() => import('./pages/schedule/ScheduleMan
 const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
 const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
 const ExecutionManagement = React.lazy(() => import('./pages/execution/ExecutionManagement'));
+const ExecutionDetail = React.lazy(() => import('./pages/execution/ExecutionDetail'));
+const ExecutionTargetDetail = React.lazy(() => import('./pages/execution/ExecutionTargetDetail'));
 const CampaignScenario = React.lazy(() => import('./pages/management/CampaignScenario'));
 const CampaignScenarioDetail = React.lazy(() => import('./pages/management/CampaignScenarioDetail'));
 const CampaignScenarioCreate = React.lazy(() => import('./pages/management/CampaignScenarioCreate'));
@@ -69,6 +71,8 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="receive-file" replace /> },
           { path: 'receive-file', element: <ReceiveFileList /> },
+          { path: 'execution-management/targets/:targetId', element: <ExecutionTargetDetail /> },
+          { path: 'execution-management/:executionId', element: <ExecutionDetail /> },
           { path: 'execution-management', element: <ExecutionManagement /> },
         ],
       },

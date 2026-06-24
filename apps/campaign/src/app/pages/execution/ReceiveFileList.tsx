@@ -474,8 +474,8 @@ export default function ReceiveFileList() {
 
   return (
     <div className="flex w-full flex-col gap-4">
-      <div className="flex shrink-0 items-center justify-between gap-3 w-full bg-white bt-shadow px-7 py-5 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex w-full shrink-0 flex-col gap-3 bg-white bt-shadow px-7 py-5">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-[#495057] shrink-0">테넌트</span>
             <Select
@@ -595,40 +595,44 @@ export default function ReceiveFileList() {
               )}
             />
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-[#495057] shrink-0">수신상태</span>
-            <Select
-              value={receiveStateFilter ?? undefined}
-              onChange={(value) => setReceiveStateFilter(value ?? null)}
-              placeholder="전체"
-              allowClear
-              options={[...RECEIVE_FILE_RECEIVE_STATE_FILTER_OPTIONS]}
-              style={{ width: '10rem' }}
-              popupMatchSelectWidth={false}
-            />
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-[#495057] shrink-0">기간</span>
-            <DatePicker.RangePicker
-              value={receivedDateRange}
-              onChange={(dates) => setReceivedDateRange(dates)}
-              format="YYYY-MM-DD"
-              placeholder={['시작일', '종료일']}
-              allowClear
-              inputReadOnly
-            />
-          </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
-            검색
-          </Button>
-          <Button danger onClick={handleDelete}>
-            삭제
-          </Button>
-          <Button icon={<Download className="size-4" />} onClick={handleFetch}>
-            가져오기
-          </Button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-[#495057] shrink-0">수신상태</span>
+              <Select
+                value={receiveStateFilter ?? undefined}
+                onChange={(value) => setReceiveStateFilter(value ?? null)}
+                placeholder="전체"
+                allowClear
+                options={[...RECEIVE_FILE_RECEIVE_STATE_FILTER_OPTIONS]}
+                style={{ width: '10rem' }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-[#495057] shrink-0">기간</span>
+              <DatePicker.RangePicker
+                value={receivedDateRange}
+                onChange={(dates) => setReceivedDateRange(dates)}
+                format="YYYY-MM-DD"
+                placeholder={['시작일', '종료일']}
+                allowClear
+                inputReadOnly
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button type="primary" icon={<Search className="size-4" />} onClick={handleSearch}>
+              검색
+            </Button>
+            <Button danger onClick={handleDelete}>
+              삭제
+            </Button>
+            <Button icon={<Download className="size-4" />} onClick={handleFetch}>
+              가져오기
+            </Button>
+          </div>
         </div>
       </div>
 
