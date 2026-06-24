@@ -1,14 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
+import { RedisTableWidget, isRedisTableWidget } from './RedisTableWidget';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
-import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList } from '../hooks/useTaskboardQueries';
+import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetRedisHashEntries } from '../hooks/useTaskboardQueries';
 import { useValueChangeKey } from '../hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../utils/clockFormat';
-import { buildSelectionIdsByHashKey, collectRedisWsSubscriptions, getCalcDisplayValue, getRedisDisplayValue, mergeWsSubscriptions } from '../utils/redisValue';
+import {
+  buildSelectionIdsByHashKey,
+  collectRedisWsSubscriptions,
+  getCalcDisplayValue,
+  getRedisDisplayValue,
+  groupSumRedisHashEntries,
+  mergeWsSubscriptions,
+} from '../utils/redisValue';
 import {
   VALUE_CHANGE_ANIMATION_CSS,
   formatWidgetValue,
@@ -418,7 +426,14 @@ function RollingTableWidget({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  style={{ width: col.width, borderBottom: `1px solid ${widget.style.color}40`, padding: '1px 3px', textAlign: 'center', opacity: 0.7, fontWeight: 600 }}
+                  style={{
+                    width: col.width,
+                    borderBottom: `1px solid ${widget.style.color}40`,
+                    padding: '1px 3px',
+                    textAlign: col.align ?? 'center',
+                    opacity: 0.7,
+                    fontWeight: 600,
+                  }}
                 >
                   {col.label}
                 </th>
@@ -429,8 +444,11 @@ function RollingTableWidget({
             {rows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
                 {columns.map((col) => (
-                  <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {row[col.key]}
+                  <td
+                    key={col.key}
+                    style={{ padding: '1px 3px', textAlign: col.align ?? 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', color: getThresholdColor(row[col.key], col) }}
+                  >
+                    {formatWidgetValue(row[col.key], col.useThousandSep)}
                   </td>
                 ))}
               </tr>
@@ -546,13 +564,14 @@ function RollingValueWidget({
 
   const isRedis = widget.item.category === 'Redis' && !!widget.item.redisHashKey;
   const isCalc = widget.item.category === 'Calc';
+  const groupBy = isRedis ? widget.item.groupBy : undefined;
+  const { data: groupByEntries } = useGetRedisHashEntries(widget.item.redisHashKey ?? '', { queryOptions: { enabled: !!groupBy, refetchInterval: 5000 } });
+  const groupBySum = groupBy ? (groupSumRedisHashEntries(groupByEntries ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0) : undefined;
   const displayValue = isEtcClock
     ? getLiveValue()
     : isCalc
       ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
-      : isRedis
-        ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey)
-        : widget.item.sampleValue;
+      : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const animKey = useValueChangeKey(displayValue);
@@ -660,6 +679,7 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
 
   const renderWidget = (widget: DroppedWidget) => {
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} />;
     const dt = widget.item.displayType;
     if (dt === 'table') {
       const cfg = widget.item.tableConfig;

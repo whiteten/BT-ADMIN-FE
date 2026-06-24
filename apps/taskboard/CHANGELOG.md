@@ -22,6 +22,390 @@
 - `useCtiqWebSocket.ts`: 단일 hashKey 구독 → `subscriptions: {hashKey, ids}[]` 배열을 한 연결로 동시 구독하도록 재작성(`CtiWsSubscription`, `CtiWsDataByHashKey` 신규 export, 기존 `CtiqQueueRecord`는 `CtiqRecord`로 이름 변경). 큐/그룹/상담사(상담사는 그룹별로 `IC:AGENT:{groupId}:{mediaType}` hashKey가 갈라짐)를 React Hook 규칙(동적 개수만큼 훅 호출 불가) 위반 없이 한 훅으로 처리하기 위함.
 - `ctiRedisApi.ts`: `CtiAgentRow`에 `groupId` 필드 추가(BE `CtiAgentDto`엔 이미 있었으나 FE 타입에 누락돼 있었음) — 상담사 WS hashKey(`IC:AGENT:{groupId}:{mediaType}`) 합성에 필요.
 
+## 2026-06-23 세션38
+
+### task-create: 비선택 위젯 경계 표시 (항상 dashed outline)
+- **원인**: `CanvasWidgetFree`·`CanvasWidgetGrid` 모두 `isSelected`가 false일 때 outline CSS가 빈 문자열이라 위젯 영역이 안 보였음.
+- **수정**: 비선택 상태에도 `[outline-style:dashed] outline outline-1 outline-white/30` 적용 — 잠금 여부와 관계없이 항상 흐릿한 점선 테두리로 위젯 경계 표시.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (CanvasWidgetFree line ~1287, CanvasWidgetGrid line ~1414)
+
+### task-view: 그리드 모드 간격(gridMargin)·여백(containerPadding) view에 반영
+- **원인**: `fromGridItem()`이 그리드 좌표→%로 단순 비율 변환(gridX/GRID_COLS×100)만 해서 gridMargin/containerPadding을 완전히 무시. TaskView에서 이 %를 absolute 위치로 쓰면 margin=0인 것과 동일하게 렌더되어 위젯들이 구석으로 붙었음.
+- **수정**: TaskView.tsx에 `VIEW_GRID_COLS/ROWS` 상수 추가, layoutJson의 `layoutMode`·`gridMargin`·`containerPadding`을 파싱해 `getGridAdjustedPos()` 헬퍼로 역산. gridMode이면 각 위젯의 저장된 %를 그리드 좌표(gx/gy/gw/gh)로 역산한 뒤 실제 픽셀 위치를 %로 재계산해 absolute style에 적용.
+- 관련 파일: `src/app/pages/board/TaskView.tsx`
+
+## 2026-06-23 세션38
+
+### 스포이드 — HTTP 환경 폴백 구현 (캔버스 배경 이미지 픽셀 샘플링)
+
+배경: 고객사 HTTP 배포 환경에서도 스포이드를 사용할 수 있어야 한다는 요구. EyeDropper API는 Secure Context
+전용이라 HTTP에서는 API 자체가 없어 코드로 우회 불가.
+
+- **방식**: HTTPS/localhost면 기존 EyeDropper 그대로, HTTP면 보드 배경 이미지를 offscreen canvas에 그린 뒤
+  클릭 좌표 픽셀 색상을 샘플링하는 클릭 모드로 폴백. html2canvas 없이 `new Image()` + `canvas.getContext('2d')`만 사용.
+- **UX**: HTTP 접속 시 스포이드 버튼 클릭 → "보드 위를 클릭하여 색상을 추출하세요. ESC로 취소" 토스트 →
+  보드 전체에 crosshair 커서 오버레이(z-[500]) → 클릭 시 배경 PNG에서 픽셀 추출 → 색상 적용 → 모드 해제.
+  ESC 키로 취소 가능(Delete 키 핸들러에 Escape 분기 추가).
+- **object-contain 보정**: 배경 이미지가 `object-contain`으로 렌더되어 레터박스가 생기므로,
+  클릭 좌표를 이미지 실제 픽셀 좌표로 변환 시 imgAspect/boardAspect 비교로 offsetX/offsetY 보정 적용.
+- **한계**: 배경 이미지에서만 추출 가능 (위젯 텍스트/배경 색상 클릭 추출 불가). 이미지가 cross-origin이면
+  `img.onerror`에서 "서버 CORS 설정 확인" 토스트. 같은 서버에서 서비스하는 고객사 HTTP 환경은 same-origin이라 문제없음.
+- **신규 state**: `colorPickingMode: { field, widgetId } | null`
+- **신규 함수**: `sampleColorFromBoardClick(e)` — 클릭 좌표 → 이미지 픽셀 → hex 변환
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`
+- 검증: `npx nx run taskboard:lint` 0 errors, `typecheck-staged.js` 통과. **브라우저 실측 미실시**.
+
+## 2026-06-23 세션37
+
+### 스포이드 — "Chrome/Edge 전용" 안내가 떴는데 Chrome/Edge에서도 안 되던 원인
+배경: 사용자가 Chrome/Edge 둘 다에서 스포이드를 눌러도 "Chrome/Edge 브라우저에서만 지원됩니다" 토스트가
+뜬다고 제보.
+
+- **원인**: `EyeDropper`는 `crypto.randomUUID()`와 같은 종류의 **secure context(HTTPS 또는
+  localhost) 전용 API**(AGENTS.md에 이미 같은 함정이 `createUUID` 관련해서 기록돼 있음) — HTTP+IP로
+  접속하는 개발계에서는 Chrome/Edge여도 `window.EyeDropper` 자체가 존재하지 않음. 기존 코드는
+  `'EyeDropper' in window` 단일 체크라 "브라우저 미지원"과 "비보안 접속이라 API가 안 노출됨"을 구분
+  못 해서, 실제로는 HTTP 접속 때문인데 메시지는 "Chrome/Edge에서만 지원"이라고 떠서 더 헷갈리게 했음.
+- **수정**: `window.isSecureContext` 체크를 추가해 분기 — `false`면(HTTP+IP 접속 등) "보안 연결
+  (HTTPS) 또는 localhost에서만 동작합니다" 메시지로 정확히 안내. `true`인데도 `EyeDropper`가 없으면
+  (Firefox/Safari) 기존 "Chrome/Edge 전용" 메시지 유지.
+- **한계**: 코드로 HTTP 환경에서 EyeDropper를 동작시킬 방법은 없음(브라우저 보안 정책) — 실제로
+  쓰려면 운영 환경을 HTTPS로 접속하거나, 개발 중이면 `localhost`로 접속해야 함.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`handlePickColorFromScreen`)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(기존 경고만 유지). 실제로 HTTP/HTTPS
+  양쪽에서 메시지가 다르게 뜨는지 확인은 미실시.
+
+## 2026-06-23 세션36
+
+### useCtiqWebSocket — 5초마다 재구독하던 걸 "구독 1회 + 서버 푸시 델타 병합"으로 변경
+배경: BE(`CtiqWebSocketHandler`, BT-ADMIN-SERVICE-TASKBOARD 쪽 작업)를 "구독 1회 + 변경분만 푸시"
+구조로 재설계하면서 FE도 짝을 맞춤. 기존엔 `ws.onopen`에서 1회 보낸 뒤 `setInterval(send, 5000)`로
+**같은 구독 메시지를 5초마다 반복 전송**했고, 서버 응답도 항상 "요청한 모든 id의 전체 값"이라
+`setDataByHashKey(msg.data)`로 통째로 교체해도 무방했음. BE가 이제 변경분만 보내므로 그대로 두면
+안 바뀐 id가 매번 사라져버림.
+
+- **재전송 루프 제거**: `sendTimer`/`intervalMs` 삭제 — `ws.onopen`에서 구독을 1번만 전송. 화면
+  (디스플레이) 전환으로 `subscriptions`(→`subsKey`)가 바뀌면 effect가 재실행되어 소켓을 새로 맺고
+  다시 1회 구독.
+- **델타 병합**: `onmessage`에서 더 이상 `setDataByHashKey(msg.data)`로 통째 교체하지 않고, 들어온
+  hashKey의 id들만 기존 상태 위에 머지(`next[hashKey] = {...prev[hashKey], ...idMap}`) — 이번
+  주기에 응답이 없던 id는 직전 값을 그대로 유지.
+  - 구독이 바뀌는 시점(effect 재실행)엔 `setDataByHashKey({})`로 먼저 리셋 — 이전 화면에서 구독하던
+    hashKey의 값이 새 화면 상태에 남아있지 않게.
+- `useCtiqWebSocket(subscriptions, intervalMs)` → `useCtiqWebSocket(subscriptions)` — 더 이상 쓰는
+  곳 없는 `intervalMs` 파라미터 제거(TaskView.tsx/RollingDisplay.tsx 둘 다 인자 없이 호출 중이라
+  호출부 변경 불필요).
+- 관련 파일: `src/app/features/board/hooks/useCtiqWebSocket.ts`
+- BE 쪽 변경: `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참조(`CtiqWebSocketHandler` 재설계)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과. 실제 브라우저에서 델타 수신 시
+  안 바뀐 위젯 값이 사라지지 않는지, 화면 전환 시 이전 값이 잔류하지 않는지 확인 필요.
+
+## 2026-06-23 세션35
+
+### WS 연결이 "1009 too big"으로 즉시 끊기던 진짜 원인 — buildSelectionIdsByHashKey 접두사 오매칭
+배경: 그룹별 합계(groupBy) 추가 직후 "그 다음부터 다른 값들이 안 나온다"는 제보 + 서버 로그에
+`CloseStatus[code=1009, reason=The decoded text message was too big for the output buffer ...]`로
+WS 연결이 열리자마자 바로 끊기는 패턴. 사용자가 실제 구독 요청 페이로드를 캡처해서 확인한 결과
+`IC:GROUP:REASON:2025001013:0`의 `ids`가 `IC:GROUP:0`(그룹 전체 compositeKey 140개)과 완전히
+동일했고, 나머지 49개 형제 `IC:GROUP:REASON:*` 키는 정상(`["0000063"]` 1개)이었음 — 즉 groupBy
+기능 자체가 아니라 **그 전부터 있던 접두사 매칭 버그**가 이번에 처음 터진 것으로 확인됨(타이밍상
+groupBy 작업 중 "∑ 전체 합계"로 REASON 데이터셋을 처음 건드리면서 드러남).
+
+- **원인**: `buildSelectionIdsByHashKey`의 `GROUP_HASH_PREFIX='IC:GROUP:'`/`QUEUE_HASH_PREFIX='IC:CTIQ:'`
+  매칭이 단순 `hashKey.startsWith(prefix)`라서, `IC:GROUP:REASON:*`(이석사유, 완전히 다른 데이터셋)나
+  `IC:CTIQ:TSPEC:`/`IC:CTIQ:WAIT:`/`IC:CTIQ:IN_TOT` 같은 "접두사는 같지만 그 안에 더 들어간(nested)"
+  다른 데이터셋까지 일반 그룹/큐 테이블로 오인 — 거기에 마스터 전체 id 목록(그룹 compositeKey
+  140개/큐 376개)을 그대로 끼워 넣어버림. 이 거대한 ids가 그 1개 hashKey의 WS 응답 페이로드를
+  Tomcat 텍스트 버퍼 한도 이상으로 부풀려 연결 자체가 거부됐고, 소켓이 안 열리니 다른 모든 위젯
+  값도 같이 안 나온 것.
+- **수정**: 접두사 매칭에 "뒤에 남는 부분이 정확히 미디어타입 1개(콜론 없음)"인지 추가 검증(GROUP/
+  QUEUE), AGENT는 "groupId:mediaType 정확히 2조각"인지 검증 — 조건에 안 맞으면 그 hashKey는 매칭
+  대상에서 제외되어 위젯에 원래 바인딩된 단일 id(`redisField`)가 그대로 쓰임(하위 호환).
+- 관련 파일: `src/app/features/board/utils/redisValue.ts`(`buildSelectionIdsByHashKey`)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(기존 경고만 유지). 실제 WS 페이로드
+  크기/연결 안정성 재확인은 미실시 — 사용자가 같은 위젯으로 재현해서 1009가 더 안 나는지 확인 필요.
+
+## 2026-06-23 세션34
+
+### 행 식별자 컬럼 자유화 + 단일값 Redis 위젯에도 그룹별 합계 추가
+1. **행 식별자 고정 해제**: "+ 행 ID 컬럼 추가" 버튼(항상 `key:'__id'`만 추가)을 제거 — 이제 일반
+   "필드명/표시명 + 추가" 입력에 `CTIQ_NAME`/`GROUP_NAME` 같은 임의 필드든, 해시 field 자체(예약어
+   `__id`)든 똑같이 자유롭게 타이핑해서 추가. 플레이스홀더에 두 방식 다 안내(table-redis일 때만).
+2. **단일값 Redis 위젯에 그룹별 합계 추가**: 세션33에서 Redis 테이블에만 있던 "그룹별 합계"를 단일값
+   위젯에도 적용해달라는 요청. `CallDataItem.groupBy`(신규 — `byKey`/`aggKey`/`matchValue`) 추가 —
+   redisField로 행 1개를 직접 가리키는 대신, 해시 전체를 byKey로 묶어 matchValue와 일치하는 그룹의
+   aggKey 합계를 숫자 1개로 보여줌(예: `REASON_CODE`='5'인 그룹의 `AGENT_CNT` 합계). 그룹화 로직은
+   테이블과 동일한 `groupSumRedisHashEntries()`(`redisValue.ts`로 추출해 공용화)를 재사용.
+   `TaskView.tsx`/`RollingDisplay.tsx`의 단일값 위젯(`ViewValueWidget`/`RollingValueWidget`)에
+   `useGetRedisHashEntries`로 5초 폴링 + 합계 계산을 추가해 `displayValue`를 대체. TaskCreate 디자인
+   캔버스는 원래도 라이브 데이터를 안 보여주는 정적 미리보기라 이번에도 손대지 않음(설정 UI만 추가).
+   속성 패널에 "그룹별 합계" 토글 + 기준 필드/일치값/합계 필드 입력 3개 추가(테이블의 그룹별 합계
+   UI와 동일 패턴, `updateWidgetItemGroupBy` 신규).
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`(컬럼 입력 플레이스홀더, 그룹별 합계 UI+핸들러),
+  `src/app/pages/board/TaskView.tsx`, `src/app/features/board/components/RollingDisplay.tsx`,
+  `src/app/features/board/utils/redisValue.ts`(`groupSumRedisHashEntries` 추출),
+  `src/app/features/board/components/RedisTableWidget.tsx`(공용 헬퍼로 교체),
+  `src/app/features/board/types/taskboard.types.ts`(`CallDataItem.groupBy`)
+- 검증: `npx eslint --fix`(신규 경고 2건은 `??`로 정리 후 재실행해 기존 경고만 남김) +
+  `typecheck-staged.js` 둘 다 통과. 실제 브라우저 동작 확인은 미실시.
+
+## 2026-06-23 세션33
+
+### Redis 테이블 — 행 ID 컬럼, 스크롤, 컬럼 계산식, 그룹별 합계 + 기본 현황표 3종 팔레트 제거
+1. **기본 현황표 제거**: 큐/그룹/상담사 현황표(`table-queue`/`table-group`/`table-agent`)를
+   `TABLE_WIDGET_ITEMS` 팔레트 배열에서 제거 — 이제 팔레트엔 "Redis 테이블"만 남음. 렌더링/매핑
+   코드(`buildLiveTableRows`, 미디어타입 select 목록 등)는 그대로 둠 — 이미 저장된 레이아웃이 그
+   3종을 참조 중이면 깨지지 않게.
+2. **Redis 테이블 보강**:
+   - 행이 많을 때 잘리던 문제 — 테이블 wrapper를 `overflow-hidden` → `overflow-y-auto`로 변경(스크롤
+     지원).
+   - "행 ID 컬럼 추가" 버튼 신규 — 예약 키(`__id`)를 직접 타이핑해야 했던 걸 원클릭으로. 누르면
+     `key: '__id'`(해시 field 자체) 컬럼이 추가됨.
+3. **컬럼 계산식**: `TableColumn.calc`(신규 타입 `TableColumnCalc`/`TableColumnCalcOperand`) — 계산식
+   위젯과 동일한 수식 평가기(`evaluateFormula`)를 재사용하되, 피연산자가 캔버스 위젯이 아니라 **같은
+   행의 다른 JSON 필드명**이라는 점만 다름. 속성 패널의 컬럼 ⚙ 편집기에 "계산식" 토글 추가 — 켜면
+   수식 입력 + 변수(A,B,C...) 드롭존이 뜨고, 좌측 탐색기에서 Redis 필드를 드롭존에 드래그하면
+   `operand.field`가 그 필드명으로 채워짐(계산식 위젯의 🔗 드래그 UX와 동일 패턴,
+   `TableColCalcOperandDropZone` 신규). `handleDragEnd`에 `table-col-operand-` 드롭 처리 분기 추가.
+4. **그룹별 합계(Group By)**: `tableConfig.groupBy: { byKey, aggKey }` 신규 — 해시의 모든 행을 펼치는
+   대신 `byKey` 필드값으로 묶어서 `aggKey`를 합산한 1행씩만 보여줌(예: `IC:GROUP:REASON:{groupId}:
+   {mediaType}`에서 `REASON_CODE`별 `AGENT_CNT` 합계 — 사용자가 실제로 요청한 "선택한 그룹의 사유별
+   상담사 수 합계" 케이스). 속성 패널에 토글 + 기준 필드/합계 필드 입력 2개 추가.
+- **사용자가 공유한 "이상한 Redis 데이터 형식"에 대한 확인 요청**: 붙여준 값이 `{"AGENT_CNT":0,...}`
+  같은 JSON 중괄호 없이 11개씩 끊어진 숫자 나열이었는데, 그 순서(AGENT_CNT, CENTER_ID, DB_UPDATE_SEC,
+  DB_UPDATE_TIME, DI_UPDATE_TIME, GROUP_ID, GROUP_NAME, MEDIA_TYPE, NODE_ID, REASON_CODE,
+  SERVICE_MEDIA_TYPE)가 `IC-REDIS-spec.md`의 `IC:GROUP:REASON:*`(DS_GROUP_NRDY_ASPEC) 컬럼 정의와
+  정확히 일치함 — 이 앱의 다른 모든 IC:* 데이터셋과 동일하게 실제 Redis에는 JSON으로 저장돼 있을
+  가능성이 높고, 사용자가 GUI 툴에서 여러 행의 값을 복사할 때 중괄호/키 라벨이 빠진 채 붙여넣어진
+  것으로 추정됨(코드 변경 없음 — Redis GUI에서 단일 행 값 하나만 다시 확인 요청, 중괄호 있으면 그룹별
+  합계 기능 그대로 쓰면 됨, 진짜 JSON이 아니면 별도 파서 추가 필요).
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`(팔레트, 컬럼 계산식/그룹별 합계 핸들러+UI,
+  `TableColCalcOperandDropZone`, `handleDragEnd`), `src/app/features/board/components/RedisTableWidget.tsx`
+  (`ROW_ID_COLUMN_KEY` export, 그룹별 합계/계산식 행 빌드, 스크롤), `src/app/features/board/types/taskboard.types.ts`
+  (`TableColumnCalc`, `TableColumnCalcOperand`, `tableConfig.groupBy`)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(신규 에러 없음). 실제 브라우저에서
+  계산식 드래그-바인딩, 그룹별 합계 결과, 스크롤 동작 확인은 미실시.
+
+## 2026-06-23 세션32
+
+### "Redis 테이블" 위젯 신규 — 임의 해시키 1개를 DB 마스터 조인 없이 통째로 테이블로
+배경: 큐/그룹/상담사 현황표(table-queue/group/agent)는 DB 마스터 목록과 조인하는 고정 구조라 그
+3종 외의 임의 Redis 해시(예: 다른 솔루션이 적재한 키)는 테이블로 못 보여줬음. "현황표 없이, 해시키를
+직접 넣고 행/열을 직접 지정하는 테이블을 추가하고 싶다(미디어타입 선택 UI는 없어도 됨)"는 요청에
+따라 신규 위젯 타입으로 분리.
+
+- **`RedisTableWidget.tsx`(신규)**: `item.redisHashKey`(예: `"IC:CTIQ:0"` — 미디어타입까지 문자열에
+  그대로 포함, 별도 선택 UI 없음) 1개를 `useGetRedisHashEntries()`로 5초 주기 통째로 조회(REST
+  HGETALL 기반 — WS처럼 미리 알아야 하는 `ids` 목록이 필요 없어 "이 해시에 실제로 존재하는 field
+  전부"가 그대로 행이 됨, DB 마스터 조인 없음). 각 행의 JSON을 파싱해 `tableConfig.columns`에 정의된
+  필드만 추출. 행 ID 자체를 보고 싶으면 컬럼 key를 예약어 `__id`로 추가하면 그대로 표시.
+- **팔레트**: "Redis 테이블"(`id:'table-redis'`, `category:'Redis'`, `tableConfig: {columns:[], sampleRows:[]}`)
+  신규 — 큐/그룹/상담사 현황표 옆에 추가.
+- **속성 패널**: `table-redis`일 때만 "Redis 해시키" 입력칸 노출. 기존 "테이블 컬럼" 섹션(+ 세션31의
+  컬럼별 정렬/천단위/임계치 스타일 편집기)을 `table-queue/group/agent`뿐 아니라 `table-redis`에도
+  동일하게 적용(조건 목록에 추가) — 직접 타이핑 또는 좌측 탐색기에서 필드 드래그(세션29에서 만든
+  "테이블 위젯에 드래그로 컬럼 추가" 기능이 `tableConfig` 존재 여부만 보는 범용 로직이라 별도 수정
+  없이 그대로 동작).
+- **렌더링 3곳**: `TaskCreate.tsx`(디자인 캔버스)/`TaskView.tsx`/`RollingDisplay.tsx` 모두
+  `isRedisTableWidget(widget)`이면 `buildLiveTableRows`(큐/그룹/상담사 전용) 대신 `RedisTableWidget`로
+  분기.
+- 관련 파일: `src/app/features/board/components/RedisTableWidget.tsx`(신규),
+  `src/app/pages/board/TaskCreate.tsx`(팔레트 항목, 속성 패널, `updateWidgetRedisHashKey`),
+  `src/app/pages/board/TaskView.tsx`, `src/app/features/board/components/RollingDisplay.tsx`
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(신규 에러 없음). 실제 브라우저에서
+  해시키 입력→컬럼 드래그→행 표시까지 동작 확인은 미실시. 스타일(요청대로 이번엔 보류)은 세션31에서
+  만든 컬럼별 정렬/천단위/임계치 편집기가 이미 그대로 적용되니 추후 필요시 그것부터 사용 가능.
+
+## 2026-06-23 세션31
+
+### 테이블 위젯 — 컬럼별 스타일(정렬/천단위/임계치 색상) 지원
+배경: "테이블 리스트도 스타일리쉬하게 꾸밀 수 있어야 하는데 어렵다"는 요청. 행 소스(테이블 종류별
+DB 마스터+WS 매핑)는 이미 안정적으로 동작 중이라 그대로 두고, 단일값 위젯에 이미 있던 스타일
+옵션(정렬/천단위/임계치 색상) 중 핵심만 컬럼 단위로 재사용하는 방향으로 합의 후 진행.
+
+- **`TableColumn`(타입)**: `align?`, `useThousandSep?`, `thresholdEnabled?`, `thresholds?` 필드 추가.
+- **`getThresholdColor()`(`widgetVisualStyle.ts`)**: 파라미터 타입을 `WidgetStyle` 전체에서
+  `Pick<WidgetStyle, 'thresholdEnabled' | 'thresholds'>`로 좁혀 `TableColumn`에도 그대로 재사용 가능하게
+  변경(동작 동일, 기존 호출부 영향 없음).
+- **렌더링 3곳 동일 적용**: `TaskCreate.tsx`(`TableWidget`, 디자인 캔버스 샘플 데이터), `TaskView.tsx`
+  (`ViewTableWidget`), `RollingDisplay.tsx`(`RollingTableWidget`) — `<th>`/`<td>` 모두 `col.align`을
+  반영하고, 셀 값은 `formatWidgetValue(value, col.useThousandSep)`로 포맷, 색상은
+  `getThresholdColor(value, col)`로 계산.
+- **속성 패널 UI**: 테이블 컬럼 목록의 각 행에 ⚙ 토글 추가 — 누르면 그 컬럼 전용 스타일 편집기(좌/중/우
+  정렬 버튼, 천단위 토글, 임계치 색상 토글 + 단일값 위젯과 동일한 "≥ 기준값 + 색상 + 삭제" 규칙
+  목록 CRUD)가 펼쳐짐. `updateWidgetTableColumn`/`add·update·removeColumnThresholdRule` 신규.
+- 관련 파일: `src/app/features/board/types/taskboard.types.ts`(`TableColumn`),
+  `src/app/features/board/utils/widgetVisualStyle.ts`(`getThresholdColor`),
+  `src/app/pages/board/TaskCreate.tsx`(`TableWidget`, 속성 패널, 컬럼 CRUD 핸들러),
+  `src/app/pages/board/TaskView.tsx`(`ViewTableWidget`),
+  `src/app/features/board/components/RollingDisplay.tsx`(`RollingTableWidget`)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(신규 에러 없음, 기존 경고만 유지). 실제
+  브라우저에서 컬럼별 정렬/천단위/임계치가 디자인 캔버스·실행화면·로테이션 3곳 모두 일치하게
+  보이는지 확인은 미실시.
+
+## 2026-06-23 세션30
+
+### NE/NW 리사이즈 핸들 아이콘이 SE/SW와 다른 글리프 스타일이던 것 수정
+세션27에서 NE/NW 핸들을 추가할 때 SE/SW(긴 대각선 + 모서리 쪽 짧은 평행 대각선 + 발 — "이중 줄무늬"
+스타일)와 다르게 NE/NW는 단순 "L자 꼭지점 괄호" 스타일로 그려서 위/아래 핸들 모양이 안 맞았음(NE는
+괄호를 엉뚱하게 NW 자리에 그리는 좌표 실수도 있었음). SE/SW의 path를 y축 반사로 정확히 계산해
+NE="M7 7L1 1M7 4L4 1M7 1H4", NW="M1 7L7 1M1 4L4 1M1 1H4"로 교체 — 이제 4개 핸들이 전부 동일한
+스타일(긴 대각선 1개 + 자기 코너 쪽 짧은 평행 대각선 + 발 1개)로 보인다.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`CanvasWidgetFree`의 NE/NW 핸들 SVG)
+- 검증: `npx eslint --fix` 통과(신규 없음).
+
+## 2026-06-23 세션29
+
+### 공지 키 그룹 위젯 부재, 슬라이드 속도 설정, 테이블 위젯 컬럼 드래그 추가
+1. **"여러 건 슬라이드"가 항상 1건씩 낱개로만 동작하던 진짜 원인**: 좌측 팔레트의 공지사항 항목이
+   DB의 공지 하나하나를 **개별 `noticeId`로 고정된 위젯**으로만 드래그할 수 있었음(`FixedItemsSection`
+   의 `activeNotices.map(...)` → `noticeId: notice.noticeId`). `AnnouncementWidget`이 지원하는
+   "noticeKey로 묶어서 회전" 모드용 위젯(= `noticeId` 없이 `noticeKey`만 갖는 위젯)을 캔버스에 **만들
+   방법 자체가 팔레트에 없었음** — 그래서 같은 키의 공지를 여러 개 드래그해도 결국 낱개 위젯 N개가
+   생겨 각자 따로 노는 것처럼 보였던 것. 팔레트에 `id:'etc-announcement'`(`noticeId` 미지정) "공지
+   그룹(키 그룹)" 항목을 신규로 추가 — 이걸 캔버스에 놓고 속성 패널에서 공지 키를 고르면 그 키의
+   공지 전체가 한 위젯에서 회전 표시된다. 기존 개별 항목은 "1건 고정" 용도로 라벨만 구분해 유지.
+2. **슬라이드 속도 설정**: `DroppedWidget.slideIntervalSec`(초, 기본 5) 신규 — 공지사항 위젯(키
+   그룹/1건 고정 공통) 속성 패널에 입력 추가. `AnnouncementWidget`의 회전 전환 주기와 마퀴
+   `animationDuration`(전환 주기×2.4 — 기존 5초/12초 기본값 비율 유지) 둘 다 이 값을 따라가도록 연결.
+3. **테이블 위젯에 Redis 필드 드래그로 컬럼 추가**: 기존엔 속성 패널에 필드명/표시명을 직접 타이핑
+   해야만 컬럼이 추가됐음. `handleDragEnd`에 분기 추가 — 좌측 Redis 항목을 캔버스의 테이블형 위젯
+   (table-queue/group/agent, `item.tableConfig` 존재) 위에 직접 드롭하면 위젯을 통째로 바꾸는 기존
+   동작 대신 그 필드(`redisJsonField` 우선, 없으면 `redisField`)를 컬럼으로 추가(`addWidgetTableColumn`
+   재사용 — WS 구독 columns에도 그대로 반영됨). 예: `CTIQ_NAME`을 끌어다 놓으면 그 칼럼이, 이어서
+   `SUM_CONN_CNT`/`SUM_ABDN_CNT`를 끌어다 놓으면 각각 값 칸으로 추가됨. 기존 "+ 추가" 수동 입력도
+   그대로 유지(드래그 방식과 둘 다 사용 가능).
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`(`FixedItemsSection`, `handleDragEnd`,
+  `updateWidgetMeta`, 속성 패널 슬라이드 속도 입력), `src/app/features/board/components/AnnouncementWidget.tsx`,
+  `src/app/features/board/types/taskboard.types.ts`(`DroppedWidget.slideIntervalSec`)
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(신규 에러 없음). 실제 브라우저에서 키
+  그룹 위젯 생성→회전, 슬라이드 속도 반영, 테이블 위젯 드래그 추가 동작 확인은 미실시.
+
+## 2026-06-23 세션28
+
+### 위젯 옵션 팝오버 클리핑 수정(포탈) + 행 정렬/애니메이션 + 공지 슬라이드 = 회전 ∧ 마퀴
+1. **팝오버 클리핑**: 위젯이 작을 때 팝오버가 다 안 보이던 원인 확정 — 위젯 컨테이너가
+   `backdrop-blur`(filter)+`overflow:hidden`을 같이 갖고 있어서, `absolute`는 물론 `position:fixed`도
+   filter가 만드는 containing block에 갇혀 클리핑됨(z-index를 올려도 소용없는 이유 — 애초에
+   페인트 영역 밖으로 못 나가는 문제라 stacking 순서 문제가 아니었음). `document.body`로
+   `createPortal` 렌더링하도록 변경해 위젯 크기와 완전히 무관하게 항상 온전히 표시되도록 수정.
+   위치는 ⚙ 버튼의 `getBoundingClientRect()` 기준으로 계산.
+2. **행 정렬**: 복사/삭제/계산식 3개 메뉴 행을 전부 `h-8`로 통일(기존엔 패딩만 같고 높이 보장이
+   없어 미세하게 들쭉날쭉했음). "계산식 변수로 드래그" → **"계산식"**으로 축약.
+3. **등장 애니메이션**: `widgetVisualStyle.ts`의 공용 CSS(`VALUE_CHANGE_ANIMATION_CSS`)에
+   `tbMenuPopIn` 키프레임 추가(스케일 0.92→1 + 살짝 위에서 떨어지며 페이드인, `cubic-bezier(0.34,
+   1.56, 0.64, 1)`로 끝에 살짝 튕기는 느낌) — 팝오버에 `tb-menu-pop-in` 클래스로 적용.
+4. **공지 "슬라이드" 의미 정정**: 사용자가 처음 의도한 슬라이드는 "여러 건 중 1건씩 회전 표시"가
+   아니라 **"글자가 영역 안에서 가로로 흘러가는 마퀴(ticker) 효과"**였음 — 두 가지 다 채택하기로
+   확정("여러 건 회전"도 구조적으로 이미 가능하고 유용하니 같이 유지). `AnnouncementWidget.tsx`에
+   `tb-marquee-track` CSS(컨테이너 폭만큼 `padding-left`로 오른쪽 바깥에서 시작해 `translateX(-100%)`로
+   왼쪽까지 흘러나가는 무한 루프, 12초 주기) 추가 — `displayType==='slide'`인 공지는 (1) 여러 건이면
+   세션26에서 만든 회전 로직으로 5초마다 1건씩 바뀌고, (2) 표시되는 동안 그 글자 자체가 마퀴로
+   흘러감. 1건뿐이어도 마퀴 덕분에 "고정처럼 안 보이는" 동적인 느낌을 준다.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`(`WidgetActionsMenu`, `WidgetRefHandle`),
+  `src/app/features/board/utils/widgetVisualStyle.ts`(`VALUE_CHANGE_ANIMATION_CSS`),
+  `src/app/features/board/components/AnnouncementWidget.tsx`
+- 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과(신규 에러 없음). 실제 브라우저에서
+  포탈 위치 보정·마퀴 속도감 확인은 미실시 — 텍스트가 너무 빨리/느리게 흐르면 12초 값 조정 가능.
+
+## 2026-06-23 세션27
+
+### TaskCreate 위젯 — 리사이즈 핸들 4방향 + 액션 버튼을 톱니바퀴 팝오버로 통합
+배경: 캔버스에서 위젯을 선택했을 때 (1) 리사이즈 핸들이 하단좌우(SE/SW) 2곳뿐이라 상단에서 크기를
+못 줄이고, (2) 항상 떠 있는 복사/삭제/🔗(계산식 변수 드래그) 3개 버튼이 어수선하다는 요청.
+
+- **리사이즈 4방향**: `ResizeHandle` 타입을 `'se'|'sw'` → `'se'|'sw'|'ne'|'nw'`로 확장.
+  `snapResizeToGuides()`/포인터무브 리사이즈 계산을 "서쪽 핸들이면 x/w를 반대쪽 고정으로 계산,
+  북쪽 핸들이면 y/h를 반대쪽 고정으로 계산"하는 공용 로직으로 재작성(기존엔 항상 위쪽 고정이라
+  SE/SW만 가능했음). `CanvasWidgetFree`에 NE/NW 핸들 DOM 추가. 그리드 모드는 react-grid-layout이
+  네이티브로 `'ne'|'nw'` 핸들 축을 지원해 `resizeConfig.handles`에 추가만 하면 됨.
+- **액션 버튼 → 톱니바퀴 팝오버**: `WidgetActionsMenu` 신규 컴포넌트 — 위젯 우상단(코너 리사이즈
+  핸들과 겹치지 않게 안쪽으로 오프셋)에 ⚙ 버튼만 hover 시 노출, 클릭하면 위젯 위로 팝오버(복사/삭제,
+  계산식 위젯이 아니면 구분선 아래 "🔗 계산식 변수로 드래그" 행 추가) 표시. 바깥 클릭 시 닫힘. 열려
+  있는 동안은 `group-hover` 의존을 끄고 강제로 보이게 처리해 — 🔗 드래그 시작 중에 마우스가 살짝
+  벗어나 메뉴가 사라지는 것을 방지.
+- `WidgetRefHandle`은 기존 단독 아이콘 버튼에서 팝오버 내부 메뉴 행(아이콘+라벨) 형태로 변경 —
+  `useDraggable` 훅 자체는 그대로라 드래그 동작 동일.
+- `CanvasWidgetFree`/`CanvasWidgetGrid` 둘 다 동일하게 적용.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`
+  (`ResizeHandle`, `snapResizeToGuides`, `handleResizeStart`/포인터무브 리사이즈 로직,
+  `WidgetRefHandle`, `WidgetActionsMenu` 신규, `CanvasWidgetFree`, `CanvasWidgetGrid`)
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 없음), `typecheck-staged.js` 통과. 실제 브라우저
+  동작(4방향 리사이즈 체감, 팝오버 위치/겹침) 확인 미실시.
+
+## 2026-06-23 세션26
+
+### 공지사항 위젯 — 실시간 반영 + 표시기간(시작/종료일)·슬라이드 미구현 수정
+배경: 전광판 실행 중 공지사항을 수정해도 화면에 안 반영되고, "표시 유형(슬라이드/고정)"·"표시 기간"은
+동작 안 하는데 "사용 여부"만 어설프게라도 동작한다는 제보. `AnnouncementWidget.tsx`를 보니 실제로
+`useGetNoticeList`/`useGetNoticeListByKey`에 `refetchInterval`이 없어 마운트 후 재조회가 안 됐고,
+`notice.useYn`만 필터링하고 `alwaysActiveYn`/`startDt`/`endDt`/`displayType`는 전부 읽지도 않고
+있었음 — "사용 여부"만 동작한 게 정확히 맞았던 상황.
+
+- **실시간 반영**: 두 쿼리에 `refetchInterval` 추가. 처음엔 슬라이드 전환 주기(5초)와 같은 값을
+  썼다가, "공지는 자주 안 바뀌는데 5초마다 받아올 필요 있나, WS 푸시가 어울리나?"는 사용자 질문에
+  맞춰 데이터 재조회 주기(`NOTICE_REFETCH_INTERVAL_MS`=1분)와 슬라이드 UX 전환 주기
+  (`SLIDE_INTERVAL_MS`=5초)를 분리된 별도 상수로 정리. WS 푸시는 변경 빈도(관리자가 가끔 수정) 대비
+  새 채널을 구축하는 비용이 안 맞아 폴링으로 결정 — 빈도가 늘면 재검토 여지를 주석으로 남김.
+- **표시 기간 미적용 수정**: `isWithinDisplayWindow(notice, now)` 신규 — `alwaysActiveYn='Y'`면 항상
+  표시, 아니면 `startDt`~`endDt`(종료일은 그날 23:59:59까지 포함, 한쪽이 비어있으면 그쪽은 무제한)
+  범위 안에서만 표시. `useYn` 필터에 이 체크를 추가로 결합.
+- **슬라이드 미구현 수정**: `displayType==='fixed'`는 항상 같이 표시(`fixedNotices`), `displayType
+  ==='slide'`는 여러 건이어도 한 번에 1건씩 `SLIDE_INTERVAL_MS` 주기로 돌려가며 표시
+  (`slideNotices`+`slideIndex` state) — fixed 아래에 현재 슬라이드 1건을 이어붙여서 렌더. (참고:
+  notice마다 displayType이 개별 필드라 "위젯 전체가 슬라이드 모드"가 아니라 "그 공지가 슬라이드에
+  포함되는지"로 해석 — 위젯 단위로 다르게 동작하길 원하시면 말씀해주세요.)
+- 관련 파일: `src/app/features/board/components/AnnouncementWidget.tsx`
+- 검증: `npx eslint --fix` 통과(에러 없음). 실제 브라우저 동작 확인 미실시.
+
+## 2026-06-23 세션25
+
+### 공지사항 update/delete가 BFF에서 "No static resource" 404로 막히던 진짜 원인
+배경: BFF에 `taskboard-noticeupdate`/`taskboard-noticedelete` FLOW를 등록했는데도 사용자가 로그
+(`DELETE /api/bff/taskboard-noticedelete/8 => ... NoResourceFoundException: 404 NOT_FOUND "No static
+resource api/bff/taskboard-noticedelete/8"`)를 보내며 BFF→TASKBOARD로 안 넘어간다고 재문의.
+
+- **원인**: `DynamicAggregationController`의 쓰기 라우트는 `@PostMapping("/{flow}")`/`@DeleteMapping("/{flow}")`처럼
+  **`/api/bff/` 뒤에 단일 path segment(flow명)만** 매칭한다. 그런데 `taskboardApi.ts`의
+  `updateNotice`/`deleteNotice`가 다른 모든 update/delete(배경/레이아웃/디스플레이/롤링그룹)와 다르게
+  `noticeId`를 query param이 아니라 **URL 경로에 직접 붙여서**(`/taskboard-noticedelete/${noticeId}`)
+  보내고 있었음 — 그래서 `/api/bff/taskboard-noticedelete/8`은 path segment가 2개라 `{flow}` 패턴에
+  안 걸리고 Spring이 정적 리소스 핸들러로 떨어뜨려 그 404가 난 것. FLOW 등록 자체는 문제 없었음(매칭
+  자체가 안 일어났던 것).
+- `DynamicAggregationService`는 백엔드로 보낼 step URI의 `{noticeId}` 같은 path placeholder를
+  **원래 BFF 요청의 query param**(`buildAndExpand(vars)`)으로 채운다 — 그래서 정상 동작하는
+  `deleteDisplay`(`apiClient.delete('/taskboard-display-delete', { params: { displayId } })`) 등은 전부
+  query param 방식.
+- **수정**: `taskboardApi.ts`의 `updateNotice`/`deleteNotice`/`getNoticeListByKey`를 동일하게 query param
+  방식으로 변경(`{ params: { noticeId } }` / `{ params: { noticeKey } }`, flow명도 path segment 없는
+  고정 문자열로). 백엔드에 보낼 마이그레이션 SQL(`taskboard-noticeupdate`/`taskboard-noticedelete` STEP의
+  `{noticeId}` placeholder)은 이전에 안내한 내용 그대로 유효 — FE가 query param으로 보내면 BFF가 그
+  값을 placeholder에 채워 백엔드 실제 경로(`/api/taskboard/taskboard-noticeUpdate/{noticeId}`)로 정상
+  변환됨.
+- 관련 파일: `src/app/features/board/api/taskboardApi.ts`
+- 검증: `npx eslint --fix` 통과(에러/경고 없음). 마이그레이션 SQL을 아직 안 적용했다면 그것도 같이
+  적용 필요 — FE만 고쳐도 BFF에 FLOW가 없으면 여전히 404.
+
+## 2026-06-23 세션24
+
+### 내보내기/가져오기 — boardTitle(레이아웃 이름) 누락 수정
+배경: 사용자가 "내보내기→가져오기가 100% 복사가 안 되는 것 같다"고 문의. `handleExport`/`handleImport`와
+`handleSave`가 실제로 DB에 저장하는 `layoutJson` 필드 구성을 대조해본 결과, `layoutMode`/`gridMargin`/
+`containerPadding`/`guides`/`showGuides`/`widgets`는 셋 다 동일하게 다뤄 위젯·캔버스 설정 자체는
+JSON 직렬화라 수치 손실 없이 완전히 복원되는 것을 확인 — 다만 **`boardTitle`(레이아웃 이름)만 export
+JSON에 안 들어가고 있었음**(DB 저장 시엔 별도 컬럼이라 문제 없지만, "파일로 내보내서 다른 보드에
+가져오기" 케이스에서는 제목이 빠짐).
+
+- `handleExport`: exportData에 `boardTitle` 추가
+- `handleImport`: `raw.boardTitle`이 있으면 `setBoardTitle()`로 복원(없는 구버전 파일은 하위 호환으로
+  현재 제목 유지)
+- 위젯 배열(`droppedWidgets`) 자체는 `id` 그대로 보존되어 계산식 위젯의 `operand.widgetId` 참조 등도
+  깨지지 않음 확인 — 이쪽은 원래도 100% 복원되고 있었음
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`handleExport`, `handleImport`)
+- 검증: `npx eslint --fix` 통과(기존 경고 외 신규 없음). 실제 내보내기→가져오기 라운드트립 브라우저
+  확인은 미실시 — 제목 외에 추가로 안 맞는 부분이 있으면 구체적으로(어떤 속성이 달라지는지) 알려주시면
+  바로 확인 가능.
+
 ## 2026-06-23 세션23
 
 ### 선택 하이라이트 outline-offset 제거 + 계산식 위젯 "검증" 버튼 + "%" 단위 옵션

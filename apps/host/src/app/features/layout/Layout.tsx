@@ -1,22 +1,34 @@
+import { Suspense, lazy } from 'react';
 import { Outlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
 import 'dayjs/locale/ko';
 import { Minimize2 } from 'lucide-react';
-import { useLayoutStore } from '@/shared-store';
+import { useAgentChatStore, useLayoutStore } from '@/shared-store';
 import SubHeader, { SUB_HEADER_HEIGHT } from './SubHeader';
 import TopHeader, { TOP_HEADER_HEIGHT } from './TopHeader';
 import { antdTheme } from './config/antdTheme';
+import { useCanUseAgentChat } from './hooks/useCanUseAgentChat';
 import { useMenuPanelStore } from './hooks/useMenuPanelStore';
 import MenuPanel from './panel/MenuPanel';
 import PanelAppBadgeStrip from './panel/PanelAppBadgeStrip';
 
 const TOTAL_HEADER_HEIGHT = TOP_HEADER_HEIGHT + SUB_HEADER_HEIGHT;
 
+// aoe remote 의 에이전트 채팅 패널 — chrome(헤더) 바깥 오버레이로 렌더해 헤더 접힘·remote 전환과
+// 무관하게 마운트를 유지(대화 보존). 트리거 버튼·open 상태는 TopHeader/useAgentChatStore 가 소유.
+// 로드 실패 시 화면에 영향 없도록 null fallback.
+const AgentChatPanel = lazy(() => import('aoe/AgentChatPanel').catch(() => ({ default: () => null })));
+
 export function Layout() {
   const { chromeCollapsed, toggleChrome, chromeless } = useLayoutStore();
   const pinned = useMenuPanelStore((s) => s.pinned);
   const topOffset = chromeCollapsed ? 0 : TOTAL_HEADER_HEIGHT;
+
+  const canUseAgentChat = useCanUseAgentChat();
+  const chatOpen = useAgentChatStore((s) => s.open);
+  const chatMounted = useAgentChatStore((s) => s.mounted);
+  const setChatOpen = useAgentChatStore((s) => s.setOpen);
 
   // chromeless 화면(녹취 재생 팝업·워크플로우 편집기 등) — 헤더/사이드바/패널/펼치기 버튼을 제거하고
   // 본문만 full-bleed 로 렌더. antd 컨텍스트(useModal·toast)는 ConfigProvider+App 래핑으로 유지.
@@ -49,6 +61,13 @@ export function Layout() {
         </App>
       </div>
       {!chromeless && <MenuPanel topOffset={topOffset} />}
+      {/* AI 채팅 패널 — chrome 바깥 오버레이(position fixed). 헤더 접힘 상태에서도 그대로 표시 유지.
+          mounted=첫 열림 후 계속 마운트(대화 보존), open=표시 토글. 닫아도 unmount 하지 않는다. */}
+      {!chromeless && canUseAgentChat && chatMounted && (
+        <Suspense fallback={null}>
+          <AgentChatPanel open={chatOpen} placement="top-right" onClose={() => setChatOpen(false)} />
+        </Suspense>
+      )}
       {chromeCollapsed && !chromeless && (
         <button
           type="button"

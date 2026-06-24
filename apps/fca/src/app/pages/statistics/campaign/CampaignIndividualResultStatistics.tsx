@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CellStyle, ColDef } from 'ag-grid-community';
+import type { CellStyle } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, Download, Search } from 'lucide-react';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
-import { type CampaignResultStatColDef, createAttemptSelfCallSuccessRateColumnGroup, createFlexibleNameColumnDef } from './campaignResultStatGridColumns';
+import { type CampaignResultStatColDef, createCampaignResultStatMetricColumns, createFlexibleNameColumnDef, createPsrTimeKeyColumnDef } from './campaignResultStatGridColumns';
 import { CampaignStatExcludeFilterRow, buildCampaignExcludeFilterParams } from './campaignStatExcludeFilters';
 import { statisticsApi } from '../../../features/statistics/api/statisticsApi';
-import { getTimeFormat } from '../../../features/statistics/hooks/useDateRangeLimit';
 import { useGetCampaignOptionList, useGetCampaignResultStatList } from '../../../features/statistics/hooks/useStatisticsQueries';
 import type { CampaignResultStatListItem } from '../../../features/statistics/types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/libs/shared-ui/src/components/shadcn/collapsible';
@@ -50,12 +49,6 @@ const getDatePickerFormat = (unit: string): string => {
   if (unit === 'YY') return 'YYYY';
   return 'YYYY-MM-DD';
 };
-const dateColDef = (displayTimeUnit: string): Pick<ColDef, 'flex' | 'minWidth' | 'maxWidth'> => ({
-  flex: 0,
-  minWidth: displayTimeUnit === 'YY' ? 88 : displayTimeUnit === 'MM' ? 96 : 112,
-  maxWidth: displayTimeUnit === 'YY' ? 100 : displayTimeUnit === 'MM' ? 110 : 130,
-});
-
 const validateDateRange = (start: Dayjs, end: Dayjs, unit: string): boolean => {
   if (end.isBefore(start, 'day')) return false;
   return end.diff(start, 'day') <= getMaxDays(unit);
@@ -158,8 +151,8 @@ export default function CampaignIndividualResultStatistics() {
     return loadStoredStringArray(CAMPAIGN_INDIVIDUAL_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('L:'));
   });
 
-  const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<CampaignResultStatListItem>>(null);
+  const pendingTimeUnitRef = useRef(timeUnit);
   const [rowData, setRowData] = useState<CampaignResultStatListItem[]>([]);
   const [displayTimeUnit, setDisplayTimeUnit] = useState<string>('DD');
 
@@ -276,11 +269,18 @@ export default function CampaignIndividualResultStatistics() {
   });
 
   useEffect(() => {
-    if (campaignResultStatData !== undefined) setRowData(campaignResultStatData.items);
+    if (campaignResultStatData === undefined) return;
+    setRowData(campaignResultStatData.items);
+    setDisplayTimeUnit(pendingTimeUnitRef.current);
   }, [campaignResultStatData]);
 
-  // BE에서 받은 summary에 '전체합계' 라벨 주입 (날짜 컬럼 colSpan 3에 표시)
-  const summaryRow: CampaignResultStatListItem[] = campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계' }] : [];
+  const summaryRow = useMemo<CampaignResultStatListItem[]>(
+    () => (campaignResultStatData?.summary ? [{ ...campaignResultStatData.summary, psrTimeKey: '전체합계', campaignName: '', campaignListName: '' }] : []),
+    [campaignResultStatData?.summary],
+  );
+
+  const { gridOptions } = useAggridOptions();
+  const mergedGridOptions = useMemo(() => ({ ...gridOptions, statusBar: undefined }), [gridOptions]);
 
   // startDate 또는 timeUnit 변경 시 endDate 자동 조정
   useEffect(() => {
@@ -321,40 +321,27 @@ export default function CampaignIndividualResultStatistics() {
       return;
     }
 
-    setDisplayTimeUnit(timeUnit);
+    pendingTimeUnitRef.current = timeUnit;
     refetch();
   };
 
-  const columnDefs: CampaignResultStatColDef[] = [
-    {
-      headerName: '날짜',
-      field: 'psrTimeKey',
-      ...dateColDef(displayTimeUnit),
-      pinned: 'left',
-      colSpan: (params) => (params.node?.rowPinned === 'bottom' ? 3 : 1),
-      valueFormatter: ({ value, node }) => {
-        if (node?.rowPinned === 'bottom') return value ?? '';
-        return value ? dayjs(value).format(getTimeFormat(displayTimeUnit)) : '-';
-      },
-      cellStyle: textCellStyle,
-    },
-    createFlexibleNameColumnDef<CampaignResultStatListItem>('캠페인', 'campaignName', (data) => String(data?.campaignName ?? ''), textCellStyle, { minWidth: 140, pinned: 'left' }),
-    createFlexibleNameColumnDef<CampaignResultStatListItem>('시나리오', 'campaignListName', (data) => String(data?.campaignListName ?? ''), textCellStyle, {
-      minWidth: 160,
-      pinned: 'left',
-    }),
-    { headerName: '대상건수', field: 'totalTargetCnt', width: 100, cellStyle: numberCellStyle },
-    { headerName: '발신진행건수 (실시간)', field: 'outboundProgressCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '총발신시도건수(누적)', field: 'outboundAttemptCnt', width: 250, cellStyle: numberCellStyle },
-    { headerName: '진행율', field: 'progressRatePct', width: 90, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '재시도발신건수', field: 'retryOutboundCnt', width: 120, cellStyle: numberCellStyle },
-    { headerName: '본인통화건수', field: 'selfCallCnt', width: 110, cellStyle: numberCellStyle },
-    { headerName: '본인통화완료율', field: 'selfCallCompleteRatePct', width: 120, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-    { headerName: '실패건수', field: 'failCnt', width: 100, cellStyle: numberCellStyle },
-    { headerName: '부재건수', field: 'absentCnt', width: 100, cellStyle: numberCellStyle },
-    createAttemptSelfCallSuccessRateColumnGroup(numberCellStyle),
-    { headerName: '검증실패율', field: 'verifyFailRatePct', width: 100, cellStyle: numberCellStyle, cellRenderer: 'percentBarRenderer' },
-  ];
+  const columnDefs = useMemo<CampaignResultStatColDef[]>(
+    () => [
+      createPsrTimeKeyColumnDef<CampaignResultStatListItem>(displayTimeUnit, textCellStyle, { pinned: 'left' }),
+      createFlexibleNameColumnDef<CampaignResultStatListItem>('캠페인', 'campaignName', (data) => String(data?.campaignName ?? ''), textCellStyle, {
+        minWidth: 140,
+        pinned: 'left',
+        hideOnPinnedBottom: true,
+      }),
+      createFlexibleNameColumnDef<CampaignResultStatListItem>('시나리오', 'campaignListName', (data) => String(data?.campaignListName ?? ''), textCellStyle, {
+        minWidth: 160,
+        pinned: 'left',
+        hideOnPinnedBottom: true,
+      }),
+      ...createCampaignResultStatMetricColumns(numberCellStyle),
+    ],
+    [displayTimeUnit],
+  );
 
   const { permissions } = useNavigationStore();
   const hasExcelPermission = permissions.includes('fca:stats-campaign-individual-result:export');
@@ -386,7 +373,7 @@ export default function CampaignIndividualResultStatistics() {
   return (
     <div className="flex flex-col gap-4 w-full h-full min-h-0">
       <div className="flex flex-col gap-5 w-full h-full min-h-0 bg-white bt-shadow p-5">
-        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+        <Collapsible open={isFilterOpen} onOpenChange={setIsFilterOpen} className="shrink-0">
           <header className="flex flex-col gap-3 shrink-0">
             <div className="flex items-start gap-3">
               <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
@@ -543,9 +530,8 @@ export default function CampaignIndividualResultStatistics() {
             ref={gridRef}
             rowModelType="clientSide"
             rowData={rowData}
-            getRowId={(params) => `${params.data.tenantId ?? ''}_${params.data.campaignId ?? ''}_${params.data.campaignListId ?? ''}_${params.data.psrTimeKey}_${params.data.seq}`}
             columnDefs={columnDefs}
-            gridOptions={{ ...gridOptions, statusBar: undefined }}
+            gridOptions={mergedGridOptions}
             loading={isLoadingCampaignResultStatList}
             pagination={false}
             rowNumbers={false}

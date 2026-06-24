@@ -949,7 +949,7 @@ function updateRouteLoaders(appName) {
       return;
     }
 
-    const newLoader = `  ${appName}: () => import('${appName}/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,`;
+    const newLoader = `  ${appName}: () => import('${appName}/Routes') as unknown as Promise<RoutesModule>,`;
     const updatedLoaders = currentLoaders.trimEnd() + '\n' + newLoader;
     const updatedContent = content.replace(loadersRegex, `const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {${updatedLoaders}\n};`);
 

@@ -1,10 +1,11 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Input } from 'antd';
-import { ChevronDown, ChevronUp, FileText, Search, SearchX } from 'lucide-react';
+import { FileText, Search, SearchX } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { useSearchKnowledge } from '../hooks/useKnowledgeQueries';
 import type { KnowledgeSearchChunk } from '../types';
+import ExpandableChunkText from './ExpandableChunkText';
 
 export interface KnowledgeSearchDrawerRef {
   open: (params: { documentId: string }) => void;
@@ -17,14 +18,8 @@ interface DrawerState {
 }
 
 const MAX_QUERY_LENGTH = 200;
-const COLLAPSED_LINES = 4;
 
 function SearchResultCard({ result }: { result: KnowledgeSearchChunk }) {
-  const [expanded, setExpanded] = useState(false);
-  const lines = result.chunk.split('\n');
-  const isLong = lines.length > COLLAPSED_LINES || result.chunk.length > 200;
-  const displayedChunk = !expanded && isLong ? lines.slice(0, COLLAPSED_LINES).join('\n') : result.chunk;
-
   return (
     <div className="border border-gray-200 rounded-lg bg-white overflow-hidden hover:border-[var(--color-bt-primary)]/30 hover:shadow-sm transition-all shrink-0">
       <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -45,14 +40,8 @@ function SearchResultCard({ result }: { result: KnowledgeSearchChunk }) {
         </span>
       </div>
       <div className="p-4">
-        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap mb-2">{displayedChunk}</p>
-        {isLong && (
-          <button type="button" onClick={() => setExpanded((prev) => !prev)} className="flex items-center gap-1 text-xs text-[var(--color-bt-primary)] hover:underline mb-3">
-            {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-            {expanded ? '접기' : '더 보기'}
-          </button>
-        )}
-        <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+        <ExpandableChunkText text={result.chunk} />
+        <div className="mt-3 flex items-center gap-2 pt-3 border-t border-gray-100">
           <FileText className="size-3.5 text-[var(--color-bt-primary)] shrink-0" />
           <span className="text-xs text-gray-500 truncate">{result.filename}</span>
         </div>

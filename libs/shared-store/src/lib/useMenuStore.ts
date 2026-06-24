@@ -7,15 +7,21 @@ interface MenuStore {
   isLoading: boolean;
   setMenuConfigs: (menuConfigs: MenuConfig[]) => void;
   setIsLoading: (isLoading: boolean) => void;
+  reset: () => void;
 }
+
+const initialState = {
+  menuConfigs: [] as MenuConfig[],
+  isLoading: false,
+};
 
 export const useMenuStore = create<MenuStore>()(
   devtools(
     (set) => ({
-      menuConfigs: [],
-      isLoading: false,
+      ...initialState,
       setMenuConfigs: (menuConfigs) => set({ menuConfigs }, false, 'setMenuConfigs'),
       setIsLoading: (isLoading) => set({ isLoading }, false, 'setIsLoading'),
+      reset: () => set(initialState, false, 'reset'),
     }),
     { name: 'MenuStore' },
   ),

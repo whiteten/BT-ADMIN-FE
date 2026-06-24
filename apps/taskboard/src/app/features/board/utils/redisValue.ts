@@ -4,6 +4,26 @@ import type { CalcOperand, CallDataItem, DroppedWidget } from '../types/taskboar
 /** getRedisDisplayValue가 필요로 하는 최소 형태 — DroppedWidget 또는 계산식 operand의 source를 함께 받기 위함 */
 type RedisValueHost = Pick<DroppedWidget, 'item' | 'aggregation'>;
 
+/**
+ * Redis 해시 entries(field → JSON 문자열, useGetRedisHashEntries 결과)를 byKey 필드값으로 묶어
+ * aggKey 필드를 합산한다. Redis 테이블의 "그룹별 합계"와 단일값 위젯의 "그룹별 합계" 양쪽에서 공용.
+ */
+export function groupSumRedisHashEntries(entries: Record<string, string>, byKey: string, aggKey: string): Map<string, number> {
+  const sums = new Map<string, number>();
+  Object.values(entries).forEach((raw) => {
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(raw) as Record<string, unknown>;
+    } catch {
+      return;
+    }
+    const key = String(parsed[byKey] ?? '');
+    const num = Number(parsed[aggKey]) || 0;
+    sums.set(key, (sums.get(key) ?? 0) + num);
+  });
+  return sums;
+}
+
 /** WS로 받은 hashKey/id(field)의 값(객체 또는 원본 문자열)에서 redisJsonField 컬럼값을 꺼낸다 */
 function readJsonField(value: unknown, redisJsonField: string | undefined): unknown {
   if (value == null) return undefined;
@@ -66,16 +86,23 @@ export function buildSelectionIdsByHashKey(widgets: DroppedWidget[], ctx: Select
 
   const result: Record<string, string[]> = {};
   hashKeysInUse.forEach((hashKey) => {
-    if (hashKey.startsWith(GROUP_HASH_PREFIX)) {
+    // 단순 "IC:GROUP:" / "IC:CTIQ:" 접두사 일치만 보면 IC:GROUP:REASON:*, IC:CTIQ:TSPEC:/WAIT:/IN_TOT
+    // 같은 "그 안에 더 들어간(nested)" 다른 데이터셋까지 일반 그룹/큐 테이블로 오인해서 전체 마스터
+    // id 목록을 잘못 끼워 넣게 된다(접두사 뒤에 ':'가 더 있으면 같은 패밀리의 다른 데이터셋).
+    // 그래서 접두사 뒤에 남는 부분이 "딱 미디어타입 1개"인 경우에만 매칭한다.
+    const groupRest = hashKey.startsWith(GROUP_HASH_PREFIX) ? hashKey.slice(GROUP_HASH_PREFIX.length) : null;
+    const queueRest = hashKey.startsWith(QUEUE_HASH_PREFIX) ? hashKey.slice(QUEUE_HASH_PREFIX.length) : null;
+    if (groupRest !== null && !groupRest.includes(':')) {
       result[hashKey] = [
         ...new Set(ctx.groupRows.filter((g) => ctx.selectedGroupIds.length === 0 || ctx.selectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? [])),
       ];
-    } else if (hashKey.startsWith(QUEUE_HASH_PREFIX)) {
+    } else if (queueRest !== null && !queueRest.includes(':')) {
       result[hashKey] = ctx.selectedQueueIds.length > 0 ? ctx.selectedQueueIds : ctx.queueRows.map((q) => q.ctiqId);
     } else if (hashKey.startsWith(AGENT_HASH_PREFIX)) {
-      // IC:AGENT:{groupId}:{mediaType} — groupId가 키에 박혀있으므로 그 그룹 소속 상담사만 후보가 된다.
-      const groupId = hashKey.slice(AGENT_HASH_PREFIX.length).split(':')[0];
-      const agentsInGroup = ctx.agentRows.filter((a) => a.groupId === groupId);
+      // IC:AGENT:{groupId}:{mediaType} — 접두사 뒤에 정확히 "groupId:mediaType" 2조각일 때만 매칭.
+      const agentRest = hashKey.slice(AGENT_HASH_PREFIX.length).split(':');
+      if (agentRest.length !== 2) return;
+      const agentsInGroup = ctx.agentRows.filter((a) => a.groupId === agentRest[0]);
       result[hashKey] =
         ctx.selectedAgentIds.length > 0 ? agentsInGroup.filter((a) => ctx.selectedAgentIds.includes(a.agentId)).map((a) => a.agentId) : agentsInGroup.map((a) => a.agentId);
     }

@@ -25,11 +25,36 @@ export interface TaskboardLayout {
   regDt: string;
 }
 
+/** 테이블 컬럼의 계산식 피연산자 — 캔버스 위젯이 아니라 "같은 행"의 다른 JSON 필드명을 참조한다 */
+export interface TableColumnCalcOperand {
+  /** 수식에서 사용하는 변수명 (A, B, C ...) */
+  var: string;
+  /** 참조할 같은 행의 JSON 필드명 (예: SUM_CONN_CNT) — 좌측 탐색기에서 Redis 필드를 드래그하면 채워짐 */
+  field?: string;
+}
+
+/** 테이블 컬럼의 계산식 설정 — 계산식 위젯(CalcConfig)과 동일한 평가기를 재사용하되, 피연산자가 캔버스
+ * 위젯이 아니라 같은 행의 JSON 필드인 점만 다르다. */
+export interface TableColumnCalc {
+  formula: string;
+  operands: TableColumnCalcOperand[];
+  decimals?: number;
+}
+
 /** 테이블형 위젯 컬럼 정의 */
 export interface TableColumn {
   key: string;
   label: string;
   width?: string;
+  /** 셀 정렬(기본 'center') — 단일값 위젯의 valueAlign과 동일 개념을 컬럼 단위로 적용 */
+  align?: 'left' | 'center' | 'right';
+  /** 천단위 콤마 표시 */
+  useThousandSep?: boolean;
+  /** 임계치 색상 사용 여부 — 단일값 위젯의 thresholdEnabled/thresholds를 컬럼 단위로 재사용 */
+  thresholdEnabled?: boolean;
+  thresholds?: WidgetThresholdRule[];
+  /** 설정되면 이 컬럼은 원본 JSON 필드값 대신 같은 행의 다른 필드들로 계산한 값을 보여준다(Redis 테이블 전용) */
+  calc?: TableColumnCalc;
 }
 
 /** 차트형 위젯 설정 */
@@ -61,6 +86,13 @@ export interface CallDataItem {
   /** 해시 그룹의 모든 형제 Hash 키 목록 — 집계(합계/최대/최소) 계산용 */
   hashSiblingKeys?: string[];
   /**
+   * 단일값 Redis 위젯 전용 — redisField/redisJsonField로 행 1개를 직접 가리키는 대신, 해시의 모든 행을
+   * byKey 필드값으로 묶어 matchValue와 일치하는 그룹의 aggKey를 합산해 보여준다(Redis 테이블의
+   * 그룹별 합계와 동일 로직, 결과를 1개 숫자로 표시). 예: IC:GROUP:REASON:{groupId}:{mediaType}에서
+   * byKey='REASON_CODE', aggKey='AGENT_CNT', matchValue='5' → 사유코드 5의 상담사 수 합계.
+   */
+  groupBy?: { byKey: string; aggKey: string; matchValue: string };
+  /**
    * table-queue/table-group/table-agent/chart-bar-queue/chart-line-trend 위젯이 사용할 미디어타입
    * (IC:CTIQ:{mediaType} 등 — 위젯 등록 시점에 고정). 미지정 시 '0'(VOIP)으로 취급.
    */
@@ -68,6 +100,12 @@ export interface CallDataItem {
   tableConfig?: {
     columns: TableColumn[];
     sampleRows: Record<string, string | number>[];
+    /**
+     * Redis 테이블(table-redis) 전용 — 해시의 모든 field(행)를 그대로 보여주는 대신, byKey 필드값으로
+     * 묶어서 aggKey 필드를 합산한 1행씩으로 보여준다. 예: IC:GROUP:REASON:{groupId}:{mediaType}에서
+     * byKey='REASON_CODE', aggKey='AGENT_CNT' → 사유코드별 상담사 수 합계.
+     */
+    groupBy?: { byKey: string; aggKey: string };
   };
   chartConfig?: ChartConfig;
   /** 개별 공지사항 ID — category=notice 위젯 전용 */
@@ -148,6 +186,8 @@ export interface DroppedWidget {
   customTitle?: string; // 사용자 정의 타이틀 (item.label 대체)
   style: WidgetStyle;
   noticeKey?: string; // 공지사항 위젯 연동 키
+  /** 공지사항 위젯(category=notice)의 슬라이드 속도(초) — 회전 전환 주기 + 마퀴 흐름 속도에 공통 사용. 기본 5 */
+  slideIntervalSec?: number;
   /**
    * Redis 위젯의 값 집계 방식. category=Redis 위젯이면 항상 선택 가능.
    * hashSiblingKeys가 있으면 그룹 내 모든 키의 값을 모아 집계하고, 없으면 자기 자신의 값만으로 집계(avg=원값, sum/max/min=원값)한다.

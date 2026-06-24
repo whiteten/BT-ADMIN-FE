@@ -31,15 +31,24 @@ function subscriptionsKey(subs: CtiWsSubscription[]): string {
  * CTI 실시간 WebSocket 훅 — 여러 hashKey(큐/그룹/상담사 등)를 한 번의 연결로 동시 구독한다.
  * BE: /ws/ctiq (BFF 프록시: /ws/proxy/taskboard/ctiq → ws://taskboard:8600/ws/ctiq)
  *
+ * 구독은 연결 시 1번만 보낸다 — BE가 5초 주기로 "값이 바뀐 id만" 알아서 푸시해주므로, 클라이언트가
+ * 주기적으로 같은 구독을 재전송할 필요가 없다(구독 hashKey/id 수가 늘어나도 변경 없는 항목은 매번
+ * 다시 안 보내 페이로드가 무한히 커지지 않음). 받은 메시지는 기존 상태에 병합(merge)한다 — 서버가
+ * 보내는 게 "전체 스냅샷"이 아니라 "이번에 바뀐 것만"이라, 통째로 교체하면 안 바뀐 나머지 id가
+ * 사라진다.
+ *
+ * subscriptions 자체가 바뀌면(디스플레이/화면 전환 등) 소켓을 새로 맺고 누적 상태를 리셋한다 —
+ * 이전 화면에서 구독하던 hashKey의 값이 새 화면에 남아있으면 안 되기 때문.
+ *
  * BFF relay(Mono.zip)가 백엔드 idle 구간에서 종료되는 경우가 있으므로
  * onclose 시 RECONNECT_DELAY_MS 후 자동 재연결한다.
  *
- * 프로토콜 (hashKey는 임의 Redis Hash 키를 받을 수 있음 — BE CtiRedisPoller가
+ * 프로토콜(hashKey는 임의 Redis Hash 키를 받을 수 있음 — BE CtiRedisPoller가
  * 처음 보는 hashKey도 즉시 폴링해 응답하므로 신규 hashKey 추가 시 BE 수정 불필요):
- *   요청: { action:"subscribe", subscriptions:[{hashKey:"IC:CTIQ:0", ids:["Q1","Q2"]}, ...] }
- *   응답: { data: { "IC:CTIQ:0": {"Q1":{...kpi}, "Q2":{...kpi}} }, timestamp }
+ *   요청(연결 시 1회): { action:"subscribe", subscriptions:[{hashKey:"IC:CTIQ:0", ids:["Q1","Q2"]}, ...] }
+ *   응답(연결 직후 1회 전체 스냅샷, 이후 5초 주기로 변경분만): { data: { "IC:CTIQ:0": {"Q1":{...kpi}} }, timestamp }
  */
-export function useCtiqWebSocket(subscriptions: CtiWsSubscription[], intervalMs = 5000): CtiWsResult {
+export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResult {
   const [dataByHashKey, setDataByHashKey] = useState<CtiWsDataByHashKey>({});
   const [isConnected, setIsConnected] = useState(false);
 
@@ -50,21 +59,12 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[], intervalMs 
   useEffect(() => {
     if (!subsKey) return;
 
+    // 구독 대상이 바뀌면(디스플레이 전환 등) 이전 화면의 누적값을 들고 있지 않도록 리셋.
+    setDataByHashKey({});
+
     let destroyed = false;
     let ws: WebSocket | null = null;
-    let sendTimer: ReturnType<typeof setInterval> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const clearTimers = () => {
-      if (sendTimer) {
-        clearInterval(sendTimer);
-        sendTimer = null;
-      }
-      if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
-        reconnectTimer = null;
-      }
-    };
 
     const connect = () => {
       if (destroyed) return;
@@ -72,22 +72,26 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[], intervalMs 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       ws = new WebSocket(`${protocol}//${window.location.host}/ws/proxy/taskboard/ctiq`);
 
-      const send = () => {
-        if (ws?.readyState === WebSocket.OPEN && subsRef.current.length > 0) {
-          ws.send(JSON.stringify({ action: 'subscribe', subscriptions: subsRef.current }));
-        }
-      };
-
       ws.onopen = () => {
         setIsConnected(true);
-        send();
-        sendTimer = setInterval(send, intervalMs);
+        if (subsRef.current.length > 0) {
+          ws?.send(JSON.stringify({ action: 'subscribe', subscriptions: subsRef.current }));
+        }
       };
 
       ws.onmessage = (e) => {
         try {
           const msg = JSON.parse(e.data as string) as { data?: CtiWsDataByHashKey };
-          if (msg.data) setDataByHashKey(msg.data);
+          const incoming = msg.data;
+          if (!incoming) return;
+          // 델타 병합 — 이번에 온 hashKey의 id들만 기존 값 위에 덮어쓰고, 안 온 나머지는 그대로 유지.
+          setDataByHashKey((prev) => {
+            const next: CtiWsDataByHashKey = { ...prev };
+            for (const [hashKey, idMap] of Object.entries(incoming)) {
+              next[hashKey] = { ...(prev[hashKey] ?? {}), ...idMap };
+            }
+            return next;
+          });
         } catch {
           /* JSON 파싱 오류 무시 */
         }
@@ -95,10 +99,6 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[], intervalMs 
 
       ws.onclose = () => {
         setIsConnected(false);
-        if (sendTimer) {
-          clearInterval(sendTimer);
-          sendTimer = null;
-        }
         if (!destroyed) {
           reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
         }
@@ -111,10 +111,10 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[], intervalMs 
 
     return () => {
       destroyed = true;
-      clearTimers();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       ws?.close();
     };
-  }, [subsKey, intervalMs]);
+  }, [subsKey]);
 
   return { dataByHashKey, isConnected };
 }

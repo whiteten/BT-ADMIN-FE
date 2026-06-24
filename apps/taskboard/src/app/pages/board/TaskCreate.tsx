@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import ReactGridLayout, { type LayoutItem as RglItem, type Layout as RglLayout, getCompactor } from 'react-grid-layout';
 import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,6 +9,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieCh
 import { useAuthStore } from '@/shared-store';
 import { fuzzyScore, toast } from '@/shared-util';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
+import { ROW_ID_COLUMN_KEY, RedisTableWidget, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
 import {
   taskboardQueryKeys,
   useCreateTaskboardLayout,
@@ -26,6 +28,9 @@ import type {
   CallDataItem,
   ChartConfig,
   DroppedWidget,
+  TableColumn,
+  TableColumnCalc,
+  TableColumnCalcOperand,
   TaskboardBg,
   TaskboardLayout,
   WidgetStyle,
@@ -106,12 +111,14 @@ const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight'
 type GuideItem = { id: string; axis: 'h' | 'v'; pct: number };
 type UndoEntry = { widgets: DroppedWidget[]; guides: GuideItem[] };
 
+type ResizeHandle = 'se' | 'sw' | 'ne' | 'nw';
+
 function snapResizeToGuides(
   x: number,
   y: number,
   w: number,
   h: number,
-  handle: 'se' | 'sw',
+  handle: ResizeHandle,
   guides: GuideItem[],
   showGuides: boolean,
 ): { x: number; y: number; w: number; h: number } {
@@ -120,19 +127,32 @@ function snapResizeToGuides(
   const hBounds = [0, ...guides.filter((g) => g.axis === 'h').map((g) => g.pct), 100].sort((a, b) => a - b);
   const nearest = (edge: number, bounds: number[]) => bounds.reduce((best, b) => (Math.abs(b - edge) < Math.abs(best - edge) ? b : best), bounds[0]);
 
+  const isWest = handle === 'sw' || handle === 'nw';
+  const isNorth = handle === 'ne' || handle === 'nw';
+
   let newX = x,
     newW = w;
-  if (handle === 'se') {
-    const snappedRight = nearest(x + w, vBounds);
-    newW = Math.max(5, snappedRight - x);
-  } else {
+  if (isWest) {
     const rightEdge = x + w;
     const snappedLeft = nearest(x, vBounds);
     newX = Math.max(0, snappedLeft);
     newW = Math.max(5, rightEdge - newX);
+  } else {
+    const snappedRight = nearest(x + w, vBounds);
+    newW = Math.max(5, snappedRight - x);
   }
-  const newH = Math.max(4, nearest(y + h, hBounds) - y);
-  return { x: newX, y, w: newW, h: newH };
+
+  let newY = y,
+    newH = h;
+  if (isNorth) {
+    const bottomEdge = y + h;
+    const snappedTop = nearest(y, hBounds);
+    newY = Math.max(0, snappedTop);
+    newH = Math.max(4, bottomEdge - newY);
+  } else {
+    newH = Math.max(4, nearest(y + h, hBounds) - y);
+  }
+  return { x: newX, y: newY, w: newW, h: newH };
 }
 
 function snapToGuideCell(cx: number, cy: number, guides: { axis: 'h' | 'v'; pct: number }[], showGuides: boolean): { x: number; y: number; w: number; h: number } | null {
@@ -254,7 +274,14 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
               {cfg.columns.map((col) => (
                 <th
                   key={col.key}
-                  style={{ width: col.width, borderBottom: `1px solid ${widget.style.color}40`, padding: '1px 3px', textAlign: 'center', opacity: 0.7, fontWeight: 600 }}
+                  style={{
+                    width: col.width,
+                    borderBottom: `1px solid ${widget.style.color}40`,
+                    padding: '1px 3px',
+                    textAlign: col.align ?? 'center',
+                    opacity: 0.7,
+                    fontWeight: 600,
+                  }}
                 >
                   {col.label}
                 </th>
@@ -265,8 +292,11 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
             {cfg.sampleRows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
                 {cfg.columns.map((col) => (
-                  <td key={col.key} style={{ padding: '1px 3px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {row[col.key]}
+                  <td
+                    key={col.key}
+                    style={{ padding: '1px 3px', textAlign: col.align ?? 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', color: getThresholdColor(row[col.key], col) }}
+                  >
+                    {formatWidgetValue(row[col.key], col.useThousandSep)}
                   </td>
                 ))}
               </tr>
@@ -660,65 +690,17 @@ const CLOCK_WIDGET_ITEMS: CallDataItem[] = [
 
 const TABLE_WIDGET_ITEMS: CallDataItem[] = [
   {
-    id: 'table-queue',
-    category: 'List',
-    label: '큐 현황표',
+    // 큐/그룹/상담사처럼 DB 마스터 목록과 조인하는 고정 테이블이 아니라, 임의 Redis 해시키 1개를
+    // 통째로 테이블로 보여주는 범용 위젯. 미디어타입은 별도 선택 UI 없이 해시키 문자열에 그대로
+    // 포함해서 입력(예: "IC:CTIQ:0") — RedisTableWidget.tsx 참고.
+    id: 'table-redis',
+    category: 'Redis',
+    label: 'Redis 테이블',
     sampleValue: '',
-    color: '#3b82f6',
+    color: '#0ea5e9',
     displayType: 'table',
     isRealtime: true,
-    tableConfig: {
-      columns: [
-        { key: 'name', label: '큐명' },
-        { key: 'wait', label: '대기' },
-        { key: 'talk', label: '통화' },
-      ],
-      sampleRows: [
-        { name: '일반상담', wait: 3, talk: 12 },
-        { name: 'VIP상담', wait: 1, talk: 5 },
-      ],
-    },
-  },
-  {
-    id: 'table-agent',
-    category: 'List',
-    label: '상담사 현황표',
-    sampleValue: '',
-    color: '#10b981',
-    displayType: 'table',
-    isRealtime: true,
-    tableConfig: {
-      columns: [
-        { key: 'name', label: '이름' },
-        { key: 'status', label: '상태' },
-        { key: 'count', label: '건수' },
-      ],
-      sampleRows: [
-        { name: '홍길동', status: '통화중', count: 8 },
-        { name: '김영희', status: '대기', count: 15 },
-      ],
-    },
-  },
-  {
-    id: 'table-group',
-    category: 'List',
-    label: '그룹 현황표',
-    sampleValue: '',
-    color: '#8b5cf6',
-    displayType: 'table',
-    isRealtime: true,
-    tableConfig: {
-      columns: [
-        { key: 'name', label: '그룹명' },
-        { key: 'agents', label: '인원' },
-        { key: 'talk', label: '통화' },
-        { key: 'rts_ready', label: 'RTS준비' },
-      ],
-      sampleRows: [
-        { name: '1팀', agents: 10, talk: 4, rts_ready: 3 },
-        { name: '2팀', agents: 8, talk: 2, rts_ready: 1 },
-      ],
-    },
+    tableConfig: { columns: [], sampleRows: [] },
   },
 ];
 
@@ -753,9 +735,23 @@ function FixedItemsSection() {
 
       {isOpen && (
         <div className="px-2 py-2 space-y-2">
-          {/* 공지사항 — DB에서 가져온 항목별 개별 드래그 */}
+          {/* 공지사항 키 그룹 — 같은 noticeKey의 공지 여러 건을 한 위젯에서 회전(슬라이드)해서 보여줌 */}
           <div>
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항{activeNotices.length > 0 && ` (${activeNotices.length})`}</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항 (키 그룹)</p>
+            <DraggableSourceItem
+              item={{
+                id: 'etc-announcement',
+                category: 'notice',
+                label: '공지 그룹 (여러 건 슬라이드)',
+                sampleValue: '',
+                color: '#f59e0b',
+              }}
+            />
+            <p className="text-[9px] text-slate-400 px-1 mt-1">캔버스에 놓은 뒤 우측 속성 패널에서 공지 키를 선택하세요. 같은 키의 공지가 여러 건이면 회전하며 표시됩니다.</p>
+          </div>
+          {/* 공지사항 — DB에서 가져온 항목별 개별 드래그(특정 1건만 고정 표시하고 싶을 때) */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">공지사항 (1건 고정){activeNotices.length > 0 && ` (${activeNotices.length})`}</p>
             {noticesLoading ? (
               <div className="text-[10px] text-slate-400 text-center py-1">로딩 중...</div>
             ) : activeNotices.length === 0 ? (
@@ -995,6 +991,7 @@ function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: Dr
   const animKey = useValueChangeKey(displayValue);
 
   const isChart = widget.item.displayType === 'chart';
+  if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} />;
   if (isTable) return <TableWidget widget={widget} />;
   if (isChart) return <ChartWidget widget={widget} />;
   if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
@@ -1047,6 +1044,7 @@ function WidgetContent({ widget, widgets }: { widget: DroppedWidget; widgets: Dr
 }
 
 // ─── 위젯 참조 드래그 핸들 — 계산식 위젯의 변수에 캔버스 위젯을 연결할 때 사용 ──────────
+// WidgetActionsMenu 드롭다운 내부의 메뉴 행 형태로 렌더(드롭다운 자체가 조건부 마운트라 항상 보임).
 function WidgetRefHandle({ widgetId, label }: { widgetId: string; label: string }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `widget-ref-${widgetId}`,
@@ -1059,11 +1057,101 @@ function WidgetRefHandle({ widgetId, label }: { widgetId: string; label: string 
       {...listeners}
       {...attributes}
       onClick={(e) => e.stopPropagation()}
-      className={`w-5 h-5 bg-violet-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
+      className={`flex items-center gap-2 h-8 px-3 text-[11px] text-violet-600 hover:bg-violet-50 text-left w-full cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-30' : ''}`}
       title="계산식 위젯의 변수로 드래그하여 연결"
     >
-      🔗
+      <span>🔗</span> 계산식
     </button>
+  );
+}
+
+// ─── 위젯 옵션 메뉴 — 톱니바퀴 클릭 시 팝오버로 복사/삭제/계산식 변수 드래그를 모아 보여줌 ──────────
+// 위젯 자체가 backdrop-blur(필터)+overflow:hidden이라 absolute로 띄우면 위젯 박스 밖으로 못 나가
+// 작은 위젯에서 팝오버가 잘리는 문제가 있었음 — document.body에 포탈로 띄워 완전히 빠져나가게 한다.
+function WidgetActionsMenu({
+  widgetId,
+  label,
+  isCalc,
+  onDuplicate,
+  onRemove,
+}: {
+  widgetId: string;
+  label: string;
+  isCalc: boolean;
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current?.contains(e.target as Node) || triggerRef.current?.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <div className="absolute top-1.5 right-6 z-20 hidden group-hover:block">
+      <button
+        ref={triggerRef}
+        onClick={handleToggle}
+        className="w-5 h-5 bg-slate-700/90 text-white rounded text-[10px] flex items-center justify-center leading-none font-bold shadow-md backdrop-blur-sm"
+        title="위젯 옵션"
+      >
+        ⚙
+      </button>
+      {open &&
+        menuPos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed z-[1000] bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-40 flex flex-col tb-menu-pop-in"
+            style={{ top: menuPos.top, right: menuPos.right }}
+          >
+            <button
+              onClick={() => {
+                onDuplicate();
+                setOpen(false);
+              }}
+              className="flex items-center gap-2 h-8 px-3 text-[11px] text-slate-600 hover:bg-slate-50 text-left"
+            >
+              <span>⧉</span> 복사
+            </button>
+            <button
+              onClick={() => {
+                onRemove();
+                setOpen(false);
+              }}
+              className="flex items-center gap-2 h-8 px-3 text-[11px] text-red-500 hover:bg-red-50 text-left"
+            >
+              <span>×</span> 삭제
+            </button>
+            {!isCalc && (
+              <>
+                <div className="border-t border-slate-100" />
+                <WidgetRefHandle widgetId={widgetId} label={label} />
+              </>
+            )}
+          </div>,
+          document.body,
+        )}
+    </div>
   );
 }
 
@@ -1135,6 +1223,32 @@ function CalcOperandDropZone({
   );
 }
 
+// ─── 테이블 컬럼 계산식 변수 바인딩 영역 — 좌측 Redis 항목을 드래그하면 "같은 행"의 필드명으로 설정 ──
+function TableColCalcOperandDropZone({ widgetId, colKey, operand, onRemove }: { widgetId: string; colKey: string; operand: TableColumnCalcOperand; onRemove: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `table-col-operand-${widgetId}__${colKey}__${operand.var}` });
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="w-5 h-5 flex items-center justify-center rounded bg-violet-100 text-violet-600 text-[10px] font-bold flex-shrink-0">{operand.var}</span>
+      <div
+        ref={setNodeRef}
+        className={`flex-1 min-w-0 h-7 flex items-center px-2 rounded border text-[10px] truncate font-mono transition-colors ${
+          isOver ? 'border-[#0f5b9e] bg-[#0f5b9e]/10' : operand.field ? 'border-slate-200 bg-white text-slate-700' : 'border-dashed border-slate-300 bg-slate-50 text-slate-400'
+        }`}
+      >
+        {operand.field ?? '🔗 같은 행의 필드를 여기로 드래그'}
+      </div>
+      <button
+        onClick={onRemove}
+        className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 text-xs font-bold"
+        title="변수 삭제"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 // ─── 자유 모드 캔버스 위젯 ───────────────────────────────────────────────────
 interface CanvasWidgetFreeProps {
   widget: DroppedWidget;
@@ -1145,7 +1259,7 @@ interface CanvasWidgetFreeProps {
   onRemove: () => void;
   onDuplicate: () => void;
   onDragStart: (widgetId: string, e: React.PointerEvent) => void;
-  onResizeStart: (widgetId: string, clientX: number, clientY: number, handle: 'se' | 'sw') => void;
+  onResizeStart: (widgetId: string, clientX: number, clientY: number, handle: ResizeHandle) => void;
   fontScale?: number;
 }
 
@@ -1170,36 +1284,18 @@ function CanvasWidgetFree({ widget, widgets, isSelected, locked, onSelect, onRem
         onSelect(e.shiftKey);
       }}
       className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
-        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : ''
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
       }`}
     >
-      {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) — 전체 잠금 중에는 숨김(상단 툴바의 전체 잠금 토글로만 해제) */}
+      {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
       {!locked && (
-        <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-20 pointer-events-none group-hover:pointer-events-auto">
-          <div className="flex gap-1">
-            {widget.item.category !== 'Calc' && <WidgetRefHandle widgetId={widget.id} label={widget.customTitle ?? widget.item.label} />}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
-              className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-              title="복사"
-            >
-              ⧉
-            </button>
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="w-5 h-5 bg-red-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-            title="삭제"
-          >
-            ×
-          </button>
-        </div>
+        <WidgetActionsMenu
+          widgetId={widget.id}
+          label={widget.customTitle ?? widget.item.label}
+          isCalc={widget.item.category === 'Calc'}
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+        />
       )}
 
       {isSelected && (
@@ -1251,6 +1347,34 @@ function CanvasWidgetFree({ widget, widgets, isSelected, locked, onSelect, onRem
               <path d="M1 1L7 7M1 4L4 7M1 7H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </div>
+          {/* NE 핸들 */}
+          <div
+            className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center cursor-ne-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart(widget.id, e.clientX, e.clientY, 'ne');
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M7 7L1 1M7 4L4 1M7 1H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+          {/* NW 핸들 */}
+          <div
+            className="absolute top-0 left-0 w-5 h-5 flex items-center justify-center cursor-nw-resize z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ touchAction: 'none' }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onResizeStart(widget.id, e.clientX, e.clientY, 'nw');
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+              <path d="M1 7L7 1M1 4L4 1M1 1H4" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
         </>
       )}
     </div>
@@ -1287,36 +1411,18 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
         ...getWidgetVisualStyle(widget.style, fontScale),
       }}
       className={`group ${widgetIsTransparentBg ? '' : 'backdrop-blur-sm'} transition-colors select-none ${
-        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : ''
+        isSelected ? (locked ? 'outline outline-2 outline-amber-400' : 'outline outline-2 outline-[#0f5b9e]') : '[outline-style:dashed] outline outline-1 outline-white/30'
       }`}
     >
-      {/* 위젯 내부 상단 액션 버튼 (hover 시 표시) — 전체 잠금 중에는 숨김(상단 툴바의 전체 잠금 토글로만 해제) */}
+      {/* 위젯 옵션(톱니바퀴 → 팝오버: 복사/삭제/계산식 변수 드래그) — 전체 잠금 중에는 숨김 */}
       {!locked && (
-        <div className="absolute top-1 left-0 right-0 flex justify-between px-1 z-[2] pointer-events-none group-hover:pointer-events-auto">
-          <div className="flex gap-1">
-            {widget.item.category !== 'Calc' && <WidgetRefHandle widgetId={widget.id} label={widget.customTitle ?? widget.item.label} />}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate();
-              }}
-              className="w-5 h-5 bg-blue-500/90 text-white rounded text-[9px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-              title="복사"
-            >
-              ⧉
-            </button>
-          </div>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            className="w-5 h-5 bg-red-500/90 text-white rounded text-[10px] items-center justify-center hidden group-hover:flex leading-none font-bold shadow-md backdrop-blur-sm"
-            title="삭제"
-          >
-            ×
-          </button>
-        </div>
+        <WidgetActionsMenu
+          widgetId={widget.id}
+          label={widget.customTitle ?? widget.item.label}
+          isCalc={widget.item.category === 'Calc'}
+          onDuplicate={onDuplicate}
+          onRemove={onRemove}
+        />
       )}
 
       {isSelected && (
@@ -1414,7 +1520,7 @@ function DroppableBoard({
               maxRows: GRID_ROWS,
             }}
             dragConfig={{ enabled: true, handle: '.drag-handle' }}
-            resizeConfig={{ enabled: true, handles: ['se'] as const }}
+            resizeConfig={{ enabled: true, handles: ['se', 'sw', 'ne', 'nw'] as const }}
             compactor={getCompactor(null, false, true)}
             onDragStop={(layout) => {
               onLayoutChange(layout);
@@ -1466,11 +1572,13 @@ export default function TaskCreate() {
   // ── 기본 상태 ────────────────────────────────────────────────────────────
   const [boardTitle, setBoardTitle] = useState(layout?.layoutName ?? bg?.pageName ?? '새 전광판');
   const [activeDrag, setActiveDrag] = useState<DragInfo | null>(null);
+  const [colorPickingMode, setColorPickingMode] = useState<{ field: 'color' | 'bgColor'; widgetId: string } | null>(null);
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [editingTitleText, setEditingTitleText] = useState('');
   const [newColKey, setNewColKey] = useState('');
   const [newColLabel, setNewColLabel] = useState('');
+  const [expandedColKey, setExpandedColKey] = useState<string | null>(null);
   // 배경 이미지 실제 비율 — 로드 전 기본값 16/9, onImageLoad에서 naturalWidth/naturalHeight로 갱신.
   // 하드코딩된 16/9로 고정해두면 FHD(16:9)가 아닌 이미지(예: HD 4:3 등)는 object-contain 레터박싱으로
   // 보이는 이미지 영역과 가이드라인 좌표계(컨테이너 기준 %)가 어긋나 가이드선이 위로 쏠려 보이는 원인이 됨.
@@ -1702,13 +1810,13 @@ export default function TaskCreate() {
     startMouseY: number;
     startW: number;
     startH: number;
-    handle: 'se' | 'sw';
+    handle: ResizeHandle;
     startWidgetX: number;
     startWidgetY: number;
   } | null>(null);
   const resizeFinalRef = useRef<{ widgetId: string; x: number; y: number; w: number; h: number } | null>(null);
 
-  const handleResizeStart = (widgetId: string, clientX: number, clientY: number, handle: 'se' | 'sw') => {
+  const handleResizeStart = (widgetId: string, clientX: number, clientY: number, handle: ResizeHandle) => {
     if (canvasLocked) return;
     const widget = droppedWidgets.find((w) => w.id === widgetId);
     if (!widget) return;
@@ -1792,19 +1900,29 @@ export default function TaskCreate() {
       if (resize) {
         const dx = ((e.clientX - resize.startMouseX) / rect.width) * 100;
         const dy = ((e.clientY - resize.startMouseY) / rect.height) * 100;
-        if (resize.handle === 'sw') {
-          const newX = Math.max(0, resize.startWidgetX + dx);
-          const actualDx = newX - resize.startWidgetX;
-          const newW = Math.max(5, resize.startW - actualDx);
-          const newH = Math.max(4, resize.startH + dy);
-          setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, x: newX, w: newW, h: newH } : w)));
-          resizeFinalRef.current = { widgetId: resize.widgetId, x: newX, y: resize.startWidgetY, w: newW, h: newH };
+        const isWest = resize.handle === 'sw' || resize.handle === 'nw';
+        const isNorth = resize.handle === 'ne' || resize.handle === 'nw';
+
+        let newX = resize.startWidgetX;
+        let newW = resize.startW;
+        if (isWest) {
+          newX = Math.max(0, resize.startWidgetX + dx);
+          newW = Math.max(5, resize.startW - (newX - resize.startWidgetX));
         } else {
-          const newW = Math.max(5, resize.startW + dx);
-          const newH = Math.max(4, resize.startH + dy);
-          setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, w: newW, h: newH } : w)));
-          resizeFinalRef.current = { widgetId: resize.widgetId, x: resize.startWidgetX, y: resize.startWidgetY, w: newW, h: newH };
+          newW = Math.max(5, resize.startW + dx);
         }
+
+        let newY = resize.startWidgetY;
+        let newH = resize.startH;
+        if (isNorth) {
+          newY = Math.max(0, resize.startWidgetY + dy);
+          newH = Math.max(4, resize.startH - (newY - resize.startWidgetY));
+        } else {
+          newH = Math.max(4, resize.startH + dy);
+        }
+
+        setDroppedWidgets((prev) => prev.map((w) => (w.id === resize.widgetId ? { ...w, x: newX, y: newY, w: newW, h: newH } : w)));
+        resizeFinalRef.current = { widgetId: resize.widgetId, x: newX, y: newY, w: newW, h: newH };
       }
     };
 
@@ -1935,6 +2053,26 @@ export default function TaskCreate() {
       return;
     }
 
+    // 테이블 컬럼 계산식의 변수(operand) 바인딩 영역에 드롭 — 좌측 Redis 항목을 "같은 행"의 필드명으로 연결
+    if (typeof over?.id === 'string' && over.id.startsWith('table-col-operand-')) {
+      const [tcWidgetId, colKey, varName] = over.id.slice('table-col-operand-'.length).split('__');
+      if (info.type === 'source' && info.item.category === 'Redis') {
+        const field = info.item.redisJsonField ?? info.item.redisField;
+        if (!field) return;
+        pushUndo(droppedWidgets, guides);
+        setDroppedWidgets((prev) =>
+          prev.map((w) => {
+            if (w.id !== tcWidgetId || !w.item.tableConfig) return w;
+            const columns = w.item.tableConfig.columns.map((c) =>
+              c.key === colKey && c.calc ? { ...c, calc: { ...c.calc, operands: c.calc.operands.map((op) => (op.var === varName ? { ...op, field } : op)) } } : c,
+            );
+            return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+          }),
+        );
+      }
+      return;
+    }
+
     // 위젯 참조(🔗) 드래그가 계산식 변수 영역이 아닌 곳에 드롭되면 무시
     if (info.type === 'widget-ref') return;
 
@@ -1954,6 +2092,19 @@ export default function TaskCreate() {
         wh = w.h ?? DEFAULT_H;
       return xCenterPct >= w.x && xCenterPct <= w.x + ww && yCenterPct >= w.y && yCenterPct <= w.y + wh;
     });
+    // 테이블형 위젯(table-queue/group/agent) 위에 좌측 Redis 항목을 드롭하면 위젯을 통째로 바꾸는 게
+    // 아니라 그 필드를 테이블 컬럼으로 추가한다 — 리스트 칸(예: CTIQ_NAME)이든 값 칸(예: SUM_CONN_CNT)
+    // 이든 똑같이 컬럼 1개로 추가되고, WS 구독 columns에도 그대로 반영된다(addWidgetTableColumn과 동일 경로).
+    if (targetWidget?.item.tableConfig && info.type === 'source' && info.item.category === 'Redis') {
+      const fieldKey = info.item.redisJsonField ?? info.item.redisField;
+      if (fieldKey) {
+        pushUndo(droppedWidgets, guides);
+        addWidgetTableColumn(targetWidget.id, fieldKey, fieldKey);
+        setSelectedWidgetIds([targetWidget.id]);
+      }
+      return;
+    }
+
     if (targetWidget) {
       pushUndo(droppedWidgets, guides);
       setDroppedWidgets((prev) => prev.map((w) => (w.id === targetWidget.id ? { ...w, item: info.item } : w)));
@@ -2083,20 +2234,79 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, ...patch } } : w)));
   };
 
-  // 그림판 스포이드처럼 화면(배경 이미지 포함) 어디서든 색상을 추출 — 브라우저 EyeDropper API(Chrome/Edge) 사용.
-  // 지원 안 하는 브라우저(Firefox/Safari)는 토스트로 안내만 하고, 기존 <input type="color"> 직접 선택은 그대로 가능.
+  // 스포이드 색상 추출 — HTTPS/localhost면 EyeDropper API, HTTP면 보드 배경 이미지 클릭 모드로 폴백.
   const handlePickColorFromScreen = async (field: 'color' | 'bgColor', widgetId: string) => {
-    if (!('EyeDropper' in window)) {
-      toast.error('스포이드 기능은 Chrome/Edge 브라우저에서만 지원됩니다.');
-      return;
+    if (window.isSecureContext) {
+      if (!('EyeDropper' in window)) {
+        toast.error('스포이드 기능은 Chrome/Edge 브라우저에서만 지원됩니다.');
+        return;
+      }
+      try {
+        const eyeDropper = new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
+        const result = await eyeDropper.open();
+        updateWidgetStyle(widgetId, { [field]: result.sRGBHex });
+      } catch {
+        /* 사용자가 Esc로 취소한 경우 — 무시 */
+      }
+    } else {
+      // HTTP 접속 — EyeDropper API 없음. 보드 배경 이미지를 canvas로 샘플링하는 클릭 모드로 전환.
+      if (!fileName) {
+        toast.error('배경 이미지가 없어 스포이드를 사용할 수 없습니다.');
+        return;
+      }
+      setColorPickingMode({ field, widgetId });
+      toast.info('보드 위를 클릭하여 색상을 추출하세요. ESC로 취소');
     }
-    try {
-      const eyeDropper = new (window as unknown as { EyeDropper: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper();
-      const result = await eyeDropper.open();
-      updateWidgetStyle(widgetId, { [field]: result.sRGBHex });
-    } catch {
-      /* 사용자가 Esc로 취소한 경우 — 무시 */
-    }
+  };
+
+  // 보드 배경 이미지에서 클릭 좌표 픽셀 색상 추출 (HTTP 폴백용)
+  const sampleColorFromBoardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!colorPickingMode || !fileName) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0);
+      // object-contain 렌더 기준으로 클릭 좌표를 이미지 픽셀 좌표로 변환
+      const boardW = rect.width;
+      const boardH = rect.height;
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      const boardAspect = boardW / boardH;
+      let imgX: number, imgY: number;
+      if (imgAspect > boardAspect) {
+        const scale = boardW / img.naturalWidth;
+        const scaledH = img.naturalHeight * scale;
+        const offsetY = (boardH - scaledH) / 2;
+        imgX = (clickX / boardW) * img.naturalWidth;
+        imgY = ((clickY - offsetY) / scaledH) * img.naturalHeight;
+      } else {
+        const scale = boardH / img.naturalHeight;
+        const scaledW = img.naturalWidth * scale;
+        const offsetX = (boardW - scaledW) / 2;
+        imgX = ((clickX - offsetX) / scaledW) * img.naturalWidth;
+        imgY = (clickY / boardH) * img.naturalHeight;
+      }
+      if (imgX < 0 || imgY < 0 || imgX >= img.naturalWidth || imgY >= img.naturalHeight) {
+        toast.warning('배경 이미지 영역 밖입니다. 이미지 위를 클릭해주세요.');
+        return;
+      }
+      const pixel = ctx.getImageData(Math.floor(imgX), Math.floor(imgY), 1, 1).data;
+      const hex = `#${pixel[0].toString(16).padStart(2, '0')}${pixel[1].toString(16).padStart(2, '0')}${pixel[2].toString(16).padStart(2, '0')}`;
+      updateWidgetStyle(colorPickingMode.widgetId, { [colorPickingMode.field]: hex });
+      setColorPickingMode(null);
+    };
+    img.onerror = () => {
+      toast.error('이미지를 불러올 수 없습니다. 서버 CORS 설정을 확인하세요.');
+      setColorPickingMode(null);
+    };
+    img.src = fileName;
   };
 
   // 임계치 색상 규칙 CRUD — 위젯 style.thresholds 배열을 다룬다
@@ -2114,7 +2324,7 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, style: { ...w.style, thresholds: (w.style.thresholds ?? []).filter((_, i) => i !== index) } } : w)));
   };
 
-  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey' | 'aggregation' | 'clockFormat'>>) => {
+  const updateWidgetMeta = (id: string, patch: Partial<Pick<DroppedWidget, 'showTitle' | 'customTitle' | 'noticeKey' | 'aggregation' | 'clockFormat' | 'slideIntervalSec'>>) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch } : w)));
   };
 
@@ -2184,9 +2394,115 @@ export default function TaskCreate() {
     );
   };
 
+  // 테이블 컬럼별 스타일(정렬/천단위/임계치) — 단일값 위젯의 style 옵션을 컬럼 단위로 재사용
+  const updateWidgetTableColumn = (id: string, key: string, patch: Partial<TableColumn>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, ...patch } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const addColumnThresholdRule = (id: string, key: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, thresholds: [...(c.thresholds ?? []), { min: 0, color: '#000000' }] } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const updateColumnThresholdRule = (id: string, key: string, index: number, patch: Partial<WidgetThresholdRule>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) =>
+          c.key === key ? { ...c, thresholds: (c.thresholds ?? []).map((rule, i) => (i === index ? { ...rule, ...patch } : rule)) } : c,
+        );
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const removeColumnThresholdRule = (id: string, key: string, index: number) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, thresholds: (c.thresholds ?? []).filter((_, i) => i !== index) } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  // 테이블 컬럼 계산식 — 캔버스 위젯이 아니라 같은 행의 다른 JSON 필드를 변수로 참조(Redis 테이블 전용)
+  const updateColumnCalc = (id: string, key: string, patch: Partial<TableColumnCalc>) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, calc: { formula: '', operands: [], ...c.calc, ...patch } } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const toggleColumnCalcEnabled = (id: string, key: string, enabled: boolean) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => (c.key === key ? { ...c, calc: enabled ? (c.calc ?? { formula: '', operands: [] }) : undefined } : c));
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const addColumnCalcOperand = (id: string, key: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) => {
+          if (c.key !== key || !c.calc) return c;
+          const usedVars = new Set(c.calc.operands.map((op) => op.var));
+          const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
+          return { ...c, calc: { ...c.calc, operands: [...c.calc.operands, { var: nextVar }] } };
+        });
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
+  const removeColumnCalcOperand = (id: string, key: string, varName: string) => {
+    setDroppedWidgets((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || !w.item.tableConfig) return w;
+        const columns = w.item.tableConfig.columns.map((c) =>
+          c.key === key && c.calc ? { ...c, calc: { ...c.calc, operands: c.calc.operands.filter((op) => op.var !== varName) } } : c,
+        );
+        return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
+      }),
+    );
+  };
+
   // 미디어타입 변경 — table-queue/table-group/table-agent/chart-bar-queue/chart-line-trend 위젯이 어느 IC:XXX:{미디어타입} 해시를 볼지 결정
   const updateWidgetMediaType = (id: string, mediaType: string) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, mediaType } } : w)));
+  };
+
+  // Redis 테이블 위젯(table-redis)이 통째로 바인딩할 해시키 — 예: "IC:CTIQ:0"
+  const updateWidgetRedisHashKey = (id: string, redisHashKey: string) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, redisHashKey } } : w)));
+  };
+
+  // Redis 테이블의 그룹별 합계 설정 — byKey 값으로 묶어서 aggKey를 합산한 1행씩으로 축약
+  const updateWidgetTableGroupBy = (id: string, groupBy: { byKey: string; aggKey: string } | undefined) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id && w.item.tableConfig ? { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, groupBy } } } : w)));
+  };
+
+  // 단일값 Redis 위젯의 그룹별 합계 설정 — byKey/matchValue로 한 그룹만 골라 aggKey를 합산한 숫자 1개를 보여줌
+  const updateWidgetItemGroupBy = (id: string, groupBy: { byKey: string; aggKey: string; matchValue: string } | undefined) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, groupBy } } : w)));
   };
 
   // 차트 종류 변경 (막대/선/파이/도넛)
@@ -2283,6 +2599,10 @@ export default function TaskCreate() {
   // ── Delete 키: 선택한 위젯 일괄 삭제 ────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setColorPickingMode(null);
+        return;
+      }
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
@@ -2361,6 +2681,7 @@ export default function TaskCreate() {
   const handleExport = () => {
     const exportData = {
       version: 2,
+      boardTitle,
       layoutMode,
       gridMargin,
       containerPadding,
@@ -2389,6 +2710,7 @@ export default function TaskCreate() {
         try {
           const raw = JSON.parse(ev.target?.result as string) as {
             version?: number;
+            boardTitle?: string;
             layoutMode?: LayoutMode;
             gridMargin?: [number, number];
             containerPadding?: [number, number];
@@ -2401,6 +2723,7 @@ export default function TaskCreate() {
             return;
           }
           pushUndo(droppedWidgets, guides);
+          if (raw.boardTitle) setBoardTitle(raw.boardTitle);
           if (raw.layoutMode) setLayoutMode(raw.layoutMode);
           if (raw.gridMargin) setGridMargin(raw.gridMargin);
           if (raw.containerPadding) setContainerPadding(raw.containerPadding);
@@ -2967,6 +3290,9 @@ export default function TaskCreate() {
                               </div>
                             ))}
                       </DroppableBoard>
+                      {colorPickingMode && (
+                        <div className="absolute inset-0 z-[500]" style={{ cursor: 'crosshair' }} title="클릭하여 색상 추출 / ESC로 취소" onClick={sampleColorFromBoardClick} />
+                      )}
                       {guidesOverlay}
                     </>
                   );
@@ -3153,25 +3479,228 @@ export default function TaskCreate() {
                   </div>
                 )}
 
-                {/* 테이블 컬럼 — table-queue/table-group/table-agent 전용. 여기서 추가한 필드명이 그대로 WS 구독 컬럼으로 쓰여 그 컬럼만 받아온다. */}
-                {['table-queue', 'table-group', 'table-agent'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
+                {/* Redis 해시키 — table-redis 전용. 행은 이 해시에 실제로 존재하는 field를 그대로 쓴다(DB 마스터 조인 없음). */}
+                {selectedWidget.item.id === 'table-redis' && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                      Redis 해시키 <span className="text-slate-300 font-normal normal-case">(미디어타입까지 포함 — 예: IC:CTIQ:0)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedWidget.item.redisHashKey ?? ''}
+                      onChange={(e) => updateWidgetRedisHashKey(selectedWidget.id, e.target.value)}
+                      placeholder="IC:CTIQ:0"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                    />
+                    <p className="text-[9px] text-slate-400 px-1 mt-1">
+                      행은 이 해시에 실제로 있는 키를 그대로 씁니다. 컬럼은 아래에 직접 추가하거나 좌측 탐색기에서 필드를 드래그하세요.
+                    </p>
+                  </div>
+                )}
+
+                {/* 그룹화(합계) — table-redis 전용. byKey 값으로 묶어서 aggKey를 합산한 1행씩으로 축약(예: REASON_CODE별 AGENT_CNT 합계) */}
+                {selectedWidget.item.id === 'table-redis' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">그룹별 합계</label>
+                      <button
+                        onClick={() => updateWidgetTableGroupBy(selectedWidget.id, selectedWidget.item.tableConfig?.groupBy ? undefined : { byKey: '', aggKey: '' })}
+                        className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.item.tableConfig?.groupBy ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.item.tableConfig?.groupBy ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    {selectedWidget.item.tableConfig?.groupBy && (
+                      <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
+                        <p className="text-[9px] text-slate-400 leading-snug">행 전체를 펼치는 대신, 기준 필드 값으로 묶어서 합계 필드를 더한 1행씩만 보여줍니다.</p>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">기준 필드 (예: REASON_CODE)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.tableConfig.groupBy.byKey}
+                            onChange={(e) =>
+                              updateWidgetTableGroupBy(selectedWidget.id, { ...(selectedWidget.item.tableConfig?.groupBy ?? { byKey: '', aggKey: '' }), byKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">합계 필드 (예: AGENT_CNT)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.tableConfig.groupBy.aggKey}
+                            onChange={(e) =>
+                              updateWidgetTableGroupBy(selectedWidget.id, { ...(selectedWidget.item.tableConfig?.groupBy ?? { byKey: '', aggKey: '' }), aggKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 테이블 컬럼 — table-queue/table-group/table-agent/table-redis. 여기서 추가한 필드명이 그대로 WS 구독(또는 Redis 테이블) 컬럼으로 쓰인다. */}
+                {['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
                   <div>
                     <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
                       테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
                     </label>
                     <div className="space-y-1 mb-1.5">
                       {selectedWidget.item.tableConfig.columns.map((col) => (
-                        <div key={col.key} className="flex items-center gap-1.5 bg-white border border-slate-200 rounded px-2 py-1">
-                          <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
-                          <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
-                          {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                        <div key={col.key} className="bg-white border border-slate-200 rounded">
+                          <div className="flex items-center gap-1.5 px-2 py-1">
+                            <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
+                            <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
                             <button
-                              onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
-                              className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
-                              title="컬럼 삭제"
+                              onClick={() => setExpandedColKey((k) => (k === col.key ? null : col.key))}
+                              className={`text-[10px] flex-shrink-0 ${expandedColKey === col.key ? 'text-[#0f5b9e]' : 'text-slate-300 hover:text-slate-500'}`}
+                              title="컬럼 스타일"
                             >
-                              ×
+                              ⚙
                             </button>
+                            {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                              <button
+                                onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
+                                className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
+                                title="컬럼 삭제"
+                              >
+                                ×
+                              </button>
+                            )}
+                          </div>
+                          {expandedColKey === col.key && (
+                            <div className="px-2 pb-2 pt-1.5 border-t border-slate-100 space-y-1.5">
+                              {/* 정렬 */}
+                              <div className="flex items-center gap-1">
+                                <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">정렬</span>
+                                {[
+                                  { value: 'left' as const, label: '좌' },
+                                  { value: 'center' as const, label: '중' },
+                                  { value: 'right' as const, label: '우' },
+                                ].map((al) => (
+                                  <button
+                                    key={al.value}
+                                    onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { align: al.value })}
+                                    className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                      (col.align ?? 'center') === al.value
+                                        ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                        : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                    }`}
+                                  >
+                                    {al.label}
+                                  </button>
+                                ))}
+                              </div>
+                              {/* 천단위 콤마 */}
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] text-slate-400">천단위 콤마</span>
+                                <button
+                                  onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { useThousandSep: !col.useThousandSep })}
+                                  className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                >
+                                  <span
+                                    className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.useThousandSep ? 'translate-x-3' : 'translate-x-0'}`}
+                                  />
+                                </button>
+                              </div>
+                              {/* 임계치 색상 */}
+                              <div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] text-slate-400">임계치 색상</span>
+                                  <button
+                                    onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { thresholdEnabled: !col.thresholdEnabled })}
+                                    className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                  >
+                                    <span
+                                      className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.thresholdEnabled ? 'translate-x-3' : 'translate-x-0'}`}
+                                    />
+                                  </button>
+                                </div>
+                                {col.thresholdEnabled && (
+                                  <div className="flex flex-col gap-1 mt-1">
+                                    {(col.thresholds ?? []).map((rule, idx) => (
+                                      <div key={idx} className="flex items-center gap-1">
+                                        <span className="text-[9px] text-slate-400 flex-shrink-0">≥</span>
+                                        <input
+                                          type="number"
+                                          value={rule.min}
+                                          onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { min: Number(e.target.value) })}
+                                          className="w-12 text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
+                                        />
+                                        <input
+                                          type="color"
+                                          value={rule.color}
+                                          onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { color: e.target.value })}
+                                          className="w-6 h-6 rounded border border-slate-200 cursor-pointer flex-shrink-0"
+                                        />
+                                        <button
+                                          onClick={() => removeColumnThresholdRule(selectedWidget.id, col.key, idx)}
+                                          className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0 ml-auto"
+                                          title="삭제"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    ))}
+                                    <button
+                                      onClick={() => addColumnThresholdRule(selectedWidget.id, col.key)}
+                                      className="text-[9px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-0.5 hover:bg-[#0f5b9e]/5 transition-colors"
+                                    >
+                                      + 기준 추가
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              {/* 계산식 — Redis 테이블 전용. 원본 필드 대신 같은 행의 다른 필드들로 계산한 값을 표시 */}
+                              {selectedWidget.item.id === 'table-redis' && (
+                                <div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[9px] text-slate-400">계산식</span>
+                                    <button
+                                      onClick={() => toggleColumnCalcEnabled(selectedWidget.id, col.key, !col.calc)}
+                                      className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.calc ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                    >
+                                      <span
+                                        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.calc ? 'translate-x-3' : 'translate-x-0'}`}
+                                      />
+                                    </button>
+                                  </div>
+                                  {col.calc && (
+                                    <div className="flex flex-col gap-1.5 mt-1 p-2 bg-white rounded border border-slate-200">
+                                      <p className="text-[9px] text-slate-400 leading-snug">원본 필드값 대신 같은 행의 다른 필드로 계산한 값을 보여줍니다(예: A / B * 100).</p>
+                                      <input
+                                        type="text"
+                                        value={col.calc.formula}
+                                        onChange={(e) => updateColumnCalc(selectedWidget.id, col.key, { formula: e.target.value })}
+                                        placeholder="예: A + B"
+                                        className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                                      />
+                                      <div className="space-y-1">
+                                        {col.calc.operands.map((op) => (
+                                          <TableColCalcOperandDropZone
+                                            key={op.var}
+                                            widgetId={selectedWidget.id}
+                                            colKey={col.key}
+                                            operand={op}
+                                            onRemove={() => removeColumnCalcOperand(selectedWidget.id, col.key, op.var)}
+                                          />
+                                        ))}
+                                      </div>
+                                      <button
+                                        onClick={() => addColumnCalcOperand(selectedWidget.id, col.key)}
+                                        disabled={col.calc.operands.length >= 26}
+                                        className="py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                                      >
+                                        + 변수 추가
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}
@@ -3181,7 +3710,7 @@ export default function TaskCreate() {
                         type="text"
                         value={newColKey}
                         onChange={(e) => setNewColKey(e.target.value)}
-                        placeholder="필드명 (RTS_LOGIN)"
+                        placeholder={selectedWidget.item.id === 'table-redis' ? `필드명 (CTIQ_NAME, 또는 행 키 자체는 ${ROW_ID_COLUMN_KEY})` : '필드명 (RTS_LOGIN)'}
                         className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
                       />
                       <input
@@ -3507,6 +4036,24 @@ export default function TaskCreate() {
                   </div>
                 )}
 
+                {/* 슬라이드 속도 — 공지사항 위젯(키 그룹/1건 고정 공통). 회전 전환 주기 + 마퀴 흐름 속도에 같이 적용 */}
+                {isAnnouncementWidget(selectedWidget) && (
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                      슬라이드 속도(초) <span className="text-slate-300 font-normal normal-case">(여러 건 회전 주기 + 글자 흐름 속도)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      step={0.5}
+                      value={selectedWidget.slideIntervalSec ?? 5}
+                      onChange={(e) => updateWidgetMeta(selectedWidget.id, { slideIntervalSec: Math.max(1, Math.min(60, Number(e.target.value) || 5)) })}
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
+                    />
+                  </div>
+                )}
+
                 {/* 사용자 지정 시계 포맷 — item.id='etc-custom' 전용 */}
                 {selectedWidget.item.id === 'etc-custom' && (
                   <div>
@@ -3526,6 +4073,68 @@ export default function TaskCreate() {
                     <p className="text-[10px] text-slate-500 mt-1 font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1">
                       {formatCustomClock(new Date(), selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT)}
                     </p>
+                  </div>
+                )}
+
+                {/* 그룹별 합계 — 단일값 Redis 위젯 전용. redisField로 행 1개를 직접 가리키는 대신,
+                    해시 전체를 byKey로 묶어 matchValue와 일치하는 그룹의 aggKey 합계를 보여준다.
+                    (Redis 테이블의 그룹별 합계와 동일 로직 — 결과를 1개 숫자로 표시) */}
+                {selectedWidget.item.category === 'Redis' && !!selectedWidget.item.redisHashKey && selectedWidget.item.displayType !== 'table' && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">그룹별 합계</label>
+                      <button
+                        onClick={() => updateWidgetItemGroupBy(selectedWidget.id, selectedWidget.item.groupBy ? undefined : { byKey: '', aggKey: '', matchValue: '' })}
+                        className={`relative flex-shrink-0 h-5 w-9 rounded-full transition-colors ${selectedWidget.item.groupBy ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${selectedWidget.item.groupBy ? 'translate-x-4' : 'translate-x-0'}`}
+                        />
+                      </button>
+                    </div>
+                    {selectedWidget.item.groupBy && (
+                      <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
+                        <p className="text-[9px] text-slate-400 leading-snug">
+                          이 해시(redisHashKey)의 모든 행을 기준 필드 값으로 묶어, 일치값과 같은 그룹의 합계 필드를 더한 숫자 1개를 보여줍니다.
+                        </p>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">기준 필드 (예: REASON_CODE)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.groupBy.byKey}
+                            onChange={(e) =>
+                              updateWidgetItemGroupBy(selectedWidget.id, { ...(selectedWidget.item.groupBy ?? { byKey: '', aggKey: '', matchValue: '' }), byKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">일치값 (예: 5)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.groupBy.matchValue}
+                            onChange={(e) =>
+                              updateWidgetItemGroupBy(selectedWidget.id, {
+                                ...(selectedWidget.item.groupBy ?? { byKey: '', aggKey: '', matchValue: '' }),
+                                matchValue: e.target.value,
+                              })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] text-slate-400 block mb-0.5">합계 필드 (예: AGENT_CNT)</label>
+                          <input
+                            type="text"
+                            value={selectedWidget.item.groupBy.aggKey}
+                            onChange={(e) =>
+                              updateWidgetItemGroupBy(selectedWidget.id, { ...(selectedWidget.item.groupBy ?? { byKey: '', aggKey: '', matchValue: '' }), aggKey: e.target.value })
+                            }
+                            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
