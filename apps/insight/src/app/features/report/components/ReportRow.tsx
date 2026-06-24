@@ -19,13 +19,6 @@ interface ReportRowProps {
   isMenuRegistered?: boolean;
 }
 
-// 도메인 뱃지(antd Tag) 색과 동일한 조합 — 아이콘칩 배경/글자/테두리. 미정의 도메인은 primary fallback.
-const DOMAIN_ICON_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
-  IE: { bg: '#e6f4ff', fg: '#1677ff', border: '#91caff' },
-  IC: { bg: '#f6ffed', fg: '#389e0d', border: '#b7eb8f' },
-  IR: { bg: '#fff7e6', fg: '#d46b08', border: '#ffd591' },
-};
-
 /**
  * 보고서 목록 행 — 좌측 필터 레일 + 행 리스트 레이아웃용.
  * 권한(편집/삭제/화면 공유)·네비게이션 로직은 ReportCard 와 동일 정책을 따른다.
@@ -147,12 +140,8 @@ export default function ReportRow({ report, query, isMenuRegistered = false }: R
       className="group flex items-center gap-3 px-5 py-2.5 border-b border-[#e9ebec] cursor-pointer transition-colors hover:bg-[#f5f8fc]"
     >
       <span
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border"
-        style={{
-          background: DOMAIN_ICON_COLOR[report.domain]?.bg ?? 'var(--color-bt-primary-soft)',
-          color: DOMAIN_ICON_COLOR[report.domain]?.fg ?? 'var(--color-bt-primary)',
-          borderColor: DOMAIN_ICON_COLOR[report.domain]?.border ?? 'transparent',
-        }}
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-transparent"
+        style={{ background: 'var(--color-bt-primary-soft)', color: 'var(--color-bt-primary)' }}
       >
         {REPORT_ICON_SVG[iconType]}
       </span>

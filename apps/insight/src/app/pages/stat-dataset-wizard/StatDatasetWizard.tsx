@@ -7,10 +7,9 @@ import WizardStepA from '../../features/dataset/components/WizardStepA';
 import WizardStepB from '../../features/dataset/components/WizardStepB';
 import { useCreateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DataSourceFieldRequest, LocalCalcFieldDraft, LocalFieldDisplay, ValidationStatus } from '../../features/dataset/types';
-import type { DomainCode } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
-const STEP_ITEMS = [{ title: '이름' }, { title: '카테고리' }, { title: '데이터 뷰' }, { title: '컬럼 구성' }];
+const STEP_ITEMS = [{ title: '기본정보' }, { title: '컬럼 구성' }];
 
 export default function StatDatasetWizard() {
   const navigate = useNavigate();
@@ -22,7 +21,7 @@ export default function StatDatasetWizard() {
 
   const [datasetName, setDatasetName] = useState('');
   const [datasetDescription, setDatasetDescription] = useState('');
-  const [selectedDomain, setSelectedDomain] = useState<DomainCode | null>(null);
+  const [datasetTags, setDatasetTags] = useState<string[]>([]);
   const [selectedPrefix, setSelectedPrefix] = useState('');
 
   const [fieldDisplays, setFieldDisplays] = useState<LocalFieldDisplay[]>([]);
@@ -42,10 +41,9 @@ export default function StatDatasetWizard() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const handleNext = () => {
-    if (!datasetName.trim() || !selectedDomain || !selectedPrefix) {
+    if (!datasetName.trim() || !selectedPrefix) {
       setShowErrors(true);
       if (!datasetName.trim()) toast.error('데이터셋 이름을 입력하세요.');
-      else if (!selectedDomain) toast.error('카테고리를 선택하세요.');
       else toast.error('데이터 뷰를 선택하세요.');
       return;
     }
@@ -95,7 +93,7 @@ export default function StatDatasetWizard() {
       await createDataset({
         datasourceName: datasetName.trim(),
         description: datasetDescription.trim() || undefined,
-        productCode: selectedDomain ?? undefined,
+        tags: datasetTags.length > 0 ? datasetTags : undefined,
         dbViewPrefix: selectedPrefix,
         fields: fieldDisplays.length > 0 ? buildFieldRequests(fieldDisplays, calcFields) : undefined,
       });
@@ -122,15 +120,7 @@ export default function StatDatasetWizard() {
 
   const handleCancel = () => navigate('/insight/statistics/datasets');
 
-  const handleDomainChange = (domain: DomainCode) => {
-    setSelectedDomain(domain);
-    setSelectedPrefix('');
-  };
-
-  const titleDone = !!datasetName.trim();
-  const domainDone = !!selectedDomain;
-  const prefixDone = !!selectedPrefix;
-  const stepsCurrent = wizardStep === 1 ? 3 : !titleDone ? 0 : !domainDone ? 1 : !prefixDone ? 2 : 3;
+  const stepsCurrent = wizardStep;
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -150,17 +140,17 @@ export default function StatDatasetWizard() {
                 onTitleChange={setDatasetName}
                 description={datasetDescription}
                 onDescriptionChange={setDatasetDescription}
-                selectedDomain={selectedDomain}
-                onDomainChange={handleDomainChange}
+                tags={datasetTags}
+                onTagsChange={setDatasetTags}
                 selectedView={selectedPrefix}
                 onViewChange={setSelectedPrefix}
                 showErrors={showErrors}
                 useCandidates
+                hideCategory
               />
             ) : (
               <WizardStepB
                 dbViewPrefix={selectedPrefix}
-                domain={selectedDomain!}
                 fieldDisplays={fieldDisplays}
                 onFieldDisplaysChange={setFieldDisplays}
                 calcFields={calcFields}
@@ -172,8 +162,8 @@ export default function StatDatasetWizard() {
           </div>
 
           {!isCalcEditing && (
-            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">
-              <div className="flex items-center justify-between">
+            <div className="bg-white px-7 py-4">
+              <div className="flex items-center justify-center gap-2">
                 <Button onClick={wizardStep === 0 ? handleCancel : () => setWizardStep(0)}>{wizardStep === 0 ? '취소' : '이전'}</Button>
                 {wizardStep === 0 ? (
                   <Button type="primary" onClick={handleNext}>

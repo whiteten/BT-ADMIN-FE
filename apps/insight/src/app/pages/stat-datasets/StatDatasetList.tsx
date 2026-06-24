@@ -1,37 +1,20 @@
-import { type ReactNode, useEffect, useState } from 'react';
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Popover, Tag, Tooltip } from 'antd';
+import { Button, Drawer, Input, Popover, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Database, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, Plus, Search, SquarePen, TableProperties, Tags, Trash2, X } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { fuzzyScore, toast } from '@/shared-util';
-import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag } from '../../features/dataset/hooks/useDatasetQueries';
+import { toast } from '@/shared-util';
+import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem, FieldMetaItem } from '../../features/dataset/types';
-import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
-import { Highlight } from '@/components/custom/Highlight';
-import { TreeCaret, TreeRow } from '@/components/custom/TreeView';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
-
-// ─── 솔루션(상위 그룹) 정의 ─────────────────────────────────────────────────────
-// 현재는 프론트 상수. 향후 API 제공 시 이 두 매핑만 동적 로드로 교체.
-const MAJOR_DEFS: { code: string; label: string; productCodes: string[] }[] = [{ code: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] }];
-const PRODUCT_CODE_MAJOR: Record<string, string> = { IE: 'IPRON', IC: 'IPRON', IR: 'IPRON' };
-// 도메인(productCode) 표시 순서 — 미등록 코드는 뒤에 자동 추가
-const MINOR_ORDER = ['IE', 'IC', 'IR'];
-
-// 도메인 액센트 색상 (트리 leaf 점) — antd Tag(DOMAIN_TAG_COLOR)와 톤 일치, 미등록은 primary 폴백
-const ACCENT_HEX: Record<string, string> = { IE: '#1677ff', IC: '#52c41a', IR: '#fa8c16' };
-const DEFAULT_ACCENT = 'var(--color-bt-primary)';
 
 const UNIT_LABEL: Record<string, string> = { MI: '10분', HH: '시간', DD: '일', MM: '월', YY: '연' };
-
-const majorOfCode = (code: string) => PRODUCT_CODE_MAJOR[code] ?? 'ETC';
 
 // 상세 패널 — 역할/타입(서식) 뱃지 명칭은 편집화면(WizardStepB) 기준
 const FIELD_ROLE_META: Record<string, { label: string; color: string }> = {
@@ -40,7 +23,6 @@ const FIELD_ROLE_META: Record<string, { label: string; color: string }> = {
   MEASURE: { label: '측정값', color: 'volcano' },
   CALC: { label: '계산필드', color: 'green' },
 };
-// formatterType → 편집화면 서식 명칭 (역할 색상과 겹치지 않게 분리)
 const FIELD_FORMAT_META: Record<string, { label: string; color: string }> = {
   NUMBER: { label: 'Number', color: 'blue' },
   DECIMAL: { label: 'Decimal', color: 'lime' },
@@ -50,7 +32,6 @@ const FIELD_FORMAT_META: Record<string, { label: string; color: string }> = {
   NONE: { label: 'String', color: 'default' },
 };
 
-// 상세 패널 — 필드 구성 그리드 컬럼 (필드명·역할·타입 좁게, 표시명이 남은 폭 채움)
 const FIELD_COLUMN_DEFS: ColDef<FieldMetaItem>[] = [
   { field: 'fieldName', headerName: '필드명', maxWidth: 300, cellClass: 'font-mono' },
   { field: 'displayName', headerName: '표시명', flex: 1 },
@@ -84,36 +65,48 @@ const FIELD_COLUMN_DEFS: ColDef<FieldMetaItem>[] = [
   },
 ];
 
-// 트리 액션 버튼 툴팁 — 공통 컴팩트 규격 (add-tree 스킬 / AgentGroupTree 참조)
 const TOOLTIP_PROPS = {
   mouseEnterDelay: 0.5,
   styles: { container: { minHeight: 'auto', fontSize: 12, lineHeight: '16px', padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
 } as const;
 
-// 트리 노드 — key 는 grp:/ds: prefix 로 그룹/데이터셋을 구분
-interface DsTreeNode {
-  key: string;
-  label: string;
-  code?: string; // 그룹 노드의 productCode
-  data?: DatasetListItem; // leaf 데이터셋
-  children: DsTreeNode[];
-}
+type StatusFilter = 'all' | 'active' | 'inactive';
+type TypeFilter = 'all' | 'system' | 'user';
+
+const STATUS_OPTS: [StatusFilter, string][] = [
+  ['all', '전체'],
+  ['active', '활성'],
+  ['inactive', '비활성'],
+];
+const TYPE_OPTS: [TypeFilter, string][] = [
+  ['all', '전체'],
+  ['system', '시스템'],
+  ['user', '사용자'],
+];
+
+const grayChip = (t: string) => (
+  <span key={t} className="shrink-0 rounded border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-500">
+    {t}
+  </span>
+);
 
 export default function StatDatasetList() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const modal = useModal();
-  // 시스템 데이터셋은 시스템 관리자만 삭제 가능
   const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   const [search, setSearch] = useState('');
-  const [majorSel, setMajorSel] = useState<string | null>(null); // null = 전체
-  const [minorSel, setMinorSel] = useState<string | null>(null);
-  const [majorPopOpen, setMajorPopOpen] = useState(false);
-  const [minorPopOpen, setMinorPopOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [statusPopOpen, setStatusPopOpen] = useState(false);
+  const [typePopOpen, setTypePopOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [drawerId, setDrawerId] = useState<number | null>(null);
 
   useEffect(() => {
     setBreadcrumb([
@@ -136,164 +129,74 @@ export default function StatDatasetList() {
     },
   });
 
-  // 데이터에 존재하는 도메인 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
-  const presentCodes = [...new Set(datasets.map((d) => d.productCode ?? '').filter(Boolean))];
-  const allCodes = [...MINOR_ORDER.filter((c) => presentCodes.includes(c)), ...presentCodes.filter((c) => !MINOR_ORDER.includes(c))];
+  // 태그 집계 (내림차순 빈도)
+  const sortedTags = useMemo(() => {
+    const counts: Record<string, number> = {};
+    datasets.forEach((d) => (d.tags ?? []).forEach((t) => (counts[t] = (counts[t] ?? 0) + 1)));
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [datasets]);
 
-  // 솔루션/도메인 셀렉트로 노출할 도메인 코드
-  const visibleCodes = allCodes.filter((code) => (!majorSel || majorOfCode(code) === majorSel) && (!minorSel || code === minorSel));
+  // 등록된 태그가 있으면 필터를 최초 1회 자동 펼침 (이후 수동 토글 존중)
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!autoOpenedRef.current && sortedTags.length > 0) {
+      autoOpenedRef.current = true;
+      setFilterOpen(true);
+    }
+  }, [sortedTags]);
 
-  // 트리 데이터 — 도메인 그룹 > 데이터셋
-  const treeData: DsTreeNode[] = visibleCodes.map((code) => ({
-    key: `grp:${code}`,
-    label: DOMAIN_LABELS[code] ?? code,
-    code,
-    children: datasets.filter((d) => d.productCode === code).map((d) => ({ key: `ds:${d.datasetId}`, label: d.datasourceName, data: d, children: [] })),
-  }));
+  const kw = search.trim().toLowerCase();
+  const isFiltering = selectedTags.size > 0;
 
-  const { items, rootProps, allExpanded, toggleAll } = useTreeView<DsTreeNode>({
-    data: treeData,
-    getId: (n) => n.key,
-    getChildren: (n) => n.children,
-    getName: (n) => n.label,
-    searchText: search,
-    matchesSearch: (n, kw) => {
-      if (n.data) return fuzzyScore(kw, n.data.datasourceName) >= 0 || fuzzyScore(kw, n.data.dbViewPrefix ?? '') >= 0;
-      return fuzzyScore(kw, n.label) >= 0;
-    },
-    defaultExpandAll: true,
-    ariaLabel: '데이터셋 트리',
-  });
+  // 가시 목록 (태그 AND + 상태 + 유형 + 검색)
+  const visible = useMemo(
+    () =>
+      datasets.filter((d) => {
+        const tags = d.tags ?? [];
+        if (selectedTags.size && ![...selectedTags].every((t) => tags.includes(t))) return false;
+        if (statusFilter !== 'all' && (statusFilter === 'active' ? !d.isActive : d.isActive)) return false;
+        if (typeFilter !== 'all' && (typeFilter === 'system' ? !d.isSystem : d.isSystem)) return false;
+        if (kw) {
+          const hay = `${d.datasourceName} ${d.dbViewPrefix ?? ''} ${tags.join(' ')}`.toLowerCase();
+          if (!hay.includes(kw)) return false;
+        }
+        return true;
+      }),
+    [datasets, selectedTags, statusFilter, typeFilter, kw],
+  );
 
-  const selectedKey = selectedId != null ? `ds:${selectedId}` : null;
+  // 선택 항목이 가시목록에서 빠지면 첫 항목으로 보정
+  useEffect(() => {
+    if (selectedId != null && !visible.some((d) => d.datasetId === selectedId)) {
+      setSelectedId(visible[0]?.datasetId ?? null);
+    }
+  }, [visible, selectedId]);
+
   const selected = selectedId != null ? (datasets.find((d) => d.datasetId === selectedId) ?? null) : null;
 
-  const handleSelectNode = (node: DsTreeNode) => {
-    if (!node.data) return;
-    // 화면지정 페이지처럼 토글 — 선택된 데이터셋 재클릭 시 해제하여 현황 전광판으로 복귀
-    const id = node.data.datasetId;
-    setSelectedId((prev) => (prev === id ? null : id));
-  };
+  const toggleTag = (t: string) =>
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      next.has(t) ? next.delete(t) : next.add(t);
+      return next;
+    });
+
+  const orderTags = (tags: string[]) => [...tags].sort((a, b) => (selectedTags.has(a) ? 0 : 1) - (selectedTags.has(b) ? 0 : 1));
 
   const handleCreate = () => navigate('/insight/statistics/datasets/new');
-  const handleEditDataset = (d: DatasetListItem) => navigate(`/insight/statistics/datasets/${d.datasetId}/edit`);
-  const handleDeleteDataset = (d: DatasetListItem) => modal.confirm.delete({ onOk: () => deleteDataset(d.datasetId) });
-
-  const handlePickMajor = (code: string | null) => {
-    setMajorSel(code);
-    // 선택한 도메인이 새 솔루션에 속하지 않으면 해제
-    if (minorSel && code && majorOfCode(minorSel) !== code) setMinorSel(null);
-    setMajorPopOpen(false);
-  };
-  const handlePickMinor = (code: string | null) => {
-    setMinorSel(code);
-    setMinorPopOpen(false);
-  };
-
-  const majorLabel = majorSel ? (MAJOR_DEFS.find((m) => m.code === majorSel)?.label ?? majorSel) : '전체';
-  const minorLabel = minorSel ? `${minorSel} · ${DOMAIN_LABELS[minorSel] ?? minorSel}` : '전체';
-
-  const renderRow = (item: TreeViewItem<DsTreeNode>) => {
-    const node = item.node;
-    const isGroup = !!node.code;
-    const isSelected = node.key === selectedKey;
-    const count = isGroup ? datasets.filter((d) => d.productCode === node.code).length : 0;
-    // prefix 보조 표기 — 검색 중이고 이름은 안 걸렸는데 DB 뷰 Prefix 로 매칭된 leaf 만
-    const kw = search.trim();
-    const prefix = node.data?.dbViewPrefix ?? '';
-    const prefixMatched = !isGroup && !!kw && !!prefix && fuzzyScore(kw, prefix) >= 0 && fuzzyScore(kw, node.label) < 0;
-    return (
-      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)} className={isGroup ? 'cursor-default' : undefined}>
-        <TreeCaret item={item} />
-        {isGroup ? (
-          // 그룹(도메인) — 보고서 관리와 동일하게 "코드 · 라벨"을 단일 뱃지로 표기 (IE · 교환기)
-          <span className="flex-1 min-w-0">
-            <Tag color={DOMAIN_TAG_COLOR[node.code!]} className="!mb-0 !mr-0 font-bold">
-              {node.code} · {DOMAIN_LABELS[node.code!] ?? node.code}
-            </Tag>
-          </span>
-        ) : (
-          <>
-            <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.productCode] ?? DEFAULT_ACCENT }} />
-            <span className="flex-1 min-w-0 flex flex-col">
-              {/* leaf 데이터셋명 — 그룹 뱃지보다 작고 일반 굵기(13px·normal)로 낮춰 위계 구분 */}
-              <span className={`truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
-                <Highlight text={node.label} query={search} />
-              </span>
-              {/* DB 뷰 Prefix 보조 표기 — 이름이 아닌 prefix 로 검색 매칭됐을 때만 노출 + 하이라이트 */}
-              {prefixMatched && (
-                <span className="flex items-center gap-1 text-[11px] font-mono text-gray-400 leading-tight">
-                  <Database className="size-3 flex-shrink-0" />
-                  <span className="truncate">
-                    <Highlight text={node.data!.dbViewPrefix ?? ''} query={search} />
-                  </span>
-                </span>
-              )}
-            </span>
-          </>
-        )}
-        {isGroup ? (
-          <span className="ml-auto h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{count}</span>
-        ) : (
-          <span className="ml-auto flex items-center h-5 flex-shrink-0">
-            {/* 뱃지 — hover 시 숨김 (카드와 동일 명칭) */}
-            <span className="h-5 inline-flex items-center gap-1 group-hover:hidden">
-              {node.data!.isSystem && (
-                <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
-                  시스템
-                </Tag>
-              )}
-              {!node.data!.isActive && (
-                <Tag color="default" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
-                  비활성
-                </Tag>
-              )}
-            </span>
-            {/* 액션 — hover 시 노출 (카드 아이콘 기능 그대로) */}
-            <span className="hidden group-hover:flex items-center gap-0.5">
-              <Tooltip title="편집" {...TOOLTIP_PROPS}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditDataset(node.data!);
-                  }}
-                  className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition"
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-              </Tooltip>
-              {(!node.data!.isSystem || isSystemAdmin) && (
-                <Tooltip title="삭제" {...TOOLTIP_PROPS}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDataset(node.data!);
-                    }}
-                    className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                </Tooltip>
-              )}
-            </span>
-          </span>
-        )}
-      </TreeRow>
-    );
-  };
+  const handleEditFields = (d: DatasetListItem) => navigate(`/insight/statistics/datasets/${d.datasetId}/edit`);
+  const handleDelete = (d: DatasetListItem) => modal.confirm.delete({ onOk: () => deleteDataset(d.datasetId) });
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 솔루션/도메인 셀렉트 + 트리 */}
+        {/* ───────── 좌측: 검색 + 태그필터 + 칩 + 목록 ───────── */}
         <div className="w-[340px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 min-h-0">
           <div className="flex items-center gap-2">
             <Input
               allowClear
               prefix={<Search className="size-4 text-gray-400" />}
-              placeholder="데이터셋 이름·뷰 검색"
+              placeholder="데이터셋 이름·뷰·태그 검색"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1"
@@ -303,125 +206,231 @@ export default function StatDatasetList() {
             </Button>
           </div>
 
-          {/* 솔루션·도메인 칩 셀렉트 (메뉴 설정 화면과 동일 패턴) */}
+          {/* 태그 필터 (접이식) */}
+          <div className="rounded-md bg-gray-50">
+            <button type="button" className="flex w-full items-center justify-between px-2.5 py-2 select-none" onClick={() => setFilterOpen((v) => !v)}>
+              <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
+                <Tags className="size-3.5" />
+                태그 필터
+                {selectedTags.size > 0 && <span className="ml-1 rounded-full bg-[var(--color-bt-primary)] px-1.5 text-[10px] font-bold text-white">{selectedTags.size}</span>}
+              </span>
+              <span className="flex items-center gap-2">
+                {selectedTags.size > 0 && (
+                  <span
+                    className="text-xs text-[var(--color-bt-primary)] hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedTags(new Set());
+                    }}
+                  >
+                    초기화
+                  </span>
+                )}
+                <ChevronDown className={`size-4 text-gray-400 transition-transform ${filterOpen ? '' : '-rotate-90'}`} />
+              </span>
+            </button>
+            {filterOpen && (
+              <div className="px-2.5 pb-2.5">
+                {sortedTags.length === 0 ? (
+                  <div className="py-1 text-[11px] text-gray-400">등록된 태그가 없습니다.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-auto">
+                    {sortedTags.map(([t, c]) => {
+                      const on = selectedTags.has(t);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => toggleTag(t)}
+                          className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
+                            on ? 'border-transparent bg-[var(--color-bt-primary)] text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                          }`}
+                        >
+                          {t} <span className="opacity-60">{c}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 상태·유형 칩 셀렉트 */}
           <div className="flex flex-wrap gap-2">
             <ChipSelect
-              open={majorPopOpen}
-              onOpenChange={setMajorPopOpen}
-              label="솔루션"
-              valueLabel={majorLabel}
-              active={majorSel !== null}
-              content={
-                <>
-                  <ChipOption active={majorSel === null} onClick={() => handlePickMajor(null)}>
-                    전체 <span className="opacity-70">{datasets.length}</span>
-                  </ChipOption>
-                  {MAJOR_DEFS.map((m) => {
-                    const cnt = datasets.filter((d) => majorOfCode(d.productCode ?? '') === m.code).length;
-                    return (
-                      <ChipOption key={m.code} active={majorSel === m.code} onClick={() => handlePickMajor(m.code)}>
-                        {m.label} <span className="opacity-70">{cnt}</span>
-                      </ChipOption>
-                    );
-                  })}
-                </>
-              }
+              open={statusPopOpen}
+              onOpenChange={setStatusPopOpen}
+              label="상태"
+              valueLabel={STATUS_OPTS.find(([v]) => v === statusFilter)![1]}
+              active={statusFilter !== 'all'}
+              content={STATUS_OPTS.map(([v, l]) => (
+                <ChipOption
+                  key={v}
+                  active={statusFilter === v}
+                  onClick={() => {
+                    setStatusFilter(v);
+                    setStatusPopOpen(false);
+                  }}
+                >
+                  {l}
+                </ChipOption>
+              ))}
             />
             <ChipSelect
-              open={minorPopOpen}
-              onOpenChange={setMinorPopOpen}
-              label="도메인"
-              valueLabel={minorLabel}
-              active={minorSel !== null}
-              content={
-                <>
-                  <ChipOption active={minorSel === null} onClick={() => handlePickMinor(null)}>
-                    전체
-                  </ChipOption>
-                  {allCodes
-                    .filter((code) => !majorSel || majorOfCode(code) === majorSel)
-                    .map((code) => (
-                      <ChipOption key={code} active={minorSel === code} onClick={() => handlePickMinor(code)}>
-                        <span className="size-1.5 rounded-full" style={{ background: ACCENT_HEX[code] ?? DEFAULT_ACCENT }} />
-                        {code} · {DOMAIN_LABELS[code] ?? code} <span className="opacity-70">{datasets.filter((d) => d.productCode === code).length}</span>
-                      </ChipOption>
-                    ))}
-                </>
-              }
+              open={typePopOpen}
+              onOpenChange={setTypePopOpen}
+              label="유형"
+              valueLabel={TYPE_OPTS.find(([v]) => v === typeFilter)![1]}
+              active={typeFilter !== 'all'}
+              content={TYPE_OPTS.map(([v, l]) => (
+                <ChipOption
+                  key={v}
+                  active={typeFilter === v}
+                  onClick={() => {
+                    setTypeFilter(v);
+                    setTypePopOpen(false);
+                  }}
+                >
+                  {l}
+                </ChipOption>
+              ))}
             />
           </div>
 
           <div className="border-t border-gray-200" />
 
+          {/* 목록 헤더 */}
+          <div className="flex items-center gap-1.5 px-1">
+            <span className="text-[12.5px] font-semibold text-gray-700">데이터셋</span>
+            <span className="text-[11px] text-gray-400">{visible.length}</span>
+          </div>
+
+          {/* 목록 */}
           <div className="flex-1 overflow-auto -mx-1">
             {isLoading ? (
               <FallbackSpinner />
+            ) : visible.length === 0 ? (
+              <div className="px-3 py-6 text-center text-[11px] text-gray-400">{kw || isFiltering ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
             ) : (
-              <>
-                {/* 트리 최상단 루트 행 — 데이터셋 라벨 + 총 갯수 + 모두 펼치기/접기 (메뉴 트리 패턴) */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 select-none border-l-[3px] border-transparent cursor-default hover:bg-gray-50 transition">
-                  <span className="text-[12.5px] truncate text-gray-700 font-semibold">데이터셋</span>
-                  <span className="text-[11px] text-gray-400">{treeData.reduce((sum, g) => sum + g.children.length, 0)}</span>
-                  <Tooltip title={allExpanded ? '모두 접기' : '모두 펼치기'} {...TOOLTIP_PROPS}>
-                    <button
-                      type="button"
-                      onClick={() => toggleAll()}
-                      className="ml-auto w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition flex-shrink-0"
+              <div className="flex flex-col gap-0.5">
+                {visible.map((d) => {
+                  const on = d.datasetId === selectedId;
+                  return (
+                    <div
+                      key={d.datasetId}
+                      onClick={() => setSelectedId((prev) => (prev === d.datasetId ? null : d.datasetId))}
+                      className={`group flex cursor-pointer flex-col gap-1 rounded-md border-l-[3px] px-3 py-2 transition ${
+                        on ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]' : 'border-transparent hover:bg-gray-50'
+                      }`}
                     >
-                      {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
-                    </button>
-                  </Tooltip>
-                </div>
-
-                {treeData.length > 0 ? (
-                  <div {...rootProps}>{items.map(renderRow)}</div>
-                ) : (
-                  <div className="px-3 py-6 text-center text-[11px] text-gray-400">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
-                )}
-              </>
+                      <div className="flex items-center gap-2">
+                        <span className={`flex-1 min-w-0 truncate text-[13px] ${on ? 'font-medium text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>{d.datasourceName}</span>
+                        {/* 뱃지 — hover 시 숨김 */}
+                        <span className="inline-flex shrink-0 items-center gap-1 group-hover:hidden">
+                          {d.isSystem && (
+                            <Tag color="purple" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
+                              시스템
+                            </Tag>
+                          )}
+                          {!d.isActive && (
+                            <Tag color="default" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4">
+                              비활성
+                            </Tag>
+                          )}
+                        </span>
+                        {/* 액션 — hover 시 노출 */}
+                        <span className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
+                          <RowAction
+                            title="정보수정"
+                            onClick={() => {
+                              setSelectedId(d.datasetId);
+                              setDrawerId(d.datasetId);
+                            }}
+                          >
+                            <SquarePen className="size-3.5" />
+                          </RowAction>
+                          <RowAction title="필드편집" onClick={() => handleEditFields(d)}>
+                            <TableProperties className="size-3.5" />
+                          </RowAction>
+                          {(!d.isSystem || isSystemAdmin) && (
+                            <RowAction title="삭제" danger onClick={() => handleDelete(d)}>
+                              <Trash2 className="size-3.5" />
+                            </RowAction>
+                          )}
+                        </span>
+                      </div>
+                      {/* 태그 필터링 중일 때만 태그 행 노출 (선택 태그 우선 정렬) */}
+                      {isFiltering && (d.tags?.length ?? 0) > 0 && (
+                        <div className="flex flex-wrap gap-1 overflow-hidden" style={{ maxHeight: 22 }}>
+                          {orderTags(d.tags ?? []).map((t) => (
+                            <span
+                              key={t}
+                              className={`shrink-0 rounded border px-1.5 leading-5 text-[10px] ${
+                                selectedTags.has(t)
+                                  ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]'
+                                  : 'border-gray-200 bg-gray-50 text-gray-500'
+                              }`}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
 
-        {/* 우측: 상세 */}
+        {/* ───────── 우측: 상세 ───────── */}
         <div className="flex-1 min-h-0 bg-white bt-shadow flex flex-col">
           {selected ? (
             <DatasetDetailPanel
               key={selected.datasetId}
               listItem={selected}
-              onEdit={() => navigate(`/insight/statistics/datasets/${selected.datasetId}/edit`)}
+              onInfoEdit={() => setDrawerId(selected.datasetId)}
+              onFieldEdit={() => handleEditFields(selected)}
               onDelete={() => modal.confirm.delete({ onOk: () => deleteDataset(selected.datasetId) })}
             />
           ) : (
-            // 경로 미선택 — 도메인별 데이터셋 건수 전광판 (화면지정 페이지 현황 카드 패턴)
-            <div className="h-full flex flex-col items-center justify-center gap-8 p-6">
-              <div className="text-[18px] font-bold">데이터셋 현황</div>
-              {allCodes.length > 0 && (
-                <div className="flex flex-wrap gap-4 justify-center">
-                  {allCodes.map((code) => (
-                    <div key={code} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 px-10 py-5 min-w-[140px]">
-                      <span className="text-[26px] font-bold" style={{ color: ACCENT_HEX[code] ?? DEFAULT_ACCENT }}>
-                        {datasets.filter((d) => d.productCode === code).length}
-                        <span className="text-sm font-normal text-gray-500 ml-1">건</span>
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {code} · {DOMAIN_LABELS[code] ?? code}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-sm text-gray-400">좌측 트리에서 데이터셋을 선택해주세요</div>
+            <div className="h-full flex flex-col items-center justify-center gap-3 text-gray-400">
+              <Tags className="size-10 opacity-40" />
+              <div className="text-sm">좌측에서 데이터셋을 선택해주세요</div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ───────── 정보수정 Drawer ───────── */}
+      <InfoDrawer datasetId={drawerId} dataset={datasets.find((d) => d.datasetId === drawerId) ?? null} onClose={() => setDrawerId(null)} />
     </div>
   );
 }
 
-// ─── 칩 셀렉트 (메뉴 설정 화면 패턴: 트리거 칩 + 팝오버 내부 칩) ──────────────────
+// ─── 행 액션 버튼 ────────────────────────────────────────────────────────────
+function RowAction({ title, danger, onClick, children }: { title: string; danger?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Tooltip title={title} {...TOOLTIP_PROPS}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        className={`w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 transition ${
+          danger ? 'hover:bg-red-50 hover:text-red-500' : 'hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)]'
+        }`}
+      >
+        {children}
+      </button>
+    </Tooltip>
+  );
+}
 
+// ─── 칩 셀렉트 ───────────────────────────────────────────────────────────────
 function ChipSelect({
   open,
   onOpenChange,
@@ -438,13 +447,7 @@ function ChipSelect({
   content: ReactNode;
 }) {
   return (
-    <Popover
-      open={open}
-      onOpenChange={onOpenChange}
-      trigger="click"
-      placement="bottomLeft"
-      content={<div className="flex w-[220px] flex-wrap gap-1.5 max-h-[220px] overflow-auto">{content}</div>}
-    >
+    <Popover open={open} onOpenChange={onOpenChange} trigger="click" placement="bottomLeft" content={<div className="flex w-[140px] flex-wrap gap-1.5">{content}</div>}>
       <button
         type="button"
         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition ${
@@ -478,9 +481,8 @@ function ChipOption({ active, onClick, children }: { active: boolean; onClick: (
   );
 }
 
-// ─── 상세 패널 (선택 데이터셋 1건 — datasetId 로 remount) ─────────────────────────
-
-function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetListItem; onEdit: () => void; onDelete: () => void }) {
+// ─── 상세 패널 ───────────────────────────────────────────────────────────────
+function DatasetDetailPanel({ listItem, onInfoEdit, onFieldEdit, onDelete }: { listItem: DatasetListItem; onInfoEdit: () => void; onFieldEdit: () => void; onDelete: () => void }) {
   const modal = useModal();
   const isSystemAdmin = useAuthStore((s) => s.userInfo?.isSystemAdmin ?? false);
   const canDelete = !listItem.isSystem || isSystemAdmin;
@@ -488,7 +490,6 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
 
   const { data: detail, isLoading } = useGetDataset({ params: { datasetId: listItem.datasetId } });
 
-  // 시스템 데이터셋 승격/해제 — 시스템 관리자 전용 (편집 화면에서 이관)
   const { mutate: setSystemFlag, isPending: isFlagPending } = useSetDatasetSystemFlag({
     mutationOptions: {
       onSuccess: (_, { toSystem }) => toast.success(toSystem ? '시스템 데이터셋으로 승격되었습니다.' : '시스템 데이터셋 승격이 해제되었습니다.'),
@@ -511,11 +512,10 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
     });
   };
 
-  const code = listItem.productCode;
   const units: string[] = Array.isArray(listItem.availableUnits) ? listItem.availableUnits : [];
   const fields = detail?.fields ?? [];
+  const tags = detail?.tags ?? listItem.tags ?? [];
 
-  // 필드 카운트 (CALC / MEASURE / 나머지=차원)
   const calcCount = fields.filter((f) => f.fieldRole === 'CALC').length;
   const msrCount = fields.filter((f) => f.fieldRole === 'MEASURE').length;
   const dimCount = fields.length - calcCount - msrCount;
@@ -526,19 +526,42 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 헤더 */}
-      <div className="flex items-center justify-between gap-2 px-5 py-3 border-b border-bt-border">
-        <div className="flex items-center gap-2 min-w-0">
-          {/* 데이터셋 명칭 — 타이틀 (카테고리·유형은 본문 요약 그리드에 표기) */}
-          <span className="text-lg font-semibold text-bt-fg truncate">{listItem.datasourceName}</span>
+      <div className="flex items-start justify-between gap-3 px-5 py-3 border-b border-bt-border">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-bold text-bt-fg">{listItem.datasourceName}</h2>
+            {listItem.isActive ? (
+              <Tag color="success" className="!mb-0 !mr-0">
+                활성
+              </Tag>
+            ) : (
+              <Tag color="default" className="!mb-0 !mr-0">
+                비활성
+              </Tag>
+            )}
+            {listItem.isSystem ? (
+              <Tag color="purple" className="!mb-0 !mr-0">
+                시스템
+              </Tag>
+            ) : (
+              <Tag color="default" className="!mb-0 !mr-0">
+                사용자
+              </Tag>
+            )}
+          </div>
+          {listItem.description && <p className="mt-1 text-sm text-gray-500">{listItem.description}</p>}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {isSystemAdmin && (
             <Button loading={isFlagPending} onClick={handleToggleSystem}>
               {listItem.isSystem ? '시스템 승격 해제' : '시스템 데이터셋으로 승격'}
             </Button>
           )}
-          <Button icon={<Pencil className="size-3.5" />} onClick={onEdit}>
-            편집
+          <Button icon={<SquarePen className="size-3.5" />} onClick={onInfoEdit}>
+            정보수정
+          </Button>
+          <Button icon={<TableProperties className="size-3.5" />} onClick={onFieldEdit}>
+            필드편집
           </Button>
           {canDelete && (
             <Button danger icon={<Trash2 className="size-3.5" />} onClick={onDelete}>
@@ -549,48 +572,11 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
       </div>
 
       {/* 본문 */}
-      <div className="flex-1 min-h-0 flex flex-col px-6 py-5">
-        {/* 데이터셋 요약 — 필드 구성 표 윗쪽 */}
+      <div className="flex-1 min-h-0 flex flex-col gap-5 overflow-y-auto px-6 py-5">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
-          {/* 설명 — 맨 윗줄 전체 폭 */}
-          <DetailField className="col-span-2 md:col-span-3" label="설명" value={listItem.description || '-'} />
           <DetailField label="데이터셋 ID" value={<span className="font-mono">{listItem.datasetId}</span>} />
-          <DetailField
-            label="카테고리"
-            value={
-              <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
-                {code} · {DOMAIN_LABELS[code] ?? code}
-              </Tag>
-            }
-          />
-          <DetailField
-            label="상태"
-            value={
-              listItem.isActive ? (
-                <Tag color="success" className="!mb-0 !mr-0">
-                  활성
-                </Tag>
-              ) : (
-                <Tag color="default" className="!mb-0 !mr-0">
-                  비활성
-                </Tag>
-              )
-            }
-          />
-          <DetailField
-            label="유형"
-            value={
-              listItem.isSystem ? (
-                <Tag color="purple" className="!mb-0 !mr-0">
-                  시스템
-                </Tag>
-              ) : (
-                <Tag color="default" className="!mb-0 !mr-0">
-                  사용자
-                </Tag>
-              )
-            }
-          />
+          <DetailField label="상태" value={listItem.isActive ? '활성' : '비활성'} />
+          <DetailField label="유형" value={listItem.isSystem ? '시스템' : '사용자'} />
           <DetailField label="DB 뷰 Prefix" value={<span className="font-mono">{listItem.dbViewPrefix || '-'}</span>} />
           <DetailField
             label="지원 단위"
@@ -608,13 +594,23 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
               )
             }
           />
+          <DetailField label="필드 수" value={fields.length} />
           <DetailField label="생성자" value={createdBy} />
           <DetailField label="생성일" value={fmtDate(detail?.createdAt)} />
           <DetailField label="수정일" value={fmtDate(detail?.updatedAt)} />
         </div>
 
-        {/* 필드 메타 */}
-        <div className="mt-7 flex-1 min-h-0 flex flex-col">
+        {/* 태그 */}
+        <div>
+          <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-bt-fg-muted">
+            <Tags className="size-3.5" />
+            태그
+          </div>
+          {tags.length ? <div className="flex flex-wrap gap-1.5">{tags.map((t) => grayChip(t))}</div> : <span className="text-sm text-gray-400">등록된 태그 없음</span>}
+        </div>
+
+        {/* 필드 구성 */}
+        <div className="flex-1 min-h-0 flex flex-col">
           <div className="flex items-baseline gap-2 mb-2 shrink-0">
             <h3 className="text-sm font-semibold text-bt-fg">필드 구성</h3>
             {fields.length > 0 && (
@@ -648,4 +644,123 @@ function DetailField({ label, value, className }: { label: string; value: ReactN
       <div className="text-sm text-bt-fg">{value}</div>
     </div>
   );
+}
+
+// ─── 정보수정 Drawer (이름·설명·태그) ────────────────────────────────────────
+function InfoDrawer({ datasetId, dataset, onClose }: { datasetId: number | null; dataset: DatasetListItem | null; onClose: () => void }) {
+  const open = datasetId != null;
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+
+  const { detail } = useDrawerDetail(datasetId);
+
+  // 드로어 오픈 시 값 초기화 (상세 로드되면 태그/설명 보강)
+  useEffect(() => {
+    if (!open) return;
+    setName(dataset?.datasourceName ?? '');
+    setDesc(detail?.description ?? dataset?.description ?? '');
+    setTags(detail?.tags ?? dataset?.tags ?? []);
+    setTagInput('');
+    // dataset/detail 변화 반영
+  }, [open, dataset, detail]);
+
+  const { mutate: updateDataset, isPending } = useUpdateDataset({
+    mutationOptions: {
+      onSuccess: () => {
+        toast.success('데이터셋 정보가 수정되었습니다.');
+        onClose();
+      },
+      onError: () => toast.error('저장 중 오류가 발생했습니다.'),
+    },
+  });
+
+  const addTag = () => {
+    const v = tagInput.trim().replace(/,$/, '').trim();
+    if (v && !tags.includes(v)) setTags((p) => [...p, v]);
+    setTagInput('');
+  };
+
+  const onTagKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === 'Backspace' && !tagInput && tags.length) {
+      setTags((p) => p.slice(0, -1));
+    }
+  };
+
+  const handleSave = () => {
+    if (datasetId == null) return;
+    if (!name.trim()) {
+      toast.error('데이터셋 이름을 입력하세요.');
+      return;
+    }
+    updateDataset({
+      datasetId,
+      // dbViewPrefix는 @NotBlank(생성/수정 공용 DTO) — 정보수정 시에도 기존 값 전송 (백엔드는 동일 prefix면 재검출 안 함)
+      data: { datasourceName: name.trim(), description: desc.trim(), tags, dbViewPrefix: detail?.dbViewPrefix ?? dataset?.dbViewPrefix },
+    });
+  };
+
+  return (
+    <Drawer
+      title="데이터셋 정보 수정"
+      width={440}
+      open={open}
+      onClose={onClose}
+      destroyOnClose
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button onClick={onClose}>취소</Button>
+          <Button type="primary" loading={isPending} onClick={handleSave}>
+            저장
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">
+            <span className="text-red-500">*</span> 데이터셋 이름
+          </label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} placeholder="데이터셋 이름" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">설명</label>
+          <Input.TextArea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} maxLength={500} placeholder="데이터셋 설명 (목록·상세에 표시)" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-gray-700">태그</label>
+          <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-gray-300 p-1.5 focus-within:border-[var(--color-bt-primary)]">
+            {tags.map((t, i) => (
+              <span key={t} className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-xs text-gray-600">
+                {t}
+                <X className="size-3 cursor-pointer text-gray-400 hover:text-gray-700" onClick={() => setTags((p) => p.filter((_, idx) => idx !== i))} />
+              </span>
+            ))}
+            <input
+              className="min-w-[100px] flex-1 px-1 text-sm outline-none"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={onTagKeyDown}
+              onBlur={addTag}
+              placeholder="태그 입력 (Enter·쉼표로 추가)"
+            />
+          </div>
+          <span className="text-xs text-gray-400">Enter 또는 쉼표로 추가, 칩의 ×로 삭제</span>
+        </div>
+      </div>
+    </Drawer>
+  );
+}
+
+// 드로어 전용 상세 로드 (태그·설명 최신값)
+function useDrawerDetail(datasetId: number | null) {
+  const { data: detail } = useGetDataset({
+    params: { datasetId: datasetId ?? 0 },
+    queryOptions: { enabled: datasetId != null },
+  });
+  return { detail };
 }
