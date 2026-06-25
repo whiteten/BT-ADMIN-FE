@@ -26,10 +26,11 @@ export async function suggestAgents(kw: string, limit = 10): Promise<AgentSugges
   const q = kw?.trim();
   if (!q) return [];
   try {
-    const r = await apiClient.get<ApiResponse<AgentSuggestion[]>>('/ipron-tracking-agent-suggest', {
+    // BFF 가 List<T> 응답을 data.value 로 래핑 (CLAUDE.md BFF 응답 래핑 규칙)
+    const r = await apiClient.get<ApiResponse<{ value: AgentSuggestion[] }>>('/ipron-tracking-agent-suggest', {
       params: { kw: q, limit },
     });
-    return r.data?.data ?? [];
+    return r.data?.data?.value ?? [];
   } catch {
     return [];
   }
