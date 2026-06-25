@@ -152,16 +152,6 @@ export default function MentMgmtList() {
     });
   };
 
-  const handleDelete = (row: MentResponse) => {
-    modal.confirm.execute({
-      onOk: () => deleteMents([row.ieMentId]),
-      options: {
-        title: '멘트 삭제',
-        content: `"${row.mentName ?? row.ieMentId}" 멘트를 삭제하시겠습니까?`,
-      },
-    });
-  };
-
   const handleDeleteSelected = () => {
     if (selectedRows.length === 0) return;
     modal.confirm.execute({
@@ -451,9 +441,6 @@ export default function MentMgmtList() {
               onRowDoubleClicked={handleEdit}
               onTogglePlay={handleTogglePlay}
               onSelectionChanged={setSelectedRows}
-              onDelete={handleDelete}
-              onBulkDelete={handleDeleteSelected}
-              selectedCount={selectedRows.length}
             />
           </div>
         </div>

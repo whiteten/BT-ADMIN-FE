@@ -901,9 +901,11 @@ export default function BsrGroupManage() {
       {
         field: 'bsrMethod',
         headerName: 'BSR 메소드',
-        width: 180,
+        minWidth: 180,
+        flex: 1,
         filterValueGetter: ({ data }) => getBsrMethodLabel((data?.bsrMethod ?? null) as string | null),
         valueFormatter: ({ value }) => getBsrMethodLabel(value as string | null),
+        tooltipValueGetter: ({ data }) => getBsrMethodLabel((data?.bsrMethod ?? null) as string | null),
       },
       {
         field: 'activateYn',

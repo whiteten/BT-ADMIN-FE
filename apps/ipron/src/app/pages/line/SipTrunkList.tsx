@@ -191,18 +191,22 @@ export default function SipTrunkList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gdns]);
 
-  // 카드 전환 시 잠금 초기화 (전체↔특정테넌트 전환 시 이전 잠금이 잔류하지 않도록)
+  // 카드 전환 시 GDN·트렁크 선택 및 잠금 초기화
+  // GDN 선택도 함께 초기화해야 L202 useEffect 가 selectedGdn===null 을 보고 lockedTenantId 를 정리한다.
+  // (GDN 선택 유지 채로 카드만 바꿔도 교차테넌트 잠금이 풀리지 않는 버그 방지)
   useEffect(() => {
-    setLockedTenantId(null);
+    setSelectedGdn(null);
     setSelectedTrunks([]);
+    setLockedTenantId(null);
   }, [selectedCardId]);
 
   // 트렁크 선택이 모두 해제되면 lockedTenantId 를 해제
+  // 단, GDN이 선택된 상태에서는 GDN 기준 잠금을 유지한다(교차테넌트 누출 방지)
   useEffect(() => {
-    if (selectedTrunks.length === 0) {
+    if (selectedTrunks.length === 0 && selectedGdn === null) {
       setLockedTenantId(null);
     }
-  }, [selectedTrunks]);
+  }, [selectedTrunks, selectedGdn]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleTabSelect = useCallback(
