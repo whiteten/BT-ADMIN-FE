@@ -56,7 +56,10 @@ export const useGetJourney = ({ mutationOptions }: MutationHookOptions<JourneyFl
 
 // ─── Detail Queries ────────────────────────────────────────────────────────
 
-export const useGetTrackingDetail = (ucid: string | null | undefined, { queryOptions }: QueryHookOptions<{ header: CallDetailHeader; segments: CallSegment[] }> = {}) => {
+export const useGetTrackingDetail = (
+  ucid: string | null | undefined,
+  { queryOptions }: QueryHookOptions<{ header: CallDetailHeader; segments: CallSegment[]; recordingHops: number[] }> = {},
+) => {
   return useQuery({
     queryKey: trackingQueryKeys.detail(ucid ?? undefined).queryKey,
     queryFn: () => trackingApi.getDetail(ucid!),

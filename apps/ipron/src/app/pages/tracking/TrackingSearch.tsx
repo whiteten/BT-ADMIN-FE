@@ -13,17 +13,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, DatePicker, Input, InputNumber, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { ChevronDown, ChevronUp, Download, Search, Star } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { toSearchRequest } from '../../features/tracking/api/trackingApi';
 import CallJourneySankey from '../../features/tracking/components/CallJourneySankey';
 import CommandPalette from '../../features/tracking/components/CommandPalette';
+import FavoriteSidebar from '../../features/tracking/components/FavoriteSidebar';
 import PbxCallDetailDrawer from '../../features/tracking/components/PbxCallDetailDrawer';
 import SearchResultGrid from '../../features/tracking/components/SearchResultGrid';
 import { useGetJourney, useSearchTracking } from '../../features/tracking/hooks/useTrackingQueries';
 import { useTrackingSearchStore } from '../../features/tracking/hooks/useTrackingSearchStore';
 import type { CallSearchResult, DateRangePreset, RecentSearch, TrackingMode, TrackingSearchCriteria } from '../../features/tracking/types';
 import { criteriaToString, parseSearchSyntax, presetToRange, validateCriteria } from '../../features/tracking/utils/searchSyntax';
+import ExportReasonModal from '../../features/tracking-audit/components/ExportReasonModal';
 
 const MINUTE_STEP = 1;
 
@@ -179,6 +182,8 @@ export default function TrackingSearch() {
   // 콜 여정 Sankey — 검색 결과 박스 탭 (목록 / 여정)
   const journey = useGetJourney();
   const [resultTab, setResultTab] = useState<'list' | 'journey'>('list');
+  const [favOpen, setFavOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [lastCriteria, setLastCriteria] = useState<TrackingSearchCriteria | null>(null);
   // 신규 검색 결과 우선, 없으면 store snapshot의 결과 사용 (목록 복귀 시 즉시 표시)
   const rows: CallSearchResult[] = search.data?.items ?? (snapshot.hasSnapshot ? snapshot.items : []);
@@ -440,7 +445,9 @@ export default function TrackingSearch() {
               </div>
               <div className="flex items-center gap-2">
                 <ModeToggle current={mode} onChange={updateMode} />
-                {/* TODO: 즐겨찾기 기능 미구현 */}
+                <Button size="small" icon={<Star className="size-3" />} onClick={() => setFavOpen(true)} title="저장된 검색 즐겨찾기 + 현재 검색 조건 저장">
+                  즐겨찾기
+                </Button>
               </div>
             </div>
 
@@ -757,7 +764,15 @@ export default function TrackingSearch() {
                     콜 여정
                   </button>
                 </div>
-                {/* TODO: 엑셀 다운로드 기능 미구현 */}
+                <Button
+                  size="small"
+                  icon={<Download className="size-3" />}
+                  disabled={!lastCriteria || rows.length === 0}
+                  title={!lastCriteria || rows.length === 0 ? '먼저 검색을 수행하세요' : '엑셀(.xlsx)로 다운로드 (사유 입력 필수)'}
+                  onClick={() => setExportOpen(true)}
+                >
+                  엑셀
+                </Button>
               </div>
             </div>
             {resultTab === 'list' ? (
@@ -789,6 +804,32 @@ export default function TrackingSearch() {
           setRawQuery(r.rawQuery);
         }}
         onRecentClear={handleClearRecent}
+      />
+      {favOpen && (
+        <FavoriteSidebar
+          open={favOpen}
+          onClose={() => setFavOpen(false)}
+          currentCriteriaJson={rawQuery ? JSON.stringify({ rawQuery, mode, preset: activePreset, customRange }) : null}
+          onApply={(criteriaJson) => {
+            if (!criteriaJson) return;
+            try {
+              const parsed = JSON.parse(criteriaJson) as { rawQuery?: string; mode?: typeof mode };
+              if (parsed.rawQuery) setRawQuery(parsed.rawQuery);
+              if (parsed.mode && (parsed.mode === 'PBX' || parsed.mode === 'IVR' || parsed.mode === 'CTI')) {
+                setMode(parsed.mode);
+              }
+            } catch {
+              /* ignore malformed json */
+            }
+          }}
+        />
+      )}
+
+      <ExportReasonModal
+        open={exportOpen}
+        criteria={lastCriteria ? (toSearchRequest(lastCriteria) as Record<string, unknown>) : null}
+        resultCount={totalCount}
+        onClose={() => setExportOpen(false)}
       />
     </div>
   );

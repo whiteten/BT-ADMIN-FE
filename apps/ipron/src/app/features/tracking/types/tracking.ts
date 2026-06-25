@@ -250,6 +250,23 @@ export interface CallSearchResult {
 
   /** 호 전환 발생 여부 */
   transferred: boolean;
+
+  // ─── CTI 모드 전용 (옴니채널) ─────────────────────────────────────
+  /** Media Type Code (10=Voice, 20=Chat 등 — FE 가 alias 라벨링) */
+  mediaType?: number | null;
+  /** Media Alias — BE 가 MediaUsageCache 로 매핑한 TB_IC_MEDIA_USAGE.MEDIA_ALIAS */
+  mediaAlias?: string | null;
+  /** 인입 경로 — "IVR_TRANSFER"(IVR 경유) / "DIRECT"(직통) */
+  entryPath?: 'IVR_TRANSFER' | 'DIRECT' | null;
+  // queueWaitSec 은 위(라인 246)에 이미 정의됨 — 같은 필드 재사용
+  /** 응답호 통화시간 (초). SUM(QUE_5020) — 멀티 큐 합산 */
+  talkSec?: number | null;
+  /** 분배 결과 — ANSWERED/ABANDONED/UNDISTRIBUTED */
+  dispatchStatus?: 'ANSWERED' | 'ABANDONED' | 'UNDISTRIBUTED' | null;
+  /** 서비스 레벨 — WITHIN/OVER/N_A */
+  serviceLevelStatus?: 'WITHIN' | 'OVER' | 'N_A' | null;
+  /** 포기 단계 — QUEUE/RING/IVR (응답한 콜은 null) */
+  abandonedAtPhase?: 'QUEUE' | 'RING' | 'IVR' | null;
 }
 
 // ─── 콜 상세 (헤더 + segment) ──────────────────────────────────────────────
@@ -305,6 +322,8 @@ export interface CallSegment {
 /** IVR 시나리오 1개 (CDR_PKEY 단위) */
 export interface IvrScenarioGroup {
   cdrPkey: number;
+  /** IE.HOP 번호 — 한 콜에서 IVR 여러 번 거치면 cdrPkey 동일해도 nextHop 으로 구분 */
+  nextHop?: number | null;
   /** 시나리오명 */
   scenarioName: string;
   scenarioId: number;

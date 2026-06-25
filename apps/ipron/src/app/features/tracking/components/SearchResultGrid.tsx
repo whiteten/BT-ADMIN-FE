@@ -136,6 +136,16 @@ const IVR_END_STATUS_LABEL: Record<number, { color: string; label: string }> = {
   99: { color: 'bg-gray-100 text-gray-600', label: 'Unknown' },
 };
 
+// MEDIA_TYPE 정적 매핑 — DB TB_IC_MEDIA_USAGE 가 진실 source 지만 검색 그리드용 fallback 표기.
+// 사이트별로 다를 수 있으니 미스매치 시 'Type N' 로 fallback.
+const MEDIA_TYPE_LABEL: Record<number, string> = {
+  10: 'Voice',
+  20: 'Chat',
+  30: 'Email',
+  40: 'SMS',
+  50: 'Video',
+};
+
 const RESULT_BADGE: Record<string, { color: string; label: string }> = {
   NORMAL: { color: 'bg-emerald-50 text-emerald-700', label: '정상' },
   ABANDONED: { color: 'bg-amber-50 text-amber-700', label: '포기' },
@@ -145,6 +155,8 @@ const RESULT_BADGE: Record<string, { color: string; label: string }> = {
 
 export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', onRowDoubleClick, onIvrDrilldown, onCtiDrilldown, onPbxCdrInspect }: Props) {
   const isIvr = mode === 'IVR';
+  const isCti = mode === 'CTI';
+  const isPbx = !isIvr && !isCti;
   const { gridOptions } = useAggridOptions();
 
   const columnDefs = useMemo<ColDef<CallSearchResult>[]>(
@@ -163,6 +175,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         headerTooltip: '콜이 완전히 종료된 시각',
         field: 'endTime',
         width: 160,
+        hide: isCti,
         valueFormatter: (p) => fmtDate(p.value as string | null),
       },
       {
@@ -171,6 +184,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         headerTooltip: '콜이 이어진 전체 시간 (분:초)',
         colId: 'occupationSec',
         width: 95,
+        hide: isCti,
         type: 'numericColumn',
         filter: 'agNumberColumnFilter',
         valueGetter: (p) => {
@@ -189,6 +203,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         headerTooltip: '내선통화 / 국선수신(인바운드) / 국선발신(아웃바운드) / 데몬콜',
         field: 'callKind',
         width: 100,
+        hide: isCti,
         // 헤더 필터에 라벨로 노출되도록 valueGetter 사용 (셀은 cellRenderer 배지)
         valueGetter: (p) => {
           const v = p.data?.callKind;
@@ -322,6 +337,169 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           );
         },
       },
+      // ─── CTI 모드 전용 컬럼 (옴니채널) ─────────────────────────────────────
+      {
+        headerName: '미디어',
+        headerTooltip: 'TB_IC_MEDIA_USAGE.MEDIA_ALIAS (BE 가 MediaUsageCache 로 매핑). 없으면 정적 fallback.',
+        colId: 'mediaType',
+        field: 'mediaAlias',
+        width: 90,
+        hide: !isCti,
+        valueGetter: (p) => {
+          const r = p.data as CallSearchResult | undefined;
+          if (!r) return '-';
+          if (r.mediaAlias) return r.mediaAlias;
+          if (r.mediaType == null) return '-';
+          return MEDIA_TYPE_LABEL[r.mediaType] ?? `Type ${r.mediaType}`;
+        },
+        cellRenderer: (p: { data?: CallSearchResult }) => {
+          const r = p.data;
+          if (!r) return <span className="text-gray-300">-</span>;
+          const label = r.mediaAlias ?? (r.mediaType != null ? (MEDIA_TYPE_LABEL[r.mediaType] ?? `Type ${r.mediaType}`) : null);
+          if (!label) return <span className="text-gray-300">-</span>;
+          return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-50 text-sky-700">{label}</span>;
+        },
+      },
+      {
+        headerName: '인입 큐',
+        headerTooltip: 'TB_DM_IC_QUEUE_STAT_CDR.QUEUE_NAME (QUEUE_DN). DN 은 originDnis 슬롯에 저장됨.',
+        colId: 'queueDisplay',
+        width: 200,
+        hide: !isCti,
+        valueGetter: (p) => {
+          const r = p.data as CallSearchResult | undefined;
+          if (!r) return '';
+          const name = r.queueName ?? '';
+          const dn = r.originDnis ?? '';
+          return name + (dn ? ` (${dn})` : '');
+        },
+        cellRenderer: (p: { data?: CallSearchResult }) => {
+          const r = p.data;
+          const name = r?.queueName;
+          const dn = r?.originDnis;
+          if (!name && !dn) return <span className="text-gray-300">-</span>;
+          return (
+            <span className="text-[12px] text-gray-800">
+              {name ?? '-'}
+              {dn && <span className="ml-1 text-[10px] text-gray-400 font-mono">({dn})</span>}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: 'IVR 경유',
+        headerTooltip: 'QUE_1020=1 → IVR 경유 인입 / QUE_1030=1 → 직통 인입',
+        colId: 'entryPath',
+        field: 'entryPath',
+        width: 90,
+        hide: !isCti,
+        cellClass: 'text-center',
+        valueGetter: (p) => {
+          const v = (p.data as CallSearchResult | undefined)?.entryPath;
+          if (v === 'IVR_TRANSFER') return 'IVR 경유';
+          if (v === 'DIRECT') return '직통';
+          return '-';
+        },
+        filter: 'agSetColumnFilter',
+        cellRenderer: (p: { data?: CallSearchResult }) => {
+          const v = p.data?.entryPath;
+          if (v === 'IVR_TRANSFER') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet-50 text-violet-700">IVR 경유</span>;
+          if (v === 'DIRECT') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">직통</span>;
+          return <span className="text-gray-300">-</span>;
+        },
+      },
+      {
+        headerName: '분배 상담사',
+        headerTooltip: 'QUEUE_STAT_CDR.DIST_AGENT_NAME — 분배된 상담사. 미분배는 "-"',
+        colId: 'distAgent',
+        field: 'agentName',
+        width: 140,
+        hide: !isCti,
+        valueGetter: (p) => (p.data as CallSearchResult | undefined)?.agentName ?? '-',
+        cellRenderer: (p: { data?: CallSearchResult }) => {
+          const name = p.data?.agentName;
+          if (!name) return <span className="text-gray-300">— 미분배 —</span>;
+          return <span className="text-[12px] text-gray-800">{name}</span>;
+        },
+      },
+      {
+        headerName: '대기시간',
+        headerTooltip: 'SUM(QUE_1240) 실인입 총 대기시간 — 모든 큐 hop 합산 (콜 단위)',
+        colId: 'queueWaitSec',
+        field: 'queueWaitSec',
+        width: 90,
+        hide: !isCti,
+        type: 'numericColumn',
+        filter: 'agNumberColumnFilter',
+        valueFormatter: (p) => fmtDuration(p.value as number | null),
+      },
+      {
+        headerName: '통화시간',
+        headerTooltip: 'SUM(QUE_5020) 응답호 총 통화시간 — 모든 큐 hop 합산 (콜 단위)',
+        colId: 'talkSec',
+        field: 'talkSec',
+        width: 90,
+        hide: !isCti,
+        type: 'numericColumn',
+        filter: 'agNumberColumnFilter',
+        valueFormatter: (p) => fmtDuration(p.value as number | null),
+      },
+      {
+        headerName: '응답/포기',
+        headerTooltip: 'QUE_1080 응답 / QUE_3430+QUE_4570+QUE_3271 포기 (큐/벨/IVR)',
+        colId: 'dispatchStatus',
+        width: 110,
+        hide: !isCti,
+        cellClass: 'text-center',
+        valueGetter: (p) => {
+          const r = p.data as CallSearchResult | undefined;
+          if (!r?.dispatchStatus) return '-';
+          if (r.dispatchStatus === 'ANSWERED') return '응답';
+          if (r.dispatchStatus === 'ABANDONED') {
+            const phase = r.abandonedAtPhase;
+            if (phase === 'QUEUE') return '큐 포기';
+            if (phase === 'RING') return '벨 포기';
+            if (phase === 'IVR') return 'IVR 포기';
+            return '포기';
+          }
+          return '미분배';
+        },
+        filter: 'agSetColumnFilter',
+        cellRenderer: (p: { data?: CallSearchResult }) => {
+          const r = p.data;
+          if (!r?.dispatchStatus) return <span className="text-gray-300">-</span>;
+          if (r.dispatchStatus === 'ANSWERED') {
+            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">응답</span>;
+          }
+          if (r.dispatchStatus === 'ABANDONED') {
+            const phase = r.abandonedAtPhase;
+            const label = phase === 'QUEUE' ? '큐 포기' : phase === 'RING' ? '벨 포기' : phase === 'IVR' ? 'IVR 포기' : '포기';
+            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">{label}</span>;
+          }
+          return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">미분배</span>;
+        },
+      },
+      {
+        headerName: '서비스 레벨',
+        headerTooltip: 'QUE_1190 (SL 이내) / QUE_1180 (응답) 기준',
+        colId: 'serviceLevelStatus',
+        width: 100,
+        hide: !isCti,
+        cellClass: 'text-center',
+        valueGetter: (p) => {
+          const v = (p.data as CallSearchResult | undefined)?.serviceLevelStatus;
+          if (v === 'WITHIN') return 'SL 내 응대';
+          if (v === 'OVER') return 'SL 초과';
+          return '-';
+        },
+        filter: 'agSetColumnFilter',
+        cellRenderer: (p: { data?: CallSearchResult }) => {
+          const v = p.data?.serviceLevelStatus;
+          if (v === 'WITHIN') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">SL 내</span>;
+          if (v === 'OVER') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700">SL 초과</span>;
+          return <span className="text-gray-300">-</span>;
+        },
+      },
       {
         // IVR 연결 여부 (T_TYPE=3 hop 존재) — 아이콘 클릭 시 IVR 모드로 drill-down 검색 (PBX 모드만)
         headerName: 'IVR 연결',
@@ -329,7 +507,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         colId: 'ivrEntered',
         field: 'ivrEntered',
         width: 95,
-        hide: isIvr,
+        hide: isIvr || isCti,
         cellClass: 'text-center',
         valueGetter: (p) => ((p.data as CallSearchResult | undefined)?.ivrEntered ? 'Y' : 'N'),
         filter: 'agSetColumnFilter',
@@ -360,10 +538,10 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         //  · 부분 실패(connected & partial)        → 주황 AlertTriangle (큐 hop 중 일부 CR_CONN=0)
         //  · 인입만/전부 실패(!connected)          → 회색 UserX
         headerName: 'CTI 연결',
-        headerTooltip: '상담 큐로 들어온 콜.\n큐 인입 성공 / 일부 실패 / 인입 실패\n클릭하면 CTI 기준으로 검색',
+        headerTooltip: '상담 큐로 들어온 콜.\n👥 큐 인입 성공  ⚠ 일부 실패  ✕ 인입 실패\n클릭하면 CTI 기준으로 검색',
         colId: 'ctiConnected',
         width: 100,
-        hide: isIvr,
+        hide: isIvr || isCti,
         cellClass: 'text-center',
         valueGetter: (p) => {
           const r = p.data as CallSearchResult | undefined;
@@ -416,10 +594,10 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         //  · 부분 미응답(connected & partial)   → 주황 AlertTriangle (재분배 발생)
         //  · 분배만/전부 미응답(!connected)     → 회색 UserX (호출했으나 응답 못 받음)
         headerName: '내선 연결',
-        headerTooltip: '상담사에게 분배된 콜.\n상담사 응답 / 일부 미응답 후 재분배 / 호출했으나 미응답\n클릭하면 CTI 기준으로 검색',
+        headerTooltip: '상담사에게 분배된 콜.\n👥 상담사 응답  ⚠ 일부 미응답 후 재분배  ✕ 호출했으나 미응답\n클릭하면 CTI 기준으로 검색',
         colId: 'agentConnected',
         width: 100,
-        hide: isIvr,
+        hide: isIvr || isCti,
         cellClass: 'text-center',
         valueGetter: (p) => {
           const r = p.data as CallSearchResult | undefined;
@@ -470,7 +648,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         headerTooltip: '콜이 어떻게 끝났는지 (정상 종료 / 포기 / 호전환 / 회수 / 초과 등)',
         field: 'ccType',
         width: 90,
-        hide: isIvr,
+        hide: isIvr || isCti,
         valueGetter: (p) => {
           const v = p.data?.ccType;
           if (v == null) return '';
@@ -489,7 +667,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         colId: 'oRFactor',
         field: 'oRFactor',
         width: 110,
-        hide: isIvr,
+        hide: isIvr || isCti,
         cellClass: 'text-center',
         valueGetter: (p) => {
           const r = p.data as CallSearchResult | undefined;
@@ -509,7 +687,7 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         headerTooltip: '누가 끊었는지 (국선/내선/협의/시스템)',
         field: 'ccPart',
         width: 100,
-        hide: isIvr,
+        hide: isIvr || isCti,
         valueGetter: (p) => {
           const v = p.data?.ccPart;
           if (v == null) return '';
@@ -522,63 +700,16 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.color}`}>{meta.label}</span>;
         },
       },
-      {
-        // CR_CONN 은 마지막 hop만의 통화 성공 여부 — CC_TYPE 과 정보 중복이라 기본 숨김
-        headerName: '연결',
-        field: 'crConn',
-        width: 60,
-        hide: true,
-        valueFormatter: (p) => (p.value == null ? '-' : p.value === 1 ? 'O' : 'X'),
-      },
-      // ── 발신 회선 (기본 숨김) ──
-      { headerName: '발신 논리DN', field: 'oLrdn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '발신 RN', field: 'oRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '발신 AC', field: 'oAc', width: 80, hide: true },
-      {
-        headerName: '발신 회선유형',
-        field: 'oType',
-        width: 90,
-        hide: true,
-        valueFormatter: (p) => (p.value == null ? '-' : (LINE_TYPE_LABEL[p.value as number] ?? String(p.value))),
-      },
-      { headerName: '발신측 이름', field: 'oName', width: 120, hide: true },
-      // ── 착신 회선 (기본 숨김) ──
-      { headerName: '착신 논리DN', field: 'tLrdn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '착신 RN', field: 'tRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
-      { headerName: '착신 AC', field: 'tAc', width: 80, hide: true },
-      {
-        headerName: '착신 회선유형',
-        field: 'tType',
-        width: 90,
-        hide: true,
-        valueFormatter: (p) => (p.value == null ? '-' : (LINE_TYPE_LABEL[p.value as number] ?? String(p.value))),
-      },
-      { headerName: '착신측 이름', field: 'tName', width: 120, hide: true },
-      // ── 종료 사유 (기본 숨김) ──
-      {
-        headerName: '종료사유',
-        field: 'ccErrCode',
-        width: 100,
-        hide: true,
-        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
-      },
-      // ── ID (기본 숨김 — 상세 화면에서 명칭 매핑) ──
-      { headerName: '노드 ID', field: 'nodeId', width: 90, hide: true, type: 'numericColumn' },
-      { headerName: '테넌트 ID', field: 'tenantId', width: 100, hide: true, type: 'numericColumn' },
-      { headerName: '시스템 ID', field: 'systemId', width: 100, hide: true, type: 'numericColumn' },
-      // ── 교환기 CDR 상세 진입 — 항상 맨 오른쪽 고정 (PBX 모드만) ──
+      // ── 교환기 CDR 상세 진입 — 종료주체 옆 (PBX 모드만, 고정 해제) ──
       {
         headerName: '교환기 CDR',
         headerTooltip: '콜의 hop 별 교환기 CDR 상세 보기',
         colId: 'pbxCdrInspect',
         width: 110,
-        hide: isIvr,
-        lockPosition: 'right',
-        pinned: 'right',
+        hide: isIvr || isCti,
         cellClass: 'text-center',
         sortable: false,
         filter: false,
-        suppressMovable: true,
         cellRenderer: (p: { data?: CallSearchResult }) => {
           const r = p.data;
           if (!r) return null;
@@ -598,6 +729,50 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           );
         },
       },
+      {
+        // CR_CONN 은 마지막 hop만의 통화 성공 여부 — CC_TYPE 과 정보 중복이라 기본 숨김
+        headerName: '연결',
+        field: 'crConn',
+        width: 60,
+        hide: true,
+        valueFormatter: (p) => (p.value == null ? '-' : p.value === 1 ? 'O' : 'X'),
+      },
+      // ── 발신 회선 (기본 숨김) ──
+      { headerName: 'O_LRDN', field: 'oLrdn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
+      { headerName: 'O_RN', field: 'oRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
+      { headerName: 'O_AC', field: 'oAc', width: 80, hide: true },
+      {
+        headerName: 'O_TYPE',
+        field: 'oType',
+        width: 90,
+        hide: true,
+        valueFormatter: (p) => (p.value == null ? '-' : (LINE_TYPE_LABEL[p.value as number] ?? String(p.value))),
+      },
+      { headerName: 'O_NAME', field: 'oName', width: 120, hide: true },
+      // ── 착신 회선 (기본 숨김) ──
+      { headerName: 'T_LRDN', field: 'tLrdn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
+      { headerName: 'T_RN', field: 'tRn', width: 120, hide: true, cellClass: 'font-mono text-[11px]' },
+      { headerName: 'T_AC', field: 'tAc', width: 80, hide: true },
+      {
+        headerName: 'T_TYPE',
+        field: 'tType',
+        width: 90,
+        hide: true,
+        valueFormatter: (p) => (p.value == null ? '-' : (LINE_TYPE_LABEL[p.value as number] ?? String(p.value))),
+      },
+      { headerName: 'T_NAME', field: 'tName', width: 120, hide: true },
+      // ── 종료 사유 (기본 숨김) ──
+      {
+        headerName: '종료사유',
+        field: 'ccErrCode',
+        width: 100,
+        hide: true,
+        valueFormatter: (p) => (p.value == null ? '-' : String(p.value)),
+      },
+      // ── ID (기본 숨김 — 상세 화면에서 명칭 매핑) ──
+      { headerName: 'NODE_ID', field: 'nodeId', width: 90, hide: true, type: 'numericColumn' },
+      { headerName: 'TENANT_ID', field: 'tenantId', width: 100, hide: true, type: 'numericColumn' },
+      { headerName: 'SYSTEM_ID', field: 'systemId', width: 100, hide: true, type: 'numericColumn' },
     ],
     [isIvr, onCtiDrilldown, onIvrDrilldown, onPbxCdrInspect],
   );

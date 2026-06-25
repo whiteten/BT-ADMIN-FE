@@ -80,6 +80,7 @@ const BsrGroupManage = React.lazy(() => import('./pages/bsr-group/BsrGroupManage
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
+const TrackingAuditPage = React.lazy(() => import('./features/tracking-audit/components/TrackingAuditPage'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('ipron');
@@ -287,6 +288,10 @@ export const routes = [
           { index: true, element: pv('tracking', TrackingSearch) },
           { path: 'call/:ucid', element: pv('tracking/call/:ucid', CallDetail) },
         ],
+      },
+      {
+        path: 'tracking-audit',
+        element: <TrackingAuditPage />,
       },
     ],
   },

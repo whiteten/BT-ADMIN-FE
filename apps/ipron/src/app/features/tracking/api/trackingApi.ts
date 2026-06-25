@@ -35,6 +35,22 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 // ─── Backend CallDetail (평면) → FE {header, segments} 변환 ─────────────────
 
+interface BackendCallDetailResponse {
+  ucid: string;
+  ani: string | null;
+  dnis: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  totalDurationSec: number | null;
+  overallResult: string | null;
+  tenantId: number | null;
+  tenantName: string | null;
+  mediaType: number | null;
+  mediaAlias: string | null;
+  segments: BackendCallFlowSegment[];
+  recordingHops?: number[] | null;
+}
+
 interface BackendCallFlowSegment {
   segmentType: 'IE' | 'IR' | 'IC_QUEUE' | 'IC_AGENT' | 'IC_ROUTING' | string;
   hop: number | null;
@@ -77,6 +93,8 @@ interface BackendCallDetail {
   tenantId: number | null;
   tenantName: string | null;
   segments: BackendCallFlowSegment[];
+  /** 사전 판단된 청취 가능 hop 번호 set (TrackingService 가 hop 별 eligibility 호출 결과) */
+  recordingHops?: number[];
 }
 
 // ─── Backend IvrStepNode 응답 매핑 ─────────────────────────────────────────
@@ -113,6 +131,7 @@ interface BackendIvrStepNode {
   serviceId: number | null;
   serviceName: string | null;
   scenarioVersion: string | null;
+  nextHop: number | null; // IE.HOP 번호 — cdrPkey 동일하지만 hop 다를 때 구분 키
   startMs: number | null;
   durationMs: number | null;
   hasDialog: boolean | null;
@@ -214,12 +233,13 @@ function mapIvrScenarioGroup(node: BackendIvrStepNode): IvrScenarioGroup {
     scenarioName: node.serviceName ?? '(시나리오)',
     scenarioId: node.serviceId ?? 0,
     scenarioVersion: node.scenarioVersion,
+    nextHop: node.nextHop ?? null,
     startTime: msToIso(startMs),
     endTime: endMs != null ? msToIso(endMs) : null,
     durationSec,
     hasVoiceRecognition: !!node.hasDialog,
     steps,
-  };
+  } as IvrScenarioGroup;
 }
 
 function emptyHeader(ucid: string): CallDetailHeader {
@@ -369,9 +389,42 @@ function mapCtiRouteHop(r: BackendCtiRouteHop, idx: number): CtiRoutingHop {
   };
 }
 
-function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segments: CallSegment[] } {
+/**
+ * 첫 hop 의 owner 타입 판정 — segment 의 segmentType + oType/tType/callKind 종합.
+ *  - EXT: 내선 발신 (CALL_KIND=0 + O_TYPE=2) — 상담사 로그인 없이 IVR 테스트 등
+ *  - TRK: 국선 발신 (O_TYPE=1)
+ *  - IR : IR segment 또는 T_TYPE=3 (IVR)
+ *  - IC : IC_QUEUE/IC_ROUTING 또는 T_TYPE=4/5/6 (큐)
+ *  - AGENT: IC_AGENT 또는 T_TYPE=2 (상담사)
+ *  - IE : 기본 PBX 콜
+ */
+function deriveFirstHopType(seg: BackendCallFlowSegment): string {
+  if (seg.segmentType === 'IR') return 'IR';
+  if (seg.segmentType === 'IC_AGENT') return 'AGENT';
+  if (seg.segmentType === 'IC_QUEUE' || seg.segmentType === 'IC_ROUTING') return 'IC';
+  // IE segment — callKind/oType/tType 종합
+  if (seg.callKind === 0 && seg.oType === 2) return 'EXT'; // 내선 발신
+  if (seg.oType === 1) return 'TRK'; // 국선 발신
+  if (seg.tType === 3) return 'IR';
+  if (seg.tType === 4 || seg.tType === 5 || seg.tType === 6) return 'IC';
+  if (seg.tType === 2) return 'AGENT';
+  return 'IE';
+}
+
+/** 콜 방향 — callKind 우선, 없으면 segment kind 폴백. */
+function deriveCallDir(seg: BackendCallFlowSegment): string {
+  if (seg.callKind === 0) return 'EXTENSION'; // 내선 콜
+  if (seg.callKind === 2) return 'OUTBOUND';
+  if (seg.callKind === 1) return 'INBOUND';
+  return 'INBOUND';
+}
+
+function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segments: CallSegment[]; recordingHops: number[] } {
   const aniMasked = /\*/.test(raw.ani ?? '');
   const total = raw.segments?.length ?? 0;
+  const firstSeg = raw.segments?.[0];
+  const firstHopType = firstSeg ? deriveFirstHopType(firstSeg) : undefined;
+  const callDir = firstSeg ? deriveCallDir(firstSeg) : undefined;
   const segments: CallSegment[] = (raw.segments ?? []).map((s, idx) => {
     const kind = mapSegmentKind(s, idx === 0, idx === total - 1);
     return {
@@ -406,6 +459,12 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
         _ccPart: (s as { ccPart?: number | null }).ccPart ?? null,
         _cdrPkey: s.cdrPkey ?? null,
         _callKind: s.callKind ?? null,
+        // hop 자체의 단계 (CallFlowDiagram 카드 색상/라벨)
+        _hopType: deriveFirstHopType(s),
+        // 첫 hop 의 콜 owner 타입(전체에 동일) — CallFlowDiagram 의 owner 색상 결정
+        _firstHopType: firstHopType ?? null,
+        // 콜 방향 — INBOUND/OUTBOUND/EXTENSION
+        _callDir: callDir ?? null,
       },
       isError: false,
     };
@@ -438,7 +497,7 @@ function mapCallDetail(raw: BackendCallDetail): { header: CallDetailHeader; segm
     mediaAlias: (raw as { mediaAlias?: string | null }).mediaAlias ?? null,
   };
 
-  return { header, segments };
+  return { header, segments, recordingHops: raw.recordingHops ?? [] };
 }
 
 /** ISO String("…Z" 또는 ms 포함)을 Java LocalDateTime 호환 형식으로 변환. */
@@ -448,8 +507,8 @@ function toLocalDateTime(s: string | null | undefined): string | null {
   return s.replace('Z', '').replace(/\.\d+/, '');
 }
 
-/** FE TrackingSearchCriteria → BE SearchCriteria 필드명 매핑. */
-function toSearchRequest(c: TrackingSearchCriteria) {
+/** FE TrackingSearchCriteria → BE SearchCriteria 필드명 매핑. 외부 모듈(엑셀 export 등)에서도 사용. */
+export function toSearchRequest(c: TrackingSearchCriteria) {
   return {
     dateFrom: toLocalDateTime(c.startTime),
     dateTo: toLocalDateTime(c.endTime),
@@ -513,12 +572,12 @@ export const trackingApi = {
    * FE 가 기대하는 nested {header, segments} 로 변환 + segmentType('IE'|'IR'|'IC_*') → kind ('INBOUND'|'IVR'|'CTI'|'AGENT'|...) 매핑.
    * @flow ipron-tracking-detail
    */
-  getDetail: async (ucid: string): Promise<{ header: CallDetailHeader; segments: CallSegment[] }> => {
+  getDetail: async (ucid: string): Promise<{ header: CallDetailHeader; segments: CallSegment[]; recordingHops: number[] }> => {
     const response = await apiClient.get<ApiResponse<BackendCallDetail>>('/ipron-tracking-detail', {
       params: { ucid },
     });
     const raw = response.data?.data;
-    if (!raw) return { header: emptyHeader(ucid), segments: [] };
+    if (!raw) return { header: emptyHeader(ucid), segments: [], recordingHops: [] };
     return mapCallDetail(raw);
   },
 
