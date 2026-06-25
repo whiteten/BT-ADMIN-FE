@@ -17,8 +17,9 @@ type ScenarioCardProps = {
   highlighted?: boolean;
 };
 
-/** 카드에 노출할 배포 시스템 최대 개수 (초과분은 "+N개 더"로 접고 상세 모달로 안내) */
-const MAX_VISIBLE_SYSTEMS = 3;
+/** 카드에 노출할 배포 시스템 최대 개수 (초과분은 "+N개 더"로 접고 상세 모달로 안내).
+ *  카드 높이(h-[236px])상 실제로 잘리지 않고 보이는 행 수가 2개라, 보이는 수와 "+N"이 일치하도록 2로 맞춤. */
+const MAX_VISIBLE_SYSTEMS = 2;
 
 /** FCA DeployStatusBadge 색상 팔레트 차용 */
 const BADGE_CLS = {

@@ -6,13 +6,12 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CanvasLayout, { type CanvasLayoutRef } from '../../features/canvas/components/CanvasLayout';
 import { reportApi } from '../../features/report/api/reportApi';
-import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../../features/report/constants/reportIconConstants';
 import { useReportEditorStore } from '../../features/report/hooks/useReportEditorStore';
-import type { DomainCode, ReportIconType } from '../../features/report/types';
+import type { ReportIconType } from '../../features/report/types';
 
 interface WizardState {
   title: string;
-  domain: DomainCode;
+  tags?: string[];
   iconType?: ReportIconType;
 }
 
@@ -42,7 +41,7 @@ export default function ReportDraftCanvas() {
     };
   }, [reset, setBreadcrumb, clearBreadcrumb]);
 
-  if (!state?.title || !state?.domain) {
+  if (!state?.title) {
     return <Navigate to="/insight/statistics/reports/new" replace />;
   }
 
@@ -53,7 +52,7 @@ export default function ReportDraftCanvas() {
     try {
       const newReport = await reportApi.createReport({
         title: state.title,
-        domain: state.domain,
+        tags: state.tags,
         datasetId: 0, // 데이터셋은 패널별 선택 — 보고서 단위 데이터셋 미사용
         iconType: state.iconType,
       });
@@ -82,9 +81,11 @@ export default function ReportDraftCanvas() {
         <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-base font-semibold truncate">{state.title}</span>
-            <Tag color={DOMAIN_TAG_COLOR[state.domain]} className="!mb-0 shrink-0">
-              {state.domain} · {DOMAIN_LABELS[state.domain] ?? state.domain}
-            </Tag>
+            {(state.tags ?? []).map((t) => (
+              <Tag key={t} className="!mb-0 shrink-0">
+                {t}
+              </Tag>
+            ))}
             <Tag color="warning" className="!mb-0 shrink-0">
               초안
             </Tag>

@@ -14,7 +14,7 @@
  *  bt-shadow + rounded-md + border-gray-200
  */
 import { useMemo } from 'react';
-import { ChevronDown, Lock, LockOpen, Maximize2, Minimize2, X } from 'lucide-react';
+import { ChevronDown, Lock, LockOpen, Maximize2, Minimize2 } from 'lucide-react';
 import type { CallSegment } from '../types';
 import { fmtAxisLabel, fmtDurFull as formatDur, fmtDurShort as formatDurShort } from '../utils/timeFormat';
 
@@ -131,12 +131,16 @@ export default function CallFlowDiagram({
       ? { label: 'IVR', full: 'IVR (전단)' }
       : firstHopType === 'IC' || firstKind === 'QUEUE_IN'
         ? { label: 'CTI', full: 'CTI (디지털)' }
-        : { label: 'PBX', full: 'PBX (교환기)' };
+        : firstHopType === 'EXT'
+          ? { label: '내선', full: '내선 (PBX 내부)' }
+          : firstHopType === 'TRK'
+            ? { label: '국선', full: '국선 (TRK)' }
+            : { label: 'PBX', full: 'PBX (교환기)' };
 
-  // 콜방향 — 첫 hop 의 _callDir (INBOUND/OUTBOUND/QUEUE_IN). 콜 채널 띠에 표기.
-  // _callDir 없으면 첫 hop kind 로 폴백.
+  // 콜방향 — 첫 hop 의 _callDir (INBOUND/OUTBOUND/QUEUE_IN/EXTENSION). 콜 채널 띠에 표기.
   const _callDir = segments[0]?.meta?._callDir as string | undefined;
-  const callDirLabel = _callDir === 'OUTBOUND' || firstKind === 'OUTBOUND' ? '발신' : _callDir === 'QUEUE_IN' || firstKind === 'QUEUE_IN' ? '큐인입' : '인입';
+  const callDirLabel =
+    _callDir === 'EXTENSION' ? '내선' : _callDir === 'OUTBOUND' || firstKind === 'OUTBOUND' ? '발신' : _callDir === 'QUEUE_IN' || firstKind === 'QUEUE_IN' ? '큐인입' : '인입';
 
   // 콜 흐름에 표시할 hop — 인입/발신/큐인입 모두 hop 0 부터 동일하게 표시.
   const displaySegments = segments;
@@ -214,21 +218,24 @@ export default function CallFlowDiagram({
               막대 multi-expand 와는 독립 — 라벨 클릭은 선택+스크롤만, expand 변경 X.
               첫 hop(0HOP) 은 INBOUND/OUTBOUND/QUEUE_IN 의 라벨('인입'/'발신'/'큐인입') 대신
               meta._firstHopType(IVR/CTI/내선/외선) 을 표기 — 콜방향은 위쪽 콜채널 띠로 분리 */}
-          {hopPositions.map(({ hop, hopNo, occupiedSec }) => {
-            // _firstHopType = 첫 hop 라벨용, _hopType = 모든 hop 의 AS-IS 분류 (IE/IR/IC/AGENT)
+          {hopPositions.map(({ hop, hopNo, occupiedSec }, hopIdx) => {
+            // 첫 segment(idx=0) 는 _firstHopType, 그 외는 자기 hop 의 _hopType
             const firstHopType = hop.meta?._firstHopType as string | undefined;
             const hopType = hop.meta?._hopType as string | undefined;
-            const typeLabel = firstHopType ?? hopType;
-            // 색상도 typeLabel 기준 (IR→IVR, IC→CTI, AGENT→AGENT, IE→fallback)
+            // _hopNo fallback 이 +1 부터 시작하므로 idx 로 직접 비교
+            const typeRaw = hopIdx === 0 ? (firstHopType ?? hopType) : hopType;
+            // 표시 라벨 — EXT→내선, TRK→국선, 그 외 그대로
+            const typeLabel = typeRaw === 'EXT' ? '내선' : typeRaw === 'TRK' ? '국선' : typeRaw;
+            // 색상도 typeRaw 기준
             const effKind: CallSegment['kind'] =
-              typeLabel === 'IVR' || typeLabel === 'IR'
+              typeRaw === 'IVR' || typeRaw === 'IR'
                 ? 'IVR'
-                : typeLabel === 'CTI' || typeLabel === 'IC'
+                : typeRaw === 'CTI' || typeRaw === 'IC'
                   ? 'CTI'
-                  : typeLabel === 'AGENT' || typeLabel === '내선'
+                  : typeRaw === 'AGENT'
                     ? 'AGENT'
-                    : typeLabel === 'IE'
-                      ? 'INBOUND' // IE → 네이비 (PBX 자체 처리, IR 보라와 구분)
+                    : typeRaw === 'EXT' || typeRaw === 'TRK' || typeRaw === 'IE'
+                      ? 'INBOUND' // 내선/국선/PBX → 네이비 (PBX 자체 처리, IR 보라와 구분)
                       : hop.kind;
             const ks = KIND_STYLE[effKind];
             const isActive = selectedSegmentId === hop.segmentId;
@@ -425,7 +432,7 @@ export default function CallFlowDiagram({
                     <span className="font-mono text-[10.5px] font-bold opacity-70 flex-shrink-0">H{hopNo}</span>
                     <span className="truncate min-w-0 flex-1 text-left">{hopContent(hop)}</span>
                     {occupiedSec > 0 && <span className="font-mono text-[10.5px] opacity-80 flex-shrink-0">{formatDurShort(occupiedSec)}</span>}
-                    {isFail && <X className="size-3 text-red-600 flex-shrink-0" />}
+                    {isFail && <span className="text-red-600 font-bold flex-shrink-0">✕</span>}
                     {renderHopDetail && (
                       <span
                         role="button"

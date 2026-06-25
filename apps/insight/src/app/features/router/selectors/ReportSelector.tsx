@@ -16,11 +16,13 @@ export default function ReportSelector({ spec, value, onChange }: QuerySelectorP
   const { data: reports = [], isLoading } = useGetReports();
 
   // 도메인별 그룹 옵션 (value 는 쿼리스트링이라 문자열로 통일)
+  // 카테고리(도메인) 제거 후 신규 보고서는 domain 이 없으므로 'ETC' 그룹으로 모은다.
   const byDomain = new Map<string, { value: string; label: string }[]>();
   for (const r of reports) {
-    const list = byDomain.get(r.domain) ?? [];
+    const key = r.domain ?? 'ETC';
+    const list = byDomain.get(key) ?? [];
     list.push({ value: String(r.reportId), label: r.title });
-    byDomain.set(r.domain, list);
+    byDomain.set(key, list);
   }
   const groupedOptions = [...byDomain.entries()].map(([domain, options]) => ({
     label: `${DOMAIN_LABELS[domain] ?? domain} (${domain})`,

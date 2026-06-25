@@ -173,7 +173,7 @@ export default function ScenarioList() {
               highlighted={focusedId === s.serviceId}
               onDetail={handleDetail}
               onDelete={handleDelete}
-              onShowAssigned={() => assignedStatusRef.current?.open(s.serviceId)}
+              onShowAssigned={() => assignedStatusRef.current?.open(s.serviceId, s.serviceName)}
             />
           ))}
         </div>

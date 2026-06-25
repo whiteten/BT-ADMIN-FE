@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ColDef, IHeaderParams } from 'ag-grid-community';
@@ -10,7 +9,6 @@ import { Download, Edit2, Play, Plus, Trash2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { createUUID, toast } from '@/shared-util';
 import CalcFieldEditor from './CalcFieldEditor';
-import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { CalcFieldCreateDatas, ColumnFormat, DomainCode } from '../../report/types';
 import { datasetApi } from '../api/datasetApi';
 import { useGetDataSourceFields, useGetSchemaPreview } from '../hooks/useDatasetQueries';
@@ -94,13 +92,26 @@ function SortableItem({ id, children }: { id: string; children: (dragProps: Retu
   return <>{children(sortable)}</>;
 }
 
+// ─── 디멘션/측정값 섹션 드롭 존 (빈 섹션에도 드롭 가능하도록) ──────────────────────
+const DIM_ZONE = '__zone_dim__';
+const MSR_ZONE = '__zone_msr__';
+function DroppableZone({ id, children }: { id: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`space-y-1 min-h-[16px] rounded transition-colors ${isOver ? 'bg-primary/10' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
 // ─── Editing state ─────────────────────────────────────────────────────────────
 type EditingState = { mode: 'idle' } | { mode: 'add' } | { mode: 'edit'; localId: string };
 
 interface WizardStepBProps {
   datasetId?: number;
   dbViewPrefix?: string;
-  domain: DomainCode;
+  /** @deprecated 카테고리 제거 — 더 이상 렌더링에 사용하지 않음 */
+  domain?: DomainCode;
   fieldDisplays: LocalFieldDisplay[];
   onFieldDisplaysChange: (displays: LocalFieldDisplay[]) => void;
   calcFields: LocalCalcFieldDraft[];
@@ -114,7 +125,6 @@ interface WizardStepBProps {
 export default function WizardStepB({
   datasetId,
   dbViewPrefix,
-  domain,
   fieldDisplays,
   onFieldDisplaysChange,
   calcFields,
@@ -273,39 +283,65 @@ export default function WizardStepB({
     }
   };
 
-  // ─── 팔레트 드래그 재정렬 ──────────────────────────────────────────────────
-  const handleDimDragEnd = (event: DragEndEvent) => {
+  // ─── 팔레트 드래그: 같은 섹션 재정렬 + 섹션 간 이동(디멘션↔측정값 전환) ──────────
+  const handleDragEnd = (event: DragEndEvent) => {
     if (readOnly) return;
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const dims = [...fieldDisplays.filter((f) => f.fieldType === 'DIM' && !f.isCalcField)].sort((a, b) => a.sortOrder - b.sortOrder);
-    const oldIdx = dims.findIndex((f) => f.fieldName === active.id);
-    const newIdx = dims.findIndex((f) => f.fieldName === over.id);
-    const reordered = arrayMove(dims, oldIdx, newIdx);
-    const dimMin = Math.min(...fieldDisplays.filter((f) => f.fieldType === 'DIM' && !f.isCalcField).map((f) => f.sortOrder));
-    onFieldDisplaysChange(
-      fieldDisplays.map((f) => {
-        if (f.fieldType !== 'DIM' || f.isCalcField) return f;
-        const pos = reordered.findIndex((r) => r.fieldName === f.fieldName);
-        return { ...f, sortOrder: dimMin + pos };
-      }),
-    );
-  };
+    if (!over) return;
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    if (activeId === overId) return;
 
-  const handleMsrDragEnd = (event: DragEndEvent) => {
-    if (readOnly) return;
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const msrs = [...fieldDisplays.filter((f) => f.fieldType === 'MSR')].sort((a, b) => a.sortOrder - b.sortOrder);
-    const oldIdx = msrs.findIndex((f) => f.fieldName === active.id);
-    const newIdx = msrs.findIndex((f) => f.fieldName === over.id);
-    const reordered = arrayMove(msrs, oldIdx, newIdx);
-    const msrMin = Math.min(...fieldDisplays.filter((f) => f.fieldType === 'MSR').map((f) => f.sortOrder));
+    const activeField = fieldDisplays.find((f) => f.fieldName === activeId);
+    if (!activeField) return;
+
+    // 대상 섹션 판정: 존 위면 해당 섹션, 아니면 over 필드의 섹션
+    let targetType: 'DIM' | 'MSR';
+    if (overId === DIM_ZONE) targetType = 'DIM';
+    else if (overId === MSR_ZONE) targetType = 'MSR';
+    else {
+      const overField = fieldDisplays.find((f) => f.fieldName === overId);
+      if (!overField) return;
+      targetType = overField.fieldType;
+    }
+
+    // 계산필드는 측정값 전용 — 디멘션으로 이동 불가
+    if (activeField.isCalcField && targetType === 'DIM') return;
+
+    const inGroup = (f: LocalFieldDisplay, type: 'DIM' | 'MSR') => f.fieldType === type && (type === 'DIM' ? !f.isCalcField : true);
+    const isZone = overId === DIM_ZONE || overId === MSR_ZONE;
+
+    if (activeField.fieldType === targetType) {
+      // 같은 섹션 재정렬
+      const group = fieldDisplays.filter((f) => inGroup(f, targetType)).sort((a, b) => a.sortOrder - b.sortOrder);
+      const oldIdx = group.findIndex((f) => f.fieldName === activeId);
+      const newIdx = isZone ? group.length - 1 : group.findIndex((f) => f.fieldName === overId);
+      if (oldIdx === -1 || newIdx === -1) return;
+      const reordered = arrayMove(group, oldIdx, newIdx);
+      const base = Math.min(...group.map((f) => f.sortOrder));
+      onFieldDisplaysChange(
+        fieldDisplays.map((f) => {
+          const pos = reordered.findIndex((r) => r.fieldName === f.fieldName);
+          return pos === -1 ? f : { ...f, sortOrder: base + pos };
+        }),
+      );
+      return;
+    }
+
+    // 섹션 간 이동 → fieldType 전환 (측정값은 기본 집계 SUM, 디멘션은 집계 해제)
+    const dest = fieldDisplays.filter((f) => inGroup(f, targetType) && f.fieldName !== activeId).sort((a, b) => a.sortOrder - b.sortOrder);
+    const overIdx = isZone ? dest.length : dest.findIndex((f) => f.fieldName === overId);
+    const insertIdx = overIdx === -1 ? dest.length : overIdx;
+    const moved: LocalFieldDisplay = { ...activeField, fieldType: targetType, aggFunc: targetType === 'MSR' ? (activeField.aggFunc ?? 'SUM') : null };
+    const newOrder = [...dest];
+    newOrder.splice(insertIdx, 0, moved);
+    const base = dest.length ? Math.min(...dest.map((f) => f.sortOrder)) : 0;
+    const orderMap = new Map(newOrder.map((f, i) => [f.fieldName, base + i]));
     onFieldDisplaysChange(
       fieldDisplays.map((f) => {
-        if (f.fieldType !== 'MSR') return f;
-        const pos = reordered.findIndex((r) => r.fieldName === f.fieldName);
-        return { ...f, sortOrder: msrMin + pos };
+        if (f.fieldName === activeId) return { ...moved, sortOrder: orderMap.get(activeId) ?? moved.sortOrder };
+        const pos = orderMap.get(f.fieldName);
+        return pos === undefined ? f : { ...f, sortOrder: pos };
       }),
     );
   };
@@ -379,12 +415,6 @@ export default function WizardStepB({
         <aside className="w-64 shrink-0 border-r border-border bg-muted/20 p-4 overflow-y-auto">
           <div className="mb-3">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
-            <div className="mt-1 flex items-center gap-1.5">
-              <Tag color={DOMAIN_TAG_COLOR[domain]} className="!mb-0 !mr-0 font-bold">
-                {domain}
-              </Tag>
-              <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
-            </div>
             <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
           </div>
 
@@ -453,26 +483,21 @@ export default function WizardStepB({
       <aside className="w-64 shrink-0 border-r border-border bg-muted/20 p-4 overflow-y-auto">
         <div className="mb-3">
           <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">원천 뷰</div>
-          <div className="mt-1 flex items-center gap-1.5">
-            <Tag color={DOMAIN_TAG_COLOR[domain]} className="!mb-0 !mr-0 font-bold">
-              {domain}
-            </Tag>
-            <span className="font-mono text-sm font-semibold truncate">{datasetId}</span>
-          </div>
           <div className="mt-0.5 text-xs text-muted-foreground">{sourceFields.length}개 컬럼</div>
         </div>
 
         <Input size="small" placeholder="필드 검색…" value={paletteSearch} onChange={(e) => setPaletteSearch(e.target.value)} className="mb-3" />
 
-        {/* DIM 그룹 */}
-        <div className="mb-4">
-          <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <span>디멘션</span>
-            <span className="ml-auto">{filteredDim.length}</span>
-          </div>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleDimDragEnd}>
+        {/* 디멘션/측정값 — 단일 DndContext로 섹션 간 드래그 이동 지원 */}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          {/* DIM 그룹 */}
+          <div className="mb-4">
+            <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span>디멘션</span>
+              <span className="ml-auto">{filteredDim.length}</span>
+            </div>
             <SortableContext items={filteredDim.map((f) => f.fieldName)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1">
+              <DroppableZone id={DIM_ZONE}>
                 {filteredDim.map((f) => (
                   <SortableItem key={f.fieldName} id={f.fieldName}>
                     {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
@@ -489,20 +514,18 @@ export default function WizardStepB({
                     )}
                   </SortableItem>
                 ))}
-              </div>
+              </DroppableZone>
             </SortableContext>
-          </DndContext>
-        </div>
-
-        {/* MSR 그룹 */}
-        <div className="mb-4">
-          <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <span>측정값</span>
-            <span className="ml-auto">{filteredMsr.length}</span>
           </div>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleMsrDragEnd}>
+
+          {/* MSR 그룹 */}
+          <div className="mb-4">
+            <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span>측정값</span>
+              <span className="ml-auto">{filteredMsr.length}</span>
+            </div>
             <SortableContext items={filteredMsr.map((f) => f.fieldName)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-1">
+              <DroppableZone id={MSR_ZONE}>
                 {filteredMsr.map((f) => (
                   <SortableItem key={f.fieldName} id={f.fieldName}>
                     {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
@@ -522,10 +545,10 @@ export default function WizardStepB({
                     )}
                   </SortableItem>
                 ))}
-              </div>
+              </DroppableZone>
             </SortableContext>
-          </DndContext>
-        </div>
+          </div>
+        </DndContext>
       </aside>
 
       {/* ── 우측: 필드 구성 ── */}
@@ -626,7 +649,7 @@ export default function WizardStepB({
                           </span>
                         </Tooltip>
                       )}
-                      <span className={`font-mono font-semibold truncate ${!data.isVisible ? 'opacity-40' : data.isCalcField ? 'text-green-700' : ''}`}>{data.fieldName}</span>
+                      <span className={`font-mono font-semibold truncate ${data.isCalcField ? 'text-green-700' : ''}`}>{data.fieldName}</span>
                     </div>
                   );
                 },
@@ -635,35 +658,41 @@ export default function WizardStepB({
                 headerName: '서식',
                 field: 'columnFormat',
                 width: 160,
-                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
-                  data ? (
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) => {
+                  if (!data) return null;
+                  // readOnly만 정적 표기. 미체크 필드도 편집 가능(저장은 체크된 필드만).
+                  if (readOnly) {
+                    const label = FORMAT_OPTIONS.find((o) => o.value === data.columnFormat)?.label ?? data.columnFormat;
+                    return <span className="flex items-center h-full text-xs text-[var(--color-bt-fg-muted)]">{label}</span>;
+                  }
+                  return (
                     <div className="flex items-center h-full w-full">
                       <Select
                         size="small"
                         value={data.columnFormat as ColumnFormat}
                         options={FORMAT_OPTIONS}
                         onChange={(v) => updateField(data.fieldName, { columnFormat: v })}
-                        disabled={readOnly || !data.isVisible}
                         style={{ width: '100%' }}
                       />
                     </div>
-                  ) : null,
+                  );
+                },
               },
               {
                 headerName: '표시명',
                 field: 'displayName',
                 flex: 3,
-                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) =>
-                  data ? (
+                cellRenderer: ({ data }: { data?: LocalFieldDisplay }) => {
+                  if (!data) return null;
+                  if (readOnly) {
+                    return <span className="flex items-center h-full text-xs text-[var(--color-bt-fg-muted)] truncate">{data.displayName}</span>;
+                  }
+                  return (
                     <div className="flex items-center h-full w-full">
-                      <Input
-                        size="small"
-                        value={data.displayName}
-                        onChange={(e) => updateField(data.fieldName, { displayName: e.target.value })}
-                        disabled={readOnly || !data.isVisible}
-                      />
+                      <Input size="small" value={data.displayName} onChange={(e) => updateField(data.fieldName, { displayName: e.target.value })} />
                     </div>
-                  ) : null,
+                  );
+                },
               },
               {
                 headerName: '',
