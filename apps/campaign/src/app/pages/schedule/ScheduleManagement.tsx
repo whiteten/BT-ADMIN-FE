@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Select } from 'antd';
 import { Plus, Search, Settings, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -30,6 +31,7 @@ function loadStoredTenantId(): string {
 const SCHEDULE_CONTROL_BUTTON_CLASS = '!bg-[#0ab39c] !border-[#0ab39c] hover:!bg-[#099885] hover:!border-[#099885] !text-white';
 
 export default function ScheduleManagement() {
+  const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const modal = useModal();
@@ -59,12 +61,16 @@ export default function ScheduleManagement() {
     setAppliedTenantId(tenantId);
   };
 
+  const handleSettings = () => {
+    navigate('../schedule-server-settings');
+  };
+
   const handleScheduleControl = (action: string) => {
     toast.info(`${action} 기능은 준비 중입니다.`);
   };
 
   const handleAdd = () => {
-    toast.info('스케줄 추가 기능은 준비 중입니다.');
+    navigate('../create');
   };
 
   const handleDelete = () => {
@@ -84,7 +90,7 @@ export default function ScheduleManagement() {
   };
 
   const handleDetailClick = (item: ScheduleManagementItem) => {
-    toast.info(`'${item.scheduleName}' 상세 페이지는 준비 중입니다.`);
+    navigate(item.scheduleId);
   };
 
   return (
@@ -109,7 +115,7 @@ export default function ScheduleManagement() {
         <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
           <h2 className="text-base font-semibold text-gray-800 shrink-0">스케줄 목록</h2>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <Button className={SCHEDULE_CONTROL_BUTTON_CLASS} icon={<Settings className="size-4" />} onClick={() => handleScheduleControl('설정')}>
+            <Button className={SCHEDULE_CONTROL_BUTTON_CLASS} icon={<Settings className="size-4" />} onClick={handleSettings}>
               설정
             </Button>
             <Button className={SCHEDULE_CONTROL_BUTTON_CLASS} onClick={() => handleScheduleControl('시작')}>
