@@ -81,7 +81,8 @@ export default function StatDatasetWizard() {
         fieldRole: 'CALC',
         formatterType: COLUMN_FORMAT_TO_FORMATTER[c.columnFormat] ?? 'NUMBER',
         formatterOptions: JSON.stringify({ rowExpression: c.rowExpression, aggExpression: c.aggExpression ?? null, kpiDirection: c.kpiDirection }),
-        isVisible: true,
+        // 계산필드도 일반 컬럼처럼 '사용' 체크 상태(isVisible)를 보존 — 미체크 시 false로 저장
+        isVisible: display?.isVisible ?? true,
         sortOrder: display?.sortOrder ?? regular.length + i,
       };
     });

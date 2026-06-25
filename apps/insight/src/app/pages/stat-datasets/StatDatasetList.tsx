@@ -33,6 +33,17 @@ const FIELD_FORMAT_META: Record<string, { label: string; color: string }> = {
 };
 
 const FIELD_COLUMN_DEFS: ColDef<FieldMetaItem>[] = [
+  {
+    field: 'isVisible',
+    headerName: '사용',
+    maxWidth: 80,
+    cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    cellRenderer: (p: { value?: boolean }) => (
+      <Tag color={p.value === false ? 'default' : 'success'} className="!mr-0">
+        {p.value === false ? '미사용' : '사용'}
+      </Tag>
+    ),
+  },
   { field: 'fieldName', headerName: '필드명', maxWidth: 300, cellClass: 'font-mono' },
   { field: 'displayName', headerName: '표시명', flex: 1 },
   {
@@ -514,6 +525,11 @@ function DatasetDetailPanel({ listItem, onInfoEdit, onFieldEdit, onDelete }: { l
 
   const units: string[] = Array.isArray(listItem.availableUnits) ? listItem.availableUnits : [];
   const fields = detail?.fields ?? [];
+  // 편집화면(WizardStepB)과 동일 정렬 — 사용(isVisible) 컬럼을 sortOrder대로 위에, 미사용은 맨 아래로
+  const sortedFields = [...fields].sort((a, b) => {
+    if (a.isVisible !== b.isVisible) return a.isVisible ? -1 : 1;
+    return a.sortOrder - b.sortOrder;
+  });
   const tags = detail?.tags ?? listItem.tags ?? [];
 
   const calcCount = fields.filter((f) => f.fieldRole === 'CALC').length;
@@ -622,9 +638,10 @@ function DatasetDetailPanel({ listItem, onInfoEdit, onFieldEdit, onDelete }: { l
           <div className="flex-1 min-h-0 bg-white bt-shadow">
             <AgGridReact<FieldMetaItem>
               {...gridOptions}
-              rowData={fields}
+              rowData={sortedFields}
               columnDefs={FIELD_COLUMN_DEFS}
               getRowId={(p) => String(p.data.id ?? p.data.fieldName)}
+              getRowClass={(p) => (p.data?.isVisible === false ? 'opacity-40' : undefined)}
               loading={isLoading}
               pagination={false}
               statusBar={undefined}

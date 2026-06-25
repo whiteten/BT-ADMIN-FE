@@ -109,7 +109,8 @@ function buildFieldRequests(displays: LocalFieldDisplay[], calcs: LocalCalcField
       fieldRole: 'CALC',
       formatterType: COLUMN_FORMAT_TO_FORMATTER[display?.columnFormat ?? c.columnFormat] ?? 'NUMBER',
       formatterOptions: JSON.stringify({ rowExpression: c.rowExpression, aggExpression: c.aggExpression ?? null, kpiDirection: c.kpiDirection }),
-      isVisible: true,
+      // 계산필드도 일반 컬럼처럼 '사용' 체크 상태(isVisible)를 보존 — 미체크 시 false로 저장
+      isVisible: display?.isVisible ?? true,
       sortOrder: display?.sortOrder ?? regular.length + i,
     };
   });
@@ -171,7 +172,8 @@ export default function StatDatasetEdit() {
           displayName: c.displayName,
           fieldType: 'MSR',
           columnFormat: c.columnFormat,
-          isVisible: true,
+          // 저장된 '사용' 상태 복원 — 기존(컬럼 없던 시절) 데이터는 기본 true
+          isVisible: saved?.isVisible ?? true,
           sortOrder: saved?.sortOrder ?? regularDisplays.length + i,
           isCalcField: true,
         };
