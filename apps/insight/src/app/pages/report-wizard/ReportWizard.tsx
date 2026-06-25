@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Divider, Form, Input } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import TagInput from '../../components/TagInput';
 import { REPORT_ICON_LABELS, REPORT_ICON_SVG } from '../../features/report/constants/reportIconConstants';
 import type { ReportIconType } from '../../features/report/types';
-import TagInput from '@/components/custom/TagInput';
 
 const ICON_TYPES: ReportIconType[] = ['agent', 'cti', 'ivr', 'channel', 'system'];
 const MAX_TAGS = 5;
