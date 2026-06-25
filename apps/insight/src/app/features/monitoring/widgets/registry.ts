@@ -138,6 +138,8 @@ const CHANNEL_DETAIL_FIELDS = [
   'SYSTEM_NAME',
   'IR_TYPE',
   'CHNL_NO',
+  // 실제 채널(InitCdr.SLEE_CHNO 매칭 키) — 채널 상세 드로어 진입에 필요. 표시용 CHNL_NO 와 별개.
+  'SLEE_CH',
   // 상태
   'CHNL_STATUS',
   'MEDIA_TYPE',
