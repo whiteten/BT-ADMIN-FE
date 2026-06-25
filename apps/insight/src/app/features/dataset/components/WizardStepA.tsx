@@ -1,8 +1,8 @@
 import { Col, Collapse, Form, Input, Row, Select } from 'antd';
+import TagInput from '../../../components/TagInput';
 import { DOMAIN_LABELS } from '../../report/constants/reportIconConstants';
 import type { DomainCode } from '../../report/types';
 import { useGetDataSourceFields, useGetDataSources, useGetDatasetCandidates } from '../hooks/useDatasetQueries';
-import TagInput from '@/components/custom/TagInput';
 
 const DOMAINS: DomainCode[] = ['IE', 'IC', 'IR'];
 

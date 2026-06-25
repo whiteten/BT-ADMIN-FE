@@ -16,6 +16,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronDown, ChevronUp, Download, Search, Star } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { type AgentSuggestion, suggestAgents } from '../../features/tracking/api/agentSuggestApi';
 import { toSearchRequest } from '../../features/tracking/api/trackingApi';
 import CallJourneySankey from '../../features/tracking/components/CallJourneySankey';
 import CommandPalette from '../../features/tracking/components/CommandPalette';
@@ -63,6 +64,10 @@ export default function TrackingSearch() {
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [rawQuery, setRawQuery] = useState(snapshot.rawQuery);
+  // ─── 상담사 inline autocomplete (cmdk agent:홍 → API → dropdown → 선택 시 agentId 교체) ───
+  const [agentSuggestions, setAgentSuggestions] = useState<AgentSuggestion[]>([]);
+  const [agentDropOpen, setAgentDropOpen] = useState(false);
+  const [agentDropIdx, setAgentDropIdx] = useState(0);
   const [activePreset, setActivePreset] = useState<DateRangePreset>(snapshot.activePreset);
   const [customRange, setCustomRange] = useState<[Dayjs, Dayjs] | null>(snapshot.customRange ? [dayjs(snapshot.customRange.start), dayjs(snapshot.customRange.end)] : null);
 
@@ -103,6 +108,44 @@ export default function TrackingSearch() {
   // DatePicker disabledDate: 종료 < 시작 인 날짜는 선택 자체 차단
   const disabledStartDate = useCallback((current: Dayjs) => !!customRange?.[1] && current.isAfter(customRange[1], 'day'), [customRange]);
   const disabledEndDate = useCallback((current: Dayjs) => !!customRange?.[0] && current.isBefore(customRange[0], 'day'), [customRange]);
+
+  // ─── 상담사 자동완성 — 마지막 토큰이 agent:xxx (xxx 가 숫자 아닌 영문/한글) 이면 200ms 후 lookup ───
+  useEffect(() => {
+    const tokens = rawQuery.trim().split(/\s+/);
+    const last = tokens[tokens.length - 1] || '';
+    const m = /^agent:(.+)$/.exec(last);
+    if (!m) {
+      setAgentSuggestions([]);
+      setAgentDropOpen(false);
+      return;
+    }
+    const val = m[1];
+    // 이미 숫자만이면 (= 사용자가 선택 완료한 agentId) → 자동완성 skip
+    if (/^\d+$/.test(val)) {
+      setAgentSuggestions([]);
+      setAgentDropOpen(false);
+      return;
+    }
+    const t = setTimeout(async () => {
+      const r = await suggestAgents(val, 10);
+      setAgentSuggestions(r);
+      setAgentDropOpen(r.length > 0);
+      setAgentDropIdx(0);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [rawQuery]);
+
+  const acceptAgent = useCallback(
+    (s: AgentSuggestion) => {
+      const tokens = rawQuery.trim().split(/\s+/);
+      if (tokens.length === 0) return;
+      tokens[tokens.length - 1] = `agent:${s.agentId}`;
+      setRawQuery(tokens.join(' ') + ' ');
+      setAgentSuggestions([]);
+      setAgentDropOpen(false);
+    },
+    [rawQuery],
+  );
 
   // rawQuery 에 「기간:XXX」 토큰이 있으면 DatePicker 에 자동 반영 + 토큰 제거 (사용자가 이후 DatePicker 직접 수정 가능)
   useEffect(() => {
@@ -513,31 +556,83 @@ export default function TrackingSearch() {
 
             {/* 검색 입력 (아래) — 직접 타이핑 가능. 팔레트는 Ctrl+M 또는 우측 버튼으로 보조 호출 */}
             <div className="flex items-center gap-2">
-              <Input
-                value={rawQuery
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .map((t) => t.replace(/:/g, '='))
-                  .join(' & ')}
-                onChange={(e) => setRawQuery(e.target.value.replace(/\s*&\s*/g, ' ').replace(/=/g, ':'))}
-                onPressEnter={handleSearchClick}
-                placeholder="UCID, ANI, agent= 등 입력 (Enter 검색, Ctrl+M로 팔레트)"
-                prefix={<Search className="size-4 text-gray-400" />}
-                allowClear
-                suffix={
-                  <button
-                    type="button"
-                    onClick={() => setPaletteOpen(true)}
-                    className="text-[10px] font-mono px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-colors flex-shrink-0"
-                    title="명령어 팔레트 열기 (Ctrl+M) — 자동완성/저장된 쿼리"
-                    aria-label="명령어 팔레트 열기"
-                  >
-                    Ctrl+M
-                  </button>
-                }
-                className="flex-1"
-                style={{ height: 40, fontFamily: rawQuery ? 'monospace' : undefined, fontSize: 12 }}
-              />
+              <div className="relative flex-1">
+                <Input
+                  value={rawQuery
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map((t) => t.replace(/:/g, '='))
+                    .join(' & ')}
+                  onChange={(e) => setRawQuery(e.target.value.replace(/\s*&\s*/g, ' ').replace(/=/g, ':'))}
+                  onKeyDown={(e) => {
+                    // 상담사 자동완성 dropdown 키보드 navigation
+                    if (agentDropOpen && agentSuggestions.length > 0) {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setAgentDropIdx((i) => Math.min(i + 1, agentSuggestions.length - 1));
+                        return;
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setAgentDropIdx((i) => Math.max(i - 1, 0));
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        acceptAgent(agentSuggestions[agentDropIdx]);
+                        return;
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault();
+                        setAgentDropOpen(false);
+                        return;
+                      }
+                    }
+                    if (e.key === 'Enter') handleSearchClick();
+                  }}
+                  placeholder="UCID, ANI, agent= 등 입력 (Enter 검색, Ctrl+M로 팔레트)"
+                  prefix={<Search className="size-4 text-gray-400" />}
+                  allowClear
+                  suffix={
+                    <button
+                      type="button"
+                      onClick={() => setPaletteOpen(true)}
+                      className="text-[10px] font-mono px-1.5 py-0.5 bg-white border border-gray-200 rounded text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 cursor-pointer transition-colors flex-shrink-0"
+                      title="명령어 팔레트 열기 (Ctrl+M) — 자동완성/저장된 쿼리"
+                      aria-label="명령어 팔레트 열기"
+                    >
+                      Ctrl+M
+                    </button>
+                  }
+                  style={{ height: 40, fontFamily: rawQuery ? 'monospace' : undefined, fontSize: 12 }}
+                />
+                {agentDropOpen && agentSuggestions.length > 0 && (
+                  <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-72 overflow-y-auto">
+                    <div className="px-3 py-1.5 text-[10px] text-gray-400 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                      <span>상담사 자동완성 — ↑↓ 이동, Enter 선택, Esc 닫기</span>
+                      <span>{agentSuggestions.length}건</span>
+                    </div>
+                    {agentSuggestions.map((s, idx) => (
+                      <button
+                        key={s.agentId}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          acceptAgent(s);
+                        }}
+                        className={`w-full text-left px-3 py-2 flex items-center gap-2 text-xs border-b border-gray-50 last:border-b-0 ${
+                          idx === agentDropIdx ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className="font-mono text-gray-400 w-[80px] flex-shrink-0">{s.agentId}</span>
+                        <span className="font-medium text-gray-900 w-[100px] truncate">{s.agentName}</span>
+                        <span className="text-gray-500 flex-1 truncate">@{s.agentLoginId}</span>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0">테넌트 {s.tenantId}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <Button type="primary" icon={<Search className="size-3.5" />} onClick={handleSearchClick}>
                 검색
               </Button>

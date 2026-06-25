@@ -4,10 +4,10 @@ import { Button, Popover, Tag, Typography } from 'antd';
 import { Check, Pencil, Plus } from 'lucide-react';
 import { toast } from '@/shared-util';
 import CanvasLayout, { type CanvasLayoutRef } from './CanvasLayout';
+import TagInput from '../../../components/TagInput';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
 import { useUpdateReport } from '../../report/hooks/useReportQueries';
-import TagInput from '@/components/custom/TagInput';
 
 interface ReportEditorCanvasProps {
   reportId: number;
