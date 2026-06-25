@@ -69,6 +69,9 @@ const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssig
 // skillset-master (스킬셋 관리 — SWAT IPR20S5010)
 const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
 
+// agent-schedule (상담사/상담그룹 스케줄 관리 — SWAT IPR20S4010/IPR20S4020 스케줄 탭 통합)
+const AgentScheduleList = React.lazy(() => import('./pages/agent-schedule/AgentScheduleList'));
+
 // device (단말기관리 — SWAT IPR20S2110 + IPR20S2130, 단말모델관리 — IPR20S2120)
 const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
 const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
@@ -247,6 +250,10 @@ export const routes = [
       {
         path: 'skillset-master',
         element: pv('skillset-master', SkillsetMasterList),
+      },
+      {
+        path: 'agent-schedule',
+        element: pv('agent-schedule', AgentScheduleList),
       },
       {
         path: 'device',
