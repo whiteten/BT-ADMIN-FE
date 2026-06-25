@@ -81,6 +81,9 @@ const BsrGroupManage = React.lazy(() => import('./pages/bsr-group/BsrGroupManage
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
 
+// agent-state-log (상담사 상태 로그 보기 — ipron-tracking-agent-journey)
+const AgentStateLog = React.lazy(() => import('./pages/agent-state-log/AgentStateLog'));
+
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('ipron');
 
@@ -286,6 +289,7 @@ export const routes = [
         children: [
           { index: true, element: pv('tracking', TrackingSearch) },
           { path: 'call/:ucid', element: pv('tracking/call/:ucid', CallDetail) },
+          { path: 'agent-state-log', element: pv('tracking/agent-state-log', AgentStateLog) },
         ],
       },
     ],

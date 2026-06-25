@@ -209,6 +209,13 @@ export default function SkillAssignList() {
     mode === 'view' && viewSubMode === 'skillset' ? viewSelectedSkillsetId : null,
   );
 
+  // 모드 ① 단일 상담사 선택 시 — 그 상담사의 배정 스킬셋(priority/skillLevel 포함).
+  // 스킬셋 그리드 정렬(배정 상단) 계산에 사용. 2명+ 선택 / 미선택 시 enabled=false.
+  const singleAgentId = selectedAgentIds.length === 1 ? selectedAgentIds[0] : null;
+  const { data: singleAgentSkillsets = [] } = useGetSkillsetsByAgent(singleAgentId, {
+    queryOptions: { enabled: singleAgentId != null },
+  });
+
   // 모드 ①/② 인라인 배정 목록 — hover 중인 행의 배정 목록(P/L 포함) 팝오버 표시.
   // 다중 선택(일괄 부여/해제) 흐름은 그대로 두고, hover 시 팝오버로 현황 확인.
   const inlineAgentId = mode === 'agent' ? hoverAgentId : null;
@@ -333,6 +340,33 @@ export default function SkillAssignList() {
     }
     return rows;
   }, [skillsetMasters, selectedSkillsetTreeId, lockedTenantId]);
+
+  // 모드 ① 스킬셋 그리드 정렬 — 단일 상담사 선택 시 배정 스킬셋을 상단으로 이동.
+  // 배정 기준: singleAgentSkillsets 에 포함된 skillsetId (priority/skillLevel 어느 쪽이든).
+  // 배정된 항목 안에서는 priority 오름차순(null 은 끝으로), 미배정은 원본 순서 유지.
+  // 단일 선택 아닐 때(0명 / 2명+): filteredSkillsetsByGroup 원본 그대로.
+  const sortedSkillsetsByGroup = useMemo<typeof filteredSkillsetsByGroup>(() => {
+    if (singleAgentId == null || singleAgentSkillsets.length === 0) {
+      return filteredSkillsetsByGroup;
+    }
+    const assignedMap = new Map<number, number | null>(); // skillsetId → priority
+    for (const sa of singleAgentSkillsets) {
+      assignedMap.set(sa.skillsetId, sa.priority ?? null);
+    }
+    const assigned: typeof filteredSkillsetsByGroup = [];
+    const unassigned: typeof filteredSkillsetsByGroup = [];
+    for (const s of filteredSkillsetsByGroup) {
+      if (assignedMap.has(s.skillsetId)) assigned.push(s);
+      else unassigned.push(s);
+    }
+    // 배정된 항목 안에서 priority 오름차순 (null 은 Number.MAX_SAFE_INTEGER 로 치환)
+    assigned.sort((a, b) => {
+      const pa = assignedMap.get(a.skillsetId) ?? Number.MAX_SAFE_INTEGER;
+      const pb = assignedMap.get(b.skillsetId) ?? Number.MAX_SAFE_INTEGER;
+      return pa - pb;
+    });
+    return [...assigned, ...unassigned];
+  }, [filteredSkillsetsByGroup, singleAgentId, singleAgentSkillsets]);
 
   // 보유율 맵 (skillsetId → 보유 인원) — 모드 ①
   const coverageMap = useMemo(() => {
@@ -1074,7 +1108,7 @@ export default function SkillAssignList() {
                   <Panel defaultSize={70} minSize={40} className="min-w-0 min-h-0 ag-theme-quartz">
                     <AgGridReact<SkillsetResponse>
                       ref={skillsetGridRef1}
-                      rowData={filteredSkillsetsByGroup}
+                      rowData={sortedSkillsetsByGroup}
                       columnDefs={skillsetColumnsAg}
                       gridOptions={skillsetGridOptionsAg}
                       rowSelection={skillsetRowSelection}
