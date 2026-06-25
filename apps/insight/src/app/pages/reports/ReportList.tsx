@@ -1,9 +1,10 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Drawer, Input } from 'antd';
-import { ChevronDown, Layers, type LucideIcon, Menu, Plus, Search, Share2, SlidersHorizontal, Tags, User } from 'lucide-react';
+import { ChevronDown, Hash, Layers, type LucideIcon, Menu, Plus, Search, Share2, SlidersHorizontal, Tags, User } from 'lucide-react';
 import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
 import { fuzzyFilter } from '@/shared-util';
+import { isBaseTag } from '../../components/statTag';
 import ReportRow from '../../features/report/components/ReportRow';
 import { useGetReports } from '../../features/report/hooks/useReportQueries';
 import type { ReportListItem } from '../../features/report/types';
@@ -174,18 +175,20 @@ export default function ReportList() {
               <div className="py-1 text-[11px] text-gray-400">등록된 태그가 없습니다.</div>
             ) : (
               <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-auto">
-                {sortedTags.map(([t, c]) => {
+                {sortedTags.map(([t]) => {
                   const on = selectedTags.has(t);
+                  const base = isBaseTag(t);
                   return (
                     <button
                       key={t}
                       type="button"
                       onClick={() => toggleTag(t)}
-                      className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
+                      className={`inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs transition ${
                         on ? 'border-transparent bg-[var(--color-bt-primary)] text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                       }`}
                     >
-                      {t} <span className="opacity-60">{c}</span>
+                      {base && <Hash size={11} strokeWidth={2.75} className={on ? 'text-white' : 'text-[var(--color-bt-primary)]'} />}
+                      {t}
                     </button>
                   );
                 })}
