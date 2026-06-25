@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DatePicker, Select, TimePicker } from 'antd';
 import dayjs from 'dayjs';
-import { AlertCircle, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, FileText, GitBranch, Search } from 'lucide-react';
+import { AlertCircle, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, FileText, LayoutList, Search } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetAgentGroupTree, useGetAgentTenants, useGetAgents } from '../../features/agent-master/hooks/useAgentMasterQueries';
@@ -218,7 +218,8 @@ export default function AgentStateLog() {
   }, [selectedAgentId, date, startTime, endTime, fetchLog]);
 
   // ─── 탭 자동 전환 ─────────────────────────────────────────────────────────
-  const hasTimeline = resultState.status === 'ok' && (resultState.data.timeline?.spans?.length ?? 0) > 0;
+  // spans 또는 markers 중 하나라도 있으면 이벤트 테이블 렌더 가능
+  const hasTimeline = resultState.status === 'ok' && ((resultState.data.timeline?.spans?.length ?? 0) > 0 || (resultState.data.timeline?.markers?.length ?? 0) > 0);
   const hasRaw = resultState.status === 'ok' && (resultState.data.lines?.length ?? 0) > 0;
 
   useEffect(() => {
@@ -244,74 +245,78 @@ export default function AgentStateLog() {
     <div className="flex flex-col gap-3 p-4 h-full">
       {/* ── 테넌트 카드 슬라이더 ─────────────────────────────────────────── */}
       <div className="rounded-md border border-slate-200 bg-white shadow-sm flex-shrink-0">
-        {/* 축소(pill) 모드 */}
+        {/* 축소(pill) 모드 — skill-assign 표준 패턴과 동일 */}
         {!cardExpanded && (
-          <div className="flex items-center gap-2 px-3 h-[40px]">
-            <div className="flex items-center gap-1.5 overflow-x-auto flex-1 scrollbar-none">
-              {tenantCards.map((tc) => {
-                const isSelected = tc.tenantId === selectedTenantId;
-                return (
-                  <button
-                    key={tc.tenantId ?? 'all'}
-                    type="button"
-                    onClick={() => handleTenantSelect(tc.tenantId)}
-                    className={`flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-all whitespace-nowrap ${
-                      isSelected ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0]'
-                    }`}
-                  >
-                    {tc.tenantName}
-                  </button>
-                );
-              })}
+          <div className="flex items-center h-[44px] px-4">
+            <div className="relative flex items-center gap-2 w-full">
+              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {tenantCards.map((tc) => {
+                  const isSelected = tc.tenantId === selectedTenantId;
+                  return (
+                    <button
+                      key={tc.tenantId ?? 'all'}
+                      type="button"
+                      onClick={() => handleTenantSelect(tc.tenantId)}
+                      className={`flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-all whitespace-nowrap ${
+                        isSelected ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0]'
+                      }`}
+                    >
+                      {tc.tenantName}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCardExpanded(true)}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
+                title="카드 펼치기"
+              >
+                <ChevronsDown size={14} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setCardExpanded(true)}
-              className="w-7 h-7 flex-shrink-0 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-              title="카드 펼치기"
-            >
-              <ChevronsDown size={14} />
-            </button>
           </div>
         )}
 
-        {/* 확장(카드) 모드 */}
+        {/* 확장(카드) 모드 — skill-assign 표준 패턴과 동일 */}
         {cardExpanded && (
-          <div className="flex items-center px-3 py-2 gap-2">
-            <button
-              type="button"
-              onClick={() => cardScrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto flex-1 py-1 scrollbar-none">
-              {tenantCards.map((tc) => (
-                <TenantCard
-                  key={tc.tenantId ?? 'all'}
-                  tenantId={tc.tenantId}
-                  tenantName={tc.tenantName}
-                  agentCount={tc.agentCount}
-                  selected={tc.tenantId === selectedTenantId}
-                  onClick={() => handleTenantSelect(tc.tenantId)}
-                />
-              ))}
+          <div className="flex items-center h-[140px] px-4 py-3">
+            <div className="relative flex items-center gap-2 w-full">
+              <button
+                type="button"
+                onClick={() => cardScrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto flex-1 py-2 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {tenantCards.map((tc) => (
+                  <TenantCard
+                    key={tc.tenantId ?? 'all'}
+                    tenantId={tc.tenantId}
+                    tenantName={tc.tenantName}
+                    agentCount={tc.agentCount}
+                    selected={tc.tenantId === selectedTenantId}
+                    onClick={() => handleTenantSelect(tc.tenantId)}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => cardScrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCardExpanded(false)}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
+                title="카드 접기"
+              >
+                <ChevronsUp size={14} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => cardScrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setCardExpanded(false)}
-              className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-              title="카드 접기"
-            >
-              <ChevronsUp size={14} />
-            </button>
           </div>
         )}
       </div>
@@ -455,8 +460,8 @@ export default function AgentStateLog() {
                 activeTab === 'timeline' ? 'border-[#405189] text-[#405189]' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              <GitBranch size={12} />
-              타임라인
+              <LayoutList size={12} />
+              이벤트 목록
             </button>
             <button
               type="button"
@@ -471,8 +476,8 @@ export default function AgentStateLog() {
           </div>
 
           {/* 탭 콘텐츠 */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            {/* 타임라인 탭 */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {/* 이벤트 목록 탭 */}
             {activeTab === 'timeline' && (
               <>
                 {!hasTimeline ? (
