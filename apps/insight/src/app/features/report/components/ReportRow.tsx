@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, type MenuProps, Tag } from 'antd';
@@ -10,6 +11,37 @@ import { Highlight } from '@/components/custom/Highlight';
 import { IconMoreVertical } from '@/components/custom/Icons';
 import { cn } from '@/lib/utils';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+// 한 줄(고정 높이)에 다 못 들어가 다음 줄로 넘어간 태그 개수 계산 — fca BotCard 와 동일 패턴(+N 표기용)
+const useWrappedItemCount = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [wrappedCount, setWrappedCount] = useState(0);
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current || containerRef.current.children.length === 0) {
+        setWrappedCount(0);
+        return;
+      }
+      const children = containerRef.current.children;
+      const firstItemTop = (children[0] as HTMLElement).getBoundingClientRect().top;
+      let count = 0;
+      for (let i = 1; i < children.length; i++) {
+        const itemTop = (children[i] as HTMLElement).getBoundingClientRect().top;
+        if (itemTop > firstItemTop) count++;
+      }
+      setWrappedCount(count);
+    };
+    handleResize();
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  return { containerRef, wrappedCount };
+};
 
 interface ReportRowProps {
   report: ReportListItem;
@@ -28,6 +60,7 @@ export default function ReportRow({ report, query, isMenuRegistered = false }: R
   const modal = useModal();
   const queryClient = useQueryClient();
   const iconType: ReportIconType = report.iconType ?? 'system';
+  const { containerRef: tagsRef, wrappedCount: tagsWrapped } = useWrappedItemCount();
 
   // 수정/삭제: 소유자 본인 또는 시스템 관리자(공유 여부 무관). 공유 토글: 소유자 또는 관리자.
   // 시드/시스템 장표는 소유자가 시스템 계정이라 일반 사용자에겐 자동으로 관리자 전용.
@@ -132,6 +165,7 @@ export default function ReportRow({ report, query, isMenuRegistered = false }: R
   ];
 
   const datasetNames = report.datasetNames ?? [];
+  const tags = report.tags ?? [];
 
   return (
     <div
@@ -157,15 +191,51 @@ export default function ReportRow({ report, query, isMenuRegistered = false }: R
             </Tag>
           )}
         </div>
-        <span className={cn('truncate text-xs', report.description ? 'text-[var(--color-bt-fg-muted)]' : 'italic text-gray-300')}>{report.description || '설명 없음'}</span>
-        {/* 칩 영역은 항상 고정 높이로 예약 — 칩 유무에 따른 행 높이 들쭉날쭉 방지 */}
+        {/* 데이터셋 칩 — 어떤 데이터셋을 쓰는지. 고정 높이로 행 높이 안정화 */}
         <div className="mt-0.5 flex h-[18px] items-center gap-1 overflow-hidden">
-          {datasetNames.slice(0, 3).map((name) => (
-            <span key={name} className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]">
-              {name}
-            </span>
-          ))}
-          {datasetNames.length > 3 && <span className="shrink-0 text-[11px] text-[var(--color-bt-fg-muted)]">외 {datasetNames.length - 3}</span>}
+          {datasetNames.length > 0 ? (
+            <>
+              {datasetNames.slice(0, 2).map((name) => (
+                <span
+                  key={name}
+                  className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]"
+                >
+                  {name}
+                </span>
+              ))}
+              {datasetNames.length > 2 && <span className="shrink-0 text-[11px] text-[var(--color-bt-fg-muted)]">외 {datasetNames.length - 2}</span>}
+            </>
+          ) : (
+            <span className="text-[11px] italic text-gray-300">데이터셋 없음</span>
+          )}
+        </div>
+        {/* 태그 칩 — 한 줄 고정. 넘치는 태그는 숨기고 +N 으로 표기(fca BotCard 패턴) */}
+        <div className="mt-0.5 flex items-center gap-1">
+          {tags.length > 0 ? (
+            <>
+              {/* 한 줄(h-[18px]) 고정 + overflow-hidden → 둘째 줄로 넘친 칩은 숨김, ResizeObserver 가 그 수를 셈 */}
+              <div ref={tagsRef} className="flex h-[18px] min-w-0 flex-1 flex-wrap gap-1 overflow-hidden">
+                {tags.map((t) => (
+                  <span
+                    key={`tag-${t}`}
+                    className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#dbe7f5] bg-[#eef5fc] px-1.5 text-[11px] text-[var(--color-bt-primary)]"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              {tagsWrapped > 0 && (
+                <span
+                  title={tags.join(', ')}
+                  className="inline-flex h-[18px] shrink-0 items-center rounded-full border border-[#dbe7f5] bg-[#eef5fc] px-1.5 text-[11px] font-medium text-[var(--color-bt-primary)]"
+                >
+                  +{tagsWrapped}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[11px] italic text-gray-300">태그 없음</span>
+          )}
         </div>
       </div>
 

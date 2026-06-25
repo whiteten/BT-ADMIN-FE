@@ -2,6 +2,7 @@ import { Col, Collapse, Form, Input, Row, Select } from 'antd';
 import { DOMAIN_LABELS } from '../../report/constants/reportIconConstants';
 import type { DomainCode } from '../../report/types';
 import { useGetDataSourceFields, useGetDataSources, useGetDatasetCandidates } from '../hooks/useDatasetQueries';
+import TagInput from '@/components/custom/TagInput';
 
 const DOMAINS: DomainCode[] = ['IE', 'IC', 'IR'];
 
@@ -99,16 +100,8 @@ export default function WizardStepA({
         {onTagsChange && (
           <Row gutter={20}>
             <Col span={12}>
-              <Form.Item label="태그" tooltip="분류·검색에 사용됩니다. 카테고리를 대체합니다." extra="Enter 또는 쉼표로 여러 개 추가 — 예) CTI, IVR, PBX, 통합, 상담사">
-                <Select
-                  mode="tags"
-                  value={tags ?? []}
-                  onChange={onTagsChange}
-                  tokenSeparators={[',']}
-                  notFoundContent={null}
-                  placeholder="태그 입력 후 Enter 또는 쉼표"
-                  style={{ width: '100%' }}
-                />
+              <Form.Item label="태그" tooltip="분류·검색에 사용됩니다. 카테고리를 대체합니다." extra="Enter 또는 쉼표로 여러 개 추가 — 최대 5개 (예: CTI, IVR, PBX, 통합, 상담사)">
+                <TagInput value={tags ?? []} onChange={onTagsChange} maxTags={5} />
               </Form.Item>
             </Col>
           </Row>

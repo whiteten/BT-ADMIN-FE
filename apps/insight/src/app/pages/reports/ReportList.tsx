@@ -1,7 +1,7 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Input } from 'antd';
-import { Layers, type LucideIcon, Menu, Plus, Search, Share2, User } from 'lucide-react';
+import { type BreadcrumbProps, Button, Drawer, Input } from 'antd';
+import { ChevronDown, Layers, type LucideIcon, Menu, Plus, Search, Share2, SlidersHorizontal, Tags, User } from 'lucide-react';
 import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
 import { fuzzyFilter } from '@/shared-util';
 import ReportRow from '../../features/report/components/ReportRow';
@@ -17,9 +17,6 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '통계', path: '/insight/statistics' },
   { title: '보고서 관리', path: '/insight/statistics/reports' },
 ];
-
-// 목록 본문 칸(컬럼) 수 — 행을 이만큼 균등 분산(round-robin)
-const LIST_COLS = 3;
 
 const OWNERSHIP_OPTIONS: { value: OwnershipFilter; label: string; icon: LucideIcon }[] = [
   { value: 'ALL', label: '전체', icon: Layers },
@@ -55,6 +52,10 @@ export default function ReportList() {
 
   const [ownership, setOwnership] = useState<OwnershipFilter>('ALL');
   const [searchValue, setSearchValue] = useState('');
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [filterOpen, setFilterOpen] = useState(false);
+  // 좁은 화면(레일 숨김) 전용 필터 드로어
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -71,14 +72,45 @@ export default function ReportList() {
   const myUserId = useAuthStore((s) => s.userInfo?.userId);
   const isMine = (r: ReportListItem) => myUserId != null && String(r.ownerUserId) === String(myUserId);
 
-  // 1) 가시성 + 검색 적용 (소유 미적용) — 범위 탭 건수 기준.
-  // 검색은 통합검색/메뉴검색과 동일한 fuzzy 매칭(초성·자모 지원). 제목 + 데이터셋명 통합 대상.
+  // 태그 집계 (빈도 내림차순) — 가시 범위(내 것/메뉴/공유) 기준
+  const sortedTags = useMemo(() => {
+    const counts: Record<string, number> = {};
+    reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem).forEach((r) => (r.tags ?? []).forEach((t) => (counts[t] = (counts[t] ?? 0) + 1)));
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports, registeredReportIds, myUserId]);
+
+  // 등록된 태그가 있으면 필터를 최초 1회 자동 펼침 (이후 수동 토글 존중)
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!autoOpenedRef.current && sortedTags.length > 0) {
+      autoOpenedRef.current = true;
+      setFilterOpen(true);
+    }
+  }, [sortedTags]);
+
+  const toggleTag = (t: string) =>
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      next.has(t) ? next.delete(t) : next.add(t);
+      return next;
+    });
+
+  // 1) 가시성 + 태그 + 검색 적용 (소유 미적용) — 범위 탭 건수 기준.
+  // 검색은 통합검색/메뉴검색과 동일한 fuzzy 매칭(초성·자모 지원). 제목 + 데이터셋명 + 태그 통합 대상.
   const visibleBase = useMemo(() => {
     // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표만 노출
-    const visible = reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem);
-    return fuzzyFilter(searchValue, visible, (r) => `${r.title} ${(r.datasetNames ?? []).join(' ')}`);
+    let visible = reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem);
+    // 태그 필터 (AND) — 선택 태그를 모두 가진 보고서만
+    if (selectedTags.size) {
+      visible = visible.filter((r) => {
+        const tags = r.tags ?? [];
+        return [...selectedTags].every((t) => tags.includes(t));
+      });
+    }
+    return fuzzyFilter(searchValue, visible, (r) => `${r.title} ${(r.datasetNames ?? []).join(' ')} ${(r.tags ?? []).join(' ')}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, searchValue, registeredReportIds, myUserId]);
+  }, [reports, searchValue, registeredReportIds, myUserId, selectedTags]);
 
   // 범위(소유) 탭별 건수 (검색 반영)
   const ownCounts = useMemo<Record<OwnershipFilter, number>>(() => {
@@ -107,12 +139,96 @@ export default function ReportList() {
 
   const handleNew = () => navigate('/insight/statistics/reports/new');
 
+  // 활성 필터 수 — 좁은 화면 '필터' 버튼 뱃지
+  const activeFilterCount = selectedTags.size + (ownership !== 'ALL' ? 1 : 0);
+
+  // 필터 본문(태그 + 범위) — 넓은 화면 레일 / 좁은 화면 드로어 공용
+  const renderFilters = () => (
+    <div className="flex flex-1 flex-col gap-4 overflow-auto min-h-0">
+      {/* 태그 필터 (접이식) */}
+      <div className="rounded-md bg-gray-50">
+        <button type="button" className="flex w-full items-center justify-between px-2.5 py-2 select-none" onClick={() => setFilterOpen((v) => !v)}>
+          <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-gray-600">
+            <Tags className="size-3.5" />
+            태그 필터
+            {selectedTags.size > 0 && <span className="ml-1 rounded-full bg-[var(--color-bt-primary)] px-1.5 text-[10px] font-bold text-white">{selectedTags.size}</span>}
+          </span>
+          <span className="flex items-center gap-2">
+            {selectedTags.size > 0 && (
+              <span
+                className="text-xs text-[var(--color-bt-primary)] hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedTags(new Set());
+                }}
+              >
+                초기화
+              </span>
+            )}
+            <ChevronDown className={`size-4 text-gray-400 transition-transform ${filterOpen ? '' : '-rotate-90'}`} />
+          </span>
+        </button>
+        {filterOpen && (
+          <div className="px-2.5 pb-2.5">
+            {sortedTags.length === 0 ? (
+              <div className="py-1 text-[11px] text-gray-400">등록된 태그가 없습니다.</div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-auto">
+                {sortedTags.map(([t, c]) => {
+                  const on = selectedTags.has(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => toggleTag(t)}
+                      className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
+                        on ? 'border-transparent bg-[var(--color-bt-primary)] text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      {t} <span className="opacity-60">{c}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">범위</div>
+        <div className="flex flex-col gap-0.5">
+          {OWNERSHIP_OPTIONS.map((opt) => (
+            <RailButton key={opt.value} active={ownership === opt.value} icon={opt.icon} label={opt.label} count={ownCounts[opt.value]} onClick={() => setOwnership(opt.value)} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4 w-full h-full">
+      {/* 좁은 화면 전용 상단 툴바 — 레일 숨김 시 검색 + 필터(드로어) + 추가 */}
+      <div className="flex lg:hidden items-center gap-2 w-full bg-white bt-shadow px-4 py-3">
+        <Input
+          allowClear
+          prefix={<Search className="size-4 text-gray-400" />}
+          placeholder="보고서 검색"
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          className="flex-1"
+        />
+        <Button icon={<SlidersHorizontal className="size-4" />} onClick={() => setFilterDrawerOpen(true)}>
+          필터
+          {activeFilterCount > 0 && <span className="ml-1 rounded-full bg-[var(--color-bt-primary)] px-1.5 text-[10px] font-bold text-white">{activeFilterCount}</span>}
+        </Button>
+        <Button type="primary" icon={<Plus className="size-4" />} onClick={handleNew} />
+      </div>
+
       {/* datasets 페이지와 동일한 2분할: 좌측 검색+필터 레일 박스 / 우측 목록 박스 */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 필터 레일 (트리 자리) */}
-        <div className="flex w-[340px] shrink-0 flex-col gap-3 bg-white bt-shadow p-4 min-h-0">
+        {/* 좌측: 검색 + 필터 레일 — 넓은 화면(lg+)만 표시 */}
+        <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-3 bg-white bt-shadow p-4 min-h-0">
           <div className="flex items-center gap-2">
             <Input
               allowClear
@@ -129,27 +245,10 @@ export default function ReportList() {
 
           <div className="border-t border-gray-200" />
 
-          {/* 필터 레일 — 범위(소유) */}
-          <div className="flex flex-1 flex-col gap-4 overflow-auto min-h-0">
-            <div>
-              <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">범위</div>
-              <div className="flex flex-col gap-0.5">
-                {OWNERSHIP_OPTIONS.map((opt) => (
-                  <RailButton
-                    key={opt.value}
-                    active={ownership === opt.value}
-                    icon={opt.icon}
-                    label={opt.label}
-                    count={ownCounts[opt.value]}
-                    onClick={() => setOwnership(opt.value)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+          {renderFilters()}
         </div>
 
-        {/* 우측: 보고서 목록 — 뒷 배경 박스 없이 패널이 페이지 배경 위에 바로(FCA bot list 패턴) */}
+        {/* 우측: 보고서 목록 — 카드 그리드(반응형 auto-fill, 폭 줄면 1열까지) */}
         <div className="flex flex-1 min-w-0 min-h-0 flex-col">
           {isFetching ? (
             <div className="flex h-full w-full items-center justify-center bg-white bt-shadow">
@@ -157,10 +256,14 @@ export default function ReportList() {
             </div>
           ) : ownFiltered.length === 0 ? (
             <div className="flex h-full w-full items-center justify-center bg-white bt-shadow">
-              <NoData message={searchValue ? `"${searchValue}" 검색 결과 없음` : '조회된 데이터가 없습니다.'} iconSize={50} fontSize="text-lg" gap={2} />
+              <NoData
+                message={searchValue ? `"${searchValue}" 검색 결과 없음` : activeFilterCount ? '필터 결과 없음' : '조회된 데이터가 없습니다.'}
+                iconSize={50}
+                fontSize="text-lg"
+                gap={2}
+              />
             </div>
           ) : (
-            // 단일 패널 — 상단에 범위 명칭(전체/선택 범위), 본문은 LIST_COLS 칸으로 균등 분산
             <div className="flex flex-1 flex-col overflow-auto">
               <div className="flex min-w-0 flex-1 flex-col rounded-lg border border-[#e9ebec] bg-white">
                 {/* 범위 헤더 (sticky) */}
@@ -168,13 +271,11 @@ export default function ReportList() {
                   <span className="text-[13px] font-semibold">{rangeLabel}</span>
                   <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">{ownFiltered.length}</span>
                 </div>
-                {/* 본문 — LIST_COLS 칸 분할 (round-robin) */}
-                <div className="grid flex-1" style={{ gridTemplateColumns: `repeat(${LIST_COLS}, minmax(0, 1fr))` }}>
-                  {Array.from({ length: LIST_COLS }, (_, i) => ownFiltered.filter((_, idx) => idx % LIST_COLS === i)).map((sub, i) => (
-                    <div key={i} className={cn('flex min-w-0 flex-col', i < LIST_COLS - 1 && 'border-r border-[#e9ebec]')}>
-                      {sub.map((report) => (
-                        <ReportRow key={report.reportId} report={report} query={searchValue} isMenuRegistered={registeredReportIds.has(report.reportId)} />
-                      ))}
+                {/* 본문 — 반응형 카드 그리드 (auto-fill: 폭에 따라 다열→1열) */}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
+                  {ownFiltered.map((report) => (
+                    <div key={report.reportId} className="min-w-0 border-r border-[#e9ebec]">
+                      <ReportRow report={report} query={searchValue} isMenuRegistered={registeredReportIds.has(report.reportId)} />
                     </div>
                   ))}
                 </div>
@@ -183,6 +284,11 @@ export default function ReportList() {
           )}
         </div>
       </div>
+
+      {/* 좁은 화면 전용 필터 드로어 */}
+      <Drawer title="필터" placement="left" width={320} open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} styles={{ body: { padding: 16 } }}>
+        {renderFilters()}
+      </Drawer>
     </div>
   );
 }
