@@ -248,6 +248,10 @@ function InfoCell({ icon, label, value, mono }: { icon: React.ReactNode; label: 
 
 /** STT 결과 한 문장 — 카카오톡 풍 좌우 버블. rxtxKind: 1=고객(좌), 2=상담원(우), 9=통합(중앙).
  *  active=true 시 오디오 재생 위치와 매칭된 발화로 강조 + 외부에서 scrollIntoView 호출되는 ref 등록.
+ *
+ *  ※ 화자 라벨 반전 표시 — rxtxKind 데이터는 그대로 두고 화면 표기만 swap.
+ *    SWAT 환경에서 rxtxKind 가 실제 의미와 반대로 적재되는 사이트가 있어 표기 보정.
+ *    rxtx=1 → 화면상 상담원(우), rxtx=2 → 화면상 고객(좌).
  */
 function SttDialogBubble({
   sentence,
@@ -259,7 +263,8 @@ function SttDialogBubble({
   registerRef?: (el: HTMLDivElement | null) => void;
 }) {
   const rxtx = String(sentence.rxtxKind);
-  const isCustomer = rxtx === '1';
+  // 반전: rxtx=2 (원본 상담원) 를 화면상 고객으로 표기 (데이터 변경 X, 표기만 swap)
+  const isCustomer = rxtx === '2';
   const isCenter = rxtx === '9';
   const totalSec = Math.floor(sentence.armsoffset / 1000);
   const m = Math.floor(totalSec / 60);

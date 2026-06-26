@@ -5,9 +5,10 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Input, Popover, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, Plus, Search, SquarePen, TableProperties, Tags, Trash2, X } from 'lucide-react';
+import { ChevronDown, Hash, Plus, Search, SquarePen, TableProperties, Tags, Trash2, X } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { BaseTagChip, isBaseTag } from '../../components/statTag';
 import { datasetKeys, useDeleteDataset, useGetDataset, useGetDatasets, useSetDatasetSystemFlag, useUpdateDataset } from '../../features/dataset/hooks/useDatasetQueries';
 import type { DatasetListItem, FieldMetaItem } from '../../features/dataset/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -246,18 +247,20 @@ export default function StatDatasetList() {
                   <div className="py-1 text-[11px] text-gray-400">등록된 태그가 없습니다.</div>
                 ) : (
                   <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-auto">
-                    {sortedTags.map(([t, c]) => {
+                    {sortedTags.map(([t]) => {
                       const on = selectedTags.has(t);
+                      const base = isBaseTag(t);
                       return (
                         <button
                           key={t}
                           type="button"
                           onClick={() => toggleTag(t)}
-                          className={`rounded-full border px-2.5 py-0.5 text-xs transition ${
+                          className={`inline-flex items-center gap-0.5 rounded-full border px-2.5 py-0.5 text-xs transition ${
                             on ? 'border-transparent bg-[var(--color-bt-primary)] text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
                           }`}
                         >
-                          {t} <span className="opacity-60">{c}</span>
+                          {base && <Hash size={11} strokeWidth={2.75} className={on ? 'text-white' : 'text-[var(--color-bt-primary)]'} />}
+                          {t}
                         </button>
                       );
                     })}
@@ -374,18 +377,22 @@ export default function StatDatasetList() {
                       {/* 태그 필터링 중일 때만 태그 행 노출 (선택 태그 우선 정렬) */}
                       {isFiltering && (d.tags?.length ?? 0) > 0 && (
                         <div className="flex flex-wrap gap-1 overflow-hidden" style={{ maxHeight: 22 }}>
-                          {orderTags(d.tags ?? []).map((t) => (
-                            <span
-                              key={t}
-                              className={`shrink-0 rounded border px-1.5 leading-5 text-[10px] ${
-                                selectedTags.has(t)
-                                  ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]'
-                                  : 'border-gray-200 bg-gray-50 text-gray-500'
-                              }`}
-                            >
-                              {t}
-                            </span>
-                          ))}
+                          {orderTags(d.tags ?? []).map((t) =>
+                            isBaseTag(t) ? (
+                              <BaseTagChip key={t} tag={t} />
+                            ) : (
+                              <span
+                                key={t}
+                                className={`shrink-0 rounded border px-1.5 leading-5 text-[10px] ${
+                                  selectedTags.has(t)
+                                    ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)] text-[var(--color-bt-primary)]'
+                                    : 'border-gray-200 bg-gray-50 text-gray-500'
+                                }`}
+                              >
+                                {t}
+                              </span>
+                            ),
+                          )}
                         </div>
                       )}
                     </div>
@@ -622,7 +629,11 @@ function DatasetDetailPanel({ listItem, onInfoEdit, onFieldEdit, onDelete }: { l
             <Tags className="size-3.5" />
             태그
           </div>
-          {tags.length ? <div className="flex flex-wrap gap-1.5">{tags.map((t) => grayChip(t))}</div> : <span className="text-sm text-gray-400">등록된 태그 없음</span>}
+          {tags.length ? (
+            <div className="flex flex-wrap items-center gap-1.5">{tags.map((t) => (isBaseTag(t) ? <BaseTagChip key={t} tag={t} /> : grayChip(t)))}</div>
+          ) : (
+            <span className="text-sm text-gray-400">등록된 태그 없음</span>
+          )}
         </div>
 
         {/* 필드 구성 */}

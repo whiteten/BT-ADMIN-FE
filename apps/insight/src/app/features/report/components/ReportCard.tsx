@@ -5,6 +5,7 @@ import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { BaseTagChip, isBaseTag } from '../../../components/statTag';
 import { REPORT_ICON_SVG } from '../constants/reportIconConstants';
 import { reportKeys, useDeleteReport, useSetReportSystemFlag } from '../hooks/useReportQueries';
 import type { ReportIconType, ReportListItem } from '../types';
@@ -198,11 +199,15 @@ export default function ReportCard({ report, isMenuRegistered = false }: ReportC
             <div className="flex min-w-0 flex-1 items-center gap-1">
               {/* 한 줄 고정 — 넘치는 태그는 overflow로 숨기고 +N으로 표기 */}
               <div ref={tagsRef} className="flex h-[24px] flex-1 flex-wrap gap-1 overflow-hidden">
-                {(report.tags ?? []).map((t) => (
-                  <Tag key={t} color="blue" className="!mr-0">
-                    {t}
-                  </Tag>
-                ))}
+                {(report.tags ?? []).map((t) =>
+                  isBaseTag(t) ? (
+                    <BaseTagChip key={t} tag={t} />
+                  ) : (
+                    <Tag key={t} color="blue" className="!mr-0">
+                      {t}
+                    </Tag>
+                  ),
+                )}
               </div>
               {tagsWrapped > 0 && (
                 <Tag className="!mr-0 shrink-0 !rounded-[12px] !text-[#888B9A]" title={(report.tags ?? []).join(', ')}>

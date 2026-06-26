@@ -51,13 +51,17 @@ function fmtMmss(sec: number): string {
  * AOE 관리 화면(playground)의 동작 입력 형식과 동일:
  * {@code "상담원 00:04 text  고객 00:06 text  ..."} — 한국어 화자 prefix + mm:ss 시각.
  * 이전 영문 prefix({@code [Agent]/[Customer]}) 는 agent prompt 와 안 맞아 빈 응답 반환.
+ *
+ * ※ 화자 라벨 반전 — rxtxKind 데이터는 그대로 두고 prefix 만 swap (STT 사이드바 표기와 동일 규칙).
+ *   rxtx=1 → 상담원, rxtx=2 → 고객. SWAT 환경에서 실제 의미와 반대로 적재되는 사이트 보정용.
  */
 export function buildUserInput(sentences: SttSentence[]): string {
   return sentences
     .map((s) => {
       const text = s.orgSentence || s.sentence || '';
       const rxtx = String(s.rxtxKind);
-      const prefix = rxtx === '1' ? '고객' : rxtx === '2' ? '상담원' : '대화';
+      // 반전: rxtx=1 → 상담원, rxtx=2 → 고객 (사이드바 표기와 동일)
+      const prefix = rxtx === '1' ? '상담원' : rxtx === '2' ? '고객' : '대화';
       const time = fmtMmss(s.armsoffset);
       return `${prefix} ${time} ${text}`;
     })
