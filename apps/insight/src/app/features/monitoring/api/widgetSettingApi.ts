@@ -34,19 +34,19 @@ export interface WidgetUserSettingDetail {
 export const widgetSettingApi = {
   /** 미디어 타입 목록 — 시스템 전역 lookup. */
   getMediaTypes: async (): Promise<MediaTypeItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: MediaTypeItem[] }>>('/media-type-list');
+    const response = await apiClient.get<ApiResponse<{ items: MediaTypeItem[] }>>('/insight-monitoring-media-type-list');
     return response.data?.data?.items ?? [];
   },
 
   /** 상담사 이석 사유 코드 목록 — 현재 테넌트 컨텍스트 스코프. */
   getAgentReasonCodes: async (): Promise<AgentReasonCodeItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: AgentReasonCodeItem[] }>>('/agent-reason-code-list');
+    const response = await apiClient.get<ApiResponse<{ items: AgentReasonCodeItem[] }>>('/insight-monitoring-agent-reason-code-list');
     return response.data?.data?.items ?? [];
   },
 
   /** 본인 설정 조회 (저장 안 된 경우 settings = {}). */
   getUserSetting: async (widgetId: number): Promise<WidgetUserSettingDetail> => {
-    const response = await apiClient.get<ApiResponse<WidgetUserSettingDetail>>('/widget-user-setting-get', {
+    const response = await apiClient.get<ApiResponse<WidgetUserSettingDetail>>('/insight-monitoring-widget-user-setting-get', {
       params: { widgetId },
     });
     return response.data?.data;
@@ -54,7 +54,7 @@ export const widgetSettingApi = {
 
   /** 본인 설정 upsert. */
   updateUserSetting: async (widgetId: number, settings: WidgetUserSettings): Promise<WidgetUserSettingDetail> => {
-    const response = await apiClient.put<ApiResponse<WidgetUserSettingDetail>>('/widget-user-setting-update', { settings }, { params: { widgetId } });
+    const response = await apiClient.put<ApiResponse<WidgetUserSettingDetail>>('/insight-monitoring-widget-user-setting-update', { settings }, { params: { widgetId } });
     return response.data?.data;
   },
 };

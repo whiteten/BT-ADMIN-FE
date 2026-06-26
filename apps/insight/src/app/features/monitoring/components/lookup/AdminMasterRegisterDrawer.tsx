@@ -105,7 +105,7 @@ export default function AdminMasterRegisterDrawer({ open, onClose, onRegistered 
       }
       closable={{ placement: 'end' }}
       placement="right"
-      width={520}
+      size={520}
       open={open}
       onClose={handleClose}
       destroyOnHidden

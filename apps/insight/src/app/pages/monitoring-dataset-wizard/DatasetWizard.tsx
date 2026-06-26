@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { sql } from '@codemirror/lang-sql';
-import { xml } from '@codemirror/lang-xml';
 import { DndContext, type DragEndEvent, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -10,14 +9,17 @@ import { CSS } from '@dnd-kit/utilities';
 import CodeMirror, { type Extension } from '@uiw/react-codemirror';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, Col, Divider, Drawer, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip, Upload } from 'antd';
-import { Check, CheckCircle2, Edit2, Play, Plus, Trash2, Upload as UploadIcon, Wand2, X } from 'lucide-react';
+import { type BreadcrumbProps, Button, Checkbox, Col, Divider, Drawer, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
+import { Check, CheckCircle2, Edit2, Play, Plus, Trash2, Wand2, X } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SourceValidationResultModal, { type SourceValidationResultModalRef } from './SourceValidationResultModal';
+import type { RedisKeySchema } from '../../features/monitoring/api/redisTreeApi';
 import CalcFieldEditor from '../../features/monitoring/components/calcfield/CalcFieldEditor';
+import FieldSchemaList, { type FieldSchemaColumn } from '../../features/monitoring/components/dataset/FieldSchemaList';
+import RedisTreeExplorer from '../../features/monitoring/components/dataset/RedisTreeExplorer';
 import LookupEditDrawer, { type LookupEditDrawerRef } from '../../features/monitoring/components/lookup/LookupEditDrawer';
 import { COLUMN_FORMAT_OPTIONS, DOMAIN_LABELS, DOMAIN_OPTIONS } from '../../features/monitoring/constants/monitoringConstants';
 import {
@@ -28,27 +30,20 @@ import {
   useValidateMonitoringDataset,
   useValidateMonitoringDatasetSource,
 } from '../../features/monitoring/hooks/useDatasetQueries';
-import type { CalcField, ColumnFormat, DatasetBaseType, DatasetCreateDatas, DatasetField, DatasetLookup, DomainCode, FieldDataType } from '../../features/monitoring/types';
+import type {
+  CalcField,
+  ColumnFormat,
+  DatasetBaseType,
+  DatasetCreateDatas,
+  DatasetField,
+  DatasetFieldSource,
+  DatasetLookup,
+  DatasetValueMode,
+  DomainCode,
+  FieldDataType,
+} from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
-
-const SAMPLE_XML = `<DATA_SET ds_name="DS_GROUP_MON"
-          tb_name="TB_RM_IC_GROUPMONITOR"
-          rd_name="IC:GROUP:TENANT:NODE:#MEDIA_TYPE"
-          rd_key_prefix="IC:GROUP:TENANT:NODE:"
-          rd_key_value="MEDIA_TYPE"
-          rd_field="TENANT_ID,NODE_ID,ORG_DNIS"
-          rd_type="info"
-          sqlite="true"
-          process_method="sql"
-          data_reset="false">
-    <COL ds_col="CENTER_ID"      tb_col="CENTER_ID"      rd_col="CENTER_ID"      type="num"    len=10></COL>
-    <COL ds_col="SLEE_TENANT_ID" tb_col="TENANT_ID"      rd_col="TENANT_ID"      type="num"    len=10 fill_zero="yes"></COL>
-    <COL ds_col="NODE_ID"        tb_col="NODE_ID"        rd_col="NODE_ID"        type="num"    len=6  fill_zero="yes"></COL>
-    <COL ds_col="ORG_DNIS"       tb_col="ORG_DNIS"       rd_col="ORG_DNIS"       type="str"    len=50></COL>
-    <COL ds_col="CHNL_BUSY"      tb_col="CHNL_BUSY"      rd_col="CHNL_BUSY"      type="num"    len=10 option="bulk"></COL>
-    <COL ds_col="DB_UPDATE_TIME" tb_col="DB_UPDATE_TIME" rd_col="DB_UPDATE_TIME" type="s_date" len=0></COL>
-</DATA_SET>`;
 
 interface DatasetWizardForm {
   datasetCode: string;
@@ -57,6 +52,7 @@ interface DatasetWizardForm {
   description?: string;
   baseType: DatasetBaseType;
   schemaSnapshot: string;
+  valueMode?: DatasetValueMode; // REDIS 전용 — 검증 시 자동 추정, 사용자 override 가능
   fields: DatasetField[];
   calcFields: CalcField[];
   lookups: DatasetLookup[];
@@ -67,7 +63,7 @@ const initialForm: DatasetWizardForm = {
   datasetName: '',
   domainCode: 'IE',
   description: '',
-  baseType: 'XML',
+  baseType: 'REDIS',
   schemaSnapshot: '',
   fields: [],
   calcFields: [],
@@ -101,69 +97,6 @@ function rebuildFieldsWithVirtuals(currentFields: DatasetField[], lookups: Datas
   );
   return [...baseFields, ...virtualFields];
 }
-
-// 운영 <DATA_SET> XML 정렬 — well-formed가 아닌 운영 cfg(len=10 unquoted)도 그대로 정렬되도록 regex 기반
-const formatXml = (text: string): string => {
-  let xml = text.trim();
-  if (!xml) return xml;
-  // 1. 태그 내부 줄바꿈/연속공백을 단일 공백으로 정리해 한 줄로 모음
-  xml = xml.replace(/<([^>]+)>/g, (_, inner) => `<${inner.replace(/\s+/g, ' ').trim()}>`);
-  // 2. 태그 사이 공백/줄바꿈을 단일 줄바꿈으로
-  xml = xml.replace(/>\s*</g, '>\n<');
-
-  const INDENT = '    ';
-  let depth = 0;
-  return xml
-    .split('\n')
-    .map((raw) => {
-      const line = raw.trim();
-      if (!line) return '';
-      if (line.startsWith('</')) {
-        depth = Math.max(0, depth - 1);
-        return INDENT.repeat(depth) + line;
-      }
-      const isSelfClosing = line.endsWith('/>');
-      const hasInlineClose = /<\/[^>]+>$/.test(line);
-      const isProlog = line.startsWith('<?') || line.startsWith('<!');
-      const indented = INDENT.repeat(depth) + line;
-      if (!isSelfClosing && !hasInlineClose && !isProlog) depth++;
-      return indented;
-    })
-    .filter(Boolean)
-    .join('\n');
-};
-
-// 운영 <DATA_SET> 파싱 — <COL>의 rd_col + type 으로 필드 추출 (ds_col/tb_col/len/fill_zero/option은 버림)
-// 운영 XML은 well-formed가 아니므로(len=10 따옴표 없음) regex 기반 파싱
-const parseXmlCols = (xml: string): DatasetField[] => {
-  // <COL ... /> 또는 <COL ...></COL> 양쪽 형태 매칭
-  const colRegex = /<COL\s+([^>]+?)\s*(?:\/>|><\/COL>)/g;
-  const fields: DatasetField[] = [];
-  let order = 0;
-  let m: RegExpExecArray | null;
-  while ((m = colRegex.exec(xml)) !== null) {
-    const attrs = m[1];
-    const rdCol = attrs.match(/\brd_col\s*=\s*"([^"]+)"/)?.[1];
-    const typeRaw = attrs.match(/\btype\s*=\s*"([^"]+)"/)?.[1];
-    if (!rdCol || !typeRaw) continue;
-
-    // type 매핑: num/float → NUMBER, str → STRING, s_date → DATETIME
-    const dataType: DatasetField['dataType'] = typeRaw === 'num' || typeRaw === 'float' ? 'NUMBER' : typeRaw === 'str' ? 'STRING' : typeRaw === 's_date' ? 'DATETIME' : 'STRING';
-    // columnFormat: float만 Decimal로 구분
-    const columnFormat: ColumnFormat = typeRaw === 'float' ? 'Decimal' : typeRaw === 'num' ? 'Number' : typeRaw === 's_date' ? 'Date' : 'String';
-
-    fields.push({
-      columnName: rdCol,
-      classification: 'DIM', // 모니터링 XML에 DIM/MSR 구분 없음 — 사용자가 Step 3에서 조정
-      displayName: rdCol, // 운영 XML에 label 없음 — 사용자가 Step 3에서 한글명 입력
-      dataType,
-      columnFormat,
-      isVisible: true, // 모니터링 기본 — 모든 컬럼 노출, 사용자가 빼고 싶은 것만 체크 해제
-      orderNo: order++,
-    });
-  }
-  return fields;
-};
 
 // 통계 WizardStepB의 SortableItem 헬퍼 — children에 useSortable 결과를 그대로 넘김
 function SortableItem({ id, children }: { id: string; children: (s: ReturnType<typeof useSortable>) => React.ReactNode }) {
@@ -648,7 +581,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
           <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
             검증 실행
           </Button>
-          <Divider type="vertical" className="mx-0" />
+          <Divider orientation="vertical" className="mx-0" />
           <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={onLookupAdd}>
             룩업 추가
           </Button>
@@ -730,6 +663,10 @@ export default function DatasetWizard() {
   // schemaSnapshot/baseType이 바뀌면 자동으로 false로 리셋
   // 편집 모드에서 첫 로드 시점에는 기존 schemaSnapshot이 이미 한 번 검증된 상태이므로 true로 시작
   const [sourceValidated, setSourceValidated] = useState(false);
+  // QUERY 검증 결과 컬럼(필드명/타입/코멘트) — 우측 필드 스키마 패널 표시용
+  const [queryColumns, setQueryColumns] = useState<FieldSchemaColumn[]>([]);
+  // 사용자가 직접 소스(REDIS 키 등)를 골랐는지 — 편집 첫 로드 시 자동 채움이 기존 필드를 덮지 않게 가드
+  const keyUserPickedRef = useRef(false);
   // 검증 결과 모달 — 실패·경고 시에만 노출 (통과+경고없음은 토스트만)
   const validationModalRef = useRef<SourceValidationResultModalRef>(null);
 
@@ -746,6 +683,7 @@ export default function DatasetWizard() {
         description: detail.description ?? '',
         baseType: detail.baseType,
         schemaSnapshot: detail.schemaSnapshot,
+        valueMode: detail.valueMode,
         fields: detail.fields,
         calcFields: detail.calcFields,
         lookups: detail.lookups ?? [],
@@ -807,36 +745,48 @@ export default function DatasetWizard() {
     },
   });
 
-  // 스키마 변경 — XML이면 필드 자동 추출, SQL이면 필드는 사용자가 직접 입력(Phase 1)
-  // 스키마가 바뀌면 검증 상태 무효화 (재검증 강제)
+  // 소스 변경 — REDIS=키 패턴 / QUERY=SQL. 컬럼은 "데이터 소스 검증"으로 채운다.
+  // 소스가 바뀌면 검증 상태 무효화 (재검증 강제)
   const handleSchemaChange = (text: string) => {
-    const baseType = form.getFieldValue('baseType') as DatasetBaseType;
-    if (baseType === 'XML') {
-      form.setFieldsValue({ schemaSnapshot: text, fields: parseXmlCols(text) });
-    } else {
-      form.setFieldsValue({ schemaSnapshot: text });
+    form.setFieldsValue({ schemaSnapshot: text });
+    setSourceValidated(false);
+    setQueryColumns([]); // 소스 변경 → 이전 검증 컬럼 무효화
+    keyUserPickedRef.current = true; // 사용자가 직접 소스를 바꿈 → REDIS 스키마 자동 채움 허용
+  };
+
+  // REDIS 키 선택 → 스키마 로드 시 데이터셋 필드/값모드 자동 채움 (검증 버튼 대체).
+  // 편집 첫 로드처럼 사용자가 직접 고르지 않은 경우엔 기존 저장 필드를 덮지 않는다.
+  const handleRedisSchemaLoaded = (schema: RedisKeySchema) => {
+    if (!keyUserPickedRef.current) return;
+    if (schema.valueMode) form.setFieldsValue({ valueMode: schema.valueMode });
+    if (schema.columns.length > 0) {
+      const fields: DatasetField[] = schema.columns.map((c, idx) => ({
+        columnName: c.columnName,
+        displayName: c.columnName,
+        // HASH_FIELD(지표명=값) → MSR, 그 외(JSON) → DIM
+        classification: c.source === 'HASH_FIELD' ? 'MSR' : 'DIM',
+        dataType: c.dataType as FieldDataType,
+        columnFormat: c.columnFormat as ColumnFormat,
+        isVisible: true,
+        orderNo: idx,
+        source: (c.source ?? undefined) as DatasetFieldSource | undefined,
+      }));
+      form.setFieldsValue({ fields });
+      setSourceValidated(true);
     }
-    setSourceValidated(false);
   };
 
-  const handleLoadSampleXml = () => {
-    form.setFieldsValue({ schemaSnapshot: SAMPLE_XML, fields: parseXmlCols(SAMPLE_XML) });
-    setSourceValidated(false);
-    toast.success('샘플 XML이 로드되었습니다.');
-  };
-
-  // 정렬 — XML/SQL 양쪽 모두 지원. 성공 시 토스트 없이 조용히 적용. 정렬은 스키마 변경이므로 검증 상태 무효화
+  // QUERY 전용 — SQL 정렬. (REDIS/EXTERNAL은 정렬 버튼 미노출). 정렬은 소스 변경이므로 검증 상태 무효화
   const handleFormatSource = () => {
-    const baseType = form.getFieldValue('baseType') as DatasetBaseType;
     const current = ((form.getFieldValue('schemaSnapshot') as string) ?? '').trim();
     if (!current) return;
     try {
-      const formatted = baseType === 'SQL' ? formatSql(current, { language: 'plsql', keywordCase: 'upper', tabWidth: 2 }) : formatXml(current);
+      const formatted = formatSql(current, { language: 'plsql', keywordCase: 'upper', tabWidth: 2 });
       form.setFieldsValue({ schemaSnapshot: formatted });
       setSourceValidated(false);
     } catch (e) {
       Log.warn('format failed', e);
-      toast.error(`${baseType} 정렬 실패 — 구문을 확인하세요.`);
+      toast.error('SQL 정렬 실패 — 구문을 확인하세요.');
     }
   };
 
@@ -847,6 +797,7 @@ export default function DatasetWizard() {
     if (current === next) return;
     form.setFieldsValue({ baseType: next, schemaSnapshot: '', fields: [] });
     setSourceValidated(false);
+    setQueryColumns([]);
   };
 
   // 데이터 소스 검증 mutation — BE 호출 결과로 sourceValidated 결정 + SQL 베이스는 detectedColumns로 fields 자동 세팅
@@ -856,16 +807,24 @@ export default function DatasetWizard() {
         const baseType = form.getFieldValue('baseType') as DatasetBaseType;
         if (result.ok) {
           setSourceValidated(true);
-          // SQL dry-run으로 추출된 컬럼이 있으면 fields에 자동 세팅 (XML은 클라이언트 측 parseXmlCols로 이미 채움)
-          if (baseType === 'SQL' && result.detectedColumns && result.detectedColumns.length > 0) {
+          // QUERY 우측 필드 스키마 패널용 — 감지된 컬럼(코멘트 포함) 보관
+          setQueryColumns(result.detectedColumns ?? []);
+          // REDIS 검증 시 자동 추정한 값 모드 반영 (사용자가 Step2에서 override 가능)
+          if (result.valueMode) {
+            form.setFieldsValue({ valueMode: result.valueMode });
+          }
+          // 검증 dry-run/probe로 추출된 컬럼이 있으면 fields에 자동 세팅 (REDIS/QUERY 공통)
+          if (baseType !== 'EXTERNAL' && result.detectedColumns && result.detectedColumns.length > 0) {
             const fields: DatasetField[] = result.detectedColumns.map((c, idx) => ({
               columnName: c.columnName,
               displayName: c.columnName,
-              classification: 'DIM',
+              // HASH_FIELD(지표명=값) → MSR, 그 외(JSON/KEY_SEGMENT) → DIM
+              classification: c.source === 'HASH_FIELD' ? 'MSR' : 'DIM',
               dataType: c.dataType as FieldDataType,
               columnFormat: c.columnFormat as ColumnFormat,
               isVisible: true, // 모니터링 기본 — 모든 컬럼 노출
               orderNo: idx,
+              source: c.source as DatasetFieldSource | undefined,
             }));
             form.setFieldsValue({ fields });
           }
@@ -997,14 +956,24 @@ export default function DatasetWizard() {
       // Step 2 → 3 전환: BE 검증 통과 강제 + 베이스별 필드 추출 확인
       if (currentStep === 1) {
         if (!sourceValidated) {
-          toast.warning('먼저 "데이터 소스 검증" 버튼을 눌러 검증을 통과해야 다음 단계로 진행할 수 있습니다.', { position: 'bottom-right' });
+          const bt = form.getFieldValue('baseType') as DatasetBaseType;
+          toast.warning(
+            bt === 'REDIS'
+              ? 'Redis 키를 선택해 주세요. (선택하면 필드가 자동으로 채워집니다)'
+              : '먼저 "데이터 소스 검증" 버튼을 눌러 검증을 통과해야 다음 단계로 진행할 수 있습니다.',
+            { position: 'bottom-right' },
+          );
           return;
         }
         const fields = (form.getFieldValue('fields') as DatasetField[]) ?? [];
         const baseType = form.getFieldValue('baseType') as DatasetBaseType;
+        if (baseType === 'EXTERNAL') {
+          toast.error('외부 API 연동은 아직 지원되지 않습니다. (고도화 시 제공)');
+          return;
+        }
         if (fields.length === 0) {
           toast.error(
-            baseType === 'XML' ? 'XML에서 <COL>을 추출하지 못했습니다. rd_col/type 속성을 확인하세요.' : 'SQL dry-run에서 컬럼을 추출하지 못했습니다. SELECT 절을 확인하세요.',
+            baseType === 'REDIS' ? 'Redis 키에서 컬럼을 추출하지 못했습니다. 키 패턴을 확인하세요.' : 'SQL dry-run에서 컬럼을 추출하지 못했습니다. SELECT 절을 확인하세요.',
           );
           return;
         }
@@ -1019,6 +988,10 @@ export default function DatasetWizard() {
 
   const onFinish: FormProps<DatasetWizardForm>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
+    if (values.baseType === 'EXTERNAL') {
+      toast.error('외부 API 연동 데이터셋은 아직 저장할 수 없습니다. (고도화 시 제공)');
+      return;
+    }
     const lookups = values.lookups ?? [];
     // 룩업 카탈로그 미선택 차단 — 가상 필드가 생성되지 않은 카드가 있으면 저장 거부
     const invalidLookup = lookups.find((l) => !l.lookupCatalogId || l.fields.length === 0);
@@ -1041,6 +1014,7 @@ export default function DatasetWizard() {
       description: values.description,
       baseType: values.baseType,
       schemaSnapshot: values.schemaSnapshot,
+      valueMode: values.baseType === 'REDIS' ? values.valueMode : undefined,
       fields: visibleFields,
       calcFields: values.calcFields ?? [],
       lookups,
@@ -1142,10 +1116,10 @@ export default function DatasetWizard() {
     );
   }
 
-  // ────────── Step 2: 데이터 소스 — 베이스 선택 + 입력 ──────────
+  // ────────── Step 2: 데이터 소스 — REDIS / QUERY / EXTERNAL ──────────
   function renderStep2() {
     const text = (formValues?.schemaSnapshot ?? '') as string;
-    const baseType = (formValues?.baseType ?? 'XML') as DatasetBaseType;
+    const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
 
     // 카드 활성/비활성 시각 분리. 편집 모드에서는 비선택 카드를 클릭 불가(disabled)로 명시
     const cardClass = (selected: boolean) => {
@@ -1155,9 +1129,28 @@ export default function DatasetWizard() {
       return 'block w-full text-left rounded-lg border-2 p-4 transition-all cursor-pointer border-[var(--color-bt-border)] bg-white opacity-60 hover:opacity-100 hover:border-[var(--color-bt-primary)]/60';
     };
 
+    const selectedBadge = (
+      <span className="inline-flex items-center gap-1 rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <CheckCircle2 className="h-3 w-3" /> 선택됨
+      </span>
+    );
+
+    // REDIS/QUERY 공통 검증 버튼
+    const validateButton = (
+      <Button
+        type="primary"
+        icon={sourceValidated ? <CheckCircle2 className="size-6" /> : <Play className="w-4 h-4 fill-current" />}
+        loading={isValidating}
+        onClick={handleValidateSource}
+        className="!h-9 !w-[170px] !font-semibold shadow-md ring-2 ring-[var(--color-bt-primary)]/25 hover:ring-[var(--color-bt-primary)]/40"
+      >
+        {sourceValidated ? '검증 완료' : '데이터 소스 검증'}
+      </Button>
+    );
+
     return (
       <>
-        {/* baseType / schemaSnapshot은 hidden Form.Item으로 form에 저장. CodeMirror가 별도로 onChange */}
+        {/* baseType / schemaSnapshot은 hidden Form.Item으로 form에 저장. 입력 컴포넌트가 별도로 onChange */}
         <Form.Item name="baseType" hidden>
           <Input />
         </Form.Item>
@@ -1165,121 +1158,132 @@ export default function DatasetWizard() {
           name="schemaSnapshot"
           hidden
           rules={[
-            { required: true, message: `${baseType === 'XML' ? 'XML 스키마' : 'SQL 쿼리'}를 입력해 주세요.` },
-            { whitespace: true, message: '내용을 입력해 주세요.' },
+            { required: baseType !== 'EXTERNAL', message: `${baseType === 'REDIS' ? 'Redis 키 패턴' : 'SQL 쿼리'}를 입력해 주세요.` },
+            { whitespace: baseType !== 'EXTERNAL', message: '내용을 입력해 주세요.' },
           ]}
         >
           <Input />
         </Form.Item>
+        {/* 값 모드 — 입력 UI는 없애고, REDIS 키 선택 시 자동 감지값을 저장만 한다 */}
+        <Form.Item name="valueMode" hidden>
+          <Input />
+        </Form.Item>
 
-        {/* 베이스 유형 선택 카드 (시안 §1-A). 편집 모드에서는 변경 불가 */}
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[12px] font-semibold text-gray-700">데이터 소스</span>
-          {isEdit && <span className="text-[11px] text-[var(--color-bt-fg-muted)]">기존 데이터셋의 베이스 타입은 변경할 수 없습니다 — 필드 추가/수정만 가능</span>}
-        </div>
-        <Row gutter={16} className="!mb-5">
-          <Col span={12}>
-            <button type="button" disabled={isEdit && baseType !== 'XML'} onClick={() => handleBaseTypeChange('XML')} className={cardClass(baseType === 'XML')}>
+        {/* 소스 유형 선택 카드. 편집 모드에서만 안내 노출(헤더 라벨 제거로 영역 확보) */}
+        {isEdit && <div className="mb-2 text-[11px] text-[var(--color-bt-fg-muted)]">기존 데이터셋의 소스 타입은 변경할 수 없습니다 — 필드 추가/수정만 가능</div>}
+        <Row gutter={16} className="!mb-3">
+          <Col span={8}>
+            <button type="button" disabled={isEdit && baseType !== 'REDIS'} onClick={() => handleBaseTypeChange('REDIS')} className={cardClass(baseType === 'REDIS')}>
               <div className="mb-1.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">XML</span>
-                  <span className="text-[13px] font-semibold">XML 임포트 (Redis)</span>
+                  <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">REDIS</span>
+                  <span className="text-[13px] font-semibold">실시간 데이터</span>
                 </div>
-                {baseType === 'XML' && (
-                  <span className="inline-flex items-center gap-1 rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                    <CheckCircle2 className="h-3 w-3" /> 선택됨
-                  </span>
-                )}
+                {baseType === 'REDIS' && selectedBadge}
               </div>
-              <p className="text-[11px] leading-snug text-gray-500">Redis 키 패턴 정의 XML을 임포트. 실시간 모니터링용. 파일 업로드 또는 직접 붙여넣기.</p>
+              <p className="text-[11px] leading-snug text-gray-500">실시간 모니터링 데이터(Redis). 키를 선택하면 필드가 자동으로 채워집니다.</p>
             </button>
           </Col>
-          <Col span={12}>
-            <button type="button" disabled={isEdit && baseType !== 'SQL'} onClick={() => handleBaseTypeChange('SQL')} className={cardClass(baseType === 'SQL')}>
+          <Col span={8}>
+            <button type="button" disabled={isEdit && baseType !== 'QUERY'} onClick={() => handleBaseTypeChange('QUERY')} className={cardClass(baseType === 'QUERY')}>
               <div className="mb-1.5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">SQL</span>
-                  <span className="text-[13px] font-semibold">직접 쿼리 (DB)</span>
+                  <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">QUERY</span>
+                  <span className="text-[13px] font-semibold">데이터베이스 조회</span>
                 </div>
-                {baseType === 'SQL' && (
-                  <span className="inline-flex items-center gap-1 rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                    <CheckCircle2 className="h-3 w-3" /> 선택됨
-                  </span>
-                )}
+                {baseType === 'QUERY' && selectedBadge}
               </div>
-              <p className="text-[11px] leading-snug text-gray-500">DB 테이블/뷰에 직접 SELECT. SELECT-only · 키워드 안전 검증. 다음 단계에서 컬럼을 수동 정의.</p>
+              <p className="text-[11px] leading-snug text-gray-500">DB 테이블·뷰를 SQL로 조회해 구성합니다. 조회(SELECT)만 가능하며, 검증하면 컬럼이 자동으로 채워집니다.</p>
             </button>
+          </Col>
+          <Col span={8}>
+            {/* EXTERNAL — 고도화 예정(미구현). 항상 비활성 */}
+            <div className="block w-full cursor-not-allowed rounded-lg border-2 border-dashed border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30 p-4 opacity-70">
+              <div className="mb-1.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-[var(--color-bt-fg-muted)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">EXTERNAL</span>
+                  <span className="text-[13px] font-semibold text-[var(--color-bt-fg-muted)]">외부 API 연동</span>
+                </div>
+                <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--color-bt-fg-muted)]">고도화 예정</span>
+              </div>
+              <p className="text-[11px] leading-snug text-[var(--color-bt-fg-muted)]">외부 API 응답으로 데이터셋 구성. 현재는 미구현 — 추후 고도화 시 제공됩니다.</p>
+            </div>
           </Col>
         </Row>
 
-        {/* 입력 영역 헤더 — 라벨 + 베이스 뱃지 + 우측 액션 */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[12px] font-semibold text-gray-700">{baseType === 'XML' ? 'XML 스키마' : 'SQL 쿼리'}</span>
-            <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">{baseType}</span>
-            <span className="text-[11px] text-gray-500">
-              {baseType === 'XML' ? '운영 redis_table.cfg 의 <DATA_SET> 1개를 붙여넣거나 업로드 — <COL> 의 rd_col/type 이 자동 추출됩니다' : 'SELECT-only · 다중 문장 금지'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            {baseType === 'XML' && (
-              <>
-                <Upload
-                  accept=".xml,text/xml"
-                  showUploadList={false}
-                  beforeUpload={(file) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => handleSchemaChange(String(e.target?.result ?? ''));
-                    reader.readAsText(file);
-                    return false;
-                  }}
-                >
-                  <Button icon={<UploadIcon className="w-4 h-4" />} className="!h-9">
-                    파일 선택
-                  </Button>
-                </Upload>
-                <Button onClick={handleLoadSampleXml} className="!h-9">
-                  샘플 XML 로드
-                </Button>
-              </>
-            )}
-            <Button icon={<Wand2 className="w-4 h-4" />} onClick={handleFormatSource} className="!h-9">
-              정렬
-            </Button>
-            {/* 검증 액션 — 동일 스타일 단일 버튼. 통과 시 아이콘/텍스트만 변경, 클릭하면 재검증. 너비 고정으로 텍스트 길이 차이 흡수 */}
-            {/* 통과 표시 아이콘 size-6은 결과 모달(BotVersionPublishResultModal, ExcelImportResultModal)의 성공 헤더 패턴 채용 */}
-            <Button
-              type="primary"
-              icon={sourceValidated ? <CheckCircle2 className="size-6" /> : <Play className="w-4 h-4 fill-current" />}
-              loading={isValidating}
-              onClick={handleValidateSource}
-              className="!h-9 !w-[170px] !font-semibold shadow-md ring-2 ring-[var(--color-bt-primary)]/25 hover:ring-[var(--color-bt-primary)]/40"
-            >
-              {sourceValidated ? '검증 완료' : '데이터 소스 검증'}
-            </Button>
-          </div>
-        </div>
+        {/* ── REDIS 입력 — 키 선택 시 필드 자동 채움(검증 버튼 없음) ── */}
+        {baseType === 'REDIS' && (
+          <>
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-[12px] font-semibold text-gray-700">Redis 키</span>
+              <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">REDIS</span>
+              <span className="text-[11px] text-gray-500">키를 선택하면 필드가 자동으로 채워집니다.</span>
+            </div>
+            <RedisTreeExplorer value={text} onChange={handleSchemaChange} onSchemaLoaded={handleRedisSchemaLoaded} />
+          </>
+        )}
 
-        {/* 입력 본문 — CodeMirror 신택스 하이라이팅 */}
-        <div className="overflow-hidden rounded border border-[var(--color-bt-border)]">
-          <CodeMirror
-            value={text}
-            onChange={handleSchemaChange}
-            extensions={[baseType === 'XML' ? (xml() as Extension) : (sql() as Extension)]}
-            height="400px"
-            placeholder={
-              baseType === 'XML'
-                ? '<DATA_SET ds_name="..." rd_name="...:#변수" rd_key_value="변수" rd_field="COL_A,COL_B" ...>\n    <COL rd_col="..." type="num|str|s_date|float" len=10></COL>\n</DATA_SET>'
-                : 'SELECT col1, col2 FROM ... WHERE ...'
-            }
-            basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
-          />
-        </div>
-        <div className="mt-2 flex items-center justify-end text-[11px]">
-          <span className="font-mono text-[var(--color-bt-fg-muted)]">
-            {text.split('\n').length} lines · {(text.length / 1024).toFixed(1)} KB
-          </span>
-        </div>
+        {/* ── QUERY 입력 — 좌: SQL 쿼리 / 우: 필드 스키마(검증 시 표시) ── */}
+        {baseType === 'QUERY' && (
+          <div className="flex min-h-[320px] flex-1 gap-3 overflow-hidden">
+            {/* 좌측: SQL 쿼리 */}
+            <div className="flex w-1/2 min-w-0 flex-col">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px] font-semibold text-gray-700">SQL 쿼리</span>
+                  <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">QUERY</span>
+                  <span className="text-[11px] text-gray-500">SELECT-only · 다중 문장 금지</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button icon={<Wand2 className="w-4 h-4" />} onClick={handleFormatSource} className="!h-9">
+                    정렬
+                  </Button>
+                  {validateButton}
+                </div>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden rounded border border-[var(--color-bt-border)]">
+                <CodeMirror
+                  value={text}
+                  onChange={handleSchemaChange}
+                  extensions={[sql() as Extension]}
+                  height="100%"
+                  className="h-full"
+                  placeholder="SELECT col1, col2 FROM ... WHERE ..."
+                  basicSetup={{ lineNumbers: true, foldGutter: true, highlightActiveLine: true, bracketMatching: true }}
+                />
+              </div>
+              <div className="mt-1 flex items-center justify-end text-[11px]">
+                <span className="font-mono text-[var(--color-bt-fg-muted)]">
+                  {text.split('\n').length} lines · {(text.length / 1024).toFixed(1)} KB
+                </span>
+              </div>
+            </div>
+            {/* 우측: 필드 스키마 */}
+            <div className="flex w-1/2 min-w-0 flex-col overflow-hidden rounded border border-[var(--color-bt-border)]">
+              <div className="flex items-center justify-between gap-2 border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 px-3 py-2">
+                <span className="text-[11px] font-semibold text-gray-500">필드 스키마</span>
+                {queryColumns.length > 0 && <span className="text-[11px] text-gray-400">{queryColumns.length}개 컬럼</span>}
+              </div>
+              <div className="min-h-0 flex-1 overflow-auto">
+                {isValidating ? (
+                  <p className="p-3 text-[11.5px] text-gray-400">검증 중…</p>
+                ) : queryColumns.length === 0 ? (
+                  <p className="p-3 text-[11.5px] text-gray-400">“데이터 소스 검증”을 실행하면 필드명·데이터타입·코멘트가 표시됩니다.</p>
+                ) : (
+                  <FieldSchemaList columns={queryColumns} />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── EXTERNAL — 미구현 안내 ── */}
+        {baseType === 'EXTERNAL' && (
+          <div className="rounded border border-dashed border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30 p-8 text-center">
+            <p className="text-[13px] font-semibold text-[var(--color-bt-fg-muted)]">외부 API 연동은 아직 지원되지 않습니다.</p>
+            <p className="mt-1 text-[11.5px] text-[var(--color-bt-fg-muted)]/80">추후 고도화 단계에서 제공될 예정입니다. REDIS 또는 QUERY 소스를 선택하세요.</p>
+          </div>
+        )}
       </>
     );
   }
@@ -1288,7 +1292,7 @@ export default function DatasetWizard() {
   function renderStep3() {
     const fields = (formValues?.fields as DatasetField[]) ?? [];
     const calcFields = (formValues?.calcFields as CalcField[]) ?? [];
-    const baseType = (formValues?.baseType ?? 'XML') as DatasetBaseType;
+    const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
     const datasetCode = (formValues?.datasetCode ?? '') as string;
 
     // DnD 정렬 결과 반영용 — 그룹별 분리 정렬
@@ -1506,7 +1510,8 @@ export default function DatasetWizard() {
     const { datasetCode, datasetName, domainCode, baseType, description, schemaSnapshot, fields, calcFields } = values;
     const usedFields = (fields as DatasetField[] | undefined)?.filter((f) => f.isVisible) ?? [];
     const domainOpts = DOMAIN_OPTIONS.map((o) => ({ label: o.label, value: o.value as string }));
-    const baseTypeLabel = baseType === 'XML' ? 'XML (Redis)' : baseType === 'SQL' ? 'SQL (DB 직접 쿼리)' : null;
+    const baseTypeLabel =
+      baseType === 'REDIS' ? 'REDIS (Redis 직접)' : baseType === 'QUERY' ? 'QUERY (DB 직접 쿼리)' : baseType === 'EXTERNAL' ? 'EXTERNAL (외부 API · 미구현)' : null;
     return (
       <div className="space-y-4">
         <div className="space-y-2">
@@ -1538,9 +1543,13 @@ export default function DatasetWizard() {
             {renderValidationIcon('baseType')}
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">{baseType === 'SQL' ? 'SQL' : 'XML'}</span>
+            <span className="text-gray-500 w-24 shrink-0">{baseType === 'REDIS' ? '키 패턴' : baseType === 'QUERY' ? 'SQL' : '소스'}</span>
             <span className="text-gray-800 flex-1 font-mono text-[11px]">
-              {schemaSnapshot ? `${schemaSnapshot.split('\n').length} lines · ${(schemaSnapshot.length / 1024).toFixed(1)} KB` : displayValue(null)}
+              {baseType === 'REDIS'
+                ? displayValue(schemaSnapshot || null)
+                : schemaSnapshot
+                  ? `${schemaSnapshot.split('\n').length} lines · ${(schemaSnapshot.length / 1024).toFixed(1)} KB`
+                  : displayValue(null)}
             </span>
             {renderValidationIcon('schemaSnapshot')}
           </div>
@@ -1584,7 +1593,7 @@ export default function DatasetWizard() {
   function renderFooter() {
     const isLast = currentStep === steps.length - 1;
     return (
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-center gap-3">
         <Button onClick={currentStep === 0 ? () => navigate('/insight/monitoring/datasets') : handlePrev}>{currentStep === 0 ? '취소' : '이전'}</Button>
         {isLast ? (
           <Button type="primary" onClick={handleSubmitBtn} loading={isCreating || isUpdating}>
@@ -1638,7 +1647,6 @@ export default function DatasetWizard() {
         open={!!calcEditing}
         onClose={() => setCalcEditing(null)}
         placement="right"
-        width="min(1280px, 95vw)"
         destroyOnHidden
         title={
           <div className="flex items-center gap-2">
@@ -1647,7 +1655,7 @@ export default function DatasetWizard() {
           </div>
         }
         closable={{ placement: 'end' }}
-        styles={{ body: { padding: 0 } }}
+        styles={{ wrapper: { width: 'min(1280px, 95vw)' }, body: { padding: 0 } }}
       >
         {calcEditing && (
           <CalcFieldEditor

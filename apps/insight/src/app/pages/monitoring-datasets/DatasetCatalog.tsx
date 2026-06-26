@@ -535,7 +535,7 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
           <DetailField
             label="베이스 타입"
             value={
-              <Tag color={listItem.baseType === 'SQL' ? 'geekblue' : 'cyan'} className="!mb-0 !mr-0 font-mono">
+              <Tag color={listItem.baseType === 'QUERY' ? 'geekblue' : listItem.baseType === 'EXTERNAL' ? 'default' : 'cyan'} className="!mb-0 !mr-0 font-mono">
                 {listItem.baseType}
               </Tag>
             }

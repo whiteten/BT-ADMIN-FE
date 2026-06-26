@@ -1,7 +1,7 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { datasetApi } from '../api/datasetApi';
-import type { DatasetCreateDatas, DatasetDetail, DatasetListItem } from '../types';
+import type { DatasetBaseType, DatasetCreateDatas, DatasetDetail, DatasetListItem } from '../types';
 
 export const monitoringDatasetKeys = createQueryKeys('monitoring-datasets', {
   list: (params?: Record<string, unknown>) => [params],
@@ -33,20 +33,22 @@ export const useUpdateMonitoringDataset = ({
 export const useDeleteMonitoringDataset = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) =>
   useMutation({ mutationFn: (datasetId: number) => datasetApi.deleteDataset(datasetId), ...mutationOptions });
 
-/** 위저드 Step 2 전용 — 데이터 소스(XML/SQL) 검증. SQL 베이스는 dry-run 컬럼 자동 추출 포함. */
+/** 위저드 Step 2 전용 — 데이터 소스(REDIS/QUERY) 검증. 베이스별 detectedColumns 자동 추출 포함. */
 export type ValidateSourceResult = {
   ok: boolean;
   errors: string[];
   warnings: string[];
-  detectedColumns: { columnName: string; dataType: string; columnFormat: string }[];
+  detectedColumns: { columnName: string; dataType: string; columnFormat: string; source?: string }[];
+  /** REDIS 검증 시 BE가 자동 추정한 값 모드. */
+  valueMode?: 'JSON_PER_FIELD' | 'HASH_AS_ROW';
 };
 export const useValidateMonitoringDatasetSource = ({
   mutationOptions,
 }: {
-  mutationOptions?: UseMutationOptions<ValidateSourceResult, Error, { baseType: 'XML' | 'SQL'; schemaSnapshot: string }>;
+  mutationOptions?: UseMutationOptions<ValidateSourceResult, Error, { baseType: DatasetBaseType; schemaSnapshot: string }>;
 } = {}) =>
   useMutation({
-    mutationFn: (data: { baseType: 'XML' | 'SQL'; schemaSnapshot: string }) => datasetApi.validateDatasetSource(data),
+    mutationFn: (data: { baseType: DatasetBaseType; schemaSnapshot: string }) => datasetApi.validateDatasetSource(data),
     ...mutationOptions,
   });
 
