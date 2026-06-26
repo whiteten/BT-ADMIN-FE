@@ -20,16 +20,26 @@ const SCHEDULE_LIST_CAMPAIGN_STORAGE_KEY = 'campaign-schedule-list:campaign-sele
 type AppliedFilters = {
   tenantIds: string[];
   campaignSelections: string[];
-  executionDate: Dayjs | null;
+  executionDateRange: { start: string; end: string } | null;
   scheduleName: string;
   scheduleTypeFilter: ScheduleType | null;
   scheduleStatusFilter: ScheduleStatus | null;
 };
 
+const DEFAULT_EXECUTION_DATE_RANGE: [Dayjs, Dayjs] = [dayjs().subtract(7, 'day').startOf('day'), dayjs().startOf('day')];
+
+function toExecutionDateRangeFilter(dates: [Dayjs | null, Dayjs | null] | null): { start: string; end: string } | null {
+  if (!dates?.[0] || !dates[1]) return null;
+  return {
+    start: dates[0].format('YYYY-MM-DD'),
+    end: dates[1].format('YYYY-MM-DD'),
+  };
+}
+
 const INITIAL_APPLIED_FILTERS: AppliedFilters = {
   tenantIds: [],
   campaignSelections: [],
-  executionDate: dayjs().startOf('day'),
+  executionDateRange: toExecutionDateRangeFilter(DEFAULT_EXECUTION_DATE_RANGE),
   scheduleName: '',
   scheduleTypeFilter: null,
   scheduleStatusFilter: null,
@@ -68,7 +78,7 @@ export default function ScheduleList() {
   const isInitialTenantHydrationDone = useRef(false);
   const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(SCHEDULE_LIST_TENANT_STORAGE_KEY));
   const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(SCHEDULE_LIST_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
-  const [executionDate, setExecutionDate] = useState<Dayjs | null>(dayjs().startOf('day'));
+  const [executionDateRange, setExecutionDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(DEFAULT_EXECUTION_DATE_RANGE);
   const [scheduleName, setScheduleName] = useState('');
   const [scheduleTypeFilter, setScheduleTypeFilter] = useState<ScheduleType | null>(null);
   const [scheduleStatusFilter, setScheduleStatusFilter] = useState<ScheduleStatus | null>(null);
@@ -126,9 +136,9 @@ export default function ScheduleList() {
       items = items.filter((item) => campaignIds.includes(item.campaignId));
     }
 
-    if (appliedFilters.executionDate) {
-      const targetDate = appliedFilters.executionDate.format('YYYY-MM-DD');
-      items = items.filter((item) => item.executionDate === targetDate);
+    if (appliedFilters.executionDateRange) {
+      const { start, end } = appliedFilters.executionDateRange;
+      items = items.filter((item) => item.executionDate >= start && item.executionDate <= end);
     }
 
     if (appliedFilters.scheduleTypeFilter) {
@@ -161,7 +171,7 @@ export default function ScheduleList() {
     setAppliedFilters({
       tenantIds,
       campaignSelections,
-      executionDate,
+      executionDateRange: toExecutionDateRangeFilter(executionDateRange),
       scheduleName,
       scheduleTypeFilter,
       scheduleStatusFilter,
@@ -256,7 +266,14 @@ export default function ScheduleList() {
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">실행일자</span>
-              <DatePicker value={executionDate} onChange={(date) => setExecutionDate(date)} format="YYYY-MM-DD" allowClear={false} inputReadOnly />
+              <DatePicker.RangePicker
+                value={executionDateRange}
+                onChange={(dates) => setExecutionDateRange(dates)}
+                format="YYYY-MM-DD"
+                placeholder={['시작일', '종료일']}
+                allowClear
+                inputReadOnly
+              />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">스케줄명</span>
