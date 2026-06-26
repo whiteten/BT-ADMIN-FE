@@ -58,6 +58,10 @@ const nodeDataToFormData = (kind: string, data: Record<string, unknown> | undefi
     base.systemPrompt = tpl.find((p) => p?.role === 'system')?.text ?? '';
     base.userPrompt = tpl.find((p) => p?.role === 'user')?.text ?? '';
   }
+  // 시작 노드 — chatMemoryYn("Y"/"N" 문자열) ↔ Switch(boolean). 미지정 시 기본 켜짐(Y).
+  if (kind === 'start') {
+    base.chatMemoryYn = (data?.chatMemoryYn ?? 'Y') !== 'N';
+  }
   return base;
 };
 
@@ -127,6 +131,8 @@ const formDataToNodeData = (
     next.output_variable = 'userInput_result';
     delete next.input_variables;
     delete next.outputVariable;
+    // Switch(boolean) → BE 저장 형식("Y"/"N"). false 일 때만 N, 그 외(true/미지정) Y.
+    next.chatMemoryYn = formData?.chatMemoryYn === false ? 'N' : 'Y';
     return next;
   }
 
