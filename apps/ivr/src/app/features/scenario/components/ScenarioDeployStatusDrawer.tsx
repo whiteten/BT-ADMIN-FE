@@ -128,10 +128,6 @@ const ScenarioDeployStatusDrawer = forwardRef<ScenarioDeployStatusDrawerRef>((_,
                       <span>{s.workUserName ?? '-'}</span>
                     </div>
                     <div className="flex gap-2 text-slate-600">
-                      <span className="text-slate-400 w-16 flex-shrink-0">작업 시각</span>
-                      <span>{s.workTime ? dayjs(s.workTime).format('YYYY-MM-DD HH:mm:ss') : '-'}</span>
-                    </div>
-                    <div className="flex gap-2 text-slate-600">
                       <span className="text-slate-400 w-16 flex-shrink-0">예약 ID</span>
                       <span className="font-mono">{s.svcResvId ?? '-'}</span>
                     </div>

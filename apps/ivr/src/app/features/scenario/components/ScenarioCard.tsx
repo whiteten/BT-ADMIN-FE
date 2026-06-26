@@ -13,12 +13,14 @@ type ScenarioCardProps = {
   onDetail?: (serviceId: number) => void;
   onDelete?: (scenario: Scenario) => void;
   onShowAssigned?: () => void;
+  /** 배포 버튼 클릭 — 목록에서 바로 배포 사이드바를 연다(버전 단일선택, 기본 최신). */
+  onDeploy?: () => void;
   /** 신규 등록 직후 포커싱 하이라이트(다른 페이지 카드 선택과 동일한 테두리/그림자) */
   highlighted?: boolean;
 };
 
 /** 카드에 노출할 배포 시스템 최대 개수 (초과분은 "+N개 더"로 접고 상세 모달로 안내).
- *  카드 높이(h-[236px])상 실제로 잘리지 않고 보이는 행 수가 2개라, 보이는 수와 "+N"이 일치하도록 2로 맞춤. */
+ *  카드 높이(h-[268px], 배포 버튼 footer 포함)상 보이는 행 수가 2개라, 보이는 수와 "+N"이 일치하도록 2로 맞춤. */
 const MAX_VISIBLE_SYSTEMS = 2;
 
 /** FCA DeployStatusBadge 색상 팔레트 차용 */
@@ -59,8 +61,8 @@ function rowView(d: ScenarioDeploySummary) {
  * <p>글자 색/폰트/사이즈/여백 동일(antd Card, text-[#495057], w-[104px] 라벨 행).
  * 배포여부는 FCA DeployStatusBadge 색상 배지로 표시. 카드 높이 균일·상세보기 버튼 하단 고정. 버전 개수 미표시.</p>
  */
-export default function ScenarioCard({ scenario, onDetail, onDelete, onShowAssigned, highlighted }: ScenarioCardProps) {
-  const { serviceId, serviceName, serviceType, mentfilePath, deploySystems = [] } = scenario;
+export default function ScenarioCard({ scenario, onDetail, onDelete, onShowAssigned, onDeploy, highlighted }: ScenarioCardProps) {
+  const { serviceId, serviceName, serviceType, mentfilePath, deploySystems = [], versionCount = 0 } = scenario;
 
   const counts = { applied: 0, reserved: 0, fail: 0, progress: 0 };
   let latest: string | null = null;
@@ -108,7 +110,7 @@ export default function ScenarioCard({ scenario, onDetail, onDelete, onShowAssig
       extra={extra}
       className={cn('transition-shadow hover:!border-[var(--color-bt-primary)]', highlighted && '!border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.25)]')}
     >
-      <div className="flex flex-col h-[236px] text-[#495057]">
+      <div className="flex flex-col h-[268px] text-[#495057]">
         <div className="flex flex-col gap-2">
           <div className="flex">
             <span className="w-[104px] shrink-0">시나리오 타입</span>
@@ -189,12 +191,19 @@ export default function ScenarioCard({ scenario, onDetail, onDelete, onShowAssig
           )}
         </div>
 
-        {/* 더보기 — 카드 하단 고정 (배포된 시스템이 있을 때만 노출) */}
-        {deploySystems.length > 0 && (
-          <button type="button" className="mt-2 self-start text-[13px] text-[var(--color-bt-primary)] hover:underline" onClick={() => onShowAssigned?.()}>
-            {restCount > 0 ? `+${restCount}개 더보기 ›` : '더보기 ›'}
-          </button>
-        )}
+        {/* 하단 고정: 더보기(좌, 배포된 시스템 있을 때) + 배포(우, primary, 버전 있을 때만 활성) */}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {deploySystems.length > 0 ? (
+            <button type="button" className="text-[13px] text-[var(--color-bt-primary)] hover:underline" onClick={() => onShowAssigned?.()}>
+              {restCount > 0 ? `+${restCount}개 더보기 ›` : '더보기 ›'}
+            </button>
+          ) : (
+            <span />
+          )}
+          <Button onClick={() => onDeploy?.()} disabled={versionCount === 0} title={versionCount === 0 ? '등록된 버전이 없습니다' : undefined} className="h-7 px-3 text-[13px]">
+            배포
+          </Button>
+        </div>
       </div>
     </Card>
   );

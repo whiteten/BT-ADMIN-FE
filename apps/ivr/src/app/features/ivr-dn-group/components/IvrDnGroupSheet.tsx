@@ -14,6 +14,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useSt
 import { Alert, Button, Col, Drawer, Form, Input, InputNumber, Modal, Row, Select } from 'antd';
 import { Info } from 'lucide-react';
 import { toast } from '@/shared-util';
+import { useGetMasters } from '../../ivr-endpoint/hooks/useIvrEndpointQueries';
 import { useCreateDnGroup, useGetSubDnQuota, useGetSystemUsage, useUpdateDnGroup } from '../hooks/useIvrDnGroupQueries';
 import { DIRECTION_OPTIONS, type IrDnGroup, type IrDnGroupCreateRequest, OUTCH_OPTIONS, PROTOCOL_OPTIONS, REG_KIND_OPTIONS } from '../types';
 
@@ -29,15 +30,11 @@ interface Props {
    */
   selectedNodeId: number | null;
   nodes: { nodeId: number; nodeName: string }[];
-  /**
-   * 부모(국선) 후보 — 현재 노드 소속 IVR EndPoint 목록 (페이지에서 전달).
-   */
-  endpoints: { endptId: number; endptName: string; nodeId: number }[];
   /** 성공 콜백. 신규 등록 시 생성된 DN 그룹을 전달(새 카드 포커싱용), 수정 시 인자 없음. */
   onSuccess: (created?: IrDnGroup) => void;
 }
 
-const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId, nodes, endpoints, onSuccess }, ref) => {
+const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId, nodes, onSuccess }, ref) => {
   const [form] = Form.useForm();
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<IrDnGroup | null>(null);
@@ -84,6 +81,12 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
     queryOptions: { enabled: !!effectiveNodeId && visible },
   });
 
+  // 연동 EndPoint 후보 — 선택 노드의 TB_IR_ENDPT_MASTER 전체 조회 (레거시 동등). DN 그룹 목록 파생 X.
+  const { data: endpointMasters = [] } = useGetMasters({
+    params: effectiveNodeId ? { nodeId: effectiveNodeId } : undefined,
+    queryOptions: { enabled: !!effectiveNodeId && visible },
+  });
+
   const selectedSystemUsage = useMemo(() => systemUsages.find((s) => s.systemId === systemId) ?? null, [systemUsages, systemId]);
 
   // 수정 모드: 자기 자신의 dnCount는 이미 used에 포함되어 있으므로 빼서 비교
@@ -115,7 +118,7 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
         dnCount: editData.dnCount,
         regKind: editData.regKind,
         outchUsetype: editData.outchUsetype ?? undefined,
-        inCount: editData.inCount ?? 0,
+        inCount: editData.inCount ?? 1,
       });
     } else if (visible) {
       form.resetFields();
@@ -158,12 +161,11 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
 
   const isPending = isCreating || isUpdating;
 
-  // ─── Endpoint 옵션: 선택된 노드 소속만 노출 ─────────────────────────────
-  const endpointOptions = useMemo(() => {
-    const nid = effectiveNodeId;
-    if (!nid) return [];
-    return endpoints.filter((ep) => ep.nodeId === nid).map((ep) => ({ label: ep.endptName, value: ep.endptId }));
-  }, [endpoints, effectiveNodeId]);
+  // ─── Endpoint 옵션: 선택 노드의 EndPoint 전체(서버 조회) — 레거시 동등(ENDPT_NAME ASC 정렬) ──
+  const endpointOptions = useMemo(
+    () => [...endpointMasters].sort((a, b) => (a.endptName ?? '').localeCompare(b.endptName ?? '', 'ko')).map((ep) => ({ label: ep.endptName, value: ep.endptId })),
+    [endpointMasters],
+  );
 
   // ─── System 옵션: 잔여 안내 포함 ─────────────────────────────────────────
   const systemOptions = useMemo(
@@ -227,7 +229,7 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
       channelCount: undefined as unknown as number,
       regKind: values.regKind as IrDnGroupCreateRequest['regKind'],
       outchUsetype: values.direction === '20' ? undefined : (values.outchUsetype as IrDnGroupCreateRequest['outchUsetype']),
-      inCount: values.direction === '30' ? (values.inCount as number) : 0,
+      inCount: values.direction === '30' ? (values.inCount as number) : 1, // 레거시: Both 아니어도 IN_COUNT 최소 1
     };
     if (isEditMode && editData) {
       updateDnGroup({ id: editData.dnGroupId, data: payload });
@@ -267,7 +269,7 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
           regKind: '10',
           outchUsetype: '1', // 기본: 상담원 연결 (AS-IS는 미설정이나, UX상 첫 옵션 노출)
           dnCount: 1,
-          inCount: 0,
+          inCount: 1, // AS-IS IPR20S6012_DN.jsp setValue("#poInCount", 1) 동등 — 기본 1, 1 미만 불가
         }}
       >
         <Row gutter={16}>
@@ -367,7 +369,7 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
             { pattern: /^[0-9*#]*$/, message: '숫자, *, # 만 가능합니다' },
           ]}
         >
-          <Input placeholder="(선택)" maxLength={32} />
+          <Input maxLength={32} />
         </Form.Item>
 
         {/* REG 처리 + 그룹 Regist 번호 (한 행) */}
@@ -420,9 +422,9 @@ const IvrDnGroupSheet = forwardRef<IvrDnGroupSheetRef, Props>(({ selectedNodeId,
           name="inCount"
           label="Inbound Count"
           extra={inCountDisabled ? "Direction이 'Both'일 때만 사용" : undefined}
-          rules={[{ type: 'number', min: 0, max: 100000, message: '0 이상' }]}
+          rules={[{ type: 'number', min: 1, max: 100000, message: '1 이상' }]}
         >
-          <InputNumber min={0} max={100000} className="!w-full" disabled={inCountDisabled} />
+          <InputNumber min={1} max={100000} className="!w-full" disabled={inCountDisabled} />
         </Form.Item>
       </Form>
     </Drawer>

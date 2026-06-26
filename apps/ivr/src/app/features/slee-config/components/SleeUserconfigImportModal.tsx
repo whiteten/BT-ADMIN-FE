@@ -97,7 +97,7 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
 
   return (
     <Drawer
-      title="환경변수 cfg 파일 Import"
+      title="환경변수 파일 Import"
       closable={{ placement: 'end' }}
       placement="right"
       width={480}
@@ -154,7 +154,7 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
               fileList={files}
               onChange={(info) => setFiles(info.fileList)}
             >
-              <Button icon={<UploadIcon className="size-3.5" />}>cfg 파일 선택</Button>
+              <Button icon={<UploadIcon className="size-3.5" />}>파일 선택</Button>
             </Upload>
           </div>
         </div>
