@@ -12,14 +12,26 @@ import type { ChannelRow } from '../types';
  * 카드에 #채널번호·상태와 함께 시나리오명(SERVICE_NAME)·메뉴명(MENU_NAME)을 표기하고,
  * 점유 셀은 hover 시 진입경로·ANI·DNIS·UCID 팝오버로 상세를 보인다.
  */
+/** 점유 셀 클릭 시 넘기는 상세 추적 대상 + 표시 보조 정보. */
+export interface ChannelCellClickPayload {
+  /** sleeChno 는 표시용 CHNL_NO 가 아니라 Redis SLEE_CH(실제 채널) — InitCdr.SLEE_CHNO 매칭 키. */
+  target: { ucid: string; systemId: number; sleeChno: number };
+  meta: { no: string; service: string; menu: string; ani: string; dnis: string };
+}
+
 export interface ChannelCellGridProps {
   rows: ChannelRow[];
   irType: number | null;
+  /** 점유(콜 진행) 셀 클릭 — 채널 상세 드로어 오픈. */
+  onCellClick?: (payload: ChannelCellClickPayload) => void;
 }
 
 interface Cell {
   key: string;
   no: string;
+  systemId: number | null;
+  /** Redis SLEE_CH (실제 채널) — InitCdr.SLEE_CHNO 매칭용. 표시용 CHNL_NO(no)와 다름. */
+  sleeCh: number | null;
   status: number | null;
   hex: string;
   label: string;
@@ -37,7 +49,7 @@ interface Cell {
   menu: string;
 }
 
-export default function ChannelCellGrid({ rows, irType }: ChannelCellGridProps) {
+export default function ChannelCellGrid({ rows, irType, onCellClick }: ChannelCellGridProps) {
   const cells = useMemo<Cell[]>(
     () =>
       [...rows]
@@ -53,6 +65,8 @@ export default function ChannelCellGrid({ rows, irType }: ChannelCellGridProps) 
           return {
             key: `${toStr(r.SYSTEM_ID)}_${toStr(r.CHNL_NO) || i}`,
             no: toStr(r.CHNL_NO) || '—',
+            systemId: toNum(r.SYSTEM_ID),
+            sleeCh: toNum(r.SLEE_CH),
             status,
             hex: meta.hex,
             label: isBusyState && mediaLabel ? mediaLabel : meta.label,
@@ -81,9 +95,23 @@ export default function ChannelCellGrid({ rows, irType }: ChannelCellGridProps) 
     <div className="grid gap-1.5 p-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(156px, 1fr))' }}>
       {cells.map((c) => {
         const fg = c.fill ? '#fff' : '#0a0a0b';
+        // 드로어 오픈 조건: 점유(콜 컨텍스트 보유) + UCID 가 빈문자열/널이 아님.
+        // (SLEE_CH 유무로는 막지 않는다 — 바인딩 값으로만 사용)
+        const clickable = c.hasCtx && !!c.ucid && !!onCellClick;
+        const handleClick = clickable
+          ? () =>
+              onCellClick?.({
+                target: { ucid: c.ucid, systemId: c.systemId as number, sleeChno: c.sleeCh as number },
+                meta: { no: c.no, service: c.service, menu: c.menu, ani: c.ani, dnis: c.dnis },
+              })
+          : undefined;
         const cell = (
           <div
-            className={`relative flex h-full min-h-[58px] flex-col justify-center gap-1 rounded-md border px-2.5 py-1.5 ${c.alert ? 'animate-pulse' : ''}`}
+            onClick={handleClick}
+            role={clickable ? 'button' : undefined}
+            className={`relative flex h-full min-h-[58px] flex-col justify-center gap-1 rounded-md border px-2.5 py-1.5 ${c.alert ? 'animate-pulse' : ''} ${
+              clickable ? 'cursor-pointer transition-shadow hover:shadow-md' : ''
+            }`}
             style={c.fill ? { backgroundColor: c.hex, borderColor: c.hex } : { backgroundColor: `${c.hex}14`, borderColor: `${c.hex}55` }}
           >
             {/* 헤더 — #채널번호 · 상태 · (I/O) */}

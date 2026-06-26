@@ -83,6 +83,7 @@ const BsrGroupManage = React.lazy(() => import('./pages/bsr-group/BsrGroupManage
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
+const TrackingAuditPage = React.lazy(() => import('./features/tracking-audit/components/TrackingAuditPage'));
 
 // agent-state-log (상담사 상태 로그 보기 — ipron-tracking-agent-journey)
 const AgentStateLog = React.lazy(() => import('./pages/agent-state-log/AgentStateLog'));
@@ -298,6 +299,10 @@ export const routes = [
           { path: 'call/:ucid', element: pv('tracking/call/:ucid', CallDetail) },
           { path: 'agent-state-log', element: pv('tracking/agent-state-log', AgentStateLog) },
         ],
+      },
+      {
+        path: 'tracking-audit',
+        element: <TrackingAuditPage />,
       },
     ],
   },

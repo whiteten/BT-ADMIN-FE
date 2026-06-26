@@ -6,7 +6,8 @@ import { AlertTriangle, PanelTopClose, PanelTopOpen, PhoneCall, PhoneIncoming, P
 import { toast } from '@/shared-util';
 import { DEMO_CHANNELS, isChannelDemoMode } from './demoData';
 import { DEFAULT_OCC_THRESHOLDS, countByStatus, groupBySystem, irTypeLabel, matchSearch, occSeverity, toChannelRows, toNum } from './helpers';
-import ChannelCellGrid from './parts/ChannelCellGrid';
+import ChannelCellGrid, { type ChannelCellClickPayload } from './parts/ChannelCellGrid';
+import ChannelFlowDrawer from './flow/ChannelFlowDrawer';
 import { CHANNEL_STATUS, CHANNEL_STATUS_ORDER } from './statusMap';
 import type { ChannelOccThresholds, ChannelRow, ChannelUiState, OccSeverity } from './types';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
@@ -78,6 +79,10 @@ export default function ChannelDetailWidget({ data, widgetId, onRequestPause }: 
   );
 
   const [search, setSearch] = useState('');
+
+  // ─── 채널 상세 드로어 (점유 셀 클릭 → 트래킹/대화 실시간) ──────────
+  const [flowTarget, setFlowTarget] = useState<ChannelCellClickPayload | null>(null);
+  const handleCellClick = useCallback((payload: ChannelCellClickPayload) => setFlowTarget(payload), []);
 
   // ─── 선택 시스템 ──────────────────────────────────────────────
   const curGroup = useMemo(() => groups.find((g) => g.systemId === ui.systemId) ?? groups[0], [groups, ui.systemId]);
@@ -276,8 +281,11 @@ export default function ChannelDetailWidget({ data, widgetId, onRequestPause }: 
 
       {/* ④ 본문 */}
       <div className="min-h-0 flex-1 overflow-auto">
-        <ChannelCellGrid rows={visibleRows} irType={curGroup.irType} />
+        <ChannelCellGrid rows={visibleRows} irType={curGroup.irType} onCellClick={handleCellClick} />
       </div>
+
+      {/* ═══ 채널 상세 드로어 — 점유 셀 클릭 시 트래킹/대화 실시간 스트림 ═══ */}
+      <ChannelFlowDrawer open={!!flowTarget} target={flowTarget?.target ?? null} meta={flowTarget?.meta} onClose={() => setFlowTarget(null)} />
 
       {/* ═══ 설정 드로어 — 점유 세츄레이션 임계값(주의·위험) ═══ */}
       <Drawer

@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Col, Row } from 'antd';
+import { Alert, Button, Col, Modal, Row } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PermissionSelector from '../../iam/components/PermissionSelector';
@@ -85,8 +85,9 @@ export default function UserPermissionTab() {
   // 동기화 Mutation
   const { mutate: syncPermissions, isPending: isSyncing } = useSyncUserPermissions({
     mutationOptions: {
-      onSuccess: () => {
-        toast.success('개별 권한이 저장되었습니다.');
+      onSuccess: (_data, variables) => {
+        const isReset = variables.data.authKeys.length === 0;
+        toast.success(isReset ? '역할 권한 모드로 초기화되었습니다.' : '개별 권한이 저장되었습니다.');
         queryClient.invalidateQueries({ queryKey: userAuthQueryKeys.getList._def });
         refetch();
       },
@@ -111,11 +112,18 @@ export default function UserPermissionTab() {
     });
   };
 
-  // 역할 권한으로 초기화 (템플릿 복원)
+  // 역할 권한으로 초기화 (개별권한 전체 삭제 → 역할 권한을 동적으로 따름)
   const handleResetToRole = () => {
-    if (role?.authKeys) {
-      setSelectedAuthKeys(new Set(role.authKeys));
-    }
+    if (!numericUserId) return;
+    Modal.confirm({
+      title: '역할 권한으로 초기화',
+      content: '이 사용자의 개별 권한을 모두 삭제하고 역할 권한을 따르도록 전환합니다. 이후 역할 권한이 변경되면 자동으로 반영됩니다.',
+      okText: '초기화',
+      cancelText: '취소',
+      okButtonProps: { danger: true },
+      centered: true,
+      onOk: () => syncPermissions({ userId: numericUserId, data: { authKeys: [] } }),
+    });
   };
 
   const isLoading = isUserFetching || isRoleFetching || isMapLoading;
@@ -137,7 +145,7 @@ export default function UserPermissionTab() {
           showIcon
           className="mb-3 shrink-0"
           action={
-            <Button size="small" onClick={handleResetToRole}>
+            <Button size="small" onClick={handleResetToRole} loading={isSyncing}>
               역할 권한으로 초기화
             </Button>
           }

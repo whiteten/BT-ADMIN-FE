@@ -1,10 +1,12 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { DOMAIN_LABELS, DOMAIN_TAG_COLOR, REPORT_ICON_SVG } from '../constants/reportIconConstants';
+import { BaseTagChip, isBaseTag } from '../../../components/statTag';
+import { REPORT_ICON_SVG } from '../constants/reportIconConstants';
 import { reportKeys, useDeleteReport, useSetReportSystemFlag } from '../hooks/useReportQueries';
 import type { ReportIconType, ReportListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
@@ -16,11 +18,43 @@ interface ReportCardProps {
   isMenuRegistered?: boolean;
 }
 
+// 한 줄에 다 못 들어가 다음 줄로 랩핑된 태그 개수 계산 (+N 표시용)
+const useWrappedItemCount = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [wrappedCount, setWrappedCount] = useState(0);
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current || containerRef.current.children.length === 0) {
+        setWrappedCount(0);
+        return;
+      }
+      const children = containerRef.current.children;
+      const firstItemTop = (children[0] as HTMLElement).getBoundingClientRect().top;
+      let count = 0;
+      for (let i = 1; i < children.length; i++) {
+        const itemTop = (children[i] as HTMLElement).getBoundingClientRect().top;
+        if (itemTop > firstItemTop) count++;
+      }
+      setWrappedCount(count);
+    };
+    handleResize();
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  return { containerRef, wrappedCount };
+};
+
 export default function ReportCard({ report, isMenuRegistered = false }: ReportCardProps) {
   const navigate = useNavigate();
   const modal = useModal();
   const queryClient = useQueryClient();
   const iconType: ReportIconType = report.iconType ?? 'system';
+  const { containerRef: tagsRef, wrappedCount: tagsWrapped } = useWrappedItemCount();
 
   // 수정/삭제: 소유자 본인 또는 시스템 관리자(공유 여부 무관). 공유 토글: 소유자 또는 관리자.
   // 시드/시스템 장표는 소유자가 시스템 계정이라 일반 사용자에겐 자동으로 관리자 전용.
@@ -160,10 +194,30 @@ export default function ReportCard({ report, isMenuRegistered = false }: ReportC
     >
       <div className="flex flex-col text-[#495057] gap-2">
         <div className="flex items-center">
-          <span className="w-[80px] shrink-0 text-sm">도메인</span>
-          <Tag color={DOMAIN_TAG_COLOR[report.domain]}>
-            {report.domain} · {DOMAIN_LABELS[report.domain] ?? report.domain}
-          </Tag>
+          <span className="w-[80px] shrink-0 text-sm">태그</span>
+          {(report.tags ?? []).length > 0 ? (
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              {/* 한 줄 고정 — 넘치는 태그는 overflow로 숨기고 +N으로 표기 */}
+              <div ref={tagsRef} className="flex h-[24px] flex-1 flex-wrap gap-1 overflow-hidden">
+                {(report.tags ?? []).map((t) =>
+                  isBaseTag(t) ? (
+                    <BaseTagChip key={t} tag={t} />
+                  ) : (
+                    <Tag key={t} color="blue" className="!mr-0">
+                      {t}
+                    </Tag>
+                  ),
+                )}
+              </div>
+              {tagsWrapped > 0 && (
+                <Tag className="!mr-0 shrink-0 !rounded-[12px] !text-[#888B9A]" title={(report.tags ?? []).join(', ')}>
+                  +{tagsWrapped}
+                </Tag>
+              )}
+            </div>
+          ) : (
+            <span className="text-sm text-gray-300">태그 없음</span>
+          )}
         </div>
         <div className="flex items-center">
           <span className="w-[80px] shrink-0 text-sm">데이터뷰</span>

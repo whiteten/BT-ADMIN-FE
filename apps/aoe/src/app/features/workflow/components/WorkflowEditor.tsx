@@ -96,7 +96,7 @@ export default function WorkflowEditor({ agentId, agentName, aoeDeployFlag, grap
             nodeGroup: 'system',
             positionX: 100,
             positionY: 200,
-            data: { output_variable: 'userInput_result' },
+            data: { output_variable: 'userInput_result', chatMemoryYn: 'Y' },
           },
         });
         await createNodeAsync({
