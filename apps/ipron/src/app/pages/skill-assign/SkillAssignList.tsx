@@ -189,12 +189,18 @@ export default function SkillAssignList() {
     params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
   });
 
+  // 트리 범위 결정:
+  //   - 카드(selectedTenantId) 우선.
+  //   - 전체 모드(selectedTenantId=null)에서 row 선택 시 lockedTenantId 로 좁힘.
+  //     → 다른 테넌트 그룹이 섞여 보이는 버그 수정 (2026-06-26).
+  const treeEffectiveTenantId = selectedTenantId ?? lockedTenantId;
+
   const { data: agentGroupTree = [] } = useGetAgentGroupTree({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+    params: treeEffectiveTenantId !== null ? { tenantId: treeEffectiveTenantId } : undefined,
   });
 
   const { data: skillsetGroups = [] } = useGetSkillsetGroups({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+    params: treeEffectiveTenantId !== null ? { tenantId: treeEffectiveTenantId } : undefined,
   });
 
   const { data: skillsetMasters = [], isLoading: skillsetMastersLoading } = useGetSkillsets({
@@ -304,6 +310,14 @@ export default function SkillAssignList() {
       setLockedTenantId(null);
     }
   }, [selectedAgentIds, selectedSkillsetIds]);
+
+  // lockedTenantId 변경 시 트리 노드 선택 초기화.
+  // treeEffectiveTenantId 가 바뀌면 트리 데이터도 새 테넌트 기준으로 교체되므로,
+  // 이전 테넌트의 groupId 가 선택 상태로 남아 필터가 무효화되는 것을 막는다.
+  useEffect(() => {
+    setSelectedAgentGroupId(null);
+    setSelectedSkillsetTreeId(null);
+  }, [lockedTenantId]);
 
   // ② 선택 해제 시 보기 필터를 '전체'로 리셋 (선택 없으면 필터 무의미)
   useEffect(() => {
