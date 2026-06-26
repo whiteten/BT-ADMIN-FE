@@ -83,7 +83,7 @@ function StatePill({ value, onText, offText, tone }: { value: number | null; onT
 
 /**
  * 매트릭스 셀 — 스킬셋 콤보 + 레벨 입력. 더티 시 황색 점.
- * 콤보는 스킬셋 이름(raw ID 노출 금지), 미설정 = '-'(빈 옵션). 레벨 0~99, 스킬 해제 시 자동 0·비활성.
+ * 콤보는 스킬셋 이름(raw ID 노출 금지), 미배정(빈 옵션). 레벨 0~99, 스킬 해제 시 자동 0·비활성.
  */
 function MatrixSkillCell({
   ctiqId,
@@ -114,7 +114,7 @@ function MatrixSkillCell({
         value={hasSkill ? skillId : null}
         options={skillSelectOptions}
         disabled={!editable}
-        placeholder="-"
+        placeholder="미배정"
         allowClear
         style={{ flex: 1, minWidth: 130 }}
         popupMatchSelectWidth={false}
@@ -182,7 +182,7 @@ export default function CtiQueueTable({
   }, [nodeOptions]);
 
   const skillSelectOptions = useMemo<{ value: number | null; label: string }[]>(
-    () => [{ value: null, label: '-' }, ...skillsetOptions.map((s) => ({ value: s.id, label: s.name }))],
+    () => [{ value: null, label: '미배정' }, ...skillsetOptions.map((s) => ({ value: s.id, label: s.name }))],
     [skillsetOptions],
   );
 
