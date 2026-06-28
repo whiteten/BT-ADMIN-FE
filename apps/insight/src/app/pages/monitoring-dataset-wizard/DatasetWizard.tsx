@@ -7,21 +7,22 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import CodeMirror, { type Extension } from '@uiw/react-codemirror';
-import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, ICellRendererParams, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, Col, Divider, Drawer, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
-import { Check, CheckCircle2, Edit2, Play, Plus, Trash2, Wand2, X } from 'lucide-react';
+import { type BreadcrumbProps, Button, Checkbox, Col, Divider, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
+import { CheckCircle2, Edit2, Play, Plus, Trash2, Wand2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SourceValidationResultModal, { type SourceValidationResultModalRef } from './SourceValidationResultModal';
+import TagInput from '../../components/TagInput';
 import type { RedisKeySchema } from '../../features/monitoring/api/redisTreeApi';
 import CalcFieldEditor from '../../features/monitoring/components/calcfield/CalcFieldEditor';
 import FieldSchemaList, { type FieldSchemaColumn } from '../../features/monitoring/components/dataset/FieldSchemaList';
 import RedisTreeExplorer from '../../features/monitoring/components/dataset/RedisTreeExplorer';
 import LookupEditDrawer, { type LookupEditDrawerRef } from '../../features/monitoring/components/lookup/LookupEditDrawer';
-import { COLUMN_FORMAT_OPTIONS, DOMAIN_LABELS, DOMAIN_OPTIONS } from '../../features/monitoring/constants/monitoringConstants';
+import { COLUMN_FORMAT_OPTIONS } from '../../features/monitoring/constants/monitoringConstants';
 import {
   monitoringDatasetKeys,
   useCreateMonitoringDataset,
@@ -39,7 +40,6 @@ import type {
   DatasetFieldSource,
   DatasetLookup,
   DatasetValueMode,
-  DomainCode,
   FieldDataType,
 } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -48,7 +48,7 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 interface DatasetWizardForm {
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  tags: string[];
   description?: string;
   baseType: DatasetBaseType;
   schemaSnapshot: string;
@@ -61,7 +61,7 @@ interface DatasetWizardForm {
 const initialForm: DatasetWizardForm = {
   datasetCode: '',
   datasetName: '',
-  domainCode: 'IE',
+  tags: [],
   description: '',
   baseType: 'REDIS',
   schemaSnapshot: '',
@@ -83,7 +83,7 @@ function rebuildFieldsWithVirtuals(currentFields: DatasetField[], lookups: Datas
       const columnFormat: ColumnFormat =
         lf.dataType === 'NUMBER' ? 'Number' : lf.dataType === 'DATE' ? 'Date' : lf.dataType === 'DATETIME' ? 'Date' : lf.dataType === 'TIME' ? 'Time' : 'String';
       return {
-        columnName: lf.outputFieldName,
+        fieldName: lf.outputFieldName,
         classification: 'DIM',
         displayName: lf.displayName ?? lf.outputFieldName,
         dataType: lf.dataType,
@@ -149,6 +149,30 @@ function ValidationChip({ status, checkedAt, errors }: { status: ValidationStatu
   );
 }
 
+// 데이터타입 → 태그 색 (FieldSchemaList와 동일 — 프로젝트 공통 표기). antd Tag로 통일.
+const DATA_TYPE_TAG_COLOR: Record<string, string> = {
+  NUMBER: 'blue',
+  DATE: 'purple',
+  DATETIME: 'purple',
+  TIME: 'purple',
+  BOOLEAN: 'orange',
+  STRING: 'default',
+};
+
+// 전체 선택 체크박스 헤더 (통계 WizardStepB 패턴)
+interface CheckboxHeaderParams extends IHeaderParams {
+  allVisible: boolean;
+  someVisible: boolean;
+  toggleAll: (checked: boolean) => void;
+}
+function CheckboxHeader({ allVisible, someVisible, toggleAll }: CheckboxHeaderParams) {
+  return (
+    <div className="flex items-center justify-center w-full h-full">
+      <Checkbox checked={allVisible} indeterminate={someVisible} onChange={(e) => toggleAll(e.target.checked)} />
+    </div>
+  );
+}
+
 // ────────── FieldConfigGrid — 컬럼 구성 그리드만 분리 ──────────
 // 분리 목적:
 //  1) useMemo로 columnDefs/unifiedRows 캐싱 → 사용 체크박스 토글 시 ag-grid 전체 재렌더 회피 (버벅임 제거)
@@ -158,7 +182,7 @@ interface UnifiedFieldRow {
   rowId: string;
   source: 'BASE' | 'CALC' | 'VIRTUAL';
   classification: 'DIM' | 'MSR';
-  columnName: string;
+  fieldName: string;
   displayName: string;
   dataType: FieldDataType;
   columnFormat: ColumnFormat;
@@ -188,7 +212,23 @@ interface FieldConfigGridProps {
 function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCalcAdd, onCalcEdit, onCalcDelete, onLookupAdd, onLookupEdit, onLookupDelete }: FieldConfigGridProps) {
   const gridRef = useRef<AgGridReact<UnifiedFieldRow>>(null);
 
-  const visibleCount = useMemo(() => fields.filter((f) => f.isVisible).length, [fields]);
+  // 노출 토글 가능 행 = BASE + CALC (VIRTUAL은 항상 노출). 통계 WizardStepB의 노출 카운트/전체 선택 패턴.
+  const baseCount = fields.filter((f) => !f.isVirtual).length;
+  const visibleBase = fields.filter((f) => !f.isVirtual && f.isVisible).length;
+  const visibleCalc = calcFields.filter((c) => c.isVisible ?? true).length;
+  const toggleTotal = baseCount + calcFields.length;
+  const visibleTotal = visibleBase + visibleCalc;
+  const allVisible = toggleTotal > 0 && visibleTotal === toggleTotal;
+  const someVisible = visibleTotal > 0 && !allVisible;
+  const toggleAll = useCallback(
+    (checked: boolean) => {
+      const curFields = (form.getFieldValue('fields') as DatasetField[]) ?? [];
+      form.setFieldsValue({ fields: curFields.map((f) => (f.isVirtual ? f : { ...f, isVisible: checked })) });
+      const curCalc = (form.getFieldValue('calcFields') as CalcField[]) ?? [];
+      form.setFieldsValue({ calcFields: curCalc.map((c) => ({ ...c, isVisible: checked })) });
+    },
+    [form],
+  );
 
   // ─── 검증 실행 (통계 WizardStepB 패턴) ──────────────────────────────────────
   const { mutateAsync: runValidate, isPending: isChecking } = useValidateMonitoringDataset();
@@ -199,8 +239,8 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
 
   // fingerprint — 검증 후 필드/계산식/룩업이 바뀌면 stale 처리
   const fieldFingerprint = useMemo(() => {
-    const fStr = fields.map((f) => `${f.columnName}:${f.classification}:${f.displayName}:${f.columnFormat}:${f.isVisible}`).join('|');
-    const cStr = calcFields.map((c) => `${c.fieldCode}:${c.rowExpression}:${c.displayName}:${c.columnFormat}`).join('|');
+    const fStr = fields.map((f) => `${f.fieldName}:${f.classification}:${f.displayName}:${f.columnFormat}:${f.isVisible}`).join('|');
+    const cStr = calcFields.map((c) => `${c.fieldName}:${c.rowExpression}:${c.displayName}:${c.columnFormat}`).join('|');
     const lStr = lookups.map((l) => `${l.sourceField}:${l.lookupCatalogId}:${l.fields.map((x) => x.outputFieldName).join(',')}`).join('|');
     return `${fStr}__${cStr}__${lStr}`;
   }, [fields, calcFields, lookups]);
@@ -228,7 +268,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
       const payload: DatasetCreateDatas = {
         datasetCode: (form.getFieldValue('datasetCode') as string) ?? '',
         datasetName: (form.getFieldValue('datasetName') as string) ?? '',
-        domainCode: form.getFieldValue('domainCode') as DomainCode,
+        tags: (form.getFieldValue('tags') as string[]) ?? [],
         description: form.getFieldValue('description') as string | undefined,
         baseType: form.getFieldValue('baseType') as DatasetBaseType,
         schemaSnapshot: (form.getFieldValue('schemaSnapshot') as string) ?? '',
@@ -270,10 +310,10 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
     for (const f of ordered) {
       const isVirt = f.isVirtual === true;
       const row: UnifiedFieldRow = {
-        rowId: isVirt ? `virtual:${f.columnName}` : `base:${f.columnName}`,
+        rowId: isVirt ? `virtual:${f.fieldName}` : `base:${f.fieldName}`,
         source: isVirt ? 'VIRTUAL' : 'BASE',
         classification: f.classification,
-        columnName: f.columnName,
+        fieldName: f.fieldName,
         displayName: f.displayName,
         dataType: f.dataType,
         columnFormat: f.columnFormat,
@@ -288,18 +328,20 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
       }
     }
     const calc: UnifiedFieldRow[] = calcFields.map((c) => ({
-      rowId: `calc:${c.fieldCode}`,
+      rowId: `calc:${c.fieldName}`,
       source: 'CALC',
       classification: c.classification,
-      columnName: c.fieldCode,
+      fieldName: c.fieldName,
       displayName: c.displayName,
       dataType: c.dataType,
       columnFormat: c.columnFormat,
       isVisible: c.isVisible ?? true, // CALC도 BASE처럼 노출 토글 가능. 구버전 데이터는 기본 true
       rowExpression: c.rowExpression,
     }));
-    // 표시 순서: BASE → VIRTUAL → CALC (룩업 결과는 원본 필드 그룹 옆에 보이도록)
-    return [...base, ...virtual, ...calc];
+    // 통계 WizardStepB와 동일 — 노출(체크) 행을 위로, 그 외엔 BASE→VIRTUAL→CALC 순서 유지(안정 정렬)
+    const allRows = [...base, ...virtual, ...calc];
+    allRows.sort((a, b) => (a.isVisible === b.isVisible ? 0 : a.isVisible ? -1 : 1));
+    return allRows;
   }, [fields, calcFields, lookups]);
 
   // unifiedRows 변경 시 ag-grid에 강제 setGridOption — props 흐름이 ag-grid 내부에서 immutable 비교에
@@ -317,22 +359,22 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
   const updateBase = useCallback(
     (columnName: string, patch: Partial<DatasetField>) => {
       const current = (form.getFieldValue('fields') as DatasetField[]) ?? [];
-      form.setFieldsValue({ fields: current.map((f) => (f.columnName === columnName ? { ...f, ...patch } : f)) });
+      form.setFieldsValue({ fields: current.map((f) => (f.fieldName === columnName ? { ...f, ...patch } : f)) });
     },
     [form],
   );
   const updateCalc = useCallback(
     (fieldCode: string, patch: Partial<CalcField>) => {
       const current = (form.getFieldValue('calcFields') as CalcField[]) ?? [];
-      form.setFieldsValue({ calcFields: current.map((c) => (c.fieldCode === fieldCode ? { ...c, ...patch } : c)) });
+      form.setFieldsValue({ calcFields: current.map((c) => (c.fieldName === fieldCode ? { ...c, ...patch } : c)) });
     },
     [form],
   );
   // cellRenderer에서 source 분기 → 적절한 updater 호출 헬퍼. patch는 양쪽 entity 공통 키만 노출
   const updateRow = useCallback(
     (row: UnifiedFieldRow, patch: { classification?: 'DIM' | 'MSR'; displayName?: string; columnFormat?: ColumnFormat; isVisible?: boolean }) => {
-      if (row.source === 'BASE') updateBase(row.columnName, patch as Partial<DatasetField>);
-      else updateCalc(row.columnName, patch as Partial<CalcField>);
+      if (row.source === 'BASE') updateBase(row.fieldName, patch as Partial<DatasetField>);
+      else updateCalc(row.fieldName, patch as Partial<CalcField>);
     },
     [updateBase, updateCalc],
   );
@@ -345,60 +387,59 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
   const columnDefs = useMemo<ColDef<UnifiedFieldRow>[]>(
     () => [
       {
-        field: 'isVisible',
-        headerName: '사용',
-        width: 56,
+        headerComponent: CheckboxHeader,
+        headerComponentParams: { allVisible, someVisible, toggleAll },
+        maxWidth: 52,
         editable: false,
         sortable: false,
         suppressHeaderMenuButton: true,
         cellStyle: centerCellStyle,
-        headerClass: 'ag-header-cell-center',
         cellRenderer: (params: ICellRendererParams<UnifiedFieldRow>) => {
           const data = params.data;
           if (!data) return null;
           // VIRTUAL 행은 항상 노출 (룩업이 정의되어 있으면 결과는 보여야 함). BASE/CALC는 토글 가능
           if (data.source === 'VIRTUAL') return <Checkbox checked disabled />;
-          return <Checkbox checked={!!params.value} onChange={(e) => updateRow(data, { isVisible: e.target.checked })} />;
+          return <Checkbox checked={!!data.isVisible} onChange={(e) => updateRow(data, { isVisible: e.target.checked })} />;
         },
       },
       {
-        headerName: '유형',
-        width: 96,
+        headerName: '컬럼',
+        field: 'fieldName',
+        flex: 2,
+        minWidth: 180,
         editable: false,
         sortable: false,
-        suppressHeaderMenuButton: true,
-        cellStyle: centerCellStyle,
+        cellStyle: startCellStyle,
         cellRenderer: (params: ICellRendererParams<UnifiedFieldRow>) => {
           const data = params.data;
           if (!data) return null;
-          if (data.source === 'CALC') {
-            return (
-              <Tooltip
-                title={
-                  <div className="space-y-1">
-                    <div className="text-[10.5px] uppercase tracking-wider text-white/70">계산식</div>
-                    <div className="font-mono text-[12px] whitespace-pre-wrap break-all">{data.rowExpression ?? '—'}</div>
-                  </div>
-                }
-                placement="topLeft"
-                overlayStyle={{ maxWidth: 480 }}
-              >
-                <Tag color="success" className="!m-0 cursor-help">
-                  계산식
-                </Tag>
-              </Tooltip>
-            );
-          }
-          if (data.source === 'VIRTUAL') {
-            return (
-              <Tooltip title={`코드 룩업 결과 — 소스 필드 ${data.parentField ?? '—'}`} placement="topLeft">
-                <Tag color="processing" className="!m-0 cursor-help">
-                  룩업
-                </Tag>
-              </Tooltip>
-            );
-          }
-          return <Tag className="!m-0">일반</Tag>;
+          // 계산식/룩업 구분은 통계 WizardStepB처럼 컬럼 셀의 배지로 표기 (별도 '유형' 열 제거)
+          return (
+            <div className="flex items-center gap-1.5 h-full">
+              {data.source === 'CALC' && (
+                <Tooltip
+                  title={
+                    <div className="space-y-1">
+                      <div className="text-[10.5px] uppercase tracking-wider text-white/70">계산식</div>
+                      <div className="font-mono text-[12px] whitespace-pre-wrap break-all">{data.rowExpression ?? '—'}</div>
+                    </div>
+                  }
+                  placement="topLeft"
+                  overlayStyle={{ maxWidth: 480 }}
+                >
+                  <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-green-600 font-mono text-xs font-bold text-white cursor-help">ƒ</span>
+                </Tooltip>
+              )}
+              {data.source === 'VIRTUAL' && (
+                <Tooltip title={`코드 룩업 결과 — 소스 필드 ${data.parentField ?? '—'}`} placement="topLeft">
+                  <Tag color="processing" className="!m-0 !text-[10px] !px-1 !py-0 !leading-4 cursor-help">
+                    룩업
+                  </Tag>
+                </Tooltip>
+              )}
+              <span className={`font-mono font-semibold truncate ${data.source === 'CALC' ? 'text-green-700' : ''}`}>{data.fieldName}</span>
+            </div>
+          );
         },
       },
       {
@@ -426,19 +467,6 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
         },
       },
       {
-        field: 'columnName',
-        headerName: '컬럼',
-        flex: 1,
-        minWidth: 180,
-        editable: false,
-        cellStyle: startCellStyle,
-        cellRenderer: (params: ICellRendererParams<UnifiedFieldRow>) => {
-          const data = params.data;
-          if (!data) return null;
-          return <span className="font-mono font-semibold truncate">{data.columnName}</span>;
-        },
-      },
-      {
         field: 'dataType',
         headerName: '데이터 타입',
         width: 116,
@@ -448,9 +476,9 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
           const v = params.value as string | undefined;
           if (!v) return null;
           return (
-            <span className="rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold" style={{ background: 'var(--color-bt-bg-muted)', color: 'var(--color-bt-fg-muted)' }}>
+            <Tag color={DATA_TYPE_TAG_COLOR[v] ?? 'default'} className="!mr-0 font-mono text-[10px]">
               {v}
-            </span>
+            </Tag>
           );
         },
       },
@@ -501,7 +529,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
           const data = params.data;
           if (!data) return null;
           if (data.source === 'CALC') {
-            const calc = (form.getFieldValue('calcFields') as CalcField[])?.find((c) => c.fieldCode === data.columnName);
+            const calc = (form.getFieldValue('calcFields') as CalcField[])?.find((c) => c.fieldName === data.fieldName);
             if (!calc) return null;
             return (
               <div className="flex items-center gap-1">
@@ -515,7 +543,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
                 </button>
                 <button
                   type="button"
-                  onClick={() => onCalcDelete(calc.fieldCode)}
+                  onClick={() => onCalcDelete(calc.fieldName)}
                   className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--color-bt-fg-muted)] hover:bg-[var(--color-bt-danger-soft)] hover:text-[var(--color-bt-danger)]"
                   title="계산필드 삭제"
                 >
@@ -551,44 +579,28 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
         },
       },
     ],
-    [form, updateRow, onCalcEdit, onCalcDelete, onLookupEdit, onLookupDelete],
+    [form, updateRow, onCalcEdit, onCalcDelete, onLookupEdit, onLookupDelete, allVisible, someVisible, toggleAll],
   );
 
-  const baseCount = fields.filter((f) => !f.isVirtual).length;
-  const virtualCount = fields.filter((f) => f.isVirtual).length;
   return (
     <div className="flex-1 min-h-0 flex flex-col">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-sm font-semibold">컬럼 구성</span>
+      <div className="shrink-0 mb-2 flex items-center gap-2">
+        <span className="text-sm font-semibold">필드 구성</span>
         <span className="text-xs text-[var(--color-bt-fg-muted)]">— 노출할 필드를 선택하고 분류·서식·표시명을 지정하세요</span>
-        <span className="ml-auto inline-flex items-center gap-3">
-          <span className="text-xs text-[var(--color-bt-fg-muted)]">
-            노출 <span className="font-semibold text-[var(--color-bt-primary)]">{visibleCount}</span> / {baseCount}
-            {virtualCount > 0 && (
-              <>
-                <span className="mx-1.5 text-[var(--color-bt-border)]">·</span>
-                룩업 가상 <span className="font-semibold text-[var(--color-bt-primary)]">{virtualCount}</span>
-              </>
-            )}
-            {calcFields.length > 0 && (
-              <>
-                <span className="mx-1.5 text-[var(--color-bt-border)]">·</span>
-                계산필드 <span className="font-semibold text-[var(--color-bt-success)]">{calcFields.length}</span>
-              </>
-            )}
-          </span>
-          <ValidationChip status={validationStatus} checkedAt={validationCheckedAt} errors={validationErrors} />
-          <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleCount === 0}>
-            검증 실행
-          </Button>
-          <Divider orientation="vertical" className="mx-0" />
-          <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={onLookupAdd}>
-            룩업 추가
-          </Button>
-          <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={onCalcAdd}>
-            계산필드 추가
-          </Button>
+        <span className="ml-auto text-xs text-[var(--color-bt-fg-muted)]">
+          노출 <span className="font-semibold text-[var(--color-bt-primary)]">{visibleTotal}</span> / {toggleTotal}
         </span>
+        <ValidationChip status={validationStatus} checkedAt={validationCheckedAt} errors={validationErrors} />
+        <Button size="small" icon={<Play className="w-3 h-3" />} loading={isChecking} onClick={handleValidate} disabled={visibleTotal === 0}>
+          검증 실행
+        </Button>
+        <Divider orientation="vertical" className="mx-0" />
+        <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={onLookupAdd}>
+          룩업 추가
+        </Button>
+        <Button type="primary" size="small" icon={<Plus className="w-3.5 h-3.5" />} onClick={onCalcAdd}>
+          계산필드 추가
+        </Button>
       </div>
 
       {/* 검증 결과 인라인 박스 — invalid 시 오류, valid+경고 시 경고 노출 */}
@@ -614,33 +626,21 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
       )}
 
       <div className="flex-1 min-h-0 w-full">
+        {/* 통계 WizardStepB와 동일 — 행 번호 + 고정 행 높이(40). 전체 한눈에 보도록 페이지네이션/상태바 끔 */}
         <AgGridReact<UnifiedFieldRow>
           ref={gridRef}
           rowData={unifiedRows}
           columnDefs={columnDefs}
-          gridOptions={gridOptions}
-          // 공통 gridOptions는 페이지네이션(20) + statusBar(페이지네이션 패널) 기본.
-          // 데이터셋 컬럼 구성은 전체 한눈에 + 스크롤로 보는 게 자연스러워 둘 다 끔.
-          pagination={false}
-          statusBar={{ statusPanels: [] }}
+          gridOptions={{ ...gridOptions, rowNumbers: true, pagination: false, statusBar: undefined, sideBar: false }}
+          rowHeight={40}
           getRowId={(p) => p.data.rowId}
-          getRowClass={(p) => (p.data?.source === 'CALC' ? 'bg-[var(--color-bt-success-soft)]/30' : p.data?.source === 'VIRTUAL' ? 'bg-[var(--color-bt-primary-soft)]/20' : '')}
-          overlayNoRowsTemplate="이전 단계에서 데이터 소스를 검증하면 컬럼이 자동으로 로드됩니다."
+          getRowClass={(p) => (p.data?.source === 'CALC' ? 'ag-row-calc' : p.data && !p.data.isVisible ? 'ag-row-hidden' : '')}
+          overlayNoRowsTemplate="데이터 소스를 검증하면 컬럼이 자동으로 로드됩니다."
         />
       </div>
     </div>
   );
 }
-
-// 요약 패널 헬퍼
-const getOptionLabel = (options: { label: string; value: string }[], value: string | null | undefined) => {
-  if (value === null || value === undefined) return null;
-  return options.find((opt) => opt.value === value)?.label ?? value;
-};
-const displayValue = (value: unknown): React.ReactNode => {
-  if (value === null || value === undefined || value === '') return <span className="text-gray-300">-</span>;
-  return value as React.ReactNode;
-};
 
 export default function DatasetWizard() {
   const { datasetId: param } = useParams<{ datasetId: string }>();
@@ -654,7 +654,6 @@ export default function DatasetWizard() {
 
   const [form] = Form.useForm<DatasetWizardForm>();
   const [currentStep, setCurrentStep] = useState(0);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [calcEditing, setCalcEditing] = useState<{ mode: 'add' | 'edit'; initial?: CalcField } | null>(null);
   /** 코드 룩업 Drawer ref — open/close 명령형 호출 */
   const lookupDrawerRef = useRef<LookupEditDrawerRef>(null);
@@ -679,7 +678,7 @@ export default function DatasetWizard() {
       form.setFieldsValue({
         datasetCode: detail.datasetCode,
         datasetName: detail.datasetName,
-        domainCode: detail.domainCode,
+        tags: detail.tags ?? [],
         description: detail.description ?? '',
         baseType: detail.baseType,
         schemaSnapshot: detail.schemaSnapshot,
@@ -692,22 +691,8 @@ export default function DatasetWizard() {
     }
   }, [detail, form]);
 
-  // 폼 값 실시간 추적 (요약 패널 + step 검증)
+  // 폼 값 실시간 추적 (스텝 렌더링용)
   const formValues = Form.useWatch([], form);
-
-  useEffect(() => {
-    form
-      .validateFields({ validateOnly: true })
-      .then(() => setFieldErrors({}))
-      .catch((errorInfo) => {
-        const errors: Record<string, string[]> = {};
-        errorInfo.errorFields?.forEach((f: { name: string[]; errors: string[] }) => {
-          const fieldName = f.name[0];
-          errors[fieldName] = f.errors;
-        });
-        setFieldErrors(errors);
-      });
-  }, [formValues, form]);
 
   // Breadcrumb
   const datasetNameWatch = Form.useWatch('datasetName', form);
@@ -761,10 +746,10 @@ export default function DatasetWizard() {
     if (schema.valueMode) form.setFieldsValue({ valueMode: schema.valueMode });
     if (schema.columns.length > 0) {
       const fields: DatasetField[] = schema.columns.map((c, idx) => ({
-        columnName: c.columnName,
+        fieldName: c.columnName,
         displayName: c.columnName,
-        // HASH_FIELD(지표명=값) → MSR, 그 외(JSON) → DIM
-        classification: c.source === 'HASH_FIELD' ? 'MSR' : 'DIM',
+        // 데이터타입 기준 — STRING은 차원(DIM), 그 외(NUMBER/DATE 등)는 측정값(MSR)
+        classification: c.dataType === 'STRING' ? 'DIM' : 'MSR',
         dataType: c.dataType as FieldDataType,
         columnFormat: c.columnFormat as ColumnFormat,
         isVisible: true,
@@ -816,10 +801,10 @@ export default function DatasetWizard() {
           // 검증 dry-run/probe로 추출된 컬럼이 있으면 fields에 자동 세팅 (REDIS/QUERY 공통)
           if (baseType !== 'EXTERNAL' && result.detectedColumns && result.detectedColumns.length > 0) {
             const fields: DatasetField[] = result.detectedColumns.map((c, idx) => ({
-              columnName: c.columnName,
+              fieldName: c.columnName,
               displayName: c.columnName,
-              // HASH_FIELD(지표명=값) → MSR, 그 외(JSON/KEY_SEGMENT) → DIM
-              classification: c.source === 'HASH_FIELD' ? 'MSR' : 'DIM',
+              // 데이터타입 기준 — STRING은 차원(DIM), 그 외(NUMBER/DATE 등)는 측정값(MSR)
+              classification: c.dataType === 'STRING' ? 'DIM' : 'MSR',
               dataType: c.dataType as FieldDataType,
               columnFormat: c.columnFormat as ColumnFormat,
               isVisible: true, // 모니터링 기본 — 모든 컬럼 노출
@@ -878,15 +863,15 @@ export default function DatasetWizard() {
     if (!over || active.id === over.id) return;
     const current = (form.getFieldValue('fields') as DatasetField[]) ?? [];
     const groupItems = current.filter((f) => f.classification === group).sort((a, b) => a.orderNo - b.orderNo);
-    const oldIdx = groupItems.findIndex((f) => f.columnName === active.id);
-    const newIdx = groupItems.findIndex((f) => f.columnName === over.id);
+    const oldIdx = groupItems.findIndex((f) => f.fieldName === active.id);
+    const newIdx = groupItems.findIndex((f) => f.fieldName === over.id);
     if (oldIdx === -1 || newIdx === -1) return;
     const reordered = arrayMove(groupItems, oldIdx, newIdx);
     const groupMin = Math.min(...groupItems.map((f) => f.orderNo));
     form.setFieldsValue({
       fields: current.map((f) => {
         if (f.classification !== group) return f;
-        const pos = reordered.findIndex((r) => r.columnName === f.columnName);
+        const pos = reordered.findIndex((r) => r.fieldName === f.fieldName);
         return { ...f, orderNo: groupMin + pos };
       }),
     });
@@ -897,8 +882,8 @@ export default function DatasetWizard() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const current = (form.getFieldValue('calcFields') as CalcField[]) ?? [];
-    const oldIdx = current.findIndex((c) => c.fieldCode === active.id);
-    const newIdx = current.findIndex((c) => c.fieldCode === over.id);
+    const oldIdx = current.findIndex((c) => c.fieldName === active.id);
+    const newIdx = current.findIndex((c) => c.fieldName === over.id);
     if (oldIdx === -1 || newIdx === -1) return;
     form.setFieldsValue({ calcFields: arrayMove(current, oldIdx, newIdx) });
   };
@@ -907,7 +892,7 @@ export default function DatasetWizard() {
   const handleCalcSave = (calc: CalcField) => {
     const current = (form.getFieldValue('calcFields') as CalcField[]) ?? [];
     if (calcEditing?.mode === 'edit' && calcEditing.initial) {
-      form.setFieldsValue({ calcFields: current.map((c) => (c.fieldCode === calcEditing.initial!.fieldCode ? calc : c)) });
+      form.setFieldsValue({ calcFields: current.map((c) => (c.fieldName === calcEditing.initial!.fieldName ? calc : c)) });
     } else {
       form.setFieldsValue({ calcFields: [...current, calc] });
     }
@@ -915,7 +900,7 @@ export default function DatasetWizard() {
   };
   const handleCalcDelete = (fieldCode: string) => {
     const current = (form.getFieldValue('calcFields') as CalcField[]) ?? [];
-    form.setFieldsValue({ calcFields: current.filter((c) => c.fieldCode !== fieldCode) });
+    form.setFieldsValue({ calcFields: current.filter((c) => c.fieldName !== fieldCode) });
   };
 
   // 코드 룩업 — 변경 시 가상 필드도 자동 재합성
@@ -943,18 +928,17 @@ export default function DatasetWizard() {
     applyLookups(current.filter((_, i) => i !== lookupIndex));
   };
 
-  // Step 정의
+  // Step 정의 — 기본 정보(기본 필드 + 데이터셋 소스 통합) → 필드 구성
   const steps = [
-    { title: '기본 정보', requiredFieldNames: ['datasetCode', 'datasetName', 'domainCode'], content: renderStep1 },
-    { title: '데이터셋', requiredFieldNames: ['baseType', 'schemaSnapshot'], content: renderStep2 },
+    { title: '기본 정보', requiredFieldNames: ['datasetCode', 'datasetName', 'baseType', 'schemaSnapshot'], content: renderStep1 },
     { title: '필드 구성', requiredFieldNames: [], content: renderStep3 },
   ];
 
   const handleNext = async () => {
     try {
       await form.validateFields(steps[currentStep].requiredFieldNames);
-      // Step 2 → 3 전환: BE 검증 통과 강제 + 베이스별 필드 추출 확인
-      if (currentStep === 1) {
+      // 기본 정보 → 필드 구성 전환: BE 검증 통과 강제 + 베이스별 필드 추출 확인
+      if (currentStep === 0) {
         if (!sourceValidated) {
           const bt = form.getFieldValue('baseType') as DatasetBaseType;
           toast.warning(
@@ -1010,7 +994,7 @@ export default function DatasetWizard() {
     const payload: DatasetCreateDatas = {
       datasetCode: values.datasetCode,
       datasetName: values.datasetName,
-      domainCode: values.domainCode,
+      tags: values.tags ?? [],
       description: values.description,
       baseType: values.baseType,
       schemaSnapshot: values.schemaSnapshot,
@@ -1030,11 +1014,40 @@ export default function DatasetWizard() {
 
   // ────────── Step 1: 기본 정보 ──────────
   function renderStep1() {
-    // 통계 WizardStepA 패턴 — 큰 입력 + 3열 선택 카드. 카드는 form의 domainCode를 직접 세팅
-    const domainCode = (formValues?.domainCode ?? '') as DomainCode | '';
-    const DOMAINS: DomainCode[] = ['IE', 'IC', 'IR'];
+    // 기본 정보 + 데이터셋 소스 통합 단계 (통계 WizardStepA 패턴 — 이름·설명·태그 + 소스 선택)
+    const text = (formValues?.schemaSnapshot ?? '') as string;
+    const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
+
+    // 카드 활성/비활성 시각 분리. 편집 모드에서는 비선택 카드를 클릭 불가(disabled)로 명시
+    const cardClass = (selected: boolean) => {
+      if (selected)
+        return 'block w-full text-left rounded-lg border-2 p-4 transition-all cursor-pointer border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]/40 ring-2 ring-[var(--color-bt-primary)]/30 shadow-md';
+      if (isEdit) return 'block w-full text-left rounded-lg border-2 p-4 border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 opacity-50 cursor-not-allowed';
+      return 'block w-full text-left rounded-lg border-2 p-4 transition-all cursor-pointer border-[var(--color-bt-border)] bg-white opacity-60 hover:opacity-100 hover:border-[var(--color-bt-primary)]/60';
+    };
+
+    const selectedBadge = (
+      <span className="inline-flex items-center gap-1 rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <CheckCircle2 className="h-3 w-3" /> 선택됨
+      </span>
+    );
+
+    // REDIS/QUERY 공통 검증 버튼
+    const validateButton = (
+      <Button
+        type="primary"
+        icon={sourceValidated ? <CheckCircle2 className="size-6" /> : <Play className="w-4 h-4 fill-current" />}
+        loading={isValidating}
+        onClick={handleValidateSource}
+        className="!h-9 !w-[170px] !font-semibold shadow-md ring-2 ring-[var(--color-bt-primary)]/25 hover:ring-[var(--color-bt-primary)]/40"
+      >
+        {sourceValidated ? '검증 완료' : '데이터 소스 검증'}
+      </Button>
+    );
+
+    // 본문은 자연 높이로 흐르고 넘치면 외곽 컨테이너가 스크롤 (shrink-0으로 입력 영역 압축 방지)
     return (
-      <>
+      <div className="shrink-0 px-7 pt-7 pb-3">
         <Row gutter={20}>
           <Col span={12}>
             <Form.Item
@@ -1075,81 +1088,17 @@ export default function DatasetWizard() {
 
         <Divider />
 
-        {/* 도메인 — 통계 카테고리 카드 패턴. 검증/요약 연동을 위해 값은 hidden Form.Item에 보관 */}
-        <Form.Item name="domainCode" hidden rules={[{ required: true, message: '도메인을 선택해 주세요.' }]}>
+        {/* 태그 — 도메인 대체. 검증/요약 연동 위해 값은 hidden Form.Item에 보관 (도메인 카드 패턴 계승) */}
+        <Form.Item name="tags" hidden>
           <Input />
         </Form.Item>
-        <div className="mb-2 text-sm font-medium">
-          <span style={{ color: '#ff4d4f' }}>* </span>도메인
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {DOMAINS.map((domain) => {
-            const isSelected = domainCode === domain;
-            return (
-              <button
-                key={domain}
-                type="button"
-                onClick={() => form.setFieldsValue({ domainCode: domain })}
-                className={`rounded-md p-4 text-left transition-all border-2 ${
-                  isSelected ? 'bg-blue-50/40 shadow-md' : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
-                }`}
-                style={isSelected ? { borderColor: '#085fb5' } : undefined}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
-                    {domain}
-                  </span>
-                  {isSelected && (
-                    <span className="rounded px-2 py-1 text-xs font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
-                      선택됨
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm font-bold" style={isSelected ? { color: '#085fb5' } : { color: '#1f2937' }}>
-                  {DOMAIN_LABELS[domain]}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </>
-    );
-  }
+        <div className="mb-2 text-sm font-medium">태그</div>
+        <TagInput value={(formValues?.tags as string[]) ?? []} onChange={(tags) => form.setFieldsValue({ tags })} maxTags={5} />
+        <div className="mt-1.5 text-xs text-[var(--color-bt-fg-muted)]">분류·검색에 사용됩니다. Enter 또는 쉼표로 여러 개 추가 — 최대 5개</div>
 
-  // ────────── Step 2: 데이터 소스 — REDIS / QUERY / EXTERNAL ──────────
-  function renderStep2() {
-    const text = (formValues?.schemaSnapshot ?? '') as string;
-    const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
+        <Divider>데이터 소스</Divider>
 
-    // 카드 활성/비활성 시각 분리. 편집 모드에서는 비선택 카드를 클릭 불가(disabled)로 명시
-    const cardClass = (selected: boolean) => {
-      if (selected)
-        return 'block w-full text-left rounded-lg border-2 p-4 transition-all cursor-pointer border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]/40 ring-2 ring-[var(--color-bt-primary)]/30 shadow-md';
-      if (isEdit) return 'block w-full text-left rounded-lg border-2 p-4 border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 opacity-50 cursor-not-allowed';
-      return 'block w-full text-left rounded-lg border-2 p-4 transition-all cursor-pointer border-[var(--color-bt-border)] bg-white opacity-60 hover:opacity-100 hover:border-[var(--color-bt-primary)]/60';
-    };
-
-    const selectedBadge = (
-      <span className="inline-flex items-center gap-1 rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-[10px] font-semibold text-white">
-        <CheckCircle2 className="h-3 w-3" /> 선택됨
-      </span>
-    );
-
-    // REDIS/QUERY 공통 검증 버튼
-    const validateButton = (
-      <Button
-        type="primary"
-        icon={sourceValidated ? <CheckCircle2 className="size-6" /> : <Play className="w-4 h-4 fill-current" />}
-        loading={isValidating}
-        onClick={handleValidateSource}
-        className="!h-9 !w-[170px] !font-semibold shadow-md ring-2 ring-[var(--color-bt-primary)]/25 hover:ring-[var(--color-bt-primary)]/40"
-      >
-        {sourceValidated ? '검증 완료' : '데이터 소스 검증'}
-      </Button>
-    );
-
-    return (
-      <>
+        {/* ── 데이터 소스 (REDIS / QUERY / EXTERNAL) — 기존 데이터셋 스텝 통합 ── */}
         {/* baseType / schemaSnapshot은 hidden Form.Item으로 form에 저장. 입력 컴포넌트가 별도로 onChange */}
         <Form.Item name="baseType" hidden>
           <Input />
@@ -1211,21 +1160,24 @@ export default function DatasetWizard() {
           </Col>
         </Row>
 
-        {/* ── REDIS 입력 — 키 선택 시 필드 자동 채움(검증 버튼 없음) ── */}
-        {baseType === 'REDIS' && (
-          <>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="text-[12px] font-semibold text-gray-700">Redis 키</span>
-              <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">REDIS</span>
-              <span className="text-[11px] text-gray-500">키를 선택하면 필드가 자동으로 채워집니다.</span>
-            </div>
-            <RedisTreeExplorer value={text} onChange={handleSchemaChange} onSchemaLoaded={handleRedisSchemaLoaded} />
-          </>
-        )}
+        {/* ── REDIS 입력 — 키 선택 시 필드 자동 채움(검증 버튼 없음) ──
+            소스 타입 카드(REDIS↔QUERY) 전환 시 언마운트→재마운트로 키가 재조회되는 것을 막기 위해
+            항상 마운트하고 CSS(hidden)로만 숨긴다. 숨겨진 동안에는 value=''로 두어 키 스키마 조회도 막는다. */}
+        <div className={baseType === 'REDIS' ? '' : 'hidden'}>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-[12px] font-semibold text-gray-700">Redis 키</span>
+            <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">REDIS</span>
+            <span className="text-[11px] text-gray-500">키를 선택하면 필드가 자동으로 채워집니다.</span>
+          </div>
+          {/* QUERY 영역과 동일한 고정 높이 — 키 목록이 영역 안에서 스크롤 */}
+          <div className="h-[380px]">
+            <RedisTreeExplorer value={baseType === 'REDIS' ? text : ''} onChange={handleSchemaChange} onSchemaLoaded={handleRedisSchemaLoaded} />
+          </div>
+        </div>
 
-        {/* ── QUERY 입력 — 좌: SQL 쿼리 / 우: 필드 스키마(검증 시 표시) ── */}
+        {/* ── QUERY 입력 — 좌: SQL 쿼리 / 우: 필드 스키마(검증 시 표시) ── 스크롤 컨텍스트라 고정 높이 사용 */}
         {baseType === 'QUERY' && (
-          <div className="flex min-h-[320px] flex-1 gap-3 overflow-hidden">
+          <div className="flex h-[380px] gap-3 overflow-hidden">
             {/* 좌측: SQL 쿼리 */}
             <div className="flex w-1/2 min-w-0 flex-col">
               <div className="mb-2 flex items-center justify-between gap-2">
@@ -1284,7 +1236,7 @@ export default function DatasetWizard() {
             <p className="mt-1 text-[11.5px] text-[var(--color-bt-fg-muted)]/80">추후 고도화 단계에서 제공될 예정입니다. REDIS 또는 QUERY 소스를 선택하세요.</p>
           </div>
         )}
-      </>
+      </div>
     );
   }
 
@@ -1292,8 +1244,6 @@ export default function DatasetWizard() {
   function renderStep3() {
     const fields = (formValues?.fields as DatasetField[]) ?? [];
     const calcFields = (formValues?.calcFields as CalcField[]) ?? [];
-    const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
-    const datasetCode = (formValues?.datasetCode ?? '') as string;
 
     // DnD 정렬 결과 반영용 — 그룹별 분리 정렬
     const dimFields = [...fields.filter((f) => f.classification === 'DIM')].sort((a, b) => a.orderNo - b.orderNo);
@@ -1301,7 +1251,7 @@ export default function DatasetWizard() {
 
     // 좌측 팔레트 — 노출(isVisible) 필드만 표시 + 검색 필터
     const matchesSearch = (f: DatasetField) =>
-      !paletteSearch || f.columnName.toLowerCase().includes(paletteSearch.toLowerCase()) || (f.displayName ?? '').toLowerCase().includes(paletteSearch.toLowerCase());
+      !paletteSearch || f.fieldName.toLowerCase().includes(paletteSearch.toLowerCase()) || (f.displayName ?? '').toLowerCase().includes(paletteSearch.toLowerCase());
     const paletteDim = dimFields.filter((f) => f.isVisible && matchesSearch(f));
     const paletteMsr = msrFields.filter((f) => f.isVisible && matchesSearch(f));
 
@@ -1319,152 +1269,52 @@ export default function DatasetWizard() {
           <Input />
         </Form.Item>
 
-        {/* 통계 WizardStepB 골격 — 좌측 팔레트 + 우측 메인 그리드. flex-1 + min-h-0으로 본문 가용 공간 전체 채움 */}
-        <div className="flex flex-1 min-h-0">
-          {/* ── 좌측: 노출 필드 팔레트 ── */}
-          <aside className="w-64 shrink-0 border-r border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/20 p-4 overflow-y-auto">
-            {/* 헤더 — border 없이 텍스트만으로 정보 위계 */}
-            <div className="mb-3">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-bt-fg-muted)]">데이터 소스</div>
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 text-xs font-semibold font-mono text-white">{baseType}</span>
-                <span className="font-mono text-sm font-semibold truncate">{datasetCode || '—'}</span>
-              </div>
-              <div className="mt-0.5 text-xs text-[var(--color-bt-fg-muted)]">
-                <span>컬럼 {fields.filter((f) => !f.isVirtual).length}</span>
-                {lookups.length > 0 && <span> · 룩업 {lookups.length}</span>}
-                {calcFields.length > 0 && <span> · 계산식 {calcFields.length}</span>}
-              </div>
+        {calcEditing ? (
+          /* 계산필드 편집 — 통계 WizardStepB처럼 패널을 대체하는 인라인 풀스크린(드로어 아님) */
+          <div className="flex flex-1 min-h-0 flex-col overflow-y-auto p-5">
+            <div className="mb-3 flex items-center gap-2 text-sm text-[var(--color-bt-fg-muted)]">
+              <button type="button" className="text-[var(--color-bt-primary)] hover:underline" onClick={() => setCalcEditing(null)}>
+                ← 필드 구성
+              </button>
+              <span>/</span>
+              <span>{calcEditing.mode === 'add' ? '새 계산필드' : `편집: ${calcEditing.initial?.fieldName ?? ''}`}</span>
             </div>
+            <CalcFieldEditor
+              baseFields={(form.getFieldValue('fields') as DatasetField[]) ?? []}
+              existingCalcFields={(form.getFieldValue('calcFields') as CalcField[]) ?? []}
+              initialValue={calcEditing.initial}
+              onSave={handleCalcSave}
+              onCancel={() => setCalcEditing(null)}
+            />
+          </div>
+        ) : (
+          /* 통계 WizardStepB 골격 — 좌측 팔레트 + 우측 메인 그리드. flex-1 + min-h-0으로 본문 가용 공간 전체 채움 */
+          <div className="flex flex-1 min-h-0">
+            {/* ── 좌측: 노출 필드 팔레트 ── */}
+            <aside className="w-64 shrink-0 border-r border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/20 p-4 overflow-y-auto">
+              <Input size="small" placeholder="필드 검색…" value={paletteSearch} onChange={(e) => setPaletteSearch(e.target.value)} className="mb-4" />
 
-            <Input size="small" placeholder="필드 검색…" value={paletteSearch} onChange={(e) => setPaletteSearch(e.target.value)} className="mb-4" />
-
-            {/* 디멘션 */}
-            <div className="mb-4">
-              <div className="mb-1 flex items-center gap-2 px-1 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-400" />
-                <span>디멘션</span>
-                <span className="ml-auto font-mono text-[10px]">{paletteDim.length}</span>
-              </div>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleGroupDragEnd('DIM')}>
-                <SortableContext items={paletteDim.map((f) => f.columnName)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-0.5">
-                    {paletteDim.map((f) => (
-                      <SortableItem key={f.columnName} id={f.columnName}>
-                        {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
-                          <div
-                            ref={setNodeRef}
-                            style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-                            className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-slate-100/60 rounded cursor-default"
-                          >
-                            <span {...attributes} {...listeners} className="cursor-grab text-[var(--color-bt-fg-muted)]/50 select-none touch-none font-mono text-xs">
-                              ⋮⋮
-                            </span>
-                            <span className="font-mono font-medium flex-1 truncate">{f.columnName}</span>
-                          </div>
-                        )}
-                      </SortableItem>
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-              {paletteDim.length === 0 && <div className="px-2 py-1 text-[11px] text-[var(--color-bt-fg-muted)]/60">노출된 디멘션 없음</div>}
-            </div>
-
-            {/* 측정값 */}
-            <div className="mb-4">
-              <div className="mb-1 flex items-center gap-2 px-1 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-bt-primary)]" />
-                <span>측정값</span>
-                <span className="ml-auto font-mono text-[10px]">{paletteMsr.length}</span>
-              </div>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleGroupDragEnd('MSR')}>
-                <SortableContext items={paletteMsr.map((f) => f.columnName)} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-0.5">
-                    {paletteMsr.map((f) => (
-                      <SortableItem key={f.columnName} id={f.columnName}>
-                        {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
-                          <div
-                            ref={setNodeRef}
-                            style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-                            className="flex items-center gap-2 px-2 py-1 text-sm hover:bg-[var(--color-bt-primary-soft)]/40 rounded cursor-default"
-                          >
-                            <span {...attributes} {...listeners} className="cursor-grab text-[var(--color-bt-fg-muted)]/50 select-none touch-none font-mono text-xs">
-                              ⋮⋮
-                            </span>
-                            <span className="font-mono font-medium flex-1 truncate">{f.columnName}</span>
-                          </div>
-                        )}
-                      </SortableItem>
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-              {paletteMsr.length === 0 && <div className="px-2 py-1 text-[11px] text-[var(--color-bt-fg-muted)]/60">노출된 측정값 없음</div>}
-            </div>
-
-            {/* 룩업 (가상) — 소스 필드별 그룹, 자식은 들여쓰기로 표현. border 없이 색상·여백만 사용 */}
-            {lookups.length > 0 && (
+              {/* 디멘션 */}
               <div className="mb-4">
-                <div className="mb-1 flex items-center gap-2 px-1 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-sky-500" />
-                  <span>룩업 (가상)</span>
-                  <span className="ml-auto font-mono text-[10px]">{lookups.reduce((sum, l) => sum + l.fields.length, 0)}</span>
+                <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
+                  <span>디멘션</span>
+                  <span className="ml-auto font-mono text-[10px]">{paletteDim.length}</span>
                 </div>
-                <div className="space-y-2">
-                  {lookups.map((lookup, idx) => {
-                    const virtualForLookup = fields.filter((f) => f.isVirtual && f.parentField === lookup.sourceField);
-                    return (
-                      <div key={idx}>
-                        {/* 부모 — 소스 필드 → 마스터 */}
-                        <div className="flex items-center gap-1.5 px-2 py-1 text-sm rounded hover:bg-sky-50">
-                          <span className="font-mono font-semibold text-sky-700 truncate">{lookup.sourceField}</span>
-                          <span className="text-sky-400 text-[10px]">↗</span>
-                          <Tooltip title={lookup.catalogTableName ?? lookup.catalogDisplayName ?? ''} placement="top">
-                            <span className="ml-auto truncate text-[10px] text-[var(--color-bt-fg-muted)]">{lookup.catalogDisplayName ?? '—'}</span>
-                          </Tooltip>
-                        </div>
-                        {/* 자식 — 들여쓰기로 표시 */}
-                        {virtualForLookup.length > 0 && (
-                          <div className="mt-0.5 pl-4 space-y-0.5">
-                            {virtualForLookup.map((vf) => (
-                              <div key={vf.columnName} className="flex items-center gap-1.5 px-2 py-0.5 text-[12.5px] rounded hover:bg-sky-50/70">
-                                <span className="text-sky-300 text-[10px]">↳</span>
-                                <span className="font-mono flex-1 truncate">{vf.columnName}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* 계산식 */}
-            {calcFields.length > 0 && (
-              <div className="mb-2">
-                <div className="mb-1 flex items-center gap-2 px-1 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-bt-success)]" />
-                  <span>계산식</span>
-                  <span className="ml-auto font-mono text-[10px]">{calcFields.length}</span>
-                </div>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleCalcDragEnd}>
-                  <SortableContext items={calcFields.map((c) => c.fieldCode)} strategy={verticalListSortingStrategy}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleGroupDragEnd('DIM')}>
+                  <SortableContext items={paletteDim.map((f) => f.fieldName)} strategy={verticalListSortingStrategy}>
                     <div className="space-y-0.5">
-                      {calcFields.map((c) => (
-                        <SortableItem key={c.fieldCode} id={c.fieldCode}>
+                      {paletteDim.map((f) => (
+                        <SortableItem key={f.fieldName} id={f.fieldName}>
                           {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
                             <div
                               ref={setNodeRef}
                               style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-                              className="flex items-center gap-2 px-2 py-1 text-sm rounded hover:bg-emerald-50 cursor-default"
+                              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--color-bt-bg-muted)]/50 rounded cursor-default"
                             >
                               <span {...attributes} {...listeners} className="cursor-grab text-[var(--color-bt-fg-muted)]/50 select-none touch-none font-mono text-xs">
                                 ⋮⋮
                               </span>
-                              <span className="font-mono font-medium flex-1 truncate text-emerald-700">{c.fieldCode}</span>
+                              <span className="font-mono font-medium flex-1 truncate">{f.fieldName}</span>
                             </div>
                           )}
                         </SortableItem>
@@ -1472,120 +1322,132 @@ export default function DatasetWizard() {
                     </div>
                   </SortableContext>
                 </DndContext>
+                {paletteDim.length === 0 && <div className="px-2 py-1 text-[11px] text-[var(--color-bt-fg-muted)]/60">노출된 디멘션 없음</div>}
               </div>
-            )}
-          </aside>
 
-          {/* ── 우측: 컬럼 구성 그리드 (전체 차지) ── */}
-          <div className="flex-1 bg-white min-w-0 flex flex-col p-5">
-            <FieldConfigGrid
-              form={form}
-              fields={fields}
-              calcFields={calcFields}
-              lookups={lookups}
-              gridOptions={gridOptions}
-              onCalcAdd={() => setCalcEditing({ mode: 'add' })}
-              onCalcEdit={(calc) => setCalcEditing({ mode: 'edit', initial: calc })}
-              onCalcDelete={handleCalcDelete}
-              onLookupAdd={handleLookupAdd}
-              onLookupEdit={handleLookupEdit}
-              onLookupDelete={handleLookupDelete}
-            />
-          </div>
-          {/* /우측 메인 */}
-        </div>
-        {/* /flex 외곽 */}
-      </>
-    );
-  }
-
-  // ────────── 요약 패널 ──────────
-  const renderValidationIcon = (fieldName: string) => {
-    const hasError = fieldErrors[fieldName] && fieldErrors[fieldName].length > 0;
-    return hasError ? <X className="w-4 h-4 text-red-500 ml-2 shrink-0" /> : <Check className="w-4 h-4 text-green-500 ml-2 shrink-0" />;
-  };
-
-  function renderFormSummary() {
-    const values = formValues ?? initialForm;
-    const { datasetCode, datasetName, domainCode, baseType, description, schemaSnapshot, fields, calcFields } = values;
-    const usedFields = (fields as DatasetField[] | undefined)?.filter((f) => f.isVisible) ?? [];
-    const domainOpts = DOMAIN_OPTIONS.map((o) => ({ label: o.label, value: o.value as string }));
-    const baseTypeLabel =
-      baseType === 'REDIS' ? 'REDIS (Redis 직접)' : baseType === 'QUERY' ? 'QUERY (DB 직접 쿼리)' : baseType === 'EXTERNAL' ? 'EXTERNAL (외부 API · 미구현)' : null;
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">코드</span>
-            <span className="text-gray-800 font-medium flex-1 font-mono text-[12px]">{displayValue(datasetCode)}</span>
-            {renderValidationIcon('datasetCode')}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">이름</span>
-            <span className="text-gray-800 flex-1">{displayValue(datasetName)}</span>
-            {renderValidationIcon('datasetName')}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">도메인</span>
-            <span className="text-gray-800 flex-1">{displayValue(getOptionLabel(domainOpts, domainCode))}</span>
-            {renderValidationIcon('domainCode')}
-          </div>
-          <div className="flex items-start gap-1">
-            <span className="text-gray-500 w-24 shrink-0">설명</span>
-            <span className="text-gray-800 flex-1 whitespace-pre-wrap">{displayValue(description)}</span>
-          </div>
-        </div>
-        <Divider className="!my-3" />
-        <div className="space-y-2">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">베이스</span>
-            <span className="text-gray-800 flex-1">{displayValue(baseTypeLabel)}</span>
-            {renderValidationIcon('baseType')}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">{baseType === 'REDIS' ? '키 패턴' : baseType === 'QUERY' ? 'SQL' : '소스'}</span>
-            <span className="text-gray-800 flex-1 font-mono text-[11px]">
-              {baseType === 'REDIS'
-                ? displayValue(schemaSnapshot || null)
-                : schemaSnapshot
-                  ? `${schemaSnapshot.split('\n').length} lines · ${(schemaSnapshot.length / 1024).toFixed(1)} KB`
-                  : displayValue(null)}
-            </span>
-            {renderValidationIcon('schemaSnapshot')}
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">필드 (사용/전체)</span>
-            <span className="text-gray-800 flex-1">
-              <span className="font-semibold text-[var(--color-bt-primary)]">{usedFields.length}</span>
-              <span className="mx-1 text-gray-400">/</span>
-              <span>{(fields as DatasetField[] | undefined)?.length ?? 0}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500 w-24 shrink-0">계산필드</span>
-            <span className="text-gray-800 flex-1">
-              <span className="font-semibold text-[var(--color-bt-success)]">{(calcFields as CalcField[] | undefined)?.length ?? 0}</span>
-              <span className="ml-1 text-gray-400">개</span>
-            </span>
-          </div>
-        </div>
-        {usedFields.length > 0 && (
-          <>
-            <Divider className="!my-3" />
-            <div>
-              <div className="text-[11px] text-gray-500 mb-1.5">사용 필드</div>
-              <div className="flex flex-wrap gap-1">
-                {usedFields.slice(0, 12).map((f) => (
-                  <Tag key={f.columnName} className="!m-0 !text-[10.5px] !leading-tight !py-0.5 !px-1.5 font-mono">
-                    {f.columnName}
-                  </Tag>
-                ))}
-                {usedFields.length > 12 && <span className="text-[10.5px] text-gray-400 self-center">+{usedFields.length - 12}</span>}
+              {/* 측정값 */}
+              <div className="mb-4">
+                <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
+                  <span>측정값</span>
+                  <span className="ml-auto font-mono text-[10px]">{paletteMsr.length}</span>
+                </div>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleGroupDragEnd('MSR')}>
+                  <SortableContext items={paletteMsr.map((f) => f.fieldName)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-0.5">
+                      {paletteMsr.map((f) => (
+                        <SortableItem key={f.fieldName} id={f.fieldName}>
+                          {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
+                            <div
+                              ref={setNodeRef}
+                              style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+                              className="flex items-center gap-2 px-3 py-2 text-sm bg-[var(--color-bt-primary-soft)]/30 hover:bg-[var(--color-bt-primary-soft)]/50 rounded cursor-default"
+                            >
+                              <span {...attributes} {...listeners} className="cursor-grab text-[var(--color-bt-fg-muted)]/50 select-none touch-none font-mono text-xs">
+                                ⋮⋮
+                              </span>
+                              <span className="font-mono font-medium flex-1 truncate">{f.fieldName}</span>
+                            </div>
+                          )}
+                        </SortableItem>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+                {paletteMsr.length === 0 && <div className="px-2 py-1 text-[11px] text-[var(--color-bt-fg-muted)]/60">노출된 측정값 없음</div>}
               </div>
+
+              {/* 룩업 (가상) — 소스 필드별 그룹, 자식은 들여쓰기로 표현. border 없이 색상·여백만 사용 */}
+              {lookups.length > 0 && (
+                <div className="mb-4">
+                  <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
+                    <span>룩업 (가상)</span>
+                    <span className="ml-auto font-mono text-[10px]">{lookups.reduce((sum, l) => sum + l.fields.length, 0)}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {lookups.map((lookup, idx) => {
+                      const virtualForLookup = fields.filter((f) => f.isVirtual && f.parentField === lookup.sourceField);
+                      return (
+                        <div key={idx}>
+                          {/* 부모 — 소스 필드 → 마스터 */}
+                          <div className="flex items-center gap-1.5 px-2 py-1 text-sm rounded hover:bg-sky-50">
+                            <span className="font-mono font-semibold text-sky-700 truncate">{lookup.sourceField}</span>
+                            <span className="text-sky-400 text-[10px]">↗</span>
+                            <Tooltip title={lookup.catalogTableName ?? lookup.catalogDisplayName ?? ''} placement="top">
+                              <span className="ml-auto truncate text-[10px] text-[var(--color-bt-fg-muted)]">{lookup.catalogDisplayName ?? '—'}</span>
+                            </Tooltip>
+                          </div>
+                          {/* 자식 — 들여쓰기로 표시 */}
+                          {virtualForLookup.length > 0 && (
+                            <div className="mt-0.5 pl-4 space-y-0.5">
+                              {virtualForLookup.map((vf) => (
+                                <div key={vf.fieldName} className="flex items-center gap-1.5 px-2 py-0.5 text-[12.5px] rounded hover:bg-sky-50/70">
+                                  <span className="text-sky-300 text-[10px]">↳</span>
+                                  <span className="font-mono flex-1 truncate">{vf.fieldName}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 계산식 */}
+              {calcFields.length > 0 && (
+                <div className="mb-2">
+                  <div className="mb-1 flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
+                    <span>계산식</span>
+                    <span className="ml-auto font-mono text-[10px]">{calcFields.length}</span>
+                  </div>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} modifiers={[restrictToVerticalAxis]} onDragEnd={handleCalcDragEnd}>
+                    <SortableContext items={calcFields.map((c) => c.fieldName)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-0.5">
+                        {calcFields.map((c) => (
+                          <SortableItem key={c.fieldName} id={c.fieldName}>
+                            {({ attributes, listeners, setNodeRef, transform, transition, isDragging }) => (
+                              <div
+                                ref={setNodeRef}
+                                style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+                                className="flex items-center gap-2 px-3 py-2 text-sm rounded bg-green-50 hover:bg-green-100/60 cursor-default"
+                              >
+                                <span {...attributes} {...listeners} className="cursor-grab text-[var(--color-bt-fg-muted)]/50 select-none touch-none font-mono text-xs">
+                                  ⋮⋮
+                                </span>
+                                <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-green-600 font-mono text-xs font-bold text-white">ƒ</span>
+                                <span className="font-mono font-medium flex-1 truncate text-green-700">{c.fieldName}</span>
+                              </div>
+                            )}
+                          </SortableItem>
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              )}
+            </aside>
+
+            {/* ── 우측: 컬럼 구성 그리드 (전체 차지) ── */}
+            <div className="flex-1 bg-white min-w-0 flex flex-col p-5">
+              <FieldConfigGrid
+                form={form}
+                fields={fields}
+                calcFields={calcFields}
+                lookups={lookups}
+                gridOptions={gridOptions}
+                onCalcAdd={() => setCalcEditing({ mode: 'add' })}
+                onCalcEdit={(calc) => setCalcEditing({ mode: 'edit', initial: calc })}
+                onCalcDelete={handleCalcDelete}
+                onLookupAdd={handleLookupAdd}
+                onLookupEdit={handleLookupEdit}
+                onLookupDelete={handleLookupDelete}
+              />
             </div>
-          </>
+            {/* /우측 메인 */}
+          </div>
         )}
-      </div>
+      </>
     );
   }
 
@@ -1622,9 +1484,9 @@ export default function DatasetWizard() {
           />
         </div>
 
-        <div className="flex w-full flex-1 min-h-0 gap-4">
+        <div className="flex w-full flex-1 min-h-0">
           <div className="w-full h-full min-h-0 bg-white bt-shadow flex flex-col">
-            <div className="w-full flex-1 min-h-0 overflow-y-auto px-7 pt-7 pb-3">
+            <div className="w-full flex-1 min-h-0 overflow-y-auto">
               <Form form={form} initialValues={initialForm} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical" className="h-full">
                 {steps.map((step, index) => (
                   <div key={index} className="h-full" style={{ display: currentStep === index ? 'flex' : 'none', flexDirection: 'column' }}>
@@ -1633,40 +1495,11 @@ export default function DatasetWizard() {
                 ))}
               </Form>
             </div>
-            <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">{renderFooter()}</div>
-          </div>
-          <div className="!w-[400px] !min-w-[400px] h-full min-h-0 bg-white bt-shadow hidden xl:flex flex-col">
-            <div className="text-base font-semibold text-gray-800 mb-4 pb-3 border-b border-gray-200 px-5 pt-5">입력 정보 요약</div>
-            <div className="flex-1 min-h-0 overflow-y-auto px-5 pb-5">{renderFormSummary()}</div>
+            {/* 계산필드 인라인 편집 중에는 위저드 푸터 숨김 (에디터가 자체 취소/저장 제공) */}
+            {!calcEditing && <div className="border-t border-bt-border bg-bt-bg-muted px-7 py-4">{renderFooter()}</div>}
           </div>
         </div>
       </div>
-
-      {/* 계산필드 추가/편집 Drawer — wizard를 가리지 않고 우측에서 슬라이드 */}
-      <Drawer
-        open={!!calcEditing}
-        onClose={() => setCalcEditing(null)}
-        placement="right"
-        destroyOnHidden
-        title={
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-[var(--color-bt-success)] font-mono text-[11px] font-bold text-white">ƒ</span>
-            <span className="text-[13px] font-semibold">{calcEditing?.mode === 'add' ? '새 계산필드' : `편집: ${calcEditing?.initial?.fieldCode ?? ''}`}</span>
-          </div>
-        }
-        closable={{ placement: 'end' }}
-        styles={{ wrapper: { width: 'min(1280px, 95vw)' }, body: { padding: 0 } }}
-      >
-        {calcEditing && (
-          <CalcFieldEditor
-            baseFields={(form.getFieldValue('fields') as DatasetField[]) ?? []}
-            existingCalcFields={(form.getFieldValue('calcFields') as CalcField[]) ?? []}
-            initialValue={calcEditing.initial}
-            onSave={handleCalcSave}
-            onCancel={() => setCalcEditing(null)}
-          />
-        )}
-      </Drawer>
 
       {/* 코드 룩업 추가/편집 Drawer — manager MenuCreateDrawer 패턴 (ref 기반) */}
       <LookupEditDrawer

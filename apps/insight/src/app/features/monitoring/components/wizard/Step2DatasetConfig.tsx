@@ -33,7 +33,7 @@ function flattenDataset(detail: DatasetDetail): UnifiedRow[] {
   // 기본 필드 + virtual
   for (const f of detail.fields) {
     rows.push({
-      columnName: f.columnName,
+      columnName: f.fieldName,
       source: f.isVirtual ? 'VIRTUAL' : 'BASE',
       classification: f.classification,
       dataType: f.dataType,
@@ -45,7 +45,7 @@ function flattenDataset(detail: DatasetDetail): UnifiedRow[] {
   // 계산필드 (ƒ)
   for (const c of detail.calcFields) {
     rows.push({
-      columnName: c.fieldCode,
+      columnName: c.fieldName,
       source: 'CALC',
       classification: c.classification,
       dataType: c.dataType,
@@ -72,7 +72,7 @@ export default function Step2DatasetConfig({ datasetId, fieldOverrides, onChange
     const init: Record<string, Step2FieldOverride> = {};
     for (const r of rows) {
       // 데이터셋 단의 isVisible 기본값 사용 (BASE/VIRTUAL은 dataset.field, CALC는 항상 노출)
-      const baseField = detail.fields.find((f) => f.columnName === r.columnName);
+      const baseField = detail.fields.find((f) => f.fieldName === r.columnName);
       init[r.columnName] = {
         isVisible: r.source === 'CALC' ? true : (baseField?.isVisible ?? true),
         displayName: r.defaultDisplayName,

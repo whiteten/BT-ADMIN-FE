@@ -52,11 +52,33 @@ export function generateMockRows(detail: DatasetDetail | undefined, jitter = 0):
     });
   }
 
-  // 기본 패턴 — CODE / NAME / VALUE
-  return [
-    { CODE: 'A01', NAME: '항목 A', VALUE: Math.round(120 + jitter * 30) },
-    { CODE: 'A02', NAME: '항목 B', VALUE: Math.round(96 + jitter * 25) },
-    { CODE: 'A03', NAME: '항목 C', VALUE: Math.round(72 + jitter * 18) },
-    { CODE: 'A04', NAME: '항목 D', VALUE: Math.round(48 + jitter * 12) },
-  ];
+  // 기본 패턴 — 데이터셋의 실제 필드로 mock 생성
+  //   DIM(DATE/DATETIME/TIME)=시간축, DIM(그 외)=카테고리, MSR/계산필드(MSR)=숫자
+  //   → 임의 데이터셋에서도 그리드·막대·선·카드·파이 미리보기가 실제 컬럼명으로 동작
+  const visibleBase = detail.fields.filter((f) => f.isVisible !== false);
+  const dims = visibleBase.filter((f) => f.classification === 'DIM');
+  const msrs = visibleBase.filter((f) => f.classification === 'MSR');
+  const calcMsrs = detail.calcFields.filter((c) => c.classification === 'MSR');
+  const CATEGORIES = ['항목 A', '항목 B', '항목 C', '항목 D', '항목 E', '항목 F'];
+  const TIMES = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00'];
+  const ROW_COUNT = 6;
+
+  return Array.from({ length: ROW_COUNT }, (_, i) => {
+    const row: Record<string, unknown> = {};
+    dims.forEach((d, di) => {
+      if (d.dataType === 'DATE' || d.dataType === 'DATETIME' || d.dataType === 'TIME') {
+        row[d.fieldName] = TIMES[i % TIMES.length];
+      } else {
+        row[d.fieldName] = di === 0 ? CATEGORIES[i % CATEGORIES.length] : `${d.fieldName}-${i + 1}`;
+      }
+    });
+    msrs.forEach((m, mi) => {
+      const base = 120 - i * 15 + mi * 20;
+      row[m.fieldName] = Math.max(0, Math.round(base + (jitter - 0.5) * 30 + (i % 3) * 6));
+    });
+    calcMsrs.forEach((c) => {
+      row[c.fieldName] = Math.max(0, Math.round(60 + (jitter - 0.5) * 20 + i * 4));
+    });
+    return row;
+  });
 }

@@ -3,10 +3,11 @@ import WidgetCardHeader from './WidgetCardHeader';
 import { useGetMonitoringDataset } from '../../hooks/useDatasetQueries';
 import { generateMockRows } from '../../mocks/mockWidgetData';
 import type { KpiDirection, TemplateWidget, VizType } from '../../types';
-import MiniBar from '../preview/MiniBar';
-import MiniCard from '../preview/MiniCard';
-import MiniGrid from '../preview/MiniGrid';
-import MiniLine from '../preview/MiniLine';
+import WidgetBarChart from '../widget/WidgetBarChart';
+import WidgetGrid from '../widget/WidgetGrid';
+import WidgetKpiCard from '../widget/WidgetKpiCard';
+import WidgetLineChart from '../widget/WidgetLineChart';
+import WidgetPieChart from '../widget/WidgetPieChart';
 
 interface TemplateWidgetCardProps {
   widget: TemplateWidget;
@@ -29,18 +30,6 @@ export default function TemplateWidgetCard({ widget, editMode, onDelete, draggab
   }, [widget.refreshInterval]);
 
   const rows = useMemo(() => generateMockRows(detail, jitter), [detail, jitter]);
-  // 단순화 — Step 2 override를 위젯 카드에서는 비워두고 데이터셋 원본 사용
-  const fieldOverrides = useMemo(() => {
-    if (!detail) return {};
-    const ovr: Record<string, { isVisible: boolean; displayName: string; columnFormat: 'Number' | 'Decimal' | 'Rate' | 'String' | 'Date' | 'Time' }> = {};
-    for (const f of detail.fields) {
-      ovr[f.columnName] = { isVisible: f.isVisible, displayName: f.displayName, columnFormat: f.columnFormat };
-    }
-    for (const c of detail.calcFields) {
-      ovr[c.fieldCode] = { isVisible: true, displayName: c.displayName, columnFormat: c.columnFormat };
-    }
-    return ovr;
-  }, [detail]);
 
   if (!detail) {
     return (
@@ -55,16 +44,25 @@ export default function TemplateWidgetCard({ widget, editMode, onDelete, draggab
     <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)] overflow-hidden">
       <WidgetCardHeader widget={widget} currentViz={currentViz} onChangeViz={setCurrentViz} editMode={editMode} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
-        {currentViz === 'GRID' && <MiniGrid detail={detail} fieldOverrides={fieldOverrides} columns={widget.mapping.GRID?.columns ?? []} rows={rows} />}
-        {currentViz === 'BAR' && <MiniBar detail={detail} x={widget.mapping.BAR?.x ?? ''} y={widget.mapping.BAR?.y ?? []} rows={rows} />}
-        {currentViz === 'LINE' && <MiniLine detail={detail} x={widget.mapping.LINE?.x ?? ''} y={widget.mapping.LINE?.y ?? []} rows={rows} />}
+        {currentViz === 'GRID' && <WidgetGrid detail={detail} columns={widget.mapping.GRID?.columns ?? []} groupBy={widget.mapping.GRID?.groupBy} rows={rows} />}
+        {currentViz === 'BAR' && <WidgetBarChart detail={detail} x={widget.mapping.BAR?.x ?? ''} y={widget.mapping.BAR?.y ?? []} rows={rows} />}
+        {currentViz === 'LINE' && <WidgetLineChart detail={detail} x={widget.mapping.LINE?.x ?? ''} y={widget.mapping.LINE?.y ?? []} rows={rows} />}
         {currentViz === 'CARD' && (
-          <MiniCard
+          <WidgetKpiCard
             detail={detail}
             measure={widget.mapping.CARD?.measure ?? ''}
             unit={widget.mapping.CARD?.unit}
             kpiDirection={(widget.mapping.CARD?.kpiDirection ?? 'NEUTRAL') as KpiDirection}
             threshold={widget.mapping.CARD?.threshold}
+            rows={rows}
+          />
+        )}
+        {currentViz === 'PIE' && (
+          <WidgetPieChart
+            detail={detail}
+            dimension={widget.mapping.PIE?.dimension ?? ''}
+            measure={widget.mapping.PIE?.measure ?? ''}
+            donut={widget.mapping.PIE?.donut}
             rows={rows}
           />
         )}

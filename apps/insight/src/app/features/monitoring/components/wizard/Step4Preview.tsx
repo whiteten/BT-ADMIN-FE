@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Input, Segmented } from 'antd';
 import type { Step2FieldOverride } from './Step2DatasetConfig';
-import { DOMAIN_COLOR_CLASS, VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
+import { VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
 import { useGetMonitoringDataset } from '../../hooks/useDatasetQueries';
 import { generateMockRows } from '../../mocks/mockWidgetData';
 import type { KpiDirection, TemplateWidgetMapping, VizType, WidgetCategory } from '../../types';
 import { CATEGORY_PRESET } from '../../utils/autoPackPosition';
 import WidgetSizePicker from '../WidgetSizePicker';
-import MiniBar from '../preview/MiniBar';
-import MiniCard from '../preview/MiniCard';
-import MiniGrid from '../preview/MiniGrid';
-import MiniLine from '../preview/MiniLine';
+import WidgetBarChart from '../widget/WidgetBarChart';
+import WidgetGrid from '../widget/WidgetGrid';
+import WidgetKpiCard from '../widget/WidgetKpiCard';
+import WidgetLineChart from '../widget/WidgetLineChart';
+import WidgetPieChart from '../widget/WidgetPieChart';
 
 /** 기본 시각화 → 추천 크기 산출용 카테고리. */
-const VIZ_CATEGORY: Record<VizType, WidgetCategory> = { GRID: 'TABLE', BAR: 'CHART', LINE: 'CHART', CARD: 'KPI' };
+const VIZ_CATEGORY: Record<VizType, WidgetCategory> = { GRID: 'TABLE', BAR: 'CHART', LINE: 'CHART', CARD: 'KPI', PIE: 'CHART' };
 /** 템플릿 위젯 최소 크기 (DashboardCanvas 와 동일). */
 const TEMPLATE_MIN = { w: 2, h: 2 };
 
@@ -67,7 +68,6 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
           <div className="flex items-center justify-between px-4 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-[13px] font-semibold truncate">{displayName}</span>
-              <span className={`shrink-0 rounded px-1.5 py-0.5 mono text-[9.5px] font-bold ${DOMAIN_COLOR_CLASS[detail.domainCode]}`}>{detail.domainCode}</span>
               <span className="shrink-0 rounded bg-[var(--color-bt-primary-soft)] px-1.5 py-0.5 mono text-[10px] font-bold text-[var(--color-bt-primary)]">{currentViz}</span>
               <span className="shrink-0 rounded bg-[var(--color-bt-primary)] px-1 py-0.5 text-[9px] font-bold text-white" title="템플릿 위젯">
                 템플릿
@@ -76,7 +76,7 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
 
             {/* 시각화 토글 (★ 가능한 시각화만) */}
             <div className="flex items-center gap-1">
-              {(['GRID', 'BAR', 'LINE', 'CARD'] as VizType[]).map((v) => {
+              {(['GRID', 'BAR', 'LINE', 'CARD', 'PIE'] as VizType[]).map((v) => {
                 const enabled = visualizations.includes(v);
                 if (!enabled) return null;
                 const active = currentViz === v;
@@ -104,11 +104,11 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
 
           {/* 위젯 본문 */}
           <div className="flex-1 overflow-hidden">
-            {currentViz === 'GRID' && <MiniGrid detail={detail} fieldOverrides={fieldOverrides} columns={mapping.GRID?.columns ?? []} rows={rows} />}
-            {currentViz === 'BAR' && <MiniBar detail={detail} x={mapping.BAR?.x ?? ''} y={mapping.BAR?.y ?? []} rows={rows} />}
-            {currentViz === 'LINE' && <MiniLine detail={detail} x={mapping.LINE?.x ?? ''} y={mapping.LINE?.y ?? []} rows={rows} />}
+            {currentViz === 'GRID' && <WidgetGrid detail={detail} columns={mapping.GRID?.columns ?? []} groupBy={mapping.GRID?.groupBy} rows={rows} />}
+            {currentViz === 'BAR' && <WidgetBarChart detail={detail} x={mapping.BAR?.x ?? ''} y={mapping.BAR?.y ?? []} rows={rows} />}
+            {currentViz === 'LINE' && <WidgetLineChart detail={detail} x={mapping.LINE?.x ?? ''} y={mapping.LINE?.y ?? []} rows={rows} />}
             {currentViz === 'CARD' && (
-              <MiniCard
+              <WidgetKpiCard
                 detail={detail}
                 measure={mapping.CARD?.measure ?? ''}
                 unit={mapping.CARD?.unit}
@@ -116,6 +116,9 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
                 threshold={mapping.CARD?.threshold}
                 rows={rows}
               />
+            )}
+            {currentViz === 'PIE' && (
+              <WidgetPieChart detail={detail} dimension={mapping.PIE?.dimension ?? ''} measure={mapping.PIE?.measure ?? ''} donut={mapping.PIE?.donut} rows={rows} />
             )}
           </div>
         </div>

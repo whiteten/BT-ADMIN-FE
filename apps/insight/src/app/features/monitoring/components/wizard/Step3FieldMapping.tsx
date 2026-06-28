@@ -1,4 +1,4 @@
-import { InputNumber, Select, Tabs } from 'antd';
+import { InputNumber, Select, Switch, Tabs } from 'antd';
 import { ArrowDown, ArrowUp, X } from 'lucide-react';
 import type { Step2FieldOverride } from './Step2DatasetConfig';
 import { KPI_DIRECTION_BADGE, KPI_DIRECTION_LABELS, VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
@@ -54,6 +54,7 @@ export default function Step3FieldMapping({ datasetId, fieldOverrides, visualiza
               {viz === 'BAR' && <BarMapping detail={detail} fieldOverrides={fieldOverrides} mapping={mapping} onChange={onChange} />}
               {viz === 'LINE' && <LineMapping detail={detail} fieldOverrides={fieldOverrides} mapping={mapping} onChange={onChange} />}
               {viz === 'CARD' && <CardMapping detail={detail} fieldOverrides={fieldOverrides} mapping={mapping} onChange={onChange} />}
+              {viz === 'PIE' && <PieMapping detail={detail} fieldOverrides={fieldOverrides} mapping={mapping} onChange={onChange} />}
             </div>
           ),
         }))}
@@ -73,10 +74,10 @@ interface MappingPanelProps {
 
 /** 필드 lookup — columnName으로 PaletteField 비슷한 정보 반환 */
 function lookupField(detail: DatasetDetail, columnName: string): PaletteField | undefined {
-  const base = detail.fields.find((f) => f.columnName === columnName);
+  const base = detail.fields.find((f) => f.fieldName === columnName);
   if (base) {
     return {
-      columnName: base.columnName,
+      fieldName: base.fieldName,
       classification: base.classification,
       source: base.isVirtual ? 'VIRTUAL' : 'BASE',
       dataType: base.dataType,
@@ -84,10 +85,10 @@ function lookupField(detail: DatasetDetail, columnName: string): PaletteField | 
       parentField: base.parentField,
     };
   }
-  const calc = detail.calcFields.find((c) => c.fieldCode === columnName);
+  const calc = detail.calcFields.find((c) => c.fieldName === columnName);
   if (calc) {
     return {
-      columnName: calc.fieldCode,
+      fieldName: calc.fieldName,
       classification: calc.classification,
       source: 'CALC',
       dataType: calc.dataType,
@@ -111,7 +112,7 @@ function SlotChip({ field, onRemove }: { field: PaletteField; onRemove: () => vo
       >
         {field.classification}
       </span>
-      <span className={`mono font-semibold truncate ${isCalc ? 'text-[var(--color-bt-success)]' : ''}`}>{field.columnName}</span>
+      <span className={`mono font-semibold truncate ${isCalc ? 'text-[var(--color-bt-success)]' : ''}`}>{field.fieldName}</span>
       <span className="text-[10px] text-[var(--color-bt-fg-muted)] truncate">· {field.displayName}</span>
       <button type="button" onClick={onRemove} className="ml-auto text-[var(--color-bt-fg-muted)] hover:text-[var(--color-bt-danger)] opacity-0 group-hover:opacity-100">
         <X className="w-3.5 h-3.5" />
@@ -136,8 +137,8 @@ function GridMapping({ detail, fieldOverrides, mapping, onChange }: MappingPanel
   const usedFields = new Set(columns);
 
   const handleAdd = (f: PaletteField) => {
-    if (usedFields.has(f.columnName)) return;
-    onChange({ ...mapping, GRID: { columns: [...columns, f.columnName] } });
+    if (usedFields.has(f.fieldName)) return;
+    onChange({ ...mapping, GRID: { columns: [...columns, f.fieldName] } });
   };
   const handleRemove = (col: string) => {
     onChange({ ...mapping, GRID: { columns: columns.filter((c) => c !== col) } });
@@ -226,13 +227,13 @@ function BarMapping({ detail, fieldOverrides, mapping, onChange }: MappingPanelP
   };
 
   const handleAdd = (f: PaletteField) => {
-    if (usedFields.has(f.columnName)) return;
+    if (usedFields.has(f.fieldName)) return;
     if (f.classification === 'DIM') {
       if (x) return;
-      onChange({ ...mapping, BAR: { x: f.columnName, y } });
+      onChange({ ...mapping, BAR: { x: f.fieldName, y } });
     } else if (f.classification === 'MSR') {
       if (y.length >= 2) return;
-      onChange({ ...mapping, BAR: { x: x ?? '', y: [...y, f.columnName] } });
+      onChange({ ...mapping, BAR: { x: x ?? '', y: [...y, f.fieldName] } });
     }
   };
 
@@ -317,12 +318,12 @@ function LineMapping({ detail, fieldOverrides, mapping, onChange }: MappingPanel
   };
 
   const handleAdd = (f: PaletteField) => {
-    if (usedFields.has(f.columnName)) return;
+    if (usedFields.has(f.fieldName)) return;
     const isDate = f.dataType === 'DATE' || f.dataType === 'DATETIME';
     if (isDate && f.classification === 'DIM' && !x) {
-      onChange({ ...mapping, LINE: { x: f.columnName, y } });
+      onChange({ ...mapping, LINE: { x: f.fieldName, y } });
     } else if (f.classification === 'MSR') {
-      onChange({ ...mapping, LINE: { x: x ?? '', y: [...y, f.columnName] } });
+      onChange({ ...mapping, LINE: { x: x ?? '', y: [...y, f.fieldName] } });
     }
   };
 
@@ -399,13 +400,13 @@ function CardMapping({ detail, fieldOverrides, mapping, onChange }: MappingPanel
     if (measure) return;
     if (f.classification !== 'MSR') return;
     // 위젯 CARD의 KPI 방향은 위젯에서 직접 선택. 신규 추가 시 NEUTRAL 기본값
-    onChange({ ...mapping, CARD: { measure: f.columnName, unit, kpiDirection: 'NEUTRAL', threshold } });
+    onChange({ ...mapping, CARD: { measure: f.fieldName, unit, kpiDirection: 'NEUTRAL', threshold } });
   };
 
   const handleRemove = () => onChange({ ...mapping, CARD: { measure: '', unit, kpiDirection, threshold } });
 
   const measureField = measure ? lookupField(detail, measure) : undefined;
-  const isCalc = measure ? detail.calcFields.some((c) => c.fieldCode === measure) : false;
+  const isCalc = measure ? detail.calcFields.some((c) => c.fieldName === measure) : false;
 
   return (
     <>
@@ -492,6 +493,90 @@ function CardMapping({ detail, fieldOverrides, mapping, onChange }: MappingPanel
               </p>
             </div>
           </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── PIE(파이/도넛) 매핑 ───────────────────────────────────────────────────
+
+function PieMapping({ detail, fieldOverrides, mapping, onChange }: MappingPanelProps) {
+  const dimension = mapping.PIE?.dimension;
+  const measure = mapping.PIE?.measure;
+  const donut = mapping.PIE?.donut ?? false;
+
+  const usedFields = new Set<string>();
+  if (dimension) usedFields.add(dimension);
+  if (measure) usedFields.add(measure);
+
+  const filterFn = (f: PaletteField) => {
+    if (f.classification === 'DIM') {
+      if (dimension) return { available: false, reason: '슬라이스는 1개만 — 삭제 후 추가' };
+      return { available: true };
+    }
+    if (f.classification === 'MSR') {
+      if (measure) return { available: false, reason: '값은 1개만 — 삭제 후 추가' };
+      return { available: true };
+    }
+    return { available: false };
+  };
+
+  const handleAdd = (f: PaletteField) => {
+    if (usedFields.has(f.fieldName)) return;
+    if (f.classification === 'DIM') {
+      if (dimension) return;
+      onChange({ ...mapping, PIE: { dimension: f.fieldName, measure: measure ?? '', donut } });
+    } else if (f.classification === 'MSR') {
+      if (measure) return;
+      onChange({ ...mapping, PIE: { dimension: dimension ?? '', measure: f.fieldName, donut } });
+    }
+  };
+
+  const handleRemoveDim = () => onChange({ ...mapping, PIE: { dimension: '', measure: measure ?? '', donut } });
+  const handleRemoveMsr = () => onChange({ ...mapping, PIE: { dimension: dimension ?? '', measure: '', donut } });
+
+  const dimField = dimension ? lookupField(detail, dimension) : undefined;
+  const measureField = measure ? lookupField(detail, measure) : undefined;
+
+  return (
+    <>
+      <FieldPalette detail={detail} fieldOverrides={fieldOverrides} filterFn={filterFn} usedFields={usedFields} onFieldClick={handleAdd} />
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        {/* 슬라이스 (분류) */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <div>
+              <div className="text-[12.5px] font-semibold">슬라이스 (분류)</div>
+              <div className="text-[10.5px] text-[var(--color-bt-fg-muted)]">DIM 1개 — 비중을 나눌 카테고리</div>
+            </div>
+            <span className="rounded bg-[var(--color-bt-bg-muted)] px-2 py-0.5 mono text-[10px] font-semibold">DIM</span>
+          </div>
+          {dimField ? <SlotChip field={dimField} onRemove={handleRemoveDim} /> : <EmptySlot label="슬라이스 없음" hint="DIM 필드 클릭" />}
+        </div>
+
+        {/* 값 */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <div>
+              <div className="text-[12.5px] font-semibold">값</div>
+              <div className="text-[10.5px] text-[var(--color-bt-fg-muted)]">MSR 1개 — 슬라이스 크기</div>
+            </div>
+            <span className="rounded bg-[var(--color-bt-primary)] px-2 py-0.5 mono text-[10px] font-bold text-white">MSR 1</span>
+          </div>
+          {measureField ? <SlotChip field={measureField} onRemove={handleRemoveMsr} /> : <EmptySlot label="값 없음" hint="MSR 또는 ƒ 필드 클릭" />}
+        </div>
+
+        {/* 도넛 옵션 — 매핑 완료 시 노출 */}
+        {dimension && measure && (
+          <div className="flex items-center justify-between rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-canvas)] px-3 py-2.5">
+            <div>
+              <div className="text-[11.5px] font-semibold">도넛형</div>
+              <div className="text-[10px] text-[var(--color-bt-fg-muted)]">가운데를 비우고 합계를 표시합니다.</div>
+            </div>
+            <Switch checked={donut} onChange={(v) => onChange({ ...mapping, PIE: { dimension, measure, donut: v } })} />
+          </div>
         )}
       </div>
     </>

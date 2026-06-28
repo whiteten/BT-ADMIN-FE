@@ -12,7 +12,7 @@ export type DashboardIconType = 'agent' | 'cti' | 'ivr' | 'channel' | 'system';
 
 export type DashboardStatus = 'DRAFT' | 'PUBLISHED';
 
-export type VizType = 'GRID' | 'BAR' | 'LINE' | 'CARD';
+export type VizType = 'GRID' | 'BAR' | 'LINE' | 'CARD' | 'PIE';
 
 export type KpiDirection = 'HIGHER_BETTER' | 'LOWER_BETTER' | 'NEUTRAL';
 
@@ -94,15 +94,20 @@ export interface WidgetPosition {
 }
 
 export interface TemplateWidgetMapping {
-  GRID?: { columns: string[] };
-  BAR?: { x: string; y: string[] }; // y max 2 (이중축)
-  LINE?: { x: string; y: string[] }; // x DATE 필수
+  /** 위젯에 바인딩된 데이터셋 id 목록 (1:N). 각 시각화는 이 중 하나를 골라 자기 데이터로 사용. */
+  datasets?: number[];
+  /** 그리드 = 위젯 데이터 뷰의 기준. datasetId=이 시각화의 데이터셋, columns=표시 필드 순서, groupBy=행 그룹화(트리) DIM 필드. */
+  GRID?: { datasetId?: number; columns: string[]; groupBy?: string[] };
+  BAR?: { datasetId?: number; x: string; y: string[] }; // y max 2 (이중축)
+  LINE?: { datasetId?: number; x: string; y: string[] }; // x DATE 필수
   CARD?: {
+    datasetId?: number;
     measure: string;
     unit?: string;
     kpiDirection?: KpiDirection;
     threshold?: { warn?: number; danger?: number };
   };
+  PIE?: { datasetId?: number; dimension: string; measure: string; donut?: boolean }; // 슬라이스 DIM 1 + 값 MSR 1, donut=도넛
 }
 
 export interface BaseWidget {
@@ -245,7 +250,8 @@ export interface DatasetListItem {
   datasetId: number;
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   baseType: DatasetBaseType;
   fieldCount: number;
   lookupCount: number;
@@ -256,7 +262,7 @@ export interface DatasetListItem {
 
 export interface DatasetField {
   fieldId?: number;
-  columnName: string;
+  fieldName: string;
   classification: 'DIM' | 'MSR';
   displayName: string;
   dataType: FieldDataType;
@@ -271,7 +277,7 @@ export interface DatasetField {
 
 export interface CalcField {
   calcFieldId?: number;
-  fieldCode: string;
+  fieldName: string;
   displayName: string;
   rowExpression: string;
   columnFormat: ColumnFormat;
@@ -285,7 +291,8 @@ export interface DatasetDetail {
   datasetId: number;
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   baseType: DatasetBaseType;
   baseRef: string; // adapter id — BE 자동 결정 (REDIS=redis-hash, QUERY=jdbc-query)
   description?: string;
@@ -301,7 +308,8 @@ export interface DatasetDetail {
 export interface DatasetCreateDatas {
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). 최대 5개. */
+  tags?: string[];
   description?: string;
   baseType: DatasetBaseType;
   schemaSnapshot: string;

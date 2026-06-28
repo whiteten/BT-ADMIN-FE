@@ -45,9 +45,10 @@ function renderPattern(pattern: string) {
  */
 export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded }: RedisTreeExplorerProps) {
   const [search, setSearch] = useState('');
-  const [refreshTick, setRefreshTick] = useState(false);
+  // 새로고침 카운터 — 화면 로드 시 0(1회 조회), 버튼 클릭마다 증가해 강제 재스캔. 탭 이동에는 변하지 않아 재조회 없음.
+  const [refreshTick, setRefreshTick] = useState(0);
 
-  const { data: templates = [], isLoading: listLoading, isError: listError } = useGetRedisKeyTemplates({ params: { refresh: refreshTick } });
+  const { data: templates = [], isLoading: listLoading, isError: listError } = useGetRedisKeyTemplates({ params: { tick: refreshTick } });
   const { data: schema, isLoading: schemaLoading } = useGetRedisKeySchema({ params: { path: value } });
 
   // 스키마가 로드되면 부모로 전달(필드 자동 채움). 콜백 식별자 변화로 인한 루프 방지 위해 ref 사용.
@@ -60,14 +61,14 @@ export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded }: R
   const query = search.trim().toLowerCase();
   const filtered = useMemo(() => (query ? templates.filter((t) => t.pattern.toLowerCase().includes(query)) : templates), [templates, query]);
 
-  const handleRefresh = () => setRefreshTick((p) => !p);
+  const handleRefresh = () => setRefreshTick((p) => p + 1);
   const columns = schema?.columns ?? [];
   // 컬럼 source(JSON/HASH_FIELD)는 전부 동일하므로 상단에 한 번만 표시한다.
   const sourceKey = columns[0]?.source;
   const sourceMeta = sourceKey ? SOURCE_LABEL[sourceKey] : undefined;
 
   return (
-    <div className="flex min-h-[320px] flex-1 overflow-hidden rounded border border-[var(--color-bt-border)]">
+    <div className="flex h-full overflow-hidden rounded border border-[var(--color-bt-border)]">
       {/* ── 좌측: 플랫 키 템플릿 리스트 ── */}
       <div className="flex w-2/5 min-w-[240px] flex-col border-r border-[var(--color-bt-border)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-bt-border)] px-3 py-2">
