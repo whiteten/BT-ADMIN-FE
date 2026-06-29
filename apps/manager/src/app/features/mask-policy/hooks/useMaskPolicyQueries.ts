@@ -98,6 +98,19 @@ export const useDeletePolicy = ({ mutationOptions }: MutationHookOptions = {}) =
   });
 };
 
+/** v1.3: 정책을 특정 테넌트로 복사. */
+export const useCopyPolicyToTenant = ({ mutationOptions }: MutationHookOptions = {}) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ policyId, targetTenantId }: { policyId: number; targetTenantId: number }) => maskPolicyApi.copyPolicyToTenant(policyId, targetTenantId),
+    ...mutationOptions,
+    onSuccess: async (...args) => {
+      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'policies'] });
+      mutationOptions?.onSuccess?.(...args);
+    },
+  });
+};
+
 // ───── 테스트 ─────
 export const useMaskTest = ({ mutationOptions }: MutationHookOptions = {}) =>
   useMutation({
