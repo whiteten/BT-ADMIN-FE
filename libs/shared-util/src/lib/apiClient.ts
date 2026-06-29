@@ -15,10 +15,17 @@ interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   key?: string;
   _retry?: boolean;
   silent?: boolean;
+  redirectOnForbidden?: boolean;
 }
 
 export interface ApiRequestConfig extends AxiosRequestConfig {
   silent?: boolean;
+  /**
+   * 403 권한없음(body code='FORBIDDEN') 응답 시 forbidden 페이지로 이동할지 여부.
+   * 미지정 시 GET은 이동(페이지 조회 거부로 간주), 그 외 메서드는 토스트로 안내.
+   * POST 등으로 body에 조건을 실어 "조회"하는 경우 true로 지정하면 GET과 동일하게 이동시킨다.
+   */
+  redirectOnForbidden?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -72,8 +79,11 @@ export default class ApiClient {
       return Promise.reject(error);
     }
     Log.error(`[RES](${originalRequest?.key})`, error?.response ?? error);
-    // 403 에러 && CSRF 요청이 아님 && 재시도가 아닌 경우 -> CSRF 토큰 재발급 후 재시도
-    if (error.response?.status === 403 && originalRequest && !originalRequest.url?.includes('/csrf') && !originalRequest._retry) {
+    // 권한 없음(@PreAuthorize 거부) 403은 CSRF 토큰 만료가 아니다 — BE가 body의 code를 'FORBIDDEN'으로 내려준다.
+    // 이 경우 CSRF 재발급 루틴을 건너뛰고(헛도는 재발급+재시도 방지) 곧장 에러 핸들러로 보낸다.
+    const isForbidden = (error.response?.data as { code?: string } | undefined)?.code === 'FORBIDDEN';
+    // 403 에러 && 권한없음 아님 && CSRF 요청이 아님 && 재시도가 아닌 경우 -> CSRF 토큰 재발급 후 재시도
+    if (error.response?.status === 403 && !isForbidden && originalRequest && !originalRequest.url?.includes('/csrf') && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
         await this.#refreshCsrfToken();
