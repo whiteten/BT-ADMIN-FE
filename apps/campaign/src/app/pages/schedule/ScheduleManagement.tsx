@@ -38,6 +38,7 @@ export default function ScheduleManagement() {
 
   const [tenantId, setTenantId] = useState<string>(() => loadStoredTenantId());
   const [appliedTenantId, setAppliedTenantId] = useState<string>(() => loadStoredTenantId());
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
 
   const { data: tenantOptionList } = useGetTenantOptionList();
   const tenantSelectOptions = useMemo(() => {
@@ -86,7 +87,15 @@ export default function ScheduleManagement() {
   };
 
   const handleParameterManagement = () => {
-    toast.info('파라미터 관리 기능은 준비 중입니다.');
+    if (selectedScheduleIds.length === 0) {
+      toast.warning('파라미터를 관리할 스케줄을 선택해주세요.');
+      return;
+    }
+    if (selectedScheduleIds.length > 1) {
+      toast.warning('파라미터 관리는 한 건씩만 선택할 수 있습니다.');
+      return;
+    }
+    navigate(`parameter/${selectedScheduleIds[0]}`);
   };
 
   const handleDetailClick = (item: ScheduleManagementItem) => {
@@ -143,7 +152,7 @@ export default function ScheduleManagement() {
         </header>
 
         <div className="w-full h-full">
-          <ScheduleManagementGrid rowData={filteredList} showSelection onDetailClick={handleDetailClick} />
+          <ScheduleManagementGrid rowData={filteredList} showSelection onDetailClick={handleDetailClick} onSelectionChange={setSelectedScheduleIds} />
         </div>
       </div>
     </div>

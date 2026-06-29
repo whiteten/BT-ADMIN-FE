@@ -12,6 +12,7 @@ type ScheduleManagementGridProps = {
   rowData: ScheduleManagementItem[];
   showSelection?: boolean;
   onDetailClick?: (item: ScheduleManagementItem) => void;
+  onSelectionChange?: (selectedIds: string[]) => void;
 };
 
 function createColumnDefs({ showSelection, onDetailClick }: { showSelection?: boolean; onDetailClick?: (item: ScheduleManagementItem) => void }): ColDef<ScheduleManagementItem>[] {
@@ -92,9 +93,15 @@ function createColumnDefs({ showSelection, onDetailClick }: { showSelection?: bo
   return columns;
 }
 
-export default function ScheduleManagementGrid({ rowData, showSelection, onDetailClick }: ScheduleManagementGridProps) {
+export default function ScheduleManagementGrid({ rowData, showSelection, onDetailClick, onSelectionChange }: ScheduleManagementGridProps) {
   const { gridOptions } = useAggridOptions();
   const columnDefs = createColumnDefs({ showSelection, onDetailClick });
+
+  const handleSelectionChanged = (event: { api: { getSelectedRows: () => ScheduleManagementItem[] } }) => {
+    if (!onSelectionChange) return;
+    const selectedIds = event.api.getSelectedRows().map((row) => row.scheduleId);
+    onSelectionChange(selectedIds);
+  };
 
   return (
     <AgGridReact<ScheduleManagementItem>
@@ -108,6 +115,7 @@ export default function ScheduleManagementGrid({ rowData, showSelection, onDetai
         rowSelection: showSelection ? 'multiple' : undefined,
         tooltipShowDelay: 300,
       }}
+      onSelectionChanged={onSelectionChange ? handleSelectionChanged : undefined}
     />
   );
 }

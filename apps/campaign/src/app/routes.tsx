@@ -13,6 +13,7 @@ const ScheduleManagement = React.lazy(() => import('./pages/schedule/ScheduleMan
 const ScheduleCreate = React.lazy(() => import('./pages/schedule/ScheduleCreate'));
 const ScheduleDetail = React.lazy(() => import('./pages/schedule/ScheduleDetail'));
 const ScheduleServerSettings = React.lazy(() => import('./pages/schedule/ScheduleServerSettings'));
+const ScheduleParameterManagement = React.lazy(() => import('./pages/schedule/ScheduleParameterManagement'));
 const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
 const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
 const ExecutionManagement = React.lazy(() => import('./pages/execution/ExecutionManagement'));
@@ -68,6 +69,7 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="schedule-management" replace /> },
           { path: 'schedule-management', element: <ScheduleManagement /> },
+          { path: 'schedule-management/parameter/:scheduleId', element: <ScheduleParameterManagement /> },
           { path: 'schedule-management/:scheduleId', element: <ScheduleDetail /> },
           { path: 'create', element: <ScheduleCreate /> },
           { path: 'schedule-server-settings', element: <ScheduleServerSettings /> },
