@@ -75,6 +75,15 @@ export const maskPolicyApi = {
     return response.data?.data;
   },
 
+  /**
+   * v1.3: 활성 테넌트 목록 — 마스킹 정책 보기 모드 / 복사 모달 Select 옵션용.
+   * 기존 manager-tenant-list BFF Flow 재사용 (PagedResponse → data.items[]).
+   */
+  listTenantsForMask: async (): Promise<Array<{ tenantId: number; tenantName: string }>> => {
+    const response = await apiClient.get<ApiResponse<{ items: Array<{ tenantId: number; tenantName: string }> }>>('/manager-tenant-list', { params: { size: 1000 } });
+    return response.data?.data?.items ?? [];
+  },
+
   // 테스트 도구
   test: async (data: MaskTestRequest): Promise<MaskTestResponse> => {
     const response = await apiClient.post<ApiResponse<MaskTestResponse>>('/manager-mask-test', data);

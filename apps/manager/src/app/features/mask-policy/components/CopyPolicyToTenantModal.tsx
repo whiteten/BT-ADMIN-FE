@@ -3,10 +3,10 @@
  *
  * 흐름: 정책 선택 (sourcePolicy) → 대상 테넌트 입력 → POST copy-to-tenant.
  */
-import { forwardRef, useImperativeHandle, useState } from 'react';
-import { Form, InputNumber, Modal } from 'antd';
+import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
+import { Form, Modal, Select } from 'antd';
 import { toast } from '@/shared-util';
-import { useCopyPolicyToTenant } from '../hooks/useMaskPolicyQueries';
+import { useCopyPolicyToTenant, useGetTenantsForMask } from '../hooks/useMaskPolicyQueries';
 import type { MaskPolicy } from '../types';
 
 export interface CopyPolicyToTenantModalRef {
@@ -21,6 +21,12 @@ const CopyPolicyToTenantModal = forwardRef<CopyPolicyToTenantModalRef>((_props, 
   const [open, setOpen] = useState(false);
   const [sourcePolicy, setSourcePolicy] = useState<MaskPolicy | null>(null);
   const [form] = Form.useForm<FormValues>();
+  const { data: tenants = [] } = useGetTenantsForMask();
+  // 원본 정책이 이미 속한 테넌트는 옵션에서 제외 (같은 테넌트로 복사 불가 — BE 가 409 반환)
+  const tenantOptions = useMemo(
+    () => tenants.filter((t) => sourcePolicy == null || t.tenantId !== sourcePolicy.tenantId).map((t) => ({ value: t.tenantId, label: `${t.tenantName} (${t.tenantId})` })),
+    [tenants, sourcePolicy],
+  );
 
   const { mutate: copy, isPending } = useCopyPolicyToTenant({
     mutationOptions: {
@@ -72,14 +78,11 @@ const CopyPolicyToTenantModal = forwardRef<CopyPolicyToTenantModalRef>((_props, 
       <Form form={form} layout="vertical">
         <Form.Item
           name="targetTenantId"
-          label="대상 테넌트 ID"
-          rules={[
-            { required: true, message: '대상 테넌트 ID는 필수입니다' },
-            { type: 'number', min: 1, message: '유효한 테넌트 ID를 입력하세요' },
-          ]}
+          label="대상 테넌트"
+          rules={[{ required: true, message: '대상 테넌트를 선택하세요' }]}
           extra="원본과 같은 (category, pattern) 정책이 이미 그 테넌트에 있으면 409 에러"
         >
-          <InputNumber style={{ width: '100%' }} placeholder="예: 2000000001" />
+          <Select showSearch placeholder="테넌트 선택" options={tenantOptions} optionFilterProp="label" style={{ width: '100%' }} />
         </Form.Item>
       </Form>
     </Modal>

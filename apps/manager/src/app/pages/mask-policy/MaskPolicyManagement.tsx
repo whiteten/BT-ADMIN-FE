@@ -10,7 +10,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Empty, Input, InputNumber, Switch } from 'antd';
+import { type BreadcrumbProps, Button, Empty, Input, Select, Switch } from 'antd';
 import { ChevronLeft, ChevronRight, Copy, Pencil, Play, Plus, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -18,7 +18,7 @@ import CopyPolicyToTenantModal, { type CopyPolicyToTenantModalRef } from '../../
 import MaskCategoryEditModal, { type MaskCategoryEditModalRef } from '../../features/mask-policy/components/MaskCategoryEditModal';
 import MaskPolicyDrawer, { type MaskPolicyDrawerRef } from '../../features/mask-policy/components/MaskPolicyDrawer';
 import MaskTestModal, { type MaskTestModalRef } from '../../features/mask-policy/components/MaskTestModal';
-import { useDeleteCategory, useDeletePolicy, useGetCategories, useGetPolicies } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
+import { useDeleteCategory, useDeletePolicy, useGetCategories, useGetPolicies, useGetTenantsForMask } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
 import { type MaskCategoryConfig, type MaskPolicy, RULE_TYPE_OPTIONS } from '../../features/mask-policy/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -79,6 +79,8 @@ export default function MaskPolicyManagement() {
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: categories = [], isLoading: isCategoriesLoading, refetch: refetchCategories } = useGetCategories(viewerTenantId);
   const { data: policies = [], isLoading: isPoliciesLoading, refetch: refetchPolicies } = useGetPolicies(selectedCategory, viewerTenantId);
+  const { data: tenants = [] } = useGetTenantsForMask();
+  const tenantOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: `${t.tenantName} (${t.tenantId})` })), [tenants]);
 
   // ─── Mutations ────────────────────────────────────────────────────────────
   const { mutate: deleteCategory } = useDeleteCategory({
@@ -303,12 +305,16 @@ export default function MaskPolicyManagement() {
               <Button size="small" type={viewerTenantId == null ? 'primary' : 'default'} onClick={() => setViewerTenantId(null)}>
                 전역
               </Button>
-              <InputNumber
+              <Select
                 size="small"
-                placeholder="테넌트 ID"
+                showSearch
+                allowClear
+                placeholder="테넌트 선택"
                 value={viewerTenantId ?? undefined}
                 onChange={(v) => setViewerTenantId(typeof v === 'number' ? v : null)}
-                style={{ width: 140 }}
+                options={tenantOptions}
+                optionFilterProp="label"
+                style={{ width: 220 }}
               />
             </div>
             <div className="ml-auto flex items-center gap-2">

@@ -117,3 +117,11 @@ export const useMaskTest = ({ mutationOptions }: MutationHookOptions = {}) =>
     mutationFn: maskPolicyApi.test,
     ...mutationOptions,
   });
+
+/** v1.3: 활성 테넌트 목록 — 보기 모드/복사 모달 Select 옵션. 5분 캐시. */
+export const useGetTenantsForMask = () =>
+  useQuery({
+    queryKey: ['maskPolicy', 'tenants'],
+    queryFn: maskPolicyApi.listTenantsForMask,
+    staleTime: 5 * 60 * 1000,
+  });
