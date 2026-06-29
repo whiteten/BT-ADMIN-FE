@@ -178,7 +178,7 @@ export interface DnStatusKpiSource {
 export type DnTypeKey = 'edn' | 'tdn' | 'gdn-acd' | 'gdn-ctiq' | 'gdn-sip' | 'gflag';
 
 /** 사이드바 탭 */
-export type SidebarTab = 'overview' | 'dr' | 'dnlist' | 'bandmap';
+export type SidebarTab = 'overview' | 'dr' | 'bandmap';
 
 /** 타입키 → 라벨 (풀네임, 약어 금지) */
 export const TYPE_LABELS: Record<DnTypeKey, string> = {

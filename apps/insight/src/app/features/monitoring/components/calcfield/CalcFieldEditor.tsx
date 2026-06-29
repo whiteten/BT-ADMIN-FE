@@ -129,7 +129,7 @@ function parseExpression(expr: string, msrNames: Set<string>, dimNames: Set<stri
 
 function TokenChip({ token, onDelete }: { token: FormulaToken; onDelete: () => void }) {
   const del = (
-    <button className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500 text-xs" onClick={onDelete}>
+    <button type="button" className="ml-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500 text-xs" onClick={onDelete}>
       ×
     </button>
   );
@@ -205,12 +205,12 @@ interface CalcFieldEditorProps {
 
 export default function CalcFieldEditor({ baseFields, existingCalcFields, initialValue, onSave, onCancel }: CalcFieldEditorProps) {
   const visibleFields = baseFields.filter((f) => f.isVisible !== false);
-  const msrNames = new Set(visibleFields.filter((f) => f.classification === 'MSR').map((f) => f.columnName));
-  const dimNames = new Set(visibleFields.filter((f) => f.classification === 'DIM').map((f) => f.columnName));
-  const calcNames = new Set(existingCalcFields.filter((c) => c.fieldCode !== initialValue?.fieldCode).map((c) => c.fieldCode));
+  const msrNames = new Set(visibleFields.filter((f) => f.classification === 'MSR').map((f) => f.fieldName));
+  const dimNames = new Set(visibleFields.filter((f) => f.classification === 'DIM').map((f) => f.fieldName));
+  const calcNames = new Set(existingCalcFields.filter((c) => c.fieldName !== initialValue?.fieldName).map((c) => c.fieldName));
 
   const [meta, setMeta] = useState<CalcField>({
-    fieldCode: initialValue?.fieldCode ?? '',
+    fieldName: initialValue?.fieldName ?? '',
     displayName: initialValue?.displayName ?? '',
     rowExpression: initialValue?.rowExpression ?? '',
     columnFormat: initialValue?.columnFormat ?? 'Number',
@@ -255,14 +255,14 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
   const addField = (name: string, role: 'MSR' | 'DIM' | 'CALC') => commit(fillNextSlot(tokens, mkField(name, role)));
   const deleteToken = (id: string) => commit(tokens.filter((t) => t.id !== id));
 
-  const msrFields = visibleFields.filter((f) => f.classification === 'MSR' && (!fieldSearch || f.columnName.toLowerCase().includes(fieldSearch.toLowerCase())));
-  const dimFields = visibleFields.filter((f) => f.classification === 'DIM' && (!fieldSearch || f.columnName.toLowerCase().includes(fieldSearch.toLowerCase())));
-  const calcFiltered = existingCalcFields.filter((c) => c.fieldCode !== initialValue?.fieldCode && (!fieldSearch || c.fieldCode.toLowerCase().includes(fieldSearch.toLowerCase())));
+  const msrFields = visibleFields.filter((f) => f.classification === 'MSR' && (!fieldSearch || f.fieldName.toLowerCase().includes(fieldSearch.toLowerCase())));
+  const dimFields = visibleFields.filter((f) => f.classification === 'DIM' && (!fieldSearch || f.fieldName.toLowerCase().includes(fieldSearch.toLowerCase())));
+  const calcFiltered = existingCalcFields.filter((c) => c.fieldName !== initialValue?.fieldName && (!fieldSearch || c.fieldName.toLowerCase().includes(fieldSearch.toLowerCase())));
 
   const hasSlots = tokens.some((t) => t.kind === 'slot');
   const rowExpression = tokensToFormula(tokens);
-  const fieldCodeValid = /^[A-Z_][A-Z0-9_]*$/.test(meta.fieldCode);
-  const fieldCodeDup = !initialValue?.fieldCode && existingCalcFields.some((c) => c.fieldCode === meta.fieldCode);
+  const fieldCodeValid = /^[A-Z_][A-Z0-9_]*$/.test(meta.fieldName);
+  const fieldCodeDup = !initialValue?.fieldName && existingCalcFields.some((c) => c.fieldName === meta.fieldName);
   const isValid = !hasSlots && tokens.length > 0 && fieldCodeValid && !fieldCodeDup && meta.displayName.length > 0;
 
   const handleSave = () => onSave({ ...meta, rowExpression });
@@ -277,6 +277,7 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
           <div className="space-y-1">
             {QUICK_TEMPLATES.map((t) => (
               <button
+                type="button"
                 key={t.name}
                 className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-border bg-card px-3 py-2 text-left transition-all hover:border-primary hover:bg-primary/5 active:scale-95"
                 onClick={() => addTemplate(t)}
@@ -298,6 +299,7 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
           <div className="mb-2 flex flex-wrap gap-1">
             {MATH_FUNCS.map((f) => (
               <button
+                type="button"
                 key={f}
                 className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-xs font-semibold text-green-700 transition-all hover:border-green-500 hover:bg-green-50 active:scale-95"
                 onClick={() => addFunc(f)}
@@ -310,6 +312,7 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
           <div className="mb-2 flex flex-wrap gap-1">
             {COND_FUNCS.map((f) => (
               <button
+                type="button"
                 key={f}
                 className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-xs font-semibold text-green-700 transition-all hover:border-green-500 hover:bg-green-50 active:scale-95"
                 onClick={() => addFunc(f)}
@@ -322,6 +325,7 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
           <div className="flex flex-wrap gap-1">
             {OPERATORS.map((op) => (
               <button
+                type="button"
                 key={op}
                 className="rounded border border-border bg-card px-2 py-0.5 font-mono text-sm font-bold text-muted-foreground transition-all hover:border-primary hover:text-foreground active:scale-95"
                 onClick={() => addOp(op)}
@@ -330,12 +334,14 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
               </button>
             ))}
             <button
+              type="button"
               className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-sm font-bold text-muted-foreground transition-all hover:border-primary active:scale-95"
               onClick={addParens}
             >
               ( )
             </button>
             <button
+              type="button"
               className="rounded border border-border bg-card px-1.5 py-0.5 font-mono text-xs font-semibold text-amber-600 transition-all hover:border-amber-400 hover:bg-amber-50 active:scale-95"
               onClick={() => setPendingNum('')}
             >
@@ -354,12 +360,13 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
               <div className="mb-2 space-y-0.5">
                 {msrFields.map((f) => (
                   <button
-                    key={f.columnName}
+                    type="button"
+                    key={f.fieldName}
                     className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-sm transition-all hover:border-primary hover:bg-primary/5 active:scale-[0.98]"
-                    onClick={() => addField(f.columnName, 'MSR')}
+                    onClick={() => addField(f.fieldName, 'MSR')}
                   >
                     <span className="rounded bg-primary px-1 font-mono text-xs font-bold text-white">MSR</span>
-                    <span className="font-mono font-medium text-foreground">{f.columnName}</span>
+                    <span className="font-mono font-medium text-foreground">{f.fieldName}</span>
                   </button>
                 ))}
               </div>
@@ -371,12 +378,13 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
               <div className="mb-2 space-y-0.5">
                 {dimFields.map((f) => (
                   <button
-                    key={f.columnName}
+                    type="button"
+                    key={f.fieldName}
                     className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-2 py-1.5 text-sm transition-all hover:border-gray-400 active:scale-[0.98]"
-                    onClick={() => addField(f.columnName, 'DIM')}
+                    onClick={() => addField(f.fieldName, 'DIM')}
                   >
                     <span className="rounded bg-muted px-1 font-mono text-xs font-bold text-muted-foreground">DIM</span>
-                    <span className="font-mono text-muted-foreground">{f.columnName}</span>
+                    <span className="font-mono text-muted-foreground">{f.fieldName}</span>
                   </button>
                 ))}
               </div>
@@ -388,12 +396,13 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
               <div className="space-y-0.5">
                 {calcFiltered.map((c) => (
                   <button
-                    key={c.fieldCode}
+                    type="button"
+                    key={c.fieldName}
                     className="flex w-full items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-sm transition-all hover:border-green-400 active:scale-[0.98]"
-                    onClick={() => addField(c.fieldCode, 'CALC')}
+                    onClick={() => addField(c.fieldName, 'CALC')}
                   >
                     <span className="font-mono font-bold text-green-600">ƒ</span>
-                    <span className="font-mono font-medium text-green-700">{c.fieldCode}</span>
+                    <span className="font-mono font-medium text-green-700">{c.fieldName}</span>
                   </button>
                 ))}
               </div>
@@ -411,15 +420,15 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
             <Form.Item
               label="필드 코드"
               required
-              validateStatus={meta.fieldCode && !fieldCodeValid ? 'error' : fieldCodeDup ? 'error' : ''}
-              help={meta.fieldCode && !fieldCodeValid ? '영문 대문자/숫자/_ 만 (대문자 시작)' : fieldCodeDup ? '이미 존재하는 코드입니다' : ''}
+              validateStatus={meta.fieldName && !fieldCodeValid ? 'error' : fieldCodeDup ? 'error' : ''}
+              help={meta.fieldName && !fieldCodeValid ? '영문 대문자/숫자/_ 만 (대문자 시작)' : fieldCodeDup ? '이미 존재하는 코드입니다' : ''}
             >
               <Input
-                value={meta.fieldCode}
-                onChange={(e) => setMeta((m) => ({ ...m, fieldCode: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))}
+                value={meta.fieldName}
+                onChange={(e) => setMeta((m) => ({ ...m, fieldName: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') }))}
                 placeholder="ANSWER_RATE"
                 className="font-mono"
-                disabled={!!initialValue?.fieldCode}
+                disabled={!!initialValue?.fieldName}
               />
             </Form.Item>
             <Form.Item label="표시명" required>
@@ -463,7 +472,11 @@ export default function CalcFieldEditor({ baseFields, existingCalcFields, initia
                   value={pendingNum}
                   onChange={(e) => setPendingNum(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') confirmNum(pendingNum);
+                    // Enter가 위저드 폼 submit으로 전파되지 않도록 차단 (인라인 편집은 폼 안에서 렌더됨)
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      confirmNum(pendingNum);
+                    }
                     if (e.key === 'Escape') setPendingNum(null);
                   }}
                   onBlur={() => confirmNum(pendingNum)}

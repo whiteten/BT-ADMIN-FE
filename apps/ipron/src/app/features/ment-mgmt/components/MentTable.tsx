@@ -1,16 +1,17 @@
 /**
  * 교환기 멘트 목록 ag-Grid 테이블 (단일 그리드) — CtiQueueTable 패턴.
  *
- * 컬럼: ☐ | 멘트ID | [테넌트] | 멘트명 | 파일명 | 설명 | 업로드일자 | 재생 | [휴지통]
+ * 컬럼: ☐ | 멘트ID | [테넌트] | 멘트명 | 파일명 | 설명 | 업로드일자 | 재생
  *  - IPRON 표준: quartz, header menu button(필터버튼)/floating filter 미사용.
  *  - 재생: PCM→WAV 변환(BE preview) 후 <audio> 미리듣기.
+ *  - 삭제: 행별 인라인 버튼 제거, 상단 액션바 '삭제' 버튼 + 체크박스 멀티셀렉트 표준 사용.
  *
  * 행 더블클릭 → 수정 Drawer.
  */
 import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Pause, Play, Trash2 } from 'lucide-react';
+import { Pause, Play } from 'lucide-react';
 import type { MentResponse } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -28,40 +29,9 @@ interface MentTableProps {
   onRowDoubleClicked: (row: MentResponse) => void;
   onTogglePlay: (row: MentResponse) => void;
   onSelectionChanged?: (selected: MentResponse[]) => void;
-  onDelete?: (row: MentResponse) => void;
-  onBulkDelete?: () => void;
-  selectedCount?: number;
 }
 
-function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () => void; selectedCount: number }) {
-  const disabled = selectedCount === 0;
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={(e) => {
-        e.stopPropagation();
-        onBulkDelete?.();
-      }}
-      title={disabled ? '삭제할 행을 선택하세요' : `선택한 ${selectedCount}건 삭제`}
-      className={`flex items-center justify-center w-full h-full ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:text-red-600'}`}
-    >
-      <Trash2 className="size-5 text-red-500" />
-    </button>
-  );
-}
-
-export default function MentTable({
-  rowData,
-  isLoading,
-  playingMentId = null,
-  onRowDoubleClicked,
-  onTogglePlay,
-  onSelectionChanged,
-  onDelete,
-  onBulkDelete,
-  selectedCount = 0,
-}: MentTableProps) {
+export default function MentTable({ rowData, isLoading, playingMentId = null, onRowDoubleClicked, onTogglePlay, onSelectionChanged }: MentTableProps) {
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(
@@ -155,34 +125,8 @@ export default function MentTable({
           );
         },
       },
-      {
-        headerName: '',
-        maxWidth: 60,
-        sortable: false,
-        filter: false,
-        suppressHeaderMenuButton: true,
-        pinned: 'right' as const,
-        headerComponent: () => <BulkDeleteHeader onBulkDelete={onBulkDelete} selectedCount={selectedCount} />,
-        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
-        cellRenderer: (params: ICellRendererParams<MentResponse>) => {
-          const { data } = params;
-          if (!data) return null;
-          return (
-            <button
-              type="button"
-              title={`"${data.mentName ?? data.ieMentId}" 삭제`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete?.(data);
-              }}
-            >
-              <Trash2 className="size-5 text-red-500 hover:cursor-pointer" />
-            </button>
-          );
-        },
-      },
     ],
-    [playingMentId, onTogglePlay, onDelete, onBulkDelete, selectedCount],
+    [playingMentId, onTogglePlay],
   );
 
   const rowSelection = useMemo(() => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }), []);

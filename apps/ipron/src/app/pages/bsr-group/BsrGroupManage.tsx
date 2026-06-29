@@ -901,9 +901,11 @@ export default function BsrGroupManage() {
       {
         field: 'bsrMethod',
         headerName: 'BSR 메소드',
-        width: 180,
+        minWidth: 180,
+        flex: 1,
         filterValueGetter: ({ data }) => getBsrMethodLabel((data?.bsrMethod ?? null) as string | null),
         valueFormatter: ({ value }) => getBsrMethodLabel(value as string | null),
+        tooltipValueGetter: ({ data }) => getBsrMethodLabel((data?.bsrMethod ?? null) as string | null),
       },
       {
         field: 'activateYn',
@@ -920,6 +922,15 @@ export default function BsrGroupManage() {
 
   const ctiqColDefs: ColDef<BsrCtiqMappingResponse>[] = useMemo(
     () => [
+      {
+        headerName: '테넌트',
+        field: 'tenantName',
+        flex: 1,
+        minWidth: 120,
+        tooltipField: 'tenantName',
+        valueFormatter: ({ value }) => value ?? '-',
+        hide: selectedTenantId !== null,
+      },
       { field: 'ctiqName', headerName: 'CTI큐명', flex: 1, tooltipField: 'ctiqName' },
       { field: 'gdnNo', headerName: '그룹DN 번호', width: 110, tooltipField: 'gdnName' },
       {
@@ -956,11 +967,20 @@ export default function BsrGroupManage() {
         cellRenderer: (params: ICellRendererParams<BsrCtiqMappingResponse>) => <BsrDistributeYnCell params={params} />,
       },
     ],
-    [],
+    [selectedTenantId],
   );
 
   const schedColDefs: ColDef<BsrScheduleInfoResponse>[] = useMemo(
     () => [
+      {
+        headerName: '테넌트',
+        field: 'tenantName',
+        flex: 1,
+        minWidth: 120,
+        tooltipField: 'tenantName',
+        valueFormatter: ({ value }) => value ?? '-',
+        hide: selectedTenantId !== null,
+      },
       { field: 'bsrScheduleName', headerName: '스케줄명', flex: 1, tooltipField: 'bsrScheduleName' },
       { field: 'startDate', headerName: '시작일', width: 110 },
       { field: 'startTime', headerName: '시작시간', width: 90 },
@@ -983,7 +1003,7 @@ export default function BsrGroupManage() {
         tooltipValueGetter: ({ value }) => (value as string) || '-',
       },
     ],
-    [],
+    [selectedTenantId],
   );
 
   // ─── Render ────────────────────────────────────────────────────────────────

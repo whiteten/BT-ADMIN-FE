@@ -4,7 +4,7 @@ import type { DatasetDetail } from '../../../types';
 import type { Step2FieldOverride } from '../Step2DatasetConfig';
 
 export interface PaletteField {
-  columnName: string;
+  fieldName: string;
   classification: 'DIM' | 'MSR';
   source: 'BASE' | 'CALC' | 'VIRTUAL';
   dataType: string;
@@ -26,10 +26,10 @@ interface FieldPaletteProps {
 function buildPaletteFields(detail: DatasetDetail, fieldOverrides: Record<string, Step2FieldOverride>): PaletteField[] {
   const result: PaletteField[] = [];
   for (const f of detail.fields) {
-    const ovr = fieldOverrides[f.columnName];
+    const ovr = fieldOverrides[f.fieldName];
     if (!ovr?.isVisible) continue;
     result.push({
-      columnName: f.columnName,
+      fieldName: f.fieldName,
       classification: f.classification,
       source: f.isVirtual ? 'VIRTUAL' : 'BASE',
       dataType: f.dataType,
@@ -38,10 +38,10 @@ function buildPaletteFields(detail: DatasetDetail, fieldOverrides: Record<string
     });
   }
   for (const c of detail.calcFields) {
-    const ovr = fieldOverrides[c.fieldCode];
+    const ovr = fieldOverrides[c.fieldName];
     if (ovr && !ovr.isVisible) continue;
     result.push({
-      columnName: c.fieldCode,
+      fieldName: c.fieldName,
       classification: c.classification,
       source: 'CALC',
       dataType: c.dataType,
@@ -59,7 +59,7 @@ export default function FieldPalette({ detail, fieldOverrides, filterFn, usedFie
     let result = all;
     if (search.trim()) {
       const kw = search.toLowerCase();
-      result = result.filter((f) => f.columnName.toLowerCase().includes(kw) || f.displayName.toLowerCase().includes(kw));
+      result = result.filter((f) => f.fieldName.toLowerCase().includes(kw) || f.displayName.toLowerCase().includes(kw));
     }
     return result;
   }, [all, search]);
@@ -69,7 +69,7 @@ export default function FieldPalette({ detail, fieldOverrides, filterFn, usedFie
   const calcs = filtered.filter((f) => f.source === 'CALC');
 
   const renderField = (f: PaletteField) => {
-    const used = usedFields?.has(f.columnName) ?? false;
+    const used = usedFields?.has(f.fieldName) ?? false;
     const avail = filterFn ? filterFn(f) : { available: true };
     const disabled = used || !avail.available;
     const isCalc = f.source === 'CALC';
@@ -77,7 +77,7 @@ export default function FieldPalette({ detail, fieldOverrides, filterFn, usedFie
 
     return (
       <button
-        key={f.columnName}
+        key={f.fieldName}
         type="button"
         disabled={disabled}
         onClick={() => onFieldClick(f)}
@@ -92,7 +92,7 @@ export default function FieldPalette({ detail, fieldOverrides, filterFn, usedFie
       >
         {isVirtual && <span className="text-[var(--color-bt-success)] text-[10px] shrink-0">├→</span>}
         {isCalc && <span className="inline-flex h-4 items-center rounded bg-[var(--color-bt-success)] px-1 mono text-[9px] font-bold text-white">ƒ</span>}
-        <span className={`mono font-semibold truncate ${isCalc ? 'text-[var(--color-bt-success)]' : ''}`}>{f.columnName}</span>
+        <span className={`mono font-semibold truncate ${isCalc ? 'text-[var(--color-bt-success)]' : ''}`}>{f.fieldName}</span>
         <span className="text-[10px] text-[var(--color-bt-fg-muted)] truncate ml-auto">{f.displayName}</span>
       </button>
     );

@@ -44,6 +44,7 @@ export const VIZ_LABELS: Record<VizType, string> = {
   BAR: '막대',
   LINE: '선',
   CARD: '카드',
+  PIE: '파이/도넛',
 };
 
 export const VIZ_ICON: Record<VizType, string> = {
@@ -51,6 +52,7 @@ export const VIZ_ICON: Record<VizType, string> = {
   BAR: '▮',
   LINE: '╱',
   CARD: '▢',
+  PIE: '◓',
 };
 
 // ─── KPI 방향 ───────────────────────────────────────────────────────────

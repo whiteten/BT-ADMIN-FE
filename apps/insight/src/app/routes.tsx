@@ -28,6 +28,7 @@ const DashboardMenuView = React.lazy(() => import('./pages/monitoring-dashboard-
 const DatasetCatalog = React.lazy(() => import('./pages/monitoring-datasets/DatasetCatalog'));
 const DatasetWizard = React.lazy(() => import('./pages/monitoring-dataset-wizard/DatasetWizard'));
 const LookupCatalogList = React.lazy(() => import('./pages/monitoring-lookups/LookupCatalogList'));
+const MonitoringConfigPage = React.lazy(() => import('./pages/monitoring-config/MonitoringConfigPage'));
 const WidgetCatalogManageList = React.lazy(() => import('./pages/monitoring-widgets/WidgetCatalogManageList'));
 const TemplateWidgetBuilder = React.lazy(() => import('./pages/monitoring-template-widget-builder/TemplateWidgetBuilder'));
 
@@ -127,6 +128,11 @@ export const routes = [
             path: 'lookups',
             element: <Outlet />,
             children: [{ index: true, element: pv('monitoring/lookups', LookupCatalogList) }],
+          },
+          {
+            path: 'config',
+            element: <Outlet />,
+            children: [{ index: true, element: pv('monitoring/config', MonitoringConfigPage) }],
           },
           {
             path: 'widgets',

@@ -17,9 +17,9 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import type { ColDef, GridOptions, IRowNode } from 'ag-grid-community';
+import type { CellClickedEvent, ColDef, GridOptions, IRowNode } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Empty, Input, InputNumber, Modal, Popover, Spin, Tag } from 'antd';
+import { Button, Empty, Input, InputNumber, Modal, Popover, Segmented, Spin, Tag } from 'antd';
 import {
   Check,
   ChevronLeft,
@@ -130,6 +130,8 @@ export default function SkillAssignList() {
   const [selectedAgentIds, setSelectedAgentIds] = useState<number[]>([]);
   const [selectedSkillsetTreeId, setSelectedSkillsetTreeId] = useState<number | null>(null);
   const [selectedSkillsetIds, setSelectedSkillsetIds] = useState<number[]>([]);
+  // 교차테넌트 방지: row 선택 시 그 row 의 tenantId 로 상대 목록을 좁힘. 선택 해제 시 null(전체 복귀).
+  const [lockedTenantId, setLockedTenantId] = useState<number | null>(null);
   const [grantDrawerOpen, setGrantDrawerOpen] = useState(false);
   // (legacy single-select 잔재 — mode 'group' 의존성 위해 임시 유지)
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
@@ -148,12 +150,20 @@ export default function SkillAssignList() {
   const panelHoveredRef = useRef(false);
   panelHoveredRef.current = panelHovered;
   const hoverLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 보유건수 셀 hover 여부 ref — 이 셀 위에서는 InlineAssignPanel 억제
+  // (상담사 그리드의 AgentCoverageCell / 스킬셋 그리드의 SkillsetCoverageCell 공통)
+  const coverageCellHoveredRef = useRef(false);
 
   // 배정 현황 모달 (읽기 전용)
   const [statusModalOpen, setStatusModalOpen] = useState(false);
 
   // 스킬모음 적용 드로어 (플로팅 액션바 [스킬모음 적용] — 상담사 ≥1 체크 시 활성)
   const [applyDrawerOpen, setApplyDrawerOpen] = useState(false);
+
+  // ② 보기 필터 — 모드① 스킬셋 그리드 / 모드② 상담사 그리드
+  // 'all' | 'assigned' | 'unassigned'
+  const [skillsetViewFilter, setSkillsetViewFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
+  const [agentViewFilter, setAgentViewFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
 
   // 모드 ④ 배정 현황 조회 (view)
   const [viewSubMode, setViewSubMode] = useState<ViewSubMode>('agent');
@@ -174,16 +184,23 @@ export default function SkillAssignList() {
   const { data: tenantStats = [] } = useGetSkillAssignTenants();
 
   // 상담사 / 상담그룹 트리 / 스킬셋 / 업무그룹 트리 — 양쪽 모드 모두 필요 (좌우 반전만 다름)
+  // 카드 selectedTenantId 가 있으면 그 테넌트로 BE 조회를 필터링, null(전체) 이면 전체 조회.
   const { data: agents = [], isLoading: agentsLoading } = useGetAgents({
     params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
   });
 
+  // 트리 범위 결정:
+  //   - 카드(selectedTenantId) 우선.
+  //   - 전체 모드(selectedTenantId=null)에서 row 선택 시 lockedTenantId 로 좁힘.
+  //     → 다른 테넌트 그룹이 섞여 보이는 버그 수정 (2026-06-26).
+  const treeEffectiveTenantId = selectedTenantId ?? lockedTenantId;
+
   const { data: agentGroupTree = [] } = useGetAgentGroupTree({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+    params: treeEffectiveTenantId !== null ? { tenantId: treeEffectiveTenantId } : undefined,
   });
 
   const { data: skillsetGroups = [] } = useGetSkillsetGroups({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
+    params: treeEffectiveTenantId !== null ? { tenantId: treeEffectiveTenantId } : undefined,
   });
 
   const { data: skillsetMasters = [], isLoading: skillsetMastersLoading } = useGetSkillsets({
@@ -206,6 +223,20 @@ export default function SkillAssignList() {
     mode === 'view' && viewSubMode === 'skillset' ? viewSelectedSkillsetId : null,
   );
 
+  // 모드 ① 단일 상담사 선택 시 — 그 상담사의 배정 스킬셋(priority/skillLevel 포함).
+  // 스킬셋 그리드 정렬(배정 상단) 계산에 사용. 2명+ 선택 / 미선택 시 enabled=false.
+  const singleAgentId = selectedAgentIds.length === 1 ? selectedAgentIds[0] : null;
+  const { data: singleAgentSkillsets = [] } = useGetSkillsetsByAgent(singleAgentId, {
+    queryOptions: { enabled: singleAgentId != null },
+  });
+
+  // 모드 ② 단일 스킬셋 선택 시 — 그 스킬셋의 배정 상담사(priority/skillLevel 포함).
+  // 상담사 그리드 정렬(배정 상단) 계산에 사용. 2건+ 선택 / 미선택 시 enabled=false.
+  const singleSkillsetId = selectedSkillsetIds.length === 1 ? selectedSkillsetIds[0] : null;
+  const { data: singleSkillsetAgents = [] } = useGetAgentsBySkillset(singleSkillsetId, {
+    queryOptions: { enabled: singleSkillsetId != null },
+  });
+
   // 모드 ①/② 인라인 배정 목록 — hover 중인 행의 배정 목록(P/L 포함) 팝오버 표시.
   // 다중 선택(일괄 부여/해제) 흐름은 그대로 두고, hover 시 팝오버로 현황 확인.
   const inlineAgentId = mode === 'agent' ? hoverAgentId : null;
@@ -221,6 +252,7 @@ export default function SkillAssignList() {
         setGrantDrawerOpen(false);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
+        setLockedTenantId(null);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '부여 실패';
@@ -235,6 +267,7 @@ export default function SkillAssignList() {
         toast.success(`${result.removed}개 매핑 해제됨`);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
+        setLockedTenantId(null);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '해제 실패';
@@ -249,6 +282,7 @@ export default function SkillAssignList() {
         toast.success(`${updated}건 우선순위·스킬레벨 수정됨`);
         setSelectedAgentIds([]);
         setSelectedSkillsetIds([]);
+        setLockedTenantId(null);
       },
       onError: (err: unknown) => {
         const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '수정 실패';
@@ -256,6 +290,43 @@ export default function SkillAssignList() {
       },
     },
   });
+
+  // 카드 전환 시 선택·잠금 초기화 (전체↔특정테넌트 전환 시 이전 선택이 잔류하지 않도록)
+  useEffect(() => {
+    setSelectedAgentIds([]);
+    setSelectedSkillsetIds([]);
+    setLockedTenantId(null);
+    agentGridRef1.current?.api?.deselectAll();
+    agentGridRef2.current?.api?.deselectAll();
+    skillsetGridRef1.current?.api?.deselectAll();
+    skillsetGridRef2.current?.api?.deselectAll();
+  }, [selectedTenantId]);
+
+  // 양쪽 선택이 모두 빈 배열이 되면 lockedTenantId 를 해제.
+  // onSelectionChanged 에서 empty 시 setLockedTenantId(null) 을 호출하지 않기 때문에
+  // 그리드 체크박스로 전체 선택 해제했을 때 lock 이 풀리지 않는 문제를 보완한다.
+  useEffect(() => {
+    if (selectedAgentIds.length === 0 && selectedSkillsetIds.length === 0) {
+      setLockedTenantId(null);
+    }
+  }, [selectedAgentIds, selectedSkillsetIds]);
+
+  // lockedTenantId 변경 시 트리 노드 선택 초기화.
+  // treeEffectiveTenantId 가 바뀌면 트리 데이터도 새 테넌트 기준으로 교체되므로,
+  // 이전 테넌트의 groupId 가 선택 상태로 남아 필터가 무효화되는 것을 막는다.
+  useEffect(() => {
+    setSelectedAgentGroupId(null);
+    setSelectedSkillsetTreeId(null);
+  }, [lockedTenantId]);
+
+  // ② 선택 해제 시 보기 필터를 '전체'로 리셋 (선택 없으면 필터 무의미)
+  useEffect(() => {
+    if (selectedAgentIds.length === 0) setSkillsetViewFilter('all');
+  }, [selectedAgentIds.length]);
+
+  useEffect(() => {
+    if (selectedSkillsetIds.length === 0) setAgentViewFilter('all');
+  }, [selectedSkillsetIds.length]);
 
   // ─── Derived ────────────────────────────────────────────────────────────
   const totalStats = useMemo(() => {
@@ -284,35 +355,144 @@ export default function SkillAssignList() {
   }, [agents, agentSearch]);
 
   // 좌측 트리에서 선택된 상담그룹 + 키워드 필터 적용. selectedAgentGroupId=null → 전체.
+  // lockedTenantId: 스킬셋 row 를 먼저 선택한 경우, 그 tenantId 의 상담사만 표시(교차테넌트 방지).
   const filteredAgentsByGroup = useMemo(() => {
     let rows = filteredAgents;
     if (selectedAgentGroupId != null) {
       rows = rows.filter((a) => a.groupId === selectedAgentGroupId);
     }
+    if (lockedTenantId != null) {
+      rows = rows.filter((a) => a.tenantId === lockedTenantId);
+    }
     return rows;
-  }, [filteredAgents, selectedAgentGroupId]);
+  }, [filteredAgents, selectedAgentGroupId, lockedTenantId]);
 
   // 우측: 업무그룹 트리 선택에 따른 스킬셋 필터링. selectedSkillsetTreeId=null → 전체, 0 → 미배정, n → 그 그룹.
+  // lockedTenantId: 상담사 row 를 먼저 선택한 경우, 그 tenantId 의 스킬셋만 표시(교차테넌트 방지).
   const filteredSkillsetsByGroup = useMemo(() => {
     let rows = skillsetMasters;
     if (selectedSkillsetTreeId === 0) rows = rows.filter((s) => s.treeId == null);
     else if (selectedSkillsetTreeId != null) rows = rows.filter((s) => s.treeId === selectedSkillsetTreeId);
+    if (lockedTenantId != null) {
+      rows = rows.filter((s) => s.tenantId === lockedTenantId);
+    }
     return rows;
-  }, [skillsetMasters, selectedSkillsetTreeId]);
+  }, [skillsetMasters, selectedSkillsetTreeId, lockedTenantId]);
 
-  // 보유율 맵 (skillsetId → 보유 인원) — 모드 ①
+  // 보유율 맵 (skillsetId → 보유 인원) — 모드 ① (sortedSkillsetsByGroup 에서 사용하므로 먼저 선언)
   const coverageMap = useMemo(() => {
     const m = new Map<number, number>();
     for (const c of coverage) m.set(c.skillsetId, c.holdingCount);
     return m;
   }, [coverage]);
 
-  // 보유율 맵 (agentId → 보유 스킬셋 수) — 모드 ②
+  // 보유율 맵 (agentId → 보유 스킬셋 수) — 모드 ② (sortedAgentsByGroup 에서 사용하므로 먼저 선언)
   const agentCoverageMap = useMemo(() => {
     const m = new Map<number, number>();
     for (const c of agentCoverage) m.set(c.agentId, c.holdingCount);
     return m;
   }, [agentCoverage]);
+
+  // 모드 ① 스킬셋 그리드 정렬 — 배정된 스킬셋을 상단으로 이동.
+  // 단일 선택: 그 상담사 기준 priority asc 정렬 후 상단(기존 로직 유지).
+  // 다중 선택(2명+): 선택 상담사 중 그 스킬셋을 보유한 인원 수 desc, 동수는 스킬셋명 asc.
+  //   → coverageMap (useGetSkillsetCoverage) 이 이미 선택 N명 기준 보유인원 제공 — 재활용.
+  // 선택 없음: 원본 순서 그대로.
+  const sortedSkillsetsByGroup = useMemo<typeof filteredSkillsetsByGroup>(() => {
+    if (selectedAgentIds.length === 0) {
+      return filteredSkillsetsByGroup;
+    }
+    if (singleAgentId != null && singleAgentSkillsets.length > 0) {
+      // 단일 선택: priority 오름차순 기준 배정 상단
+      const assignedMap = new Map<number, number | null>(); // skillsetId → priority
+      for (const sa of singleAgentSkillsets) {
+        assignedMap.set(sa.skillsetId, sa.priority ?? null);
+      }
+      const assigned: typeof filteredSkillsetsByGroup = [];
+      const unassigned: typeof filteredSkillsetsByGroup = [];
+      for (const s of filteredSkillsetsByGroup) {
+        if (assignedMap.has(s.skillsetId)) assigned.push(s);
+        else unassigned.push(s);
+      }
+      assigned.sort((a, b) => {
+        const pa = assignedMap.get(a.skillsetId) ?? Number.MAX_SAFE_INTEGER;
+        const pb = assignedMap.get(b.skillsetId) ?? Number.MAX_SAFE_INTEGER;
+        return pa - pb;
+      });
+      return [...assigned, ...unassigned];
+    }
+    // 다중 선택(2명+): coverageMap 이미 선택 N명 기준 보유 인원 제공
+    const assigned: typeof filteredSkillsetsByGroup = [];
+    const unassigned: typeof filteredSkillsetsByGroup = [];
+    for (const s of filteredSkillsetsByGroup) {
+      const count = coverageMap.get(s.skillsetId) ?? 0;
+      if (count > 0) assigned.push(s);
+      else unassigned.push(s);
+    }
+    // 보유 인원 desc, 동수는 스킬셋명 asc
+    assigned.sort((a, b) => {
+      const ca = coverageMap.get(a.skillsetId) ?? 0;
+      const cb = coverageMap.get(b.skillsetId) ?? 0;
+      if (cb !== ca) return cb - ca;
+      return (a.skillsetName ?? '').localeCompare(b.skillsetName ?? '', 'ko');
+    });
+    return [...assigned, ...unassigned];
+  }, [filteredSkillsetsByGroup, selectedAgentIds.length, singleAgentId, singleAgentSkillsets, coverageMap]);
+
+  // 모드 ② 상담사 그리드 정렬 — 배정된 상담사를 상단으로 이동.
+  // 단일 스킬셋: 그 스킬셋을 보유한 상담사 상단(이름 asc).
+  // 다중 스킬셋(2건+): 선택 스킬셋 중 그 상담사가 보유한 개수 desc, 동수 이름 asc.
+  //   → agentCoverageMap (useGetAgentCoverage) 이 이미 선택 M건 기준 보유 수 제공 — 재활용.
+  // 선택 없음: 원본 순서 그대로.
+  const sortedAgentsByGroup = useMemo<typeof filteredAgentsByGroup>(() => {
+    if (selectedSkillsetIds.length === 0) {
+      return filteredAgentsByGroup;
+    }
+    if (singleSkillsetId != null && singleSkillsetAgents.length > 0) {
+      // 단일 스킬셋: 보유 상담사 상단, 동순위 이름 asc
+      const assignedSet = new Set<number>(singleSkillsetAgents.map((sa) => sa.agentId));
+      const assigned: typeof filteredAgentsByGroup = [];
+      const unassigned: typeof filteredAgentsByGroup = [];
+      for (const a of filteredAgentsByGroup) {
+        if (assignedSet.has(a.agentId)) assigned.push(a);
+        else unassigned.push(a);
+      }
+      assigned.sort((a, b) => (a.agentName ?? '').localeCompare(b.agentName ?? '', 'ko'));
+      return [...assigned, ...unassigned];
+    }
+    // 다중 스킬셋(2건+): agentCoverageMap 이미 선택 M건 기준 보유 수 제공
+    const assigned: typeof filteredAgentsByGroup = [];
+    const unassigned: typeof filteredAgentsByGroup = [];
+    for (const a of filteredAgentsByGroup) {
+      const count = agentCoverageMap.get(a.agentId) ?? 0;
+      if (count > 0) assigned.push(a);
+      else unassigned.push(a);
+    }
+    // 보유 수 desc, 동수 이름 asc
+    assigned.sort((a, b) => {
+      const ca = agentCoverageMap.get(a.agentId) ?? 0;
+      const cb = agentCoverageMap.get(b.agentId) ?? 0;
+      if (cb !== ca) return cb - ca;
+      return (a.agentName ?? '').localeCompare(b.agentName ?? '', 'ko');
+    });
+    return [...assigned, ...unassigned];
+  }, [filteredAgentsByGroup, selectedSkillsetIds.length, singleSkillsetId, singleSkillsetAgents, agentCoverageMap]);
+
+  // ② 보기 필터 적용 — 모드① 스킬셋 그리드 (배정됨=coverageMap>0, 미배정=0)
+  const filteredSkillsetsByView = useMemo<typeof sortedSkillsetsByGroup>(() => {
+    if (selectedAgentIds.length === 0 || skillsetViewFilter === 'all') return sortedSkillsetsByGroup;
+    if (skillsetViewFilter === 'assigned') return sortedSkillsetsByGroup.filter((s) => (coverageMap.get(s.skillsetId) ?? 0) > 0);
+    // 'unassigned'
+    return sortedSkillsetsByGroup.filter((s) => (coverageMap.get(s.skillsetId) ?? 0) === 0);
+  }, [sortedSkillsetsByGroup, skillsetViewFilter, selectedAgentIds.length, coverageMap]);
+
+  // ② 보기 필터 적용 — 모드② 상담사 그리드 (배정됨=agentCoverageMap>0, 미배정=0)
+  const filteredAgentsByView = useMemo<typeof sortedAgentsByGroup>(() => {
+    if (selectedSkillsetIds.length === 0 || agentViewFilter === 'all') return sortedAgentsByGroup;
+    if (agentViewFilter === 'assigned') return sortedAgentsByGroup.filter((a) => (agentCoverageMap.get(a.agentId) ?? 0) > 0);
+    // 'unassigned'
+    return sortedAgentsByGroup.filter((a) => (agentCoverageMap.get(a.agentId) ?? 0) === 0);
+  }, [sortedAgentsByGroup, agentViewFilter, selectedSkillsetIds.length, agentCoverageMap]);
 
   const skillsetTotalCount = skillsetMasters.length;
   const skillsetUnassignedCount = useMemo(() => skillsetMasters.filter((s) => s.treeId == null).length, [skillsetMasters]);
@@ -419,11 +599,14 @@ export default function SkillAssignList() {
 
   // handleToolbarGrant 제거됨 — GrantToolbar 삭제로 인해 불필요.
 
+  // handleQuickGrantAgent / handleQuickGrantSkillset 제거 — 호버 패널 "배정" 버튼 삭제.
+
   // ─── Columns ────────────────────────────────────────────────────────────
   // 상담사 multi-select ag-Grid 컬럼 (모드 ① 좌측 / 모드 ② 우측 공용)
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const agentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
       { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
@@ -460,20 +643,29 @@ export default function SkillAssignList() {
               total={total}
               selectedSkillsets={selectedSkillsetEntities}
               onEdit={setEditRow}
+              onDelete={(row) => bulkRevoke({ agentIds: [row.agentId], skillsetIds: [row.skillsetId] })}
             />
           );
         },
       },
     ],
-    [selectedSkillsetIds.length, agentCoverageMap, selectedSkillsetEntities],
+    [selectedSkillsetIds.length, agentCoverageMap, selectedSkillsetEntities, selectedTenantId, bulkRevoke],
   );
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — ag-Grid 34 에서 gridOptions.rowSelection 은
   // 초기 마운트 1회만 읽히므로, AgGridReact prop 으로 전달해야 HMR/재마운트 없이도 명시적 적용 보장
+  // enableClickSelection: false — ag-Grid 자동 클릭선택 비활성, onCellClicked 에서 수동 제어.
+  // 보유건수 셀(coverage column) 클릭만 선택 제외, 나머지 셀은 onCellClicked 에서 node.setSelected() 토글.
+  // 참고: ag-Grid v34.1.2 에는 suppressMouseEventHandling(v35+) 미제공 → onCellClicked 방식 사용.
   const agentRowSelection = useMemo(
-    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: false, enableSelectionWithoutKeys: true }),
     [],
   );
+
+  const selectedAgentIdsRef = useRef(selectedAgentIds);
+  selectedAgentIdsRef.current = selectedAgentIds;
+  const selectedSkillsetIdsRef = useRef(selectedSkillsetIds);
+  selectedSkillsetIdsRef.current = selectedSkillsetIds;
 
   // hover 핸들러 ref — gridOptions useMemo 내에서 최신 setter 참조
   const setHoverAgentIdRef = useRef(setHoverAgentId);
@@ -494,9 +686,26 @@ export default function SkillAssignList() {
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.agentId),
       onSelectionChanged: (e) => {
-        setSelectedAgentIds(e.api.getSelectedRows().map((r) => r.agentId));
+        const selected = e.api.getSelectedRows();
+        setSelectedAgentIds(selected.map((r) => r.agentId));
+        // 상담사 row 선택 시 그 tenantId 로 스킬셋 목록 잠금.
+        // selected.length === 0 인 경우는 rowData 교체로 인한 ag-Grid 자동 선택해제 발화일 수 있으므로
+        // setLockedTenantId(null) 을 여기서 호출하지 않는다 — 명시적 해제는 "선택 해제" 버튼 or deselectAll() 경로로만.
+        if (selected.length > 0) {
+          setLockedTenantId(selected[0].tenantId ?? null);
+        }
       },
       onCellMouseOver: (e) => {
+        // 보유건수 셀(AgentCoverageCell)에서는 InlineAssignPanel 억제
+        if (e.column?.getColDef().headerName === '보유 건수') {
+          coverageCellHoveredRef.current = true;
+          // 진행 중인 intent 타이머 취소 및 현재 hover 해제
+          if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
+          if (hoverLeaveTimerRefAgent.current) clearTimeout(hoverLeaveTimerRefAgent.current);
+          setHoverAgentIdRef.current(null);
+          return;
+        }
+        coverageCellHoveredRef.current = false;
         const nextId = e.data?.agentId ?? null;
         // ① 같은 행 가드: 현재 hover 값과 같으면 무시 (같은 행 셀 좌우이동)
         if (nextId === hoverAgentIdValueRef.current) {
@@ -511,7 +720,11 @@ export default function SkillAssignList() {
           setHoverAgentIdRef.current(nextId);
         }, 250);
       },
-      onCellMouseOut: () => {
+      onCellMouseOut: (e) => {
+        // 보유건수 셀에서 빠져나오면 ref 초기화
+        if (e.column?.getColDef().headerName === '보유 건수') {
+          coverageCellHoveredRef.current = false;
+        }
         // 이탈 시 미발화 intent 타이머 취소 (스쳐 지나간 행은 요청 안 함)
         if (hoverIntentTimerRefAgent.current) clearTimeout(hoverIntentTimerRefAgent.current);
         // panelHovered 중이면 leave 타이머 설정 안 함 — 커서가 패널 위에 있으면 닫히지 않음
@@ -520,6 +733,13 @@ export default function SkillAssignList() {
         hoverLeaveTimerRefAgent.current = setTimeout(() => {
           if (!panelHoveredRef.current) setHoverAgentIdRef.current(null);
         }, 200);
+      },
+      // 보유건수 셀 클릭 → 행 선택 차단, 일반 셀 클릭 → 수동 선택 토글.
+      // enableClickSelection:false 로 ag-Grid 자동선택 비활성 → 이 핸들러에서 직접 제어.
+      // 보유건수 컬럼은 headerName 으로 식별 (ag-Grid v34 — suppressMouseEventHandling v35+미제공).
+      onCellClicked: (params: CellClickedEvent<AgentResponse>) => {
+        if (params.column?.getColDef().headerName === '보유 건수') return;
+        params.node.setSelected(!params.node.isSelected(), false);
       },
     }),
 
@@ -530,6 +750,7 @@ export default function SkillAssignList() {
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const skillsetColumnsAg = useMemo<ColDef<SkillsetResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'skillsetName', headerName: '스킬셋명', flex: 1, minWidth: 140 },
       {
         headerName: '보유 건수',
@@ -557,17 +778,21 @@ export default function SkillAssignList() {
               total={total}
               selectedAgents={selectedAgentEntities}
               onEdit={setEditRow}
+              onDelete={(row) => bulkRevoke({ agentIds: [row.agentId], skillsetIds: [row.skillsetId] })}
             />
           );
         },
       },
     ],
-    [selectedAgentIds.length, coverageMap, selectedAgentEntities],
+    [selectedAgentIds.length, coverageMap, selectedAgentEntities, selectedTenantId, bulkRevoke],
   );
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — 동일 이유
+  // enableClickSelection: false — ag-Grid 자동 클릭선택 비활성, onCellClicked 에서 수동 제어.
+  // 보유건수 셀(coverage column) 클릭만 선택 제외, 나머지 셀은 onCellClicked 에서 node.setSelected() 토글.
+  // 참고: ag-Grid v34.1.2 에는 suppressMouseEventHandling(v35+) 미제공 → onCellClicked 방식 사용.
   const skillsetRowSelection = useMemo(
-    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }),
+    () => ({ mode: 'multiRow' as const, checkboxes: true, headerCheckbox: true, enableClickSelection: false, enableSelectionWithoutKeys: true }),
     [],
   );
 
@@ -590,9 +815,26 @@ export default function SkillAssignList() {
       defaultColDef: { resizable: true, sortable: true, filter: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true },
       getRowId: ({ data }) => String(data.skillsetId),
       onSelectionChanged: (e) => {
-        setSelectedSkillsetIds(e.api.getSelectedRows().map((r) => r.skillsetId));
+        const selected = e.api.getSelectedRows();
+        setSelectedSkillsetIds(selected.map((r) => r.skillsetId));
+        // 스킬셋 row 선택 시 그 tenantId 로 상담사 목록 잠금.
+        // selected.length === 0 인 경우는 rowData 교체로 인한 ag-Grid 자동 선택해제 발화일 수 있으므로
+        // setLockedTenantId(null) 을 여기서 호출하지 않는다 — 명시적 해제는 "선택 해제" 버튼 or deselectAll() 경로로만.
+        if (selected.length > 0) {
+          setLockedTenantId(selected[0].tenantId ?? null);
+        }
       },
       onCellMouseOver: (e) => {
+        // 보유건수 셀(SkillsetCoverageCell)에서는 InlineAssignPanel 억제
+        if (e.column?.getColDef().headerName === '보유 건수') {
+          coverageCellHoveredRef.current = true;
+          // 진행 중인 intent 타이머 취소 및 현재 hover 해제
+          if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
+          if (hoverLeaveTimerRefSkillset.current) clearTimeout(hoverLeaveTimerRefSkillset.current);
+          setHoverSkillsetIdRef.current(null);
+          return;
+        }
+        coverageCellHoveredRef.current = false;
         const nextId = e.data?.skillsetId ?? null;
         // ① 같은 행 가드: 현재 hover 값과 같으면 무시 (같은 행 셀 좌우이동)
         if (nextId === hoverSkillsetIdValueRef.current) {
@@ -607,7 +849,11 @@ export default function SkillAssignList() {
           setHoverSkillsetIdRef.current(nextId);
         }, 250);
       },
-      onCellMouseOut: () => {
+      onCellMouseOut: (e) => {
+        // 보유건수 셀에서 빠져나오면 ref 초기화
+        if (e.column?.getColDef().headerName === '보유 건수') {
+          coverageCellHoveredRef.current = false;
+        }
         // 이탈 시 미발화 intent 타이머 취소
         if (hoverIntentTimerRefSkillset.current) clearTimeout(hoverIntentTimerRefSkillset.current);
         // panelHovered 중이면 leave 타이머 설정 안 함
@@ -617,6 +863,12 @@ export default function SkillAssignList() {
           if (!panelHoveredRef.current) setHoverSkillsetIdRef.current(null);
         }, 200);
       },
+      // 보유건수 셀 클릭 → 행 선택 차단, 일반 셀 클릭 → 수동 선택 토글.
+      // enableClickSelection:false 로 ag-Grid 자동선택 비활성 → 이 핸들러에서 직접 제어.
+      onCellClicked: (params: CellClickedEvent<SkillsetResponse>) => {
+        if (params.column?.getColDef().headerName === '보유 건수') return;
+        params.node.setSelected(!params.node.isSelected(), false);
+      },
     }),
 
     [baseGridOptions],
@@ -625,11 +877,12 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (상담사 기준) ────────────────────
   const viewAgentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
       { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
     ],
-    [],
+    [selectedTenantId],
   );
 
   const viewAgentRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
@@ -653,6 +906,7 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (스킬셋 기준) ────────────────────
   const viewSkillsetColumnsAg = useMemo<ColDef<SkillsetResponse>[]>(
     () => [
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
       { field: 'skillsetName', headerName: '스킬셋명', flex: 1, minWidth: 140 },
       {
         field: 'treeName',
@@ -671,7 +925,7 @@ export default function SkillAssignList() {
         cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>),
       },
     ],
-    [],
+    [selectedTenantId],
   );
 
   // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
@@ -922,7 +1176,7 @@ export default function SkillAssignList() {
                   <Panel defaultSize={70} minSize={40} className="min-w-0 min-h-0 ag-theme-quartz">
                     <AgGridReact<AgentResponse>
                       ref={agentGridRef1}
-                      rowData={filteredAgentsByGroup}
+                      rowData={filteredAgentsByView}
                       columnDefs={agentColumnsAg}
                       gridOptions={agentGridOptionsAg}
                       rowSelection={agentRowSelection}
@@ -954,9 +1208,22 @@ export default function SkillAssignList() {
                     <Wrench className="size-3.5" /> 스킬셋
                   </span>
                   <span className="text-xs text-gray-500">
-                    총 {filteredSkillsetsByGroup.length.toLocaleString()}건 · <strong className="text-[#405189]">선택 {selectedSkillsetIds.length}건</strong>
+                    총 {filteredSkillsetsByView.length.toLocaleString()}건 · <strong className="text-[#405189]">선택 {selectedSkillsetIds.length}건</strong>
                     {selectedAgentIds.length > 0 && ` · ${selectedAgentIds.length}명 기준 보유율`}
                   </span>
+                  {/* ② 보기 필터 토글 — 상담사 선택 시만 활성 */}
+                  {selectedAgentIds.length > 0 && (
+                    <Segmented
+                      size="small"
+                      value={skillsetViewFilter}
+                      onChange={(v) => setSkillsetViewFilter(v as 'all' | 'assigned' | 'unassigned')}
+                      options={[
+                        { label: '전체', value: 'all' },
+                        { label: '배정됨', value: 'assigned' },
+                        { label: '미배정', value: 'unassigned' },
+                      ]}
+                    />
+                  )}
                   <div className="ml-auto flex items-center gap-1">
                     <Input
                       size="small"
@@ -1022,7 +1289,7 @@ export default function SkillAssignList() {
                   <Panel defaultSize={70} minSize={40} className="min-w-0 min-h-0 ag-theme-quartz">
                     <AgGridReact<SkillsetResponse>
                       ref={skillsetGridRef1}
-                      rowData={filteredSkillsetsByGroup}
+                      rowData={filteredSkillsetsByView}
                       columnDefs={skillsetColumnsAg}
                       gridOptions={skillsetGridOptionsAg}
                       rowSelection={skillsetRowSelection}
@@ -1053,6 +1320,16 @@ export default function SkillAssignList() {
               row: item,
             }))}
             onEdit={setEditRow}
+            onDelete={(row) => {
+              Modal.confirm({
+                title: '배정 해제',
+                content: `[${row.skillsetName}] 배정을 해제하시겠습니까?`,
+                okText: '해제',
+                okType: 'danger',
+                cancelText: '취소',
+                onOk: () => bulkRevoke({ agentIds: [row.agentId], skillsetIds: [row.skillsetId] }),
+              });
+            }}
             onClose={() => {
               setPanelHovered(false);
               setHoverAgentId(null);
@@ -1171,7 +1448,7 @@ export default function SkillAssignList() {
                   <Panel defaultSize={70} minSize={40} className="min-w-0 min-h-0 ag-theme-quartz">
                     <AgGridReact<SkillsetResponse>
                       ref={skillsetGridRef2}
-                      rowData={filteredSkillsetsByGroup}
+                      rowData={filteredSkillsetsByView}
                       columnDefs={skillsetColumnsAg}
                       gridOptions={skillsetGridOptionsAg}
                       rowSelection={skillsetRowSelection}
@@ -1203,9 +1480,22 @@ export default function SkillAssignList() {
                     <Users className="size-3.5" /> 상담사
                   </span>
                   <span className="text-xs text-gray-500">
-                    총 {filteredAgentsByGroup.length.toLocaleString()}명 · <strong className="text-[#405189]">선택 {selectedAgentIds.length}명</strong>
+                    총 {filteredAgentsByView.length.toLocaleString()}명 · <strong className="text-[#405189]">선택 {selectedAgentIds.length}명</strong>
                     {selectedSkillsetIds.length > 0 && ` · ${selectedSkillsetIds.length}건 기준 보유율`}
                   </span>
+                  {/* ② 보기 필터 토글 — 스킬셋 선택 시만 활성 */}
+                  {selectedSkillsetIds.length > 0 && (
+                    <Segmented
+                      size="small"
+                      value={agentViewFilter}
+                      onChange={(v) => setAgentViewFilter(v as 'all' | 'assigned' | 'unassigned')}
+                      options={[
+                        { label: '전체', value: 'all' },
+                        { label: '배정됨', value: 'assigned' },
+                        { label: '미배정', value: 'unassigned' },
+                      ]}
+                    />
+                  )}
                   <div className="ml-auto flex items-center gap-1">
                     <Input
                       size="small"
@@ -1258,7 +1548,7 @@ export default function SkillAssignList() {
                   <Panel defaultSize={70} minSize={40} className="min-w-0 min-h-0 ag-theme-quartz">
                     <AgGridReact<AgentResponse>
                       ref={agentGridRef2}
-                      rowData={filteredAgentsByGroup}
+                      rowData={filteredAgentsByView}
                       columnDefs={agentColumnsAg}
                       gridOptions={agentGridOptionsAg}
                       rowSelection={agentRowSelection}
@@ -1289,6 +1579,16 @@ export default function SkillAssignList() {
               row: item,
             }))}
             onEdit={setEditRow}
+            onDelete={(row) => {
+              Modal.confirm({
+                title: '배정 해제',
+                content: `[${row.agentName ?? '-'}] 배정을 해제하시겠습니까?`,
+                okText: '해제',
+                okType: 'danger',
+                cancelText: '취소',
+                onOk: () => bulkRevoke({ agentIds: [row.agentId], skillsetIds: [row.skillsetId] }),
+              });
+            }}
             onClose={() => {
               setPanelHovered(false);
               setHoverSkillsetId(null);
@@ -1688,6 +1988,7 @@ export default function SkillAssignList() {
                 onClick={() => {
                   setSelectedAgentIds([]);
                   setSelectedSkillsetIds([]);
+                  setLockedTenantId(null);
                   agentGridRef1.current?.api?.deselectAll();
                   agentGridRef2.current?.api?.deselectAll();
                   skillsetGridRef1.current?.api?.deselectAll();
@@ -2041,6 +2342,8 @@ interface InlineAssignPanelProps {
   emptyText: string;
   items: InlineAssignItem[];
   onEdit: (row: SkillAgentResponse) => void;
+  /** 항목별 단건 해제 — SidePanelRow x버튼 클릭 시 호출 */
+  onDelete: (row: SkillAgentResponse) => void;
   onClose: () => void;
   onPanelMouseEnter: () => void;
   onPanelMouseLeave: () => void;
@@ -2056,6 +2359,7 @@ function InlineAssignPanel({
   emptyText,
   items,
   onEdit,
+  onDelete,
   onClose,
   onPanelMouseEnter,
   onPanelMouseLeave,
@@ -2189,6 +2493,7 @@ function InlineAssignPanel({
                 skillLevel={item.skillLevel}
                 row={item.row}
                 onEdit={() => onEdit(item.row)}
+                onDelete={() => onDelete(item.row)}
               />
             ))}
           </div>
@@ -2208,9 +2513,10 @@ interface SidePanelRowProps {
   skillLevel: number | null | undefined;
   row: SkillAgentResponse;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
-function SidePanelRow({ title, subtitle, priority, skillLevel, row, onEdit }: SidePanelRowProps) {
+function SidePanelRow({ title, subtitle, priority, skillLevel, row, onEdit, onDelete }: SidePanelRowProps) {
   const level = skillLevel ?? 0;
   const dotColor = level >= 71 ? '#3b82f6' : level >= 41 ? '#f59e0b' : '#9ca3af';
 
@@ -2357,6 +2663,15 @@ function SidePanelRow({ title, subtitle, priority, skillLevel, row, onEdit }: Si
       >
         <Pencil className="size-3" />
       </button>
+      {/* 단건 해제 버튼 */}
+      <button
+        type="button"
+        title="이 항목 배정 해제"
+        onClick={onDelete}
+        className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-300 hover:text-red-500 hover:bg-red-50 transition"
+      >
+        <X className="size-3" />
+      </button>
     </div>
   );
 }
@@ -2380,9 +2695,11 @@ interface BreakdownRowProps {
   priority?: number | null;
   skillLevel?: number | null;
   onEdit?: () => void;
+  /** 보유자만 — 단건 배정 해제 */
+  onDelete?: () => void;
 }
 
-function BreakdownRow({ name, sub, holder, priority, skillLevel, onEdit }: BreakdownRowProps) {
+function BreakdownRow({ name, sub, holder, priority, skillLevel, onEdit, onDelete }: BreakdownRowProps) {
   return (
     <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs ${holder ? 'bg-[#f0fdf4]' : 'bg-gray-50'}`}>
       {/* 보유=초록✓ / 미보유=회색✗ */}
@@ -2397,7 +2714,7 @@ function BreakdownRow({ name, sub, holder, priority, skillLevel, onEdit }: Break
         <div className={`truncate font-medium ${holder ? 'text-gray-800' : 'text-gray-400'}`}>{name}</div>
         {sub != null && <div className="truncate text-[10px] text-gray-400">{sub}</div>}
       </div>
-      {/* 보유자: P/L + ✎ 수정 진입점 */}
+      {/* 보유자: P/L + ✎ 수정 진입점 + ✕ 단건 해제 */}
       {holder ? (
         <div className="flex-shrink-0 flex items-center gap-1.5">
           <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 tabular-nums">
@@ -2416,6 +2733,19 @@ function BreakdownRow({ name, sub, holder, priority, skillLevel, onEdit }: Break
               className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-[#405189] hover:bg-[#eef1fb] transition"
             >
               <Pencil className="size-3" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              title="배정 해제"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
+            >
+              <X className="size-3" />
             </button>
           )}
         </div>
@@ -2444,9 +2774,11 @@ interface BreakdownPanelProps {
   fetching: boolean;
   entries: BreakdownEntry[];
   onEdit: (row: SkillAgentResponse) => void;
+  /** 항목별 단건 해제 */
+  onDelete: (row: SkillAgentResponse) => void;
 }
 
-function BreakdownPanel({ title, holding, total, fetching, entries, onEdit }: BreakdownPanelProps) {
+function BreakdownPanel({ title, holding, total, fetching, entries, onEdit, onDelete }: BreakdownPanelProps) {
   const [filterText, setFilterText] = useState('');
   const filterInputRef = useRef<HTMLInputElement>(null);
 
@@ -2526,6 +2858,7 @@ function BreakdownPanel({ title, holding, total, fetching, entries, onEdit }: Br
               priority={e.priority}
               skillLevel={e.skillLevel}
               onEdit={e.holder && e.row ? () => onEdit(e.row as SkillAgentResponse) : undefined}
+              onDelete={e.holder && e.row ? () => onDelete(e.row as SkillAgentResponse) : undefined}
             />
           ))}
         </div>
@@ -2542,12 +2875,36 @@ interface SkillsetCoverageCellProps {
   total: number;
   selectedAgents: AgentResponse[];
   onEdit: (row: SkillAgentResponse) => void;
+  onDelete: (row: SkillAgentResponse) => void;
 }
 
-function SkillsetCoverageCell({ skillsetId, skillsetName, holding, total, selectedAgents, onEdit }: SkillsetCoverageCellProps) {
+function SkillsetCoverageCell({ skillsetId, skillsetName, holding, total, selectedAgents, onEdit, onDelete }: SkillsetCoverageCellProps) {
   const [open, setOpen] = useState(false);
   // 팝오버 열렸을 때만 해당 스킬셋의 보유 상담사 조회 (lazy)
   const { data: holders = [], isFetching } = useGetAgentsBySkillset(open ? skillsetId : null);
+
+  // cellRef: onMouseLeave 및 popover hover bridge 에서 사용 (선택 차단은 gridOptions.onCellClicked 로 처리)
+  const cellRef = useRef<HTMLDivElement>(null);
+
+  // hover bridge: 셀→팝오버 이동 중 닫힘 방지용 타이머
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleClose = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setOpen(false), 200);
+  };
+
+  const cancelClose = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
   // 보유 상담사 행을 agentId 로 색인 (P/L + 전체 row 확보 → ✎ 연결)
   const holderMap = useMemo(() => {
@@ -2575,29 +2932,49 @@ function SkillsetCoverageCell({ skillsetId, skillsetName, holding, total, select
     [selectedAgents, holderMap, skillsetId, skillsetName],
   );
 
+  // 팝오버 content를 hover bridge wrapper로 감싸서 오버레이 내부 진입 시 닫힘 취소
+  const handleDelete = useCallback(
+    (row: SkillAgentResponse) => {
+      Modal.confirm({
+        title: '배정 해제',
+        content: `[${row.agentName ?? '-'}] 배정을 해제하시겠습니까?`,
+        okText: '해제',
+        okType: 'danger',
+        cancelText: '취소',
+        onOk: () => onDelete(row),
+      });
+    },
+    [onDelete],
+  );
+
+  const popoverContent = (
+    <div onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+      <BreakdownPanel title={skillsetName} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} onDelete={handleDelete} />
+    </div>
+  );
+
   return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
-      trigger="click"
-      placement="leftTop"
-      destroyOnHidden
-      content={<BreakdownPanel title={skillsetName} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} />}
-    >
-      <button
-        type="button"
-        title="클릭하여 선택 상담사 보유/미보유 분해"
-        className="flex items-center gap-2 h-full w-full text-left cursor-pointer hover:bg-[#f9fafc] rounded px-0.5"
-      >
-        <CoverageBar holding={holding} total={total} />
-        <span
-          style={{ color: holding === total ? '#16a34a' : holding === 0 ? '#9ca3af' : '#f59e0b', fontWeight: 600 }}
-          className="text-xs tabular-nums underline decoration-dotted decoration-gray-300 underline-offset-2"
+    // cellRef: hover bridge 타이머 및 onMouseLeave 에서 사용. ag-Grid 선택 차단은 colDef.suppressMouseEventHandling.
+    <div ref={cellRef} className="h-full w-full" onMouseLeave={scheduleClose}>
+      <Popover open={open} onOpenChange={setOpen} trigger="click" placement="leftTop" destroyOnHidden content={popoverContent}>
+        <button
+          type="button"
+          title="클릭하여 선택 상담사 보유/미보유 분해"
+          className="flex items-center gap-2 h-full w-full text-left cursor-pointer hover:bg-[#f9fafc] rounded px-0.5"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         >
-          {holding}/{total}
-        </span>
-      </button>
-    </Popover>
+          <CoverageBar holding={holding} total={total} />
+          <span
+            style={{ color: holding === total ? '#16a34a' : holding === 0 ? '#9ca3af' : '#f59e0b', fontWeight: 600 }}
+            className="text-xs tabular-nums underline decoration-dotted decoration-gray-300 underline-offset-2"
+          >
+            {holding}/{total}
+          </span>
+        </button>
+      </Popover>
+    </div>
   );
 }
 
@@ -2609,12 +2986,36 @@ interface AgentCoverageCellProps {
   total: number;
   selectedSkillsets: SkillsetResponse[];
   onEdit: (row: SkillAgentResponse) => void;
+  onDelete: (row: SkillAgentResponse) => void;
 }
 
-function AgentCoverageCell({ agentId, agentName, holding, total, selectedSkillsets, onEdit }: AgentCoverageCellProps) {
+function AgentCoverageCell({ agentId, agentName, holding, total, selectedSkillsets, onEdit, onDelete }: AgentCoverageCellProps) {
   const [open, setOpen] = useState(false);
   // 팝오버 열렸을 때만 해당 상담사의 보유 스킬셋 조회 (lazy)
   const { data: holdings = [], isFetching } = useGetSkillsetsByAgent(open ? agentId : null);
+
+  // cellRef: onMouseLeave 및 popover hover bridge 에서 사용 (선택 차단은 gridOptions.onCellClicked 로 처리)
+  const cellRef = useRef<HTMLDivElement>(null);
+
+  // hover bridge: 셀→팝오버 이동 중 닫힘 방지용 타이머
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleClose = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setOpen(false), 200);
+  };
+
+  const cancelClose = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+  };
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    },
+    [],
+  );
 
   const holdingMap = useMemo(() => {
     const m = new Map<number, SkillAgentResponse>();
@@ -2640,28 +3041,48 @@ function AgentCoverageCell({ agentId, agentName, holding, total, selectedSkillse
     [selectedSkillsets, holdingMap, agentId, agentName],
   );
 
+  // 팝오버 content를 hover bridge wrapper로 감싸서 오버레이 내부 진입 시 닫힘 취소
+  const handleDelete = useCallback(
+    (row: SkillAgentResponse) => {
+      Modal.confirm({
+        title: '배정 해제',
+        content: `[${row.skillsetName ?? '-'}] 배정을 해제하시겠습니까?`,
+        okText: '해제',
+        okType: 'danger',
+        cancelText: '취소',
+        onOk: () => onDelete(row),
+      });
+    },
+    [onDelete],
+  );
+
+  const popoverContent = (
+    <div onMouseEnter={cancelClose} onMouseLeave={scheduleClose}>
+      <BreakdownPanel title={agentName} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} onDelete={handleDelete} />
+    </div>
+  );
+
   return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
-      trigger="click"
-      placement="leftTop"
-      destroyOnHidden
-      content={<BreakdownPanel title={agentName} holding={holding} total={total} fetching={isFetching} entries={entries} onEdit={onEdit} />}
-    >
-      <button
-        type="button"
-        title="클릭하여 선택 스킬셋 보유/미보유 분해"
-        className="flex items-center gap-2 h-full w-full text-left cursor-pointer hover:bg-[#f9fafc] rounded px-0.5"
-      >
-        <CoverageBar holding={holding} total={total} />
-        <span
-          style={{ color: holding === total ? '#16a34a' : holding === 0 ? '#9ca3af' : '#f59e0b', fontWeight: 600 }}
-          className="text-xs tabular-nums underline decoration-dotted decoration-gray-300 underline-offset-2"
+    // cellRef: hover bridge 타이머 및 onMouseLeave 에서 사용. ag-Grid 선택 차단은 colDef.suppressMouseEventHandling.
+    <div ref={cellRef} className="h-full w-full" onMouseLeave={scheduleClose}>
+      <Popover open={open} onOpenChange={setOpen} trigger="click" placement="leftTop" destroyOnHidden content={popoverContent}>
+        <button
+          type="button"
+          title="클릭하여 선택 스킬셋 보유/미보유 분해"
+          className="flex items-center gap-2 h-full w-full text-left cursor-pointer hover:bg-[#f9fafc] rounded px-0.5"
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
         >
-          {holding}/{total}
-        </span>
-      </button>
-    </Popover>
+          <CoverageBar holding={holding} total={total} />
+          <span
+            style={{ color: holding === total ? '#16a34a' : holding === 0 ? '#9ca3af' : '#f59e0b', fontWeight: 600 }}
+            className="text-xs tabular-nums underline decoration-dotted decoration-gray-300 underline-offset-2"
+          >
+            {holding}/{total}
+          </span>
+        </button>
+      </Popover>
+    </div>
   );
 }

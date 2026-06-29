@@ -52,10 +52,14 @@ const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((
 
   const loading = isHistory ? hisLoading : curLoading;
 
-  // 시스템명 기준 정렬(동률 시 시나리오명)
+  // 적용 이력: 예약/적용시간(applyDatetime) 내림차순(동률 시 작업시각). 현재 상태: 시스템명 기준(동률 시 시나리오명).
   const rows = useMemo(() => {
     const base = isHistory ? history : current;
-    return [...base].sort((a, b) => (a.systemName ?? '').localeCompare(b.systemName ?? '', 'ko') || (a.serviceName ?? '').localeCompare(b.serviceName ?? '', 'ko'));
+    return [...base].sort((a, b) =>
+      isHistory
+        ? (b.applyDatetime ?? '').localeCompare(a.applyDatetime ?? '') || (b.updateTime ?? '').localeCompare(a.updateTime ?? '')
+        : (a.systemName ?? '').localeCompare(b.systemName ?? '', 'ko') || (a.serviceName ?? '').localeCompare(b.serviceName ?? '', 'ko'),
+    );
   }, [isHistory, history, current]);
 
   // 미리 선택할 시나리오가 있으면 시나리오 컬럼 셋 필터를 그 이름으로 적용.
@@ -144,9 +148,6 @@ const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((
             { label: '적용 이력', value: 'history' },
           ]}
         />
-        <span className="text-xs text-gray-400">
-          총 <b>{rows.length}</b>건{isHistory ? ' (최근 500)' : ''}
-        </span>
       </div>
       <div className="h-[520px]">
         <AgGridReact<ScenarioAssignedStatusRow>

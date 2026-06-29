@@ -5,29 +5,17 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Popover, Tag, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { fuzzyScore, toast } from '@/shared-util';
-import { DOMAIN_LABELS } from '../../features/monitoring/constants/monitoringConstants';
 import { monitoringDatasetKeys, useDeleteMonitoringDataset, useGetMonitoringDataset, useGetMonitoringDatasets } from '../../features/monitoring/hooks/useDatasetQueries';
-import type { CalcField, DatasetField, DatasetListItem, DomainCode } from '../../features/monitoring/types';
+import type { CalcField, DatasetField, DatasetListItem } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Highlight } from '@/components/custom/Highlight';
-import { TreeCaret, TreeRow } from '@/components/custom/TreeView';
+import { TreeRow } from '@/components/custom/TreeView';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
-
-// ─── 솔루션(상위 그룹) 정의 — 통계 데이터셋과 동일 패턴 ─────────────────────────────
-const MAJOR_DEFS: { code: string; label: string; productCodes: string[] }[] = [{ code: 'IPRON', label: 'IPRON', productCodes: ['IE', 'IC', 'IR'] }];
-const PRODUCT_CODE_MAJOR: Record<string, string> = { IE: 'IPRON', IC: 'IPRON', IR: 'IPRON' };
-const MINOR_ORDER: DomainCode[] = ['IE', 'IC', 'IR'];
-
-const ACCENT_HEX: Record<string, string> = { IE: '#1677ff', IC: '#52c41a', IR: '#fa8c16' };
-const DEFAULT_ACCENT = 'var(--color-bt-primary)';
-const DOMAIN_TAG_COLOR: Record<string, string> = { IE: 'blue', IC: 'green', IR: 'orange' };
-
-const majorOfCode = (code: string) => PRODUCT_CODE_MAJOR[code] ?? 'ETC';
 
 // 필드 역할 뱃지 — 편집화면(WizardStepB) 기준 명칭
 const FIELD_ROLE_META: Record<string, { label: string; color: string }> = {
@@ -111,8 +99,7 @@ const FIELD_COLUMN_DEFS: ColDef<FieldRow>[] = [
 interface DsTreeNode {
   key: string;
   label: string;
-  code?: string; // 그룹 노드의 domainCode
-  data?: DatasetListItem; // leaf 데이터셋
+  data: DatasetListItem; // leaf 데이터셋 (도메인 그룹 제거 — 평면 목록)
   children: DsTreeNode[];
 }
 
@@ -124,10 +111,8 @@ export default function DatasetCatalog() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
   const [search, setSearch] = useState('');
-  const [majorSel, setMajorSel] = useState<string | null>(null);
-  const [minorSel, setMinorSel] = useState<string | null>(null);
-  const [majorPopOpen, setMajorPopOpen] = useState(false);
-  const [minorPopOpen, setMinorPopOpen] = useState(false);
+  const [tagSel, setTagSel] = useState<string | null>(null); // null = 전체
+  const [tagPopOpen, setTagPopOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -150,38 +135,29 @@ export default function DatasetCatalog() {
     },
   });
 
-  // 데이터에 존재하는 도메인 코드 — 지정 순서 우선 + 미등록 코드 자동 추가
-  const presentCodes = [...new Set(datasets.map((d) => d.domainCode).filter(Boolean))];
-  const allCodes = [...MINOR_ORDER.filter((c) => presentCodes.includes(c)), ...presentCodes.filter((c) => !MINOR_ORDER.includes(c))];
+  // 데이터에 존재하는 태그 — 사용 빈도 무관, 가나다순
+  const allTags = [...new Set(datasets.flatMap((d) => d.tags ?? []))].sort((a, b) => a.localeCompare(b));
+  const tagCount = (tag: string) => datasets.filter((d) => (d.tags ?? []).includes(tag)).length;
 
-  const visibleCodes = allCodes.filter((code) => (!majorSel || majorOfCode(code) === majorSel) && (!minorSel || code === minorSel));
+  // 태그 필터 — 평면 목록 (도메인 그룹 제거)
+  const filtered = tagSel ? datasets.filter((d) => (d.tags ?? []).includes(tagSel)) : datasets;
+  const treeData: DsTreeNode[] = filtered.map((d) => ({ key: `ds:${d.datasetId}`, label: d.datasetName, data: d, children: [] }));
 
-  const treeData: DsTreeNode[] = visibleCodes.map((code) => ({
-    key: `grp:${code}`,
-    label: DOMAIN_LABELS[code as DomainCode] ?? code,
-    code,
-    children: datasets.filter((d) => d.domainCode === code).map((d) => ({ key: `ds:${d.datasetId}`, label: d.datasetName, data: d, children: [] })),
-  }));
-
-  const { items, rootProps, allExpanded, toggleAll } = useTreeView<DsTreeNode>({
+  const { items, rootProps } = useTreeView<DsTreeNode>({
     data: treeData,
     getId: (n) => n.key,
     getChildren: (n) => n.children,
     getName: (n) => n.label,
     searchText: search,
-    matchesSearch: (n, kw) => {
-      if (n.data) return fuzzyScore(kw, n.data.datasetName) >= 0 || fuzzyScore(kw, n.data.datasetCode ?? '') >= 0;
-      return fuzzyScore(kw, n.label) >= 0;
-    },
+    matchesSearch: (n, kw) => fuzzyScore(kw, n.data.datasetName) >= 0 || fuzzyScore(kw, n.data.datasetCode ?? '') >= 0,
     defaultExpandAll: true,
-    ariaLabel: '데이터셋 트리',
+    ariaLabel: '데이터셋 목록',
   });
 
   const selectedKey = selectedId != null ? `ds:${selectedId}` : null;
   const selected = selectedId != null ? (datasets.find((d) => d.datasetId === selectedId) ?? null) : null;
 
   const handleSelectNode = (node: DsTreeNode) => {
-    if (!node.data) return;
     const id = node.data.datasetId;
     setSelectedId((prev) => (prev === id ? null : id));
   };
@@ -196,80 +172,57 @@ export default function DatasetCatalog() {
     modal.confirm.delete({ onOk: () => deleteDataset(d.datasetId) });
   };
 
-  const handlePickMajor = (code: string | null) => {
-    setMajorSel(code);
-    if (minorSel && code && majorOfCode(minorSel) !== code) setMinorSel(null);
-    setMajorPopOpen(false);
-  };
-  const handlePickMinor = (code: string | null) => {
-    setMinorSel(code);
-    setMinorPopOpen(false);
+  const handlePickTag = (tag: string | null) => {
+    setTagSel(tag);
+    setTagPopOpen(false);
   };
 
-  const majorLabel = majorSel ? (MAJOR_DEFS.find((m) => m.code === majorSel)?.label ?? majorSel) : '전체';
-  const minorLabel = minorSel ? `${minorSel} · ${DOMAIN_LABELS[minorSel as DomainCode] ?? minorSel}` : '전체';
+  const tagLabel = tagSel ?? '전체';
 
   const renderRow = (item: TreeViewItem<DsTreeNode>) => {
     const node = item.node;
-    const isGroup = !!node.code;
     const isSelected = node.key === selectedKey;
-    const count = isGroup ? datasets.filter((d) => d.domainCode === node.code).length : 0;
     return (
-      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)} className={isGroup ? 'cursor-default' : undefined}>
-        <TreeCaret item={item} />
-        {isGroup ? (
-          <span className="flex-1 min-w-0">
-            <Tag color={DOMAIN_TAG_COLOR[node.code!]} className="!mb-0 !mr-0 font-bold">
-              {node.code} · {DOMAIN_LABELS[node.code as DomainCode] ?? node.code}
+      <TreeRow key={item.id} item={item} selected={isSelected} onClick={() => handleSelectNode(node)}>
+        <span className="size-2 rounded-full flex-shrink-0 bg-[var(--color-bt-primary)]" />
+        <span className={`flex-1 truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
+          <Highlight text={node.label} query={search} />
+        </span>
+        <span className="ml-auto flex items-center h-5 flex-shrink-0">
+          {/* 뱃지 — hover 시 숨김 (baseType) */}
+          <span className="h-5 inline-flex items-center gap-1 group-hover:hidden">
+            <Tag color="default" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4 font-mono">
+              {node.data.baseType}
             </Tag>
           </span>
-        ) : (
-          <>
-            <span className="size-2 rounded-full flex-shrink-0" style={{ background: ACCENT_HEX[node.data!.domainCode] ?? DEFAULT_ACCENT }} />
-            <span className={`flex-1 truncate text-[13px] font-normal ${isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-800'}`}>
-              <Highlight text={node.label} query={search} />
-            </span>
-          </>
-        )}
-        {isGroup ? (
-          <span className="ml-auto h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{count}</span>
-        ) : (
-          <span className="ml-auto flex items-center h-5 flex-shrink-0">
-            {/* 뱃지 — hover 시 숨김 (baseType) */}
-            <span className="h-5 inline-flex items-center gap-1 group-hover:hidden">
-              <Tag color="default" className="!mb-0 !mr-0 !text-[10px] !px-1 !py-0 !leading-4 font-mono">
-                {node.data!.baseType}
-              </Tag>
-            </span>
-            {/* 액션 — hover 시 노출 */}
-            <span className="hidden group-hover:flex items-center gap-0.5">
-              <Tooltip title="편집" {...TOOLTIP_PROPS}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditDataset(node.data!);
-                  }}
-                  className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition"
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-              </Tooltip>
-              <Tooltip title="삭제" {...TOOLTIP_PROPS}>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteDataset(node.data!);
-                  }}
-                  className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition"
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </Tooltip>
-            </span>
+          {/* 액션 — hover 시 노출 */}
+          <span className="hidden group-hover:flex items-center gap-0.5">
+            <Tooltip title="편집" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditDataset(node.data);
+                }}
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            </Tooltip>
+            <Tooltip title="삭제" {...TOOLTIP_PROPS}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteDataset(node.data);
+                }}
+                className="w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-red-50 hover:text-red-500 transition"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </Tooltip>
           </span>
-        )}
+        </span>
       </TreeRow>
     );
   };
@@ -277,7 +230,7 @@ export default function DatasetCatalog() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 솔루션/도메인 셀렉트 + 트리 */}
+        {/* 좌측: 검색 + 태그 필터 + 목록 */}
         <div className="w-[340px] shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 min-h-0">
           <div className="flex items-center gap-2">
             <Input
@@ -295,46 +248,25 @@ export default function DatasetCatalog() {
 
           <div className="flex flex-wrap gap-2">
             <ChipSelect
-              open={majorPopOpen}
-              onOpenChange={setMajorPopOpen}
-              label="솔루션"
-              valueLabel={majorLabel}
-              active={majorSel !== null}
+              open={tagPopOpen}
+              onOpenChange={setTagPopOpen}
+              label="태그"
+              valueLabel={tagLabel}
+              active={tagSel !== null}
               content={
                 <>
-                  <ChipOption active={majorSel === null} onClick={() => handlePickMajor(null)}>
+                  <ChipOption active={tagSel === null} onClick={() => handlePickTag(null)}>
                     전체 <span className="opacity-70">{datasets.length}</span>
                   </ChipOption>
-                  {MAJOR_DEFS.map((m) => {
-                    const cnt = datasets.filter((d) => majorOfCode(d.domainCode) === m.code).length;
-                    return (
-                      <ChipOption key={m.code} active={majorSel === m.code} onClick={() => handlePickMajor(m.code)}>
-                        {m.label} <span className="opacity-70">{cnt}</span>
+                  {allTags.length === 0 ? (
+                    <span className="px-1 py-0.5 text-[11px] text-gray-400">등록된 태그 없음</span>
+                  ) : (
+                    allTags.map((tag) => (
+                      <ChipOption key={tag} active={tagSel === tag} onClick={() => handlePickTag(tag)}>
+                        {tag} <span className="opacity-70">{tagCount(tag)}</span>
                       </ChipOption>
-                    );
-                  })}
-                </>
-              }
-            />
-            <ChipSelect
-              open={minorPopOpen}
-              onOpenChange={setMinorPopOpen}
-              label="도메인"
-              valueLabel={minorLabel}
-              active={minorSel !== null}
-              content={
-                <>
-                  <ChipOption active={minorSel === null} onClick={() => handlePickMinor(null)}>
-                    전체
-                  </ChipOption>
-                  {allCodes
-                    .filter((code) => !majorSel || majorOfCode(code) === majorSel)
-                    .map((code) => (
-                      <ChipOption key={code} active={minorSel === code} onClick={() => handlePickMinor(code)}>
-                        <span className="size-1.5 rounded-full" style={{ background: ACCENT_HEX[code] ?? DEFAULT_ACCENT }} />
-                        {code} · {DOMAIN_LABELS[code as DomainCode] ?? code} <span className="opacity-70">{datasets.filter((d) => d.domainCode === code).length}</span>
-                      </ChipOption>
-                    ))}
+                    ))
+                  )}
                 </>
               }
             />
@@ -347,24 +279,15 @@ export default function DatasetCatalog() {
               <FallbackSpinner />
             ) : (
               <>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 select-none border-l-[3px] border-transparent cursor-default hover:bg-gray-50 transition">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 select-none cursor-default">
                   <span className="text-[12.5px] truncate text-gray-700 font-semibold">데이터셋</span>
-                  <span className="text-[11px] text-gray-400">{treeData.reduce((sum, g) => sum + g.children.length, 0)}</span>
-                  <Tooltip title={allExpanded ? '모두 접기' : '모두 펼치기'} {...TOOLTIP_PROPS}>
-                    <button
-                      type="button"
-                      onClick={() => toggleAll()}
-                      className="ml-auto w-5 h-5 inline-flex items-center justify-center rounded text-gray-400 hover:bg-[var(--color-bt-primary-soft)] hover:text-[var(--color-bt-primary)] transition flex-shrink-0"
-                    >
-                      {allExpanded ? <ChevronsDownUp className="size-3.5" /> : <ChevronsUpDown className="size-3.5" />}
-                    </button>
-                  </Tooltip>
+                  <span className="text-[11px] text-gray-400">{treeData.length}</span>
                 </div>
 
                 {treeData.length > 0 ? (
                   <div {...rootProps}>{items.map(renderRow)}</div>
                 ) : (
-                  <div className="px-3 py-6 text-center text-[11px] text-gray-400">{search ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
+                  <div className="px-3 py-6 text-center text-[11px] text-gray-400">{search || tagSel ? '검색 결과 없음' : '등록된 데이터셋이 없습니다.'}</div>
                 )}
               </>
             )}
@@ -378,22 +301,28 @@ export default function DatasetCatalog() {
           ) : (
             <div className="h-full flex flex-col items-center justify-center gap-8 p-6">
               <div className="text-[18px] font-bold">데이터셋 현황</div>
-              {allCodes.length > 0 && (
-                <div className="flex flex-wrap gap-4 justify-center">
-                  {allCodes.map((code) => (
-                    <div key={code} className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 px-10 py-5 min-w-[140px]">
-                      <span className="text-[26px] font-bold" style={{ color: ACCENT_HEX[code] ?? DEFAULT_ACCENT }}>
-                        {datasets.filter((d) => d.domainCode === code).length}
-                        <span className="text-sm font-normal text-gray-500 ml-1">건</span>
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        {code} · {DOMAIN_LABELS[code as DomainCode] ?? code}
-                      </span>
-                    </div>
+              <div className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 px-12 py-6 min-w-[160px]">
+                <span className="text-[26px] font-bold text-[var(--color-bt-primary)]">
+                  {datasets.length}
+                  <span className="text-sm font-normal text-gray-500 ml-1">건</span>
+                </span>
+                <span className="text-sm text-gray-500">전체 데이터셋</span>
+              </div>
+              {allTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 justify-center max-w-[480px]">
+                  {allTags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTagSel(tag)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)]"
+                    >
+                      {tag} <span className="opacity-70">{tagCount(tag)}</span>
+                    </button>
                   ))}
                 </div>
               )}
-              <div className="text-sm text-gray-400">좌측 트리에서 데이터셋을 선택해주세요</div>
+              <div className="text-sm text-gray-400">좌측 목록에서 데이터셋을 선택해주세요</div>
             </div>
           )}
         </div>
@@ -466,23 +395,23 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
   const { gridOptions } = useAggridOptions();
   const { data: detail, isLoading } = useGetMonitoringDataset({ params: { datasetId: listItem.datasetId } });
 
-  const code = listItem.domainCode;
+  const tags = detail?.tags ?? listItem.tags ?? [];
   const fields: DatasetField[] = detail?.fields ?? [];
   const calcFields: CalcField[] = detail?.calcFields ?? [];
 
   // 필드 구성 통합 row (fields + calcFields)
   const fieldRows: FieldRow[] = [
     ...fields.map<FieldRow>((f) => ({
-      id: `f:${f.fieldId ?? f.columnName}`,
-      name: f.columnName,
+      id: `f:${f.fieldId ?? f.fieldName}`,
+      name: f.fieldName,
       display: f.displayName,
       role: f.classification,
       format: f.columnFormat,
       virtual: f.isVirtual,
     })),
     ...calcFields.map<FieldRow>((c) => ({
-      id: `c:${c.calcFieldId ?? c.fieldCode}`,
-      name: c.fieldCode,
+      id: `c:${c.calcFieldId ?? c.fieldName}`,
+      name: c.fieldName,
       display: c.displayName,
       role: 'CALC',
       format: c.columnFormat,
@@ -525,17 +454,25 @@ function DatasetDetailPanel({ listItem, onEdit, onDelete }: { listItem: DatasetL
           <DetailField label="데이터셋 ID" value={<span className="font-mono">{listItem.datasetId}</span>} />
           <DetailField label="코드" value={<span className="font-mono">{listItem.datasetCode}</span>} />
           <DetailField
-            label="카테고리"
+            label="태그"
             value={
-              <Tag color={DOMAIN_TAG_COLOR[code]} className="!mb-0 !mr-0 font-bold">
-                {code} · {DOMAIN_LABELS[code] ?? code}
-              </Tag>
+              tags.length > 0 ? (
+                <span className="flex flex-wrap gap-1">
+                  {tags.map((t) => (
+                    <Tag key={t} color="blue" className="!mb-0 !mr-0">
+                      {t}
+                    </Tag>
+                  ))}
+                </span>
+              ) : (
+                <span className="text-gray-300">-</span>
+              )
             }
           />
           <DetailField
             label="베이스 타입"
             value={
-              <Tag color={listItem.baseType === 'SQL' ? 'geekblue' : 'cyan'} className="!mb-0 !mr-0 font-mono">
+              <Tag color={listItem.baseType === 'QUERY' ? 'geekblue' : listItem.baseType === 'EXTERNAL' ? 'default' : 'cyan'} className="!mb-0 !mr-0 font-mono">
                 {listItem.baseType}
               </Tag>
             }

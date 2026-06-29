@@ -298,8 +298,8 @@ export default function IvrMedia() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 시스템 카드 슬라이더 (M 사이즈 220×130, h-[170]) */}
-          <div className="flex items-center px-4 py-3 h-[170px]">
+          {/* 시스템 카드 슬라이더 (IVR DN그룹 카드와 동일 형태, 220×120, h-[150]) */}
+          <div className="flex items-center px-4 py-3 h-[150px]">
             {filteredSystems.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
                 <Empty description={false} styles={{ image: { height: 40 } }} />
@@ -320,7 +320,7 @@ export default function IvrMedia() {
                     return (
                       <div
                         key={s.systemId}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[120px] flex-shrink-0 flex flex-col ${
                           isSelected
                             ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
                             : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
@@ -334,14 +334,14 @@ export default function IvrMedia() {
                           });
                         }}
                       >
-                        {/* Card header: 시스템명 + 우상단 MS 칩 */}
-                        <div className="flex items-start justify-between gap-1 mb-1">
-                          <span
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10.5px] font-medium bg-blue-50 text-[#405189] border border-blue-200 max-w-[120px] truncate"
-                            title={s.systemName}
-                          >
-                            {s.systemName}
-                          </span>
+                        {/* Card header: Server 아이콘 + 시스템명 + MS 보유 칩(아이콘) */}
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Server className="size-3.5 text-[#405189] flex-shrink-0" />
+                            <span className="text-[14px] font-bold text-gray-800 truncate" title={s.systemName}>
+                              {s.systemName}
+                            </span>
+                          </div>
                           {hasMs && (
                             <span
                               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200 flex-shrink-0"
@@ -353,15 +353,11 @@ export default function IvrMedia() {
                           )}
                         </div>
 
-                        {/* Card body: 시스템 메타 */}
-                        <div className="text-xs text-gray-500 space-y-0.5 mt-1">
+                        {/* Card body: 시스템 메타 (System ID 미표시) */}
+                        <div className="mt-2 text-[12px] text-gray-500 space-y-0.5">
                           <div className="flex items-center gap-1">
                             <Network className="size-3 text-gray-400" />
                             <span className="truncate">{nodes.find((n) => n.nodeId === s.nodeId)?.nodeName ?? `Node ${s.nodeId}`}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Server className="size-3 text-gray-400" />
-                            <span className="truncate">System ID: {s.systemId}</span>
                           </div>
                         </div>
                       </div>

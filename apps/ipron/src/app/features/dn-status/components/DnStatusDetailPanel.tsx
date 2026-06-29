@@ -5,18 +5,16 @@
  *  전폭·세로 flex-1 로 펼친다. 폭 540px 우측 사이드바가 좌측 1022px 빈 공백을 만들고 DN 목록 그리드를
  *  499×320 으로 욱여넣던 문제 해소 — 그리드/세그먼트 바가 화면 가로폭 전부를 쓴다.
  *
- * 탭: 개요 / DR 수용 / DN 목록 / 번호 대역. 선택 노드·타입·DR링크 상태에 따라 패널 분기.
- * 닫기 버튼만(오버레이 없음 — 인라인이라 노드 컨텍스트가 클릭으로 리셋될 여지 자체가 없음).
+ * 탭: 개요 / DR 수용 / 번호 대역. 선택 노드·타입·DR링크 상태에 따라 패널 분기.
+ * 마스터-디테일 구조라 닫기 버튼 없음(노드 리스트에서 선택으로 컨텍스트 전환).
  */
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { dnStatusQueryKeys, useDeleteDnBand, useDnStatusBands } from '../hooks/useDnStatusQueries';
 import { type DnStatusNode, type DrLink, type GdnTypeStat, type SidebarTab } from '../types';
 import DnBandModal from './DnBandModal';
 import BandMapPanel from './sidebar/BandMapPanel';
-import DnListPanel from './sidebar/DnListPanel';
 import DrPanel from './sidebar/DrPanel';
 import OverviewPanel from './sidebar/OverviewPanel';
 
@@ -27,7 +25,8 @@ interface DnStatusDetailPanelProps {
   drLink: { fromNodeId: number; toNodeId: number } | null;
   drLinks: DrLink[];
   gdnStats: GdnTypeStat[];
-  onClose: () => void;
+  /** 개요 탭 위젯 A(전 노드 내선 할당률 비교)용 전체 노드 목록 */
+  allNodes: DnStatusNode[];
   onTabChange: (tab: SidebarTab) => void;
   onSelectDrLink: (fromNodeId: number, toNodeId: number) => void;
   onClearDrLink: () => void;
@@ -36,11 +35,10 @@ interface DnStatusDetailPanelProps {
 const TABS: { key: SidebarTab; label: string }[] = [
   { key: 'overview', label: '개요' },
   { key: 'dr', label: 'DR 수용' },
-  { key: 'dnlist', label: 'DN 목록' },
   { key: 'bandmap', label: '번호 대역' },
 ];
 
-export default function DnStatusDetailPanel({ node, tab, drLink, drLinks, gdnStats, onClose, onTabChange, onSelectDrLink, onClearDrLink }: DnStatusDetailPanelProps) {
+export default function DnStatusDetailPanel({ node, tab, drLink, drLinks, gdnStats, allNodes, onTabChange, onSelectDrLink, onClearDrLink }: DnStatusDetailPanelProps) {
   const queryClient = useQueryClient();
   const [bandModalOpen, setBandModalOpen] = useState(false);
 
@@ -68,17 +66,11 @@ export default function DnStatusDetailPanel({ node, tab, drLink, drLinks, gdnSta
     );
   };
 
-  // 개요/DR/대역 패널은 가독 폭 제한(과도한 가로 늘어짐 방지), DN 목록 그리드는 전폭 사용
-  const isWidePanel = tab === 'dnlist';
-
   return (
     <div className="bg-white bt-shadow flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* 헤더 */}
+      {/* 헤더 (닫기 버튼 없음 — 마스터-디테일 구조, 노드 리스트 클릭으로 컨텍스트 전환) */}
       <div className="flex h-[52px] flex-shrink-0 items-center gap-2 border-b border-gray-200 px-5">
         <span className="text-[13px] font-semibold text-gray-800">{node ? `${node.nodeName} 상세` : '상세'}</span>
-        <button type="button" onClick={onClose} className="ml-auto flex size-7 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100" title="상세 닫기">
-          <X className="size-4" />
-        </button>
       </div>
 
       {/* 탭바 */}
@@ -100,13 +92,11 @@ export default function DnStatusDetailPanel({ node, tab, drLink, drLinks, gdnSta
         {!node ? (
           <div className="py-10 text-center text-[12px] text-gray-400">노드 카드를 클릭하면 상세 정보가 표시됩니다.</div>
         ) : (
-          <div className={isWidePanel ? 'flex h-full flex-col' : 'mx-auto w-full max-w-[860px]'}>
+          <div className={tab === 'overview' ? 'flex h-full w-full gap-5' : 'mx-auto w-full max-w-[860px]'}>
             {tab === 'overview' ? (
-              <OverviewPanel node={node} gdnStats={gdnStats} />
+              <OverviewPanel node={node} gdnStats={gdnStats} allNodes={allNodes} />
             ) : tab === 'dr' ? (
               <DrPanel nodeId={node.nodeId} nodeName={node.nodeName} drLinks={drLinks} selectedLink={drLink} onSelectLink={onSelectDrLink} onClearLink={onClearDrLink} />
-            ) : tab === 'dnlist' ? (
-              <DnListPanel nodeId={node.nodeId} />
             ) : (
               <BandMapPanel
                 nodeName={node.nodeName}
