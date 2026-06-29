@@ -19,6 +19,9 @@ export interface MaskPolicyDrawerRef {
 interface Props {
   /** 현재 선택된 카테고리 (신규 등록 시 자동 채움) */
   category: string;
+  /** v1.3: 신규 등록 시 저장할 테넌트 — null=전역 / 값=테넌트 override.
+   *  페이지의 viewerTenantId (보기 모드) 를 그대로 전달하여 "보는 모드 = 저장 대상" 일관성 보장. */
+  targetTenantId: number | null;
   /** 등록/수정 성공 후 호출 */
   onSuccess: () => void;
 }
@@ -34,7 +37,7 @@ interface FormValues {
   description: string;
 }
 
-const MaskPolicyDrawer = forwardRef<MaskPolicyDrawerRef, Props>(({ category, onSuccess }, ref) => {
+const MaskPolicyDrawer = forwardRef<MaskPolicyDrawerRef, Props>(({ category, targetTenantId, onSuccess }, ref) => {
   const [form] = Form.useForm<FormValues>();
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<MaskPolicy | null>(null);
@@ -115,6 +118,8 @@ const MaskPolicyDrawer = forwardRef<MaskPolicyDrawerRef, Props>(({ category, onS
       } else {
         const payload: MaskPolicyCreateRequest = {
           category,
+          // v1.3: 보기 모드(viewerTenantId) 와 동일한 테넌트로 저장 — null=전역, 값=테넌트 override
+          tenantId: targetTenantId,
           pattern: values.pattern,
           patternType: values.patternType,
           ruleType: values.ruleType,
@@ -129,7 +134,7 @@ const MaskPolicyDrawer = forwardRef<MaskPolicyDrawerRef, Props>(({ category, onS
     } catch {
       /* validation 실패 시 antd가 자동 표시 */
     }
-  }, [form, isEditMode, editData, category, createPolicy, updatePolicy]);
+  }, [form, isEditMode, editData, category, targetTenantId, createPolicy, updatePolicy]);
 
   return (
     <Drawer
@@ -176,6 +181,13 @@ const MaskPolicyDrawer = forwardRef<MaskPolicyDrawerRef, Props>(({ category, onS
         <Form.Item label="카테고리">
           <Input value={category} disabled />
         </Form.Item>
+
+        {/* v1.3: 신규 등록 시 저장 대상 명시 — 보기 모드와 일치 */}
+        {!isEditMode && (
+          <Form.Item label="저장 대상" extra="보기 모드에서 선택한 대상으로 저장됩니다">
+            <Input value={targetTenantId == null ? '전역 (모든 테넌트 기본 정책)' : `테넌트 ${targetTenantId} 전용 override`} disabled />
+          </Form.Item>
+        )}
 
         <Row gutter={16}>
           <Col span={12}>

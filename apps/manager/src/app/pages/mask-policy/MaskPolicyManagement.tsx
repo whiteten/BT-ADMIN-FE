@@ -581,6 +581,7 @@ export default function MaskPolicyManagement() {
         <MaskPolicyDrawer
           ref={policyDrawerRef}
           category={selectedCategory}
+          targetTenantId={viewerTenantId}
           onSuccess={() => {
             refetchPolicies();
             refetchCategories();
