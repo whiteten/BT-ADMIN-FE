@@ -1059,7 +1059,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     if (!selectedDatasetId) return <div className="flex h-full items-center justify-center text-xs text-muted-foreground">데이터셋을 먼저 선택하세요</div>;
     switch (previewPanel.panelType) {
       case 'GRID':
-        return <PanelGrid panel={previewPanel} reportId={0} />;
+        return <PanelGrid panel={previewPanel} reportId={0} preview />;
       case 'BAR':
         return <PanelBarChart panel={previewPanel} reportId={0} />;
       case 'LINE':

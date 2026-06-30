@@ -30,9 +30,16 @@ const AUTO_SIZE_MAX_WIDTH = 360;
 interface PanelGridProps {
   panel: PanelDetail;
   reportId: number;
+  /**
+   * 패널 편집 시트의 라이브 미리보기 여부.
+   * true → 고정 높이 컨테이너가 없는 드로어 안이므로 autoHeight(콘텐츠 높이)로 컬럼 구조만 표시.
+   * false(기본) → 캔버스의 크기 지정된 패널 영역에 들어가므로 domLayout="normal"로 패널 높이를 꽉 채운다.
+   *   (신규 보고서 드래프트 캔버스 reportId=0 도 여기 해당 — 저장 전에도 패널 크기대로 보여야 함)
+   */
+  preview?: boolean;
 }
 
-export default function PanelGrid({ panel, reportId }: PanelGridProps) {
+export default function PanelGrid({ panel, reportId, preview = false }: PanelGridProps) {
   const { gridOptions } = useAggridOptions();
   const { committedFilter, queryTrigger } = useReportViewStore();
   // 데이터셋은 패널별(N:M) — 보고서 단위가 아니라 panel.datasetId 로 표시명 로드
@@ -316,8 +323,10 @@ export default function PanelGrid({ panel, reportId }: PanelGridProps) {
     );
   }
 
-  // 편집 미리보기(draft) → 선택된 컬럼 구조만 깔끔히 표시 (데이터/합계/페이저/상태바 없음, autoHeight)
-  if (isDraft) {
+  // 편집 시트 라이브 미리보기 → 고정 높이 컨테이너가 없는 드로어 안이므로 autoHeight 로
+  // 선택된 컬럼 구조만 깔끔히 표시 (데이터/합계/페이저/상태바 없음).
+  // ※ 캔버스(신규 드래프트 reportId=0 포함)는 preview=false → 아래 normal 분기로 패널 높이를 채운다.
+  if (preview) {
     return (
       <AgGridReact
         {...gridOptions}
