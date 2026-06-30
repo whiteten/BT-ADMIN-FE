@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import KnowledgeCard from '../../features/agent-config/components/KnowledgeCard';
 import { knowledgeQueryKeys, useDeleteKnowledge, useGetKnowledges } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -25,6 +26,7 @@ export default function KnowledgeList() {
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.KNOWLEDGE_WRITE));
   const [filterColumn, setFilterColumn] = useState('documentName');
   const [searchValue, setSearchValue] = useState('');
 
@@ -81,7 +83,7 @@ export default function KnowledgeList() {
           <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
-        <Button type="primary" onClick={handleClickCreateBtn}>
+        <Button type="primary" onClick={handleClickCreateBtn} disabled={!canWrite}>
           추가
         </Button>
       </div>
@@ -92,7 +94,7 @@ export default function KnowledgeList() {
       ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredList.map((knowledge) => (
-            <KnowledgeCard key={knowledge.documentId} {...knowledge} onDetail={handleDetail} onDelete={handleDelete} />
+            <KnowledgeCard key={knowledge.documentId} {...knowledge} onDetail={handleDetail} onDelete={handleDelete} canWrite={canWrite} />
           ))}
         </div>
       ) : (

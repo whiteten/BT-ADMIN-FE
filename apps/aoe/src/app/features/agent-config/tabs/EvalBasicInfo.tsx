@@ -4,7 +4,9 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, Col, Form, type FormProps, Input, Modal, Row, Select } from 'antd';
 import { Plus, Settings, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../../constants/permissions';
 import { knowledgeApi } from '../api/knowledgeApi';
 import {
   knowledgeQueryKeys,
@@ -129,6 +131,7 @@ export default function EvalBasicInfo() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const modal = useModal();
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.EVAL_WRITE));
   const [form] = Form.useForm<FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -406,7 +409,7 @@ export default function EvalBasicInfo() {
               <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0 flex items-center justify-between">
                 <span className="text-sm font-semibold text-gray-700">선택된 항목별 질문 생성-LLM 설정</span>
                 {selectedChunks.length > 0 && (
-                  <Button size="small" icon={<Settings className="size-3.5" />} onClick={() => setLlmModalOpen(true)}>
+                  <Button size="small" icon={<Settings className="size-3.5" />} onClick={() => setLlmModalOpen(true)} disabled={!canWrite}>
                     LLM 자동생성
                   </Button>
                 )}
@@ -443,7 +446,7 @@ export default function EvalBasicInfo() {
               </Button>
             </Col>
             <Col>
-              <Button color="red" variant="solid" loading={isDeleting} onClick={handleDelete}>
+              <Button color="red" variant="solid" loading={isDeleting} onClick={handleDelete} disabled={!canWrite}>
                 삭제
               </Button>
             </Col>
@@ -463,7 +466,7 @@ export default function EvalBasicInfo() {
             )}
             {currentStep === 1 && (
               <Col>
-                <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating} disabled={selectedChunks.length === 0}>
+                <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating} disabled={selectedChunks.length === 0 || !canWrite}>
                   저장
                 </Button>
               </Col>
@@ -479,6 +482,7 @@ export default function EvalBasicInfo() {
         onOk={handleLLMGenerate}
         confirmLoading={isGenerating}
         okText="생성하기"
+        okButtonProps={{ disabled: !canWrite }}
         cancelText="취소"
         centered
         destroyOnHidden

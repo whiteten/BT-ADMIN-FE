@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Card, Col, Form, Input, InputNumber, Row, Select, Steps, Upload } from 'antd';
 import { Blocks, ChevronDown, ChevronUp, ClipboardCheck, CloudUpload, FileText, type LucideIcon, Search } from 'lucide-react';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import { usePreviewKnowledge, useProcessKnowledge } from '../../features/agent-config/hooks/useKnowledgeQueries';
 import type { KnowledgeChunkData } from '../../features/agent-config/types';
 import NoData from '@/components/custom/NoData';
@@ -107,6 +108,7 @@ export default function KnowledgeCreate() {
   const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.KNOWLEDGE_WRITE));
   const [step1Form] = Form.useForm<Step1FormValues>();
   const [step2Form] = Form.useForm<Step2FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
@@ -385,7 +387,7 @@ export default function KnowledgeCreate() {
         )}
         {currentStep === steps.length - 1 && (
           <Col>
-            <Button color="primary" variant="solid" onClick={handleSubmit} loading={isProcessing}>
+            <Button color="primary" variant="solid" onClick={handleSubmit} loading={isProcessing} disabled={!canWrite}>
               저장
             </Button>
           </Col>

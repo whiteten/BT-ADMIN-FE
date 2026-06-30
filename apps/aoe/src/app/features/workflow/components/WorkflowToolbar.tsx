@@ -3,8 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Tooltip } from 'antd';
 import { Download, History, PlayCircle, Rocket, Workflow, X } from 'lucide-react';
 import { Log } from '@/log';
+import { useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentVersionHistoryDrawer, { type AgentVersionHistoryDrawerRef } from './AgentVersionHistoryDrawer';
+import { AOE_PERM } from '../../../constants/permissions';
 import { agentQueryKeys } from '../../agent-config/hooks/useAgentQueries';
 import type { AgentItem, AoeDeployFlag } from '../../agent-config/types';
 import { useDeployAgent, useExportWorkflow, workflowQueryKeys } from '../hooks/useWorkflowQueries';
@@ -21,6 +23,7 @@ interface WorkflowToolbarProps {
 export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onOpenPlayground }: WorkflowToolbarProps) {
   const queryClient = useQueryClient();
   const versionHistoryRef = useRef<AgentVersionHistoryDrawerRef>(null);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.AGENT_WRITE));
 
   const { mutate: deployAgent, isPending: isDeploying } = useDeployAgent({
     mutationOptions: {
@@ -108,7 +111,7 @@ export default function WorkflowToolbar({ agentId, agentName, aoeDeployFlag, onO
           </Button>
         </Tooltip>
         <Tooltip title="현재 그래프를 동기화하고 AOE 엔진에 배포합니다.">
-          <Button type="primary" icon={<Rocket size={14} />} loading={isDeploying} onClick={handleDeploy}>
+          <Button type="primary" icon={<Rocket size={14} />} loading={isDeploying} onClick={handleDeploy} disabled={!canWrite}>
             배포
           </Button>
         </Tooltip>

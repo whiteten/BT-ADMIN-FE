@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import AgentCard from '../../features/agent-config/components/AgentCard';
 import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
 import { agentQueryKeys, useDeleteAgent, useDuplicateAgent, useGetAgentTypes, useGetAgents } from '../../features/agent-config/hooks/useAgentQueries';
@@ -24,6 +25,7 @@ export default function AgentList() {
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.AGENT_WRITE));
   const playgroundRef = useRef<AgentPlaygroundDrawerRef>(null);
   const [nameKeyword, setNameKeyword] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -117,7 +119,7 @@ export default function AgentList() {
             />
           </div>
         </div>
-        <Button type="primary" onClick={handleClickCreateBtn}>
+        <Button type="primary" onClick={handleClickCreateBtn} disabled={!canWrite}>
           추가
         </Button>
       </div>
@@ -131,6 +133,7 @@ export default function AgentList() {
             <AgentCard
               key={agent.agentId}
               {...agent}
+              canWrite={canWrite}
               onDetail={handleDetail}
               onDelete={handleDelete}
               onOpenStudio={handleOpenStudio}

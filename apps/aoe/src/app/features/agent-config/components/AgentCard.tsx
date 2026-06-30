@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type AgentCardProps = AgentListItem & {
+  canWrite?: boolean;
   onDetail?: (agentId: string) => void;
   onOpenStudio?: (agentId: string) => void;
   onDelete?: (data: AgentDeleteDatas) => void;
@@ -22,6 +23,7 @@ export default function AgentCard({
   aoeDeployFlag,
   aoeApiKey,
   deployTime,
+  canWrite = false,
   onDetail,
   onOpenStudio,
   onDelete,
@@ -55,12 +57,16 @@ export default function AgentCard({
         <DropdownMenuItem onClick={() => onPlayground?.(agentId)} className="hover:cursor-pointer">
           Playground
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDuplicate?.(agentId)} className="hover:cursor-pointer">
-          복제
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete?.({ agentId, aoeDeployFlag, aoeApiKey })} className="hover:cursor-pointer">
-          삭제
-        </DropdownMenuItem>
+        {canWrite && (
+          <DropdownMenuItem onClick={() => onDuplicate?.(agentId)} className="hover:cursor-pointer">
+            복제
+          </DropdownMenuItem>
+        )}
+        {canWrite && (
+          <DropdownMenuItem onClick={() => onDelete?.({ agentId, aoeDeployFlag, aoeApiKey })} className="hover:cursor-pointer">
+            삭제
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

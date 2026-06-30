@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import { useCreateAgent, useGetAgentTypes } from '../../features/agent-config/hooks/useAgentQueries';
 import type { AgentCreateDatas } from '../../features/agent-config/types';
 import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel';
@@ -20,6 +21,7 @@ export default function AgentCreate() {
   const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.AGENT_WRITE));
   const [form] = Form.useForm<AgentCreateDatas>();
   const formValues = Form.useWatch([], form);
 
@@ -89,7 +91,7 @@ export default function AgentCreate() {
                 </Button>
               </Col>
               <Col>
-                <Button variant="solid" color="primary" onClick={() => form.submit()} loading={isPending}>
+                <Button variant="solid" color="primary" onClick={() => form.submit()} loading={isPending} disabled={!canWrite}>
                   저장
                 </Button>
               </Col>

@@ -4,7 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, Row, Select } from 'antd';
 import { CheckCircle2, Copy } from 'lucide-react';
 import { Log } from '@/log';
+import { useNavigationStore } from '@/shared-store';
 import { copyToClipboard, toast } from '@/shared-util';
+import { AOE_PERM } from '../../../constants/permissions';
 import FormSummaryPanel from '../../shared/components/FormSummaryPanel';
 import FormSummaryValue from '../../shared/components/FormSummaryValue';
 import AgentUsageSummary from '../components/AgentUsageSummary';
@@ -19,6 +21,7 @@ export default function AgentBasicInfo() {
   const navigate = useNavigate();
   const [form] = Form.useForm<AgentUpdateDatas>();
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.AGENT_WRITE));
 
   const handleCopy = async (text: string, field: string) => {
     try {
@@ -161,12 +164,12 @@ export default function AgentBasicInfo() {
               </Button>
             </Col>
             <Col>
-              <Button color="danger" variant="solid" onClick={handleDelete}>
+              <Button color="danger" variant="solid" onClick={handleDelete} disabled={!canWrite}>
                 삭제
               </Button>
             </Col>
             <Col>
-              <Button color="primary" variant="solid" onClick={() => form.submit()} loading={isUpdating}>
+              <Button color="primary" variant="solid" onClick={() => form.submit()} loading={isUpdating} disabled={!canWrite}>
                 저장
               </Button>
             </Col>

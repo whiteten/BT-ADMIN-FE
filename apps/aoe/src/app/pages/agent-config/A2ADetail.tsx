@@ -4,8 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Server } from 'lucide-react';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import A2ASkillsEditor from '../../features/a2a/components/A2ASkillsEditor';
 import { a2aQueryKeys, useDeleteA2A, useGetA2A, useUpdateA2A } from '../../features/a2a/hooks/useA2aQueries';
 import type { A2ASkill } from '../../features/a2a/types';
@@ -25,6 +26,7 @@ export default function A2ADetail() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [form] = Form.useForm<FormValues>();
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.A2A_WRITE));
 
   const { data: a2a, isLoading, isFetching } = useGetA2A({ params: { a2aId }, queryOptions: { enabled: !!a2aId } });
   const skills = a2a?.skills ?? [];
@@ -166,10 +168,10 @@ export default function A2ADetail() {
           <Button variant="solid" onClick={() => navigate('../list')}>
             취소
           </Button>
-          <Button color="red" variant="solid" loading={isDeleting} onClick={handleDelete}>
+          <Button color="red" variant="solid" loading={isDeleting} onClick={handleDelete} disabled={!canWrite}>
             삭제
           </Button>
-          <Button color="primary" variant="solid" loading={isUpdating} onClick={() => form.submit()}>
+          <Button color="primary" variant="solid" loading={isUpdating} onClick={() => form.submit()} disabled={!canWrite}>
             저장
           </Button>
         </div>
