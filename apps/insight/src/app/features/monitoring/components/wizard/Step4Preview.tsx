@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Input, Segmented } from 'antd';
 import type { Step2FieldOverride } from './Step2DatasetConfig';
-import { DOMAIN_COLOR_CLASS, VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
+import { VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
 import { useGetMonitoringDataset } from '../../hooks/useDatasetQueries';
-import { generateMockRows } from '../../mocks/mockWidgetData';
 import type { KpiDirection, TemplateWidgetMapping, VizType, WidgetCategory } from '../../types';
 import { CATEGORY_PRESET } from '../../utils/autoPackPosition';
 import WidgetSizePicker from '../WidgetSizePicker';
-import MiniBar from '../preview/MiniBar';
-import MiniCard from '../preview/MiniCard';
-import MiniGrid from '../preview/MiniGrid';
-import MiniLine from '../preview/MiniLine';
+import WidgetBarChart from '../widget/WidgetBarChart';
+import WidgetGrid from '../widget/WidgetGrid';
+import WidgetKpiCard from '../widget/WidgetKpiCard';
+import WidgetLineChart from '../widget/WidgetLineChart';
+import WidgetPieChart from '../widget/WidgetPieChart';
 
 /** 기본 시각화 → 추천 크기 산출용 카테고리. */
-const VIZ_CATEGORY: Record<VizType, WidgetCategory> = { GRID: 'TABLE', BAR: 'CHART', LINE: 'CHART', CARD: 'KPI' };
+const VIZ_CATEGORY: Record<VizType, WidgetCategory> = { GRID: 'TABLE', BAR: 'CHART', LINE: 'CHART', CARD: 'KPI', PIE: 'CHART' };
 /** 템플릿 위젯 최소 크기 (DashboardCanvas 와 동일). */
 const TEMPLATE_MIN = { w: 2, h: 2 };
+/** 미리보기는 설정 구조만 보여준다 — 데이터는 표시하지 않음(통계 보고서와 동일). */
+const EMPTY_ROWS: Record<string, unknown>[] = [];
 
 interface Step4Props {
   datasetId: number;
@@ -35,16 +37,6 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
 
   // 현재 활성 시각화 (사용자가 토글 가능)
   const [currentViz, setCurrentViz] = useState<VizType>(defaultViz);
-  const [jitter, setJitter] = useState(0.5); // 실시간 갱신 시뮬레이션
-
-  // 실시간 갱신 시뮬레이션
-  useEffect(() => {
-    if (refreshInterval <= 0) return;
-    const id = setInterval(() => setJitter(Math.random()), refreshInterval * 1000);
-    return () => clearInterval(id);
-  }, [refreshInterval]);
-
-  const rows = useMemo(() => generateMockRows(detail, jitter), [detail, jitter]);
 
   if (!detail) {
     return (
@@ -67,7 +59,6 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
           <div className="flex items-center justify-between px-4 py-2.5">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-[13px] font-semibold truncate">{displayName}</span>
-              <span className={`shrink-0 rounded px-1.5 py-0.5 mono text-[9.5px] font-bold ${DOMAIN_COLOR_CLASS[detail.domainCode]}`}>{detail.domainCode}</span>
               <span className="shrink-0 rounded bg-[var(--color-bt-primary-soft)] px-1.5 py-0.5 mono text-[10px] font-bold text-[var(--color-bt-primary)]">{currentViz}</span>
               <span className="shrink-0 rounded bg-[var(--color-bt-primary)] px-1 py-0.5 text-[9px] font-bold text-white" title="템플릿 위젯">
                 템플릿
@@ -76,7 +67,7 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
 
             {/* 시각화 토글 (★ 가능한 시각화만) */}
             <div className="flex items-center gap-1">
-              {(['GRID', 'BAR', 'LINE', 'CARD'] as VizType[]).map((v) => {
+              {(['GRID', 'BAR', 'LINE', 'CARD', 'PIE'] as VizType[]).map((v) => {
                 const enabled = visualizations.includes(v);
                 if (!enabled) return null;
                 const active = currentViz === v;
@@ -95,35 +86,43 @@ export default function Step4Preview({ datasetId, fieldOverrides, visualizations
                   </button>
                 );
               })}
-              <span className="ml-2 inline-flex items-center gap-1 text-[10px] text-[var(--color-bt-fg-muted)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-bt-success)] pulse-dot" />
-                실시간 시뮬레이션
-              </span>
             </div>
           </div>
 
           {/* 위젯 본문 */}
           <div className="flex-1 overflow-hidden">
-            {currentViz === 'GRID' && <MiniGrid detail={detail} fieldOverrides={fieldOverrides} columns={mapping.GRID?.columns ?? []} rows={rows} />}
-            {currentViz === 'BAR' && <MiniBar detail={detail} x={mapping.BAR?.x ?? ''} y={mapping.BAR?.y ?? []} rows={rows} />}
-            {currentViz === 'LINE' && <MiniLine detail={detail} x={mapping.LINE?.x ?? ''} y={mapping.LINE?.y ?? []} rows={rows} />}
+            {currentViz === 'GRID' && (
+              <WidgetGrid detail={detail} columns={mapping.GRID?.columns ?? []} groupBy={mapping.GRID?.groupBy} rows={EMPTY_ROWS} options={mapping.GRID?.options} />
+            )}
+            {currentViz === 'BAR' && <WidgetBarChart detail={detail} x={mapping.BAR?.x ?? ''} y={mapping.BAR?.y ?? []} rows={EMPTY_ROWS} options={mapping.BAR?.options} />}
+            {currentViz === 'LINE' && <WidgetLineChart detail={detail} x={mapping.LINE?.x ?? ''} y={mapping.LINE?.y ?? []} rows={EMPTY_ROWS} options={mapping.LINE?.options} />}
             {currentViz === 'CARD' && (
-              <MiniCard
+              <WidgetKpiCard
                 detail={detail}
                 measure={mapping.CARD?.measure ?? ''}
                 unit={mapping.CARD?.unit}
                 kpiDirection={(mapping.CARD?.kpiDirection ?? 'NEUTRAL') as KpiDirection}
                 threshold={mapping.CARD?.threshold}
-                rows={rows}
+                rows={EMPTY_ROWS}
+              />
+            )}
+            {currentViz === 'PIE' && (
+              <WidgetPieChart
+                detail={detail}
+                dimension={mapping.PIE?.dimension ?? ''}
+                measure={mapping.PIE?.measure ?? ''}
+                donut={mapping.PIE?.donut}
+                rows={EMPTY_ROWS}
+                options={mapping.PIE?.options}
               />
             )}
           </div>
         </div>
 
-        {/* 시연 안내 */}
+        {/* 안내 */}
         <div className="mt-3 rounded border-l-4 border-l-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]/30 px-4 py-2 text-[11px] leading-relaxed">
-          위 헤더의 <span className="mono">▦▮╱▢</span> 아이콘으로 시각화를 즉시 전환해보세요. 데이터는 {refreshInterval}초마다 시뮬레이션됩니다. ★ 기본 시각화는 위젯이 처음 표시될
-          때 사용됩니다.
+          위 헤더의 <span className="mono">▦▮╱▢</span> 아이콘으로 시각화 구성을 전환해 확인할 수 있습니다. 미리보기에는 데이터를 표시하지 않으며, 실제 데이터는 대시보드에서
+          표시됩니다. ★ 기본 시각화는 위젯이 처음 표시될 때 사용됩니다.
         </div>
       </div>
 

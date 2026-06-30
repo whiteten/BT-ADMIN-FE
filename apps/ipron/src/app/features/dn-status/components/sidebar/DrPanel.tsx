@@ -91,49 +91,87 @@ export default function DrPanel({ nodeId, nodeName, drLinks, selectedLink, onSel
   const outbound = drLinks.filter((l) => l.fromNodeId === nodeId);
 
   return (
-    <div className="flex flex-col">
-      <div className="mb-3 text-[12px] font-semibold text-gray-700">DR 수용 현황</div>
-
+    <div className="flex flex-col gap-4">
       {/* 인바운드 (다른 노드 → 이 노드 = 수용) */}
-      <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
-        <div className="mb-1.5 text-[12px] font-semibold text-blue-800">↓ {nodeName} 수용</div>
+      <div>
+        <div className="mb-2 text-[12px] font-semibold text-blue-800">↓ {nodeName} 수용 (다른 노드 DR 백업)</div>
         {inbound.length === 0 ? (
-          <span className="text-[11px] text-gray-400">수용 없음</span>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-[11px] text-gray-400">수용 없음</div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {inbound.map((l) => (
-              <button
-                key={`${l.fromNodeId}-${l.toNodeId}`}
-                type="button"
-                onClick={() => onSelectLink(l.fromNodeId, l.toNodeId)}
-                className="flex flex-col gap-1 rounded text-left transition-colors hover:bg-blue-100/60"
-              >
-                <span className="text-[11px] text-gray-500">발신 {l.fromNodeName}</span>
-                <LinkChips link={l} />
-              </button>
-            ))}
+          <div className="overflow-hidden rounded-lg border border-blue-100">
+            <table className="w-full border-collapse text-[12px]">
+              <thead>
+                <tr className="border-b border-blue-100 bg-blue-50">
+                  <th className="px-3 py-2 text-left font-medium text-blue-700">발신 노드</th>
+                  <th className="px-3 py-2 text-right font-medium text-blue-700">내선</th>
+                  <th className="px-3 py-2 text-right font-medium text-blue-700">SIP트렁크 채널</th>
+                  <th className="px-3 py-2 text-right font-medium text-blue-700">그룹DN</th>
+                  <th className="px-3 py-2 text-right font-medium text-blue-700">합계</th>
+                  <th className="px-3 py-2 text-left font-medium text-blue-700">상세</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inbound.map((l) => {
+                  const gdn = l.gdnReservedCount + l.gdnMasterCount;
+                  return (
+                    <tr key={`${l.fromNodeId}-${l.toNodeId}`} className="border-b border-blue-50 last:border-b-0 hover:bg-blue-50/40">
+                      <td className="px-3 py-2 font-medium text-gray-700">{l.fromNodeName}</td>
+                      <td className="px-3 py-2 text-right font-tabular text-gray-600">{l.ednCount > 0 ? l.ednCount.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-2 text-right font-tabular text-gray-600">{l.tdnCount > 0 ? l.tdnCount.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-2 text-right font-tabular text-gray-600">{gdn > 0 ? gdn.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-2 text-right font-tabular font-bold text-gray-800">{l.totalCount.toLocaleString()}</td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => onSelectLink(l.fromNodeId, l.toNodeId)} className="text-[11px] text-[#405189] underline hover:no-underline">
+                          DN 목록
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
 
       {/* 아웃바운드 (이 노드 → 다른 노드 = 송출) */}
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-        <div className="mb-1.5 text-[12px] font-semibold text-emerald-800">↑ {nodeName} 송출</div>
+      <div>
+        <div className="mb-2 text-[12px] font-semibold text-emerald-800">↑ {nodeName} 송출 (이 노드 DN을 다른 노드가 수용)</div>
         {outbound.length === 0 ? (
-          <span className="text-[11px] text-gray-400">송출 없음</span>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-[11px] text-gray-400">송출 없음</div>
         ) : (
-          <div className="flex flex-col gap-2">
-            {outbound.map((l) => (
-              <button
-                key={`${l.fromNodeId}-${l.toNodeId}`}
-                type="button"
-                onClick={() => onSelectLink(l.fromNodeId, l.toNodeId)}
-                className="flex flex-col gap-1 rounded text-left transition-colors hover:bg-emerald-100/60"
-              >
-                <span className="text-[11px] text-gray-500">수신 {l.toNodeName}</span>
-                <LinkChips link={l} />
-              </button>
-            ))}
+          <div className="overflow-hidden rounded-lg border border-emerald-100">
+            <table className="w-full border-collapse text-[12px]">
+              <thead>
+                <tr className="border-b border-emerald-100 bg-emerald-50">
+                  <th className="px-3 py-2 text-left font-medium text-emerald-700">수신 노드</th>
+                  <th className="px-3 py-2 text-right font-medium text-emerald-700">내선</th>
+                  <th className="px-3 py-2 text-right font-medium text-emerald-700">SIP트렁크 채널</th>
+                  <th className="px-3 py-2 text-right font-medium text-emerald-700">그룹DN</th>
+                  <th className="px-3 py-2 text-right font-medium text-emerald-700">합계</th>
+                  <th className="px-3 py-2 text-left font-medium text-emerald-700">상세</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outbound.map((l) => {
+                  const gdn = l.gdnReservedCount + l.gdnMasterCount;
+                  return (
+                    <tr key={`${l.fromNodeId}-${l.toNodeId}`} className="border-b border-emerald-50 last:border-b-0 hover:bg-emerald-50/40">
+                      <td className="px-3 py-2 font-medium text-gray-700">{l.toNodeName}</td>
+                      <td className="px-3 py-2 text-right font-tabular text-gray-600">{l.ednCount > 0 ? l.ednCount.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-2 text-right font-tabular text-gray-600">{l.tdnCount > 0 ? l.tdnCount.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-2 text-right font-tabular text-gray-600">{gdn > 0 ? gdn.toLocaleString() : '-'}</td>
+                      <td className="px-3 py-2 text-right font-tabular font-bold text-gray-800">{l.totalCount.toLocaleString()}</td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => onSelectLink(l.fromNodeId, l.toNodeId)} className="text-[11px] text-[#405189] underline hover:no-underline">
+                          DN 목록
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -66,6 +66,24 @@ export const maskPolicyApi = {
     await apiClient.delete('/manager-mask-policies-delete', { params: { policyId } });
   },
 
+  /**
+   * v1.3: 정책을 특정 테넌트로 복사 (테넌트별 override 생성).
+   * 글로벌 정책 → 테넌트 또는 한 테넌트 → 다른 테넌트.
+   */
+  copyPolicyToTenant: async (policyId: number, targetTenantId: number): Promise<MaskPolicy> => {
+    const response = await apiClient.post<ApiResponse<MaskPolicy>>('/manager-mask-policy-copy-to-tenant', undefined, { params: { policyId, targetTenantId } });
+    return response.data?.data;
+  },
+
+  /**
+   * v1.3: 활성 테넌트 목록 — 마스킹 정책 보기 모드 / 복사 모달 Select 옵션용.
+   * 기존 manager-tenant-list BFF Flow 재사용 (PagedResponse → data.items[]).
+   */
+  listTenantsForMask: async (): Promise<Array<{ tenantId: number; tenantName: string }>> => {
+    const response = await apiClient.get<ApiResponse<{ items: Array<{ tenantId: number; tenantName: string }> }>>('/manager-tenant-list', { params: { size: 1000 } });
+    return response.data?.data?.items ?? [];
+  },
+
   // 테스트 도구
   test: async (data: MaskTestRequest): Promise<MaskTestResponse> => {
     const response = await apiClient.post<ApiResponse<MaskTestResponse>>('/manager-mask-test', data);

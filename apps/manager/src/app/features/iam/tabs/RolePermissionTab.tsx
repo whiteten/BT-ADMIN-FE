@@ -70,7 +70,7 @@ export default function RolePermissionTab() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 min-h-0 overflow-hidden">
-        <PermissionSelector value={selectedPermissions} onChange={setSelectedPermissions} className="h-full" />
+        <PermissionSelector value={selectedPermissions} onChange={setSelectedPermissions} lockedAuthKeys={new Set(role?.lockedAuthKeys ?? [])} className="h-full" />
       </div>
       <Row gutter={20} justify="center" className="shrink-0 bg-white z-10 py-3 border-t border-gray-100">
         <Col>

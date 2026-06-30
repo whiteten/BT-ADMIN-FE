@@ -71,6 +71,8 @@ export default function SipTrunkList() {
   const [kindFilter, setKindFilter] = useState<string>('');
   const [selectedTrunks, setSelectedTrunks] = useState<SipTrunkMemberResponse[]>([]);
   const [assignDrawerOpen, setAssignDrawerOpen] = useState(false);
+  // 교차테넌트 방지: SIP GDN row 선택 시 그 tenantId 로 트렁크 멤버 풀을 좁힘. 선택 해제 시 null(전체 복귀).
+  const [lockedTenantId, setLockedTenantId] = useState<number | null>(null);
 
   const gdnDrawerRef = useRef<SipGdnDrawerRef>(null);
   const trunkDrawerRef = useRef<SipTrunkDrawerRef>(null);
@@ -188,6 +190,23 @@ export default function SipTrunkList() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gdns]);
+
+  // 카드 전환 시 GDN·트렁크 선택 및 잠금 초기화
+  // GDN 선택도 함께 초기화해야 L202 useEffect 가 selectedGdn===null 을 보고 lockedTenantId 를 정리한다.
+  // (GDN 선택 유지 채로 카드만 바꿔도 교차테넌트 잠금이 풀리지 않는 버그 방지)
+  useEffect(() => {
+    setSelectedGdn(null);
+    setSelectedTrunks([]);
+    setLockedTenantId(null);
+  }, [selectedCardId]);
+
+  // 트렁크 선택이 모두 해제되면 lockedTenantId 를 해제
+  // 단, GDN이 선택된 상태에서는 GDN 기준 잠금을 유지한다(교차테넌트 누출 방지)
+  useEffect(() => {
+    if (selectedTrunks.length === 0 && selectedGdn === null) {
+      setLockedTenantId(null);
+    }
+  }, [selectedTrunks, selectedGdn]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleTabSelect = useCallback(
@@ -392,6 +411,8 @@ export default function SipTrunkList() {
         if (e.data) {
           setSelectedGdn(e.data);
           setSelectedTrunks([]);
+          // 전체보기에서 SIP GDN 선택 시 그 tenantId 로 트렁크 멤버 풀 잠금.
+          setLockedTenantId(e.data.tenantId ?? null);
         }
       },
       onRowDoubleClicked: (e) => {
@@ -522,12 +543,17 @@ export default function SipTrunkList() {
     trunkGridRef.current?.api?.onFilterChanged();
   }, [assignFilter, kindFilter]);
 
-  // 종류 필터는 클라이언트 측에서 rowData 분기 (멤버에는 kind 없음 → 마스터 join)
+  // 종류 필터 + 테넌트 잠금 필터는 클라이언트 측에서 rowData 분기 (멤버에는 kind 없음 → 마스터 join)
+  // lockedTenantId: 전체보기에서 SIP GDN 선택 시 그 tenantId 의 트렁크만 표시 (교차테넌트 배정 방지).
   const memberRows = useMemo(() => {
-    if (!kindFilter) return members;
+    let rows = members;
+    if (lockedTenantId != null) {
+      rows = rows.filter((m) => m.tenantId === lockedTenantId);
+    }
+    if (!kindFilter) return rows;
     const kindMap = new Map(allTrunks.map((t) => [t.sipTrunkId, t.sipTrunkKindName ?? getSipTrunkKindName(t.sipTrunkKind)]));
-    return members.filter((m) => kindMap.get(m.sipTrunkId) === kindFilter);
-  }, [members, kindFilter, allTrunks]);
+    return rows.filter((m) => kindMap.get(m.sipTrunkId) === kindFilter);
+  }, [members, kindFilter, allTrunks, lockedTenantId]);
 
   const selectedNode = nodes.find((n) => n.nodeId === selectedNodeId);
   const selectedTenant = assignedTenants.find((t) => t.tenantId === selectedTenantId);

@@ -1,7 +1,6 @@
 import { Tag, Typography } from 'antd';
 import CanvasLayout from './CanvasLayout';
 import GlobalFilter from '../../global-filter/components/GlobalFilter';
-import { DOMAIN_TAG_COLOR } from '../../report/constants/reportIconConstants';
 import type { ReportFullDetail } from '../../report/types';
 
 interface ReportViewCanvasProps {
@@ -18,9 +17,11 @@ export default function ReportViewCanvas({ reportId, report }: ReportViewCanvasP
           <Typography.Title level={4} className="!mb-0 min-w-0 truncate">
             {report.title}
           </Typography.Title>
-          <Tag color={DOMAIN_TAG_COLOR[report.domain] ?? 'blue'} className="!mb-0 shrink-0">
-            {report.domain}
-          </Tag>
+          {(report.tags ?? []).map((t) => (
+            <Tag key={t} color="blue" className="!mb-0 shrink-0">
+              {t}
+            </Tag>
+          ))}
         </div>
       </div>
 

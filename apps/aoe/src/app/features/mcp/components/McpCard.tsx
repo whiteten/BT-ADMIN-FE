@@ -11,6 +11,7 @@ interface McpCardProps {
   onClick?: (mcp: McpItem) => void;
   onDetail?: (mcp: McpItem) => void;
   onDelete?: (mcp: McpItem) => void;
+  canWrite?: boolean;
 }
 
 const statusMap: Record<string, { color: 'success' | 'default' | 'error'; label: string }> = {
@@ -19,7 +20,7 @@ const statusMap: Record<string, { color: 'success' | 'default' | 'error'; label:
   error: { color: 'error', label: '오류' },
 };
 
-export default function McpCard({ mcp, onClick, onDetail, onDelete }: McpCardProps) {
+export default function McpCard({ mcp, onClick, onDetail, onDelete, canWrite = false }: McpCardProps) {
   const status = statusMap[mcp.status ?? 'inactive'] ?? statusMap.inactive;
   const description = mcp.description?.replace(/^\n+/, '').trim() ?? '';
 
@@ -54,7 +55,7 @@ export default function McpCard({ mcp, onClick, onDetail, onDelete }: McpCardPro
               상세보기
             </DropdownMenuItem>
           )}
-          {onDelete && (
+          {canWrite && onDelete && (
             <DropdownMenuItem onClick={() => onDelete(mcp)} className="hover:cursor-pointer">
               삭제
             </DropdownMenuItem>

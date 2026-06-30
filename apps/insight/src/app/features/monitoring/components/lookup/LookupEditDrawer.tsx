@@ -1,7 +1,6 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import AdminMasterRegisterDrawer from './AdminMasterRegisterDrawer';
 import LookupCatalogDropdown from './LookupCatalogDropdown';
 import { LOOKUP_MISS_POLICY_OPTIONS } from '../../constants/monitoringConstants';
 import type { DatasetField, DatasetLookup, DatasetLookupField, FieldDataType, LookupCatalogItem } from '../../types';
@@ -63,7 +62,6 @@ const DEFAULT_VALUES: FormValues = {
 const LookupEditDrawer = forwardRef<LookupEditDrawerRef, LookupEditDrawerProps>(({ baseFields, existingLookups, onOk }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | undefined>(undefined);
-  const [adminOpen, setAdminOpen] = useState(false);
   const [form] = Form.useForm<FormValues>();
 
   const watchJoinType = Form.useWatch('joinType', form);
@@ -85,8 +83,8 @@ const LookupEditDrawer = forwardRef<LookupEditDrawerRef, LookupEditDrawerProps>(
   const sourceOptions = useMemo(
     () =>
       sourceCandidates
-        .filter((f) => f.columnName === watchSourceField || !usedSourceFields.has(f.columnName))
-        .map((f) => ({ value: f.columnName, label: `${f.columnName} · ${f.displayName}` })),
+        .filter((f) => f.fieldName === watchSourceField || !usedSourceFields.has(f.fieldName))
+        .map((f) => ({ value: f.fieldName, label: `${f.fieldName} · ${f.displayName}` })),
     [sourceCandidates, usedSourceFields, watchSourceField],
   );
 
@@ -111,8 +109,8 @@ const LookupEditDrawer = forwardRef<LookupEditDrawerRef, LookupEditDrawerProps>(
         });
       } else {
         // 신규: 첫 사용 가능한 소스 필드 자동 선택
-        const firstAvailable = sourceCandidates.find((f) => !usedSourceFields.has(f.columnName));
-        form.setFieldsValue({ ...DEFAULT_VALUES, sourceField: firstAvailable?.columnName ?? '' });
+        const firstAvailable = sourceCandidates.find((f) => !usedSourceFields.has(f.fieldName));
+        form.setFieldsValue({ ...DEFAULT_VALUES, sourceField: firstAvailable?.fieldName ?? '' });
       }
       setIsOpen(true);
     },
@@ -231,103 +229,93 @@ const LookupEditDrawer = forwardRef<LookupEditDrawerRef, LookupEditDrawerProps>(
   const tableRows = (watchFields ?? []).map((f, idx) => ({ ...f, __idx: idx }));
 
   return (
-    <>
-      <Drawer
-        open={isOpen}
-        onClose={handleClose}
-        title={editingIndex !== undefined ? '코드 룩업 편집' : '코드 룩업 추가'}
-        closable={{ placement: 'end' }}
-        size="large"
-        footer={footer}
-        destroyOnHidden
-      >
-        <Form form={form} layout="vertical" initialValues={DEFAULT_VALUES}>
-          <Form.Item name="lookupId" hidden>
-            <Input />
-          </Form.Item>
-          <Form.Item name="datasetId" hidden>
-            <Input />
-          </Form.Item>
-          <Form.Item name="catalogDisplayName" hidden>
-            <Input />
-          </Form.Item>
-          <Form.Item name="catalogTableName" hidden>
-            <Input />
-          </Form.Item>
-          <Form.Item name="fields" hidden>
-            <Input />
-          </Form.Item>
+    <Drawer
+      open={isOpen}
+      onClose={handleClose}
+      title={editingIndex !== undefined ? '코드 룩업 편집' : '코드 룩업 추가'}
+      closable={{ placement: 'end' }}
+      size="large"
+      footer={footer}
+      destroyOnHidden
+    >
+      <Form form={form} layout="vertical" initialValues={DEFAULT_VALUES}>
+        <Form.Item name="lookupId" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="datasetId" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="catalogDisplayName" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="catalogTableName" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="fields" hidden>
+          <Input />
+        </Form.Item>
 
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="소스 필드" name="sourceField" rules={[{ required: true, message: '소스 필드를 선택해주세요' }]}>
-                <Select placeholder="데이터셋의 코드 컬럼 선택" options={sourceOptions} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
-                label="마스터 테이블"
-                name="lookupCatalogId"
-                rules={[
-                  {
-                    validator: (_r, value) => (value && value > 0 ? Promise.resolve() : Promise.reject(new Error('마스터 테이블을 선택해주세요'))),
-                  },
+        <Row gutter={16}>
+          <Col span={12}>
+            <Form.Item label="소스 필드" name="sourceField" rules={[{ required: true, message: '소스 필드를 선택해주세요' }]}>
+              <Select placeholder="데이터셋의 코드 컬럼 선택" options={sourceOptions} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              label="마스터 테이블"
+              name="lookupCatalogId"
+              rules={[
+                {
+                  validator: (_r, value) => (value && value > 0 ? Promise.resolve() : Promise.reject(new Error('마스터 테이블을 선택해주세요'))),
+                },
+              ]}
+            >
+              <LookupCatalogDropdown value={watchLookupCatalogId} onChange={handleSelectCatalog} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={16}>
+          <Col span={8}>
+            <Form.Item label="키 컬럼 (마스터)" name="keyColumn" rules={[{ required: true, message: '키 컬럼을 입력해주세요' }]}>
+              <Input placeholder="예: DEPT_CODE" className="font-mono" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="조인 타입" name="joinType" rules={[{ required: true }]}>
+              <Select
+                options={[
+                  { value: 'LEFT', label: 'LEFT (미스도 포함)' },
+                  { value: 'INNER', label: 'INNER (미스 drop)' },
                 ]}
-              >
-                <LookupCatalogDropdown value={watchLookupCatalogId} onChange={handleSelectCatalog} onOpenAdminRegister={() => setAdminOpen(true)} />
-              </Form.Item>
-            </Col>
-          </Row>
+              />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="캐시 TTL (초)" name="cacheTtlSec" rules={[{ required: true }]}>
+              <InputNumber min={1} className="!w-full" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item label="키 컬럼 (마스터)" name="keyColumn" rules={[{ required: true, message: '키 컬럼을 입력해주세요' }]}>
-                <Input placeholder="예: DEPT_CODE" className="font-mono" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="조인 타입" name="joinType" rules={[{ required: true }]}>
-                <Select
-                  options={[
-                    { value: 'LEFT', label: 'LEFT (미스도 포함)' },
-                    { value: 'INNER', label: 'INNER (미스 drop)' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="캐시 TTL (초)" name="cacheTtlSec" rules={[{ required: true }]}>
-                <InputNumber min={1} className="!w-full" />
-              </Form.Item>
-            </Col>
-          </Row>
+        <Form.Item label="미스 처리 (LEFT 조인 전용)" name="missPolicy">
+          <Select options={LOOKUP_MISS_POLICY_OPTIONS} disabled={watchJoinType === 'INNER'} />
+        </Form.Item>
 
-          <Form.Item label="미스 처리 (LEFT 조인 전용)" name="missPolicy">
-            <Select options={LOOKUP_MISS_POLICY_OPTIONS} disabled={watchJoinType === 'INNER'} />
-          </Form.Item>
-
-          <Form.Item label={`값 컬럼 → 가상 필드 (${tableRows.length}개)`} extra="마스터 테이블을 선택하면 권장 값 컬럼이 자동으로 채워집니다.">
-            <Table<DatasetLookupField & { __idx: number }>
-              size="small"
-              rowKey={(r) => `${r.__idx}`}
-              columns={valueColumns}
-              dataSource={tableRows}
-              pagination={false}
-              bordered
-              locale={{ emptyText: '값 컬럼 없음' }}
-            />
-          </Form.Item>
-        </Form>
-      </Drawer>
-
-      <AdminMasterRegisterDrawer
-        open={adminOpen}
-        onClose={() => setAdminOpen(false)}
-        onRegistered={() => {
-          // 등록 직후 별도 처리 불필요 — LookupCatalogDropdown이 카탈로그 query를 자동 refetch
-        }}
-      />
-    </>
+        <Form.Item label={`값 컬럼 → 가상 필드 (${tableRows.length}개)`} extra="마스터 테이블을 선택하면 권장 값 컬럼이 자동으로 채워집니다.">
+          <Table<DatasetLookupField & { __idx: number }>
+            size="small"
+            rowKey={(r) => `${r.__idx}`}
+            columns={valueColumns}
+            dataSource={tableRows}
+            pagination={false}
+            bordered
+            locale={{ emptyText: '값 컬럼 없음' }}
+          />
+        </Form.Item>
+      </Form>
+    </Drawer>
   );
 });
 

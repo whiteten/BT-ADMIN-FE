@@ -369,7 +369,8 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
     [],
   );
 
-  // 좌측 그리드 컬럼: 스킬셋명 | 업무그룹(treeName, null→미배정) | 테넌트
+  // 좌측 그리드 컬럼: 스킬셋명 | 업무그룹(treeName, null→미배정) | 테넌트(전체보기 시만 표시)
+  // tenantIdParam === null(전체 카드) 이면 테넌트 컬럼 노출, 단일 테넌트 선택 시 숨김.
   const leftColumnDefs: ColDef<AvailableSkillsetResponse>[] = useMemo(
     () => [
       { headerName: '스킬셋명', field: 'skillsetName', flex: 1.4, minWidth: 150, tooltipField: 'skillsetName' },
@@ -386,9 +387,9 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
           return <span className="text-gray-800">{v}</span>;
         },
       },
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 110, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 110, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: tenantIdParam != null },
     ],
-    [],
+    [tenantIdParam],
   );
 
   // 우측 그리드 컬럼: 스킬셋명 | 우선순위(InputNumber) | 스킬레벨(InputNumber)

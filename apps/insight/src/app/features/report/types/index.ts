@@ -13,10 +13,13 @@ export interface ReportListItem {
   reportId: number;
   title: string;
   description?: string;
-  domain: DomainCode;
+  /** 카테고리 제거(태그 대체) 후 선택적. 기존 보고서는 값 유지. */
+  domain?: DomainCode;
   datasetId: number;
   /** 보고서 패널들이 사용하는 데이터셋명 목록 (distinct, 이름순). v5.0 패널 단위 데이터셋. */
   datasetNames?: string[];
+  /** 분류·검색용 태그 (카테고리 대체). */
+  tags?: string[];
   /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
   isSystem?: boolean;
   ownerUserId: number;
@@ -28,9 +31,12 @@ export interface ReportDetail {
   reportId: number;
   title: string;
   description?: string;
-  domain: DomainCode;
+  /** 카테고리 제거(태그 대체) 후 선택적. */
+  domain?: DomainCode;
   datasetId: number;
   iconType?: ReportIconType;
+  /** 분류·검색용 태그 (카테고리 대체). */
+  tags?: string[];
   /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
   isSystem?: boolean;
   ownerUserId: number;
@@ -149,18 +155,24 @@ export interface PanelDetail {
 
 export interface ReportCreateDatas {
   title: string;
-  domain: DomainCode;
+  /** 카테고리 제거(태그 대체) 후 선택적. */
+  domain?: DomainCode;
   datasetId: number;
   description?: string;
   iconType?: ReportIconType;
+  /** 분류·검색용 태그 (카테고리 대체). 최대 5개. */
+  tags?: string[];
 }
 
 export interface ReportUpdateDatas {
   title: string;
-  domain: DomainCode;
+  /** 카테고리 제거(태그 대체) 후 선택적. */
+  domain?: DomainCode;
   datasetId: number;
   description?: string;
   iconType?: ReportIconType;
+  /** 분류·검색용 태그 (카테고리 대체). 최대 5개. */
+  tags?: string[];
 }
 
 export interface PanelCreateDatas {

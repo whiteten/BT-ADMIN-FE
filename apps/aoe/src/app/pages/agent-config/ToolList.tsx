@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import ToolGroupCard from '../../features/tool/components/ToolGroupCard';
 import { toolQueryKeys, useDeleteToolGroup, useGetToolGroups } from '../../features/tool/hooks/useToolQueries';
 import type { ToolGroup } from '../../features/tool/types';
@@ -24,6 +25,7 @@ export default function ToolList() {
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.TOOL_WRITE));
   const [filterColumn, setFilterColumn] = useState('groupName');
   const [searchValue, setSearchValue] = useState('');
 
@@ -74,7 +76,7 @@ export default function ToolList() {
           <Select value={filterColumn} onChange={handleColumnChange} options={FILTER_OPTIONS} className="!max-w-[150px] !min-w-[120px]" popupMatchSelectWidth={false} />
           <Input value={searchValue} onChange={(e) => setSearchValue(e.target.value)} className="w-full max-w-[400px]" placeholder="검색어를 입력하세요." />
         </div>
-        <Button type="primary" onClick={() => navigate('../create')}>
+        <Button type="primary" onClick={() => navigate('../create')} disabled={!canWrite}>
           추가
         </Button>
       </div>
@@ -86,7 +88,7 @@ export default function ToolList() {
       ) : filteredGroups.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto pt-2 -mt-2">
           {filteredGroups.map((group) => (
-            <ToolGroupCard key={group.groupId} {...group} onOpen={handleOpenGroup} onDelete={handleDeleteGroup} />
+            <ToolGroupCard key={group.groupId} {...group} canWrite={canWrite} onOpen={handleOpenGroup} onDelete={handleDeleteGroup} />
           ))}
         </div>
       ) : (

@@ -121,6 +121,8 @@ export default function TemplateWidgetWizard() {
           if (!form.mapping.LINE?.x || !form.mapping.LINE?.y?.length) return false;
         } else if (viz === 'CARD') {
           if (!form.mapping.CARD?.measure) return false;
+        } else if (viz === 'PIE') {
+          if (!form.mapping.PIE?.dimension || !form.mapping.PIE?.measure) return false;
         }
       }
       return true;
@@ -164,11 +166,7 @@ export default function TemplateWidgetWizard() {
       {/* 본문 */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {currentStep === 0 && (
-          <Step1DatasetVisualization
-            domainCode={dashboard.domainCode}
-            value={{ datasetId: form.datasetId, visualizations: form.visualizations, defaultViz: form.defaultViz }}
-            onChange={updateStep1}
-          />
+          <Step1DatasetVisualization value={{ datasetId: form.datasetId, visualizations: form.visualizations, defaultViz: form.defaultViz }} onChange={updateStep1} />
         )}
 
         {currentStep === 1 && form.datasetId && <Step2DatasetConfig datasetId={form.datasetId} fieldOverrides={form.fieldOverrides} onChange={updateStep2} />}

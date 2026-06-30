@@ -45,7 +45,7 @@ export default function WidgetCardHeader({ widget, currentViz, onChangeViz, edit
         {/* 시각화 전환 (TEMPLATE 전용 · 시각화 2종+ 일 때만) */}
         {isTemplate && widget.visualizations.length > 1 && (
           <div className="flex items-center gap-0.5 mr-1">
-            {(['GRID', 'BAR', 'LINE', 'CARD'] as VizType[]).map((v) => {
+            {(['GRID', 'BAR', 'LINE', 'CARD', 'PIE'] as VizType[]).map((v) => {
               if (!widget.visualizations.includes(v)) return null;
               const active = (currentViz ?? widget.defaultViz) === v;
               return (

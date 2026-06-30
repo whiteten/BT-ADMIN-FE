@@ -1,21 +1,17 @@
 /**
  * 1층 전역 KPI 배너 (노드 무관 집계) — 교환기 번호자원 현황 상단.
  *
- * 표준 2단 재설계의 1층. react-flow HUD(DnStatusHud) 대체.
+ * 디자인 v2(2026-06-18) 구조:
+ *  - 등록 DN 그룹: 총합(30px 볼드) + 6종 분해(내선/상담사ADN/SIP트렁크 채널/ACD 그룹DN/SIP트렁크 그룹DN/CTI큐 그룹DN)
+ *    + 일반↔GlobalDN 분할 바
+ *  - GlobalDN 그룹: 총합(violet) + 합산만(BE가 타입별 미제공이므로 분해 없음)
+ *  - 우측: 새로고침 / 시각 / 자동갱신 토글
  *
- * 표기 의미 정합(2026-06-16 검수 반영 — 모든 숫자/라벨 자명·합 일치):
- *  - "등록 DN" = DN_MASTER 노드 소속 DN 합(내선 11 + SIP트렁크 채널 13 + 그룹DN 예약 14 + 기타).
- *    배너 분해(내선/SIP트렁크 채널/그룹DN 예약[+기타])의 합 = 등록 DN. "라이센스 한도 아님" 툴팁.
- *  - 그룹DN(GDN_MASTER) 건수(ACD/CTI큐/SIP트렁크)는 등록 DN 구성요소가 아니라 별도 섹션으로 분리.
- *  - 할당률 = 내선(11) 기준(SIP트렁크 채널·예약 DN 은 할당 개념이 옅어 희석 방지) — 라벨에 "내선 기준" 명시.
- *  - 상담사 ADN = 노드 무관(NODE_ID=0), 총/할당 분모 병기.
- *  - GlobalDN 전역 = 전역 번호 공간 예약 DN 합(노드 GlobalDN 의 합) — 툴팁 보강.
- *
- * 로딩 중에도 배너는 항상 노출(스피너는 카드 영역에만) — 진입 즉시 흰 화면 금지.
- * 노드 상태점/헬스 어포던스 없음(데이터 없음). 새로고침/자동갱신 토글만 우측.
+ * 데이터: buildKpi 산출값(DnStatusKpi). GlobalDN 은 합산만 표시(BE가 타입별 집계 미제공 — 추정치 금지).
+ * 로딩 중에도 배너 항상 노출(스피너는 카드/리스트 영역에만).
  */
 import { Switch, Tooltip } from 'antd';
-import { Globe, Info, Phone, RadioTower, RefreshCw, Users } from 'lucide-react';
+import { Globe, Info, RefreshCw } from 'lucide-react';
 
 /** KPI 배너 집계값 (buildKpi 산출 — 합 일치 보장) */
 export interface DnStatusKpi {
@@ -59,120 +55,164 @@ function formatUpdated(ts: number | undefined): string {
   return `${hh}:${mm} 기준`;
 }
 
-/** 단일 KPI 셀 — 라벨 + 큰 값 + 보조 */
-function KpiStat({
-  icon,
-  label,
-  value,
-  sub,
-  valueColor = 'text-gray-800',
-  tip,
-}: {
-  icon?: React.ReactNode;
+/** 색상 토큰 (디자인 v2 C 객체와 동일) */
+const C = {
+  edn: '#405189',
+  tdn: '#d97706',
+  acd: '#0891b2',
+  ctiq: '#0e7490',
+  sip: '#155e75',
+  gflag: '#7c3aed',
+  sca: '#059669',
+};
+
+/** 6종 분해 그리드 항목 */
+interface BreakItem {
+  key: string;
   label: string;
-  value: string;
-  sub?: React.ReactNode;
-  valueColor?: string;
-  tip?: string;
-}) {
+  color: string;
+  value: number;
+}
+
+/** 6종 분해 — 3×2 그리드 */
+function BannerBreak({ items }: { items: BreakItem[] }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="flex items-center gap-1 text-[11px] font-medium text-gray-500">
-        {icon}
-        {label}
-        {tip && (
-          <Tooltip title={tip}>
-            <Info className="size-3 text-gray-300" />
-          </Tooltip>
+    <div className="grid grid-cols-3 gap-x-5 gap-y-2">
+      {items.map((it) => (
+        <div key={it.key} className="flex flex-col gap-0.5">
+          <span className="flex items-center gap-1 whitespace-nowrap text-[10.5px] text-gray-500">
+            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-sm" style={{ background: it.color }} />
+            {it.label}
+          </span>
+          <span className="font-tabular text-[16px] font-bold leading-none text-gray-800">{it.value.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 배너 그룹 (등록 DN 또는 GlobalDN) */
+function BannerGroup({
+  title,
+  titleColor,
+  titleIcon,
+  tip,
+  total,
+  totalColor = 'text-gray-800',
+  splitNormal,
+  splitGlobal,
+  note,
+  items,
+}: {
+  title: string;
+  titleColor?: string;
+  titleIcon?: React.ReactNode;
+  tip?: string;
+  total: number;
+  totalColor?: string;
+  /** 일반/GlobalDN 분할 바 (등록DN 그룹에만) */
+  splitNormal?: number;
+  splitGlobal?: number;
+  note?: React.ReactNode;
+  items: BreakItem[];
+}) {
+  const splitPct = splitNormal != null && splitGlobal != null && splitNormal + splitGlobal > 0 ? Math.round((splitGlobal / (splitNormal + splitGlobal)) * 100) : null;
+
+  return (
+    <div className="flex items-center gap-[18px]">
+      {/* 총합 컬럼 */}
+      <div className={`flex flex-col gap-0.5 flex-shrink-0 ${splitPct != null ? 'min-w-[188px]' : 'min-w-[120px]'}`}>
+        <span className={`flex items-center gap-1 text-[11px] font-semibold ${titleColor ?? 'text-gray-500'}`}>
+          {titleIcon}
+          {title}
+          {tip && (
+            <Tooltip title={tip}>
+              <Info className="size-3 text-gray-300" />
+            </Tooltip>
+          )}
+        </span>
+        <span className={`font-tabular text-[30px] font-extrabold leading-none tracking-tight ${totalColor}`}>{total.toLocaleString()}</span>
+        {splitPct != null && splitNormal != null && splitGlobal != null ? (
+          <div className="mt-0.5 flex flex-col gap-1">
+            <span className="flex h-1.5 overflow-hidden rounded-full bg-gray-200">
+              <span className="block h-full" style={{ width: `${100 - splitPct}%`, background: '#94a3b8' }} />
+              <span className="block h-full" style={{ width: `${splitPct}%`, background: C.gflag }} />
+            </span>
+            <span className="text-[10px] text-gray-400">
+              일반 <b className="font-tabular text-gray-500">{splitNormal.toLocaleString()}</b> ·{' '}
+              <span className="text-violet-600">
+                GlobalDN <b className="font-tabular">{splitGlobal.toLocaleString()}</b> 포함
+              </span>
+            </span>
+          </div>
+        ) : (
+          <span className="text-[10px] text-gray-400">{note}</span>
         )}
-      </span>
-      <span className={`text-[20px] font-bold leading-tight ${valueColor}`}>{value}</span>
-      {sub && <span className="text-[11px] text-gray-500">{sub}</span>}
+      </div>
+      {/* 6종 분해 */}
+      <BannerBreak items={items} />
     </div>
   );
 }
 
 export default function DnStatusKpiBanner({ kpi, autoRefresh, onToggleAutoRefresh, onRefresh, lastUpdated }: DnStatusKpiBannerProps) {
-  // 할당률 = 내선 기준 (희석 방지)
-  const ednPct = kpi.ednTotal > 0 ? Math.round((kpi.ednAssigned / kpi.ednTotal) * 100) : 0;
+  // 등록 DN 6종 분해
+  const regItems: BreakItem[] = [
+    { key: 'edn', label: '내선', color: C.edn, value: kpi.ednTotal },
+    { key: 'adn', label: '상담사 ADN', color: C.sca, value: kpi.adnTotal },
+    { key: 'tdn', label: 'SIP트렁크 채널', color: C.tdn, value: kpi.tdnTotal },
+    { key: 'acd', label: 'ACD 그룹DN', color: C.acd, value: kpi.gdnAcd },
+    { key: 'sip', label: 'SIP트렁크 그룹DN', color: C.sip, value: kpi.gdnSip },
+    { key: 'ctiq', label: 'CTI큐 그룹DN', color: C.ctiq, value: kpi.gdnCtiq },
+  ];
+
+  // 등록 DN 합계 (6종 합)
+  const regTotal = regItems.reduce((s, i) => s + i.value, 0);
 
   return (
     <div className="bg-white bt-shadow flex-shrink-0 overflow-hidden">
-      <div className="flex items-center gap-6 px-5 py-3">
-        {/* 등록 DN + 내선 기준 할당률 바 */}
-        <div className="flex min-w-[230px] flex-col gap-1">
-          <span className="flex items-center gap-1 text-[11px] font-medium text-gray-500">
-            등록 DN (교환기)
-            <Tooltip title="실제 등록된 DN 수(내선 + SIP트렁크 채널 + 그룹DN 예약 등). 라이센스 한도가 아닙니다.">
-              <Info className="size-3 text-gray-300" />
-            </Tooltip>
-          </span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[22px] font-bold leading-tight text-gray-800">{kpi.registeredDn.toLocaleString()}</span>
-            <Tooltip title="내선(11) 기준 할당률. SIP트렁크 채널·예약 DN 은 할당 개념이 없어 분모에서 제외합니다.">
-              <span className="cursor-help text-[12px] font-semibold text-[#405189]">내선 기준 할당 {ednPct}%</span>
-            </Tooltip>
-          </div>
-          <div className="mt-0.5 flex items-center gap-2">
-            <span className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-gray-200">
-              <span className="block h-full rounded-full transition-all" style={{ width: `${ednPct}%`, background: '#405189' }} />
+      <div className="flex items-stretch gap-6 px-5 py-3.5">
+        {/* 등록 DN */}
+        <BannerGroup
+          title="등록 DN (전체 번호자원)"
+          tip="교환기에 실제 등록된 전체 번호자원. 아래 6종 분해의 합과 일치합니다. GlobalDN 은 이 안에 포함된 전역 플래그 분량입니다."
+          total={regTotal}
+          splitNormal={regTotal - kpi.globalDnTotal}
+          splitGlobal={kpi.globalDnTotal}
+          items={regItems}
+        />
+
+        {/* 디바이더 */}
+        <span className="w-px self-stretch flex-shrink-0 bg-gray-200" />
+
+        {/* GlobalDN — BE가 타입별 집계 미제공이므로 합산만 표시(분해 추정치 없음) */}
+        <div className="flex items-center gap-[18px]">
+          <div className="flex flex-col gap-0.5 flex-shrink-0 min-w-[188px]">
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-violet-600">
+              <Globe className="size-3 text-violet-600" />
+              GlobalDN (등록 DN 중 전역 점유)
+              <Tooltip title="전역 번호 공간을 점유하는 GlobalDN. 위 등록 DN에 포함된 부분집합으로, 더해지는 별도 수량이 아닙니다.">
+                <Info className="size-3 text-gray-300" />
+              </Tooltip>
             </span>
-            <span className="w-[110px] flex-shrink-0 text-right text-[11px] text-gray-500">
-              내선 <b className="text-gray-700">{kpi.ednAssigned.toLocaleString()}</b> / {kpi.ednTotal.toLocaleString()}
-            </span>
+            <span className="font-tabular text-[30px] font-extrabold leading-none tracking-tight text-violet-600">{kpi.globalDnTotal.toLocaleString()}</span>
+            <div className="mt-0.5 flex flex-col gap-1">
+              <span className="flex h-1.5 overflow-hidden rounded-full bg-gray-200">
+                <span className="block h-full" style={{ width: `${regTotal > 0 ? Math.round(((regTotal - kpi.globalDnTotal) / regTotal) * 100) : 100}%`, background: '#94a3b8' }} />
+                <span className="block h-full" style={{ width: `${regTotal > 0 ? Math.round((kpi.globalDnTotal / regTotal) * 100) : 0}%`, background: C.gflag }} />
+              </span>
+              <span className="text-[10px] text-gray-400">
+                일반 <b className="font-tabular text-gray-500">{(regTotal - kpi.globalDnTotal).toLocaleString()}</b> ·{' '}
+                <span className="text-violet-600">
+                  GlobalDN <b className="font-tabular">{kpi.globalDnTotal.toLocaleString()}</b> 포함
+                </span>
+              </span>
+            </div>
           </div>
         </div>
 
-        <span className="h-10 w-px flex-shrink-0 bg-gray-200" />
-
-        {/* 등록 DN 분해 (합 = 등록 DN) */}
-        <KpiStat icon={<Phone className="size-3" />} label="내선" value={kpi.ednTotal.toLocaleString()} />
-        <KpiStat icon={<RadioTower className="size-3" />} label="SIP트렁크 채널" value={kpi.tdnTotal.toLocaleString()} />
-        <KpiStat label="그룹DN 예약" value={kpi.gdnReservedTotal.toLocaleString()} tip="DN_MASTER 에 예약된 그룹DN 번호(타입 14). 등록 DN 합계에 포함됩니다." />
-        {kpi.otherDnTotal > 0 && <KpiStat label="기타" value={kpi.otherDnTotal.toLocaleString()} tip="PARK·AA 등 그 외 등록 DN." />}
-
-        <span className="h-10 w-px flex-shrink-0 bg-gray-200" />
-
-        {/* 그룹DN(GDN_MASTER) — 등록 DN 과 별개 자원 */}
-        <KpiStat
-          label="그룹DN (GDN)"
-          value={kpi.gdnMasterTotal.toLocaleString()}
-          tip="그룹DN 마스터 등록 건수(ACD·CTI큐·SIP트렁크). 등록 DN 합계와는 별개 자원입니다."
-          sub={
-            <span className="text-gray-500">
-              ACD <b className="text-gray-700">{kpi.gdnAcd.toLocaleString()}</b> · CTI큐 <b className="text-gray-700">{kpi.gdnCtiq.toLocaleString()}</b> · SIP트렁크{' '}
-              <b className="text-gray-700">{kpi.gdnSip.toLocaleString()}</b>
-            </span>
-          }
-        />
-
-        <span className="h-10 w-px flex-shrink-0 bg-gray-200" />
-
-        {/* GlobalDN 전역 */}
-        <KpiStat
-          icon={<Globe className="size-3 text-violet-500" />}
-          label="GlobalDN 전역"
-          value={kpi.globalDnTotal.toLocaleString()}
-          valueColor="text-violet-600"
-          tip="전역 번호 공간을 점유하는 DN(전 노드 합). 한 노드 소속이라도 전역에서 중복 불가입니다."
-        />
-
-        {/* 상담사 ADN (노드 무관) */}
-        <KpiStat
-          icon={<Users className="size-3 text-emerald-600" />}
-          label="상담사 ADN"
-          value={kpi.adnTotal.toLocaleString()}
-          tip="상담사 로그인용 ADN(타입 12). 특정 노드에 속하지 않는 공통 자원입니다."
-          sub={
-            <>
-              할당 <b className="text-gray-700">{kpi.adnAssigned.toLocaleString()}</b> / {kpi.adnTotal.toLocaleString()}
-            </>
-          }
-          valueColor="text-gray-800"
-        />
-
         {/* 갱신 영역 */}
-        <div className="ml-auto flex flex-shrink-0 items-center gap-3">
+        <div className="ml-auto flex flex-shrink-0 items-start gap-3">
           <button
             type="button"
             onClick={onRefresh}
@@ -181,8 +221,8 @@ export default function DnStatusKpiBanner({ kpi, autoRefresh, onToggleAutoRefres
           >
             <RefreshCw className="size-3.5" />
           </button>
-          <span className="text-[11px] text-gray-400">{formatUpdated(lastUpdated)}</span>
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-gray-600">
+          <span className="mt-1.5 text-[11px] text-gray-400">{formatUpdated(lastUpdated)}</span>
+          <label className="mt-1.5 flex cursor-pointer items-center gap-1.5 text-[11px] text-gray-600">
             <Switch size="small" checked={autoRefresh} onChange={onToggleAutoRefresh} />
             <span>자동갱신</span>
           </label>

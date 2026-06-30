@@ -9,9 +9,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 type KnowledgeCardProps = KnowledgeListItem & {
   onDetail?: (documentId: string) => void;
   onDelete?: (documentId: string) => void;
+  canWrite?: boolean;
 };
 
-export default function KnowledgeCard({ documentId, documentName, description, fileCount, updatedAt, onDetail, onDelete }: KnowledgeCardProps) {
+export default function KnowledgeCard({ documentId, documentName, description, fileCount, updatedAt, onDetail, onDelete, canWrite = false }: KnowledgeCardProps) {
   const title = (
     <div className="flex items-center gap-2.5">
       <div className="w-8 h-8 rounded-lg bg-[var(--color-bt-primary-soft)] flex items-center justify-center shrink-0">
@@ -41,9 +42,11 @@ export default function KnowledgeCard({ documentId, documentName, description, f
         <DropdownMenuItem onClick={() => onDetail?.(documentId)} className="hover:cursor-pointer">
           상세보기
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete?.(documentId)} className="hover:cursor-pointer">
-          삭제
-        </DropdownMenuItem>
+        {canWrite && (
+          <DropdownMenuItem onClick={() => onDelete?.(documentId)} className="hover:cursor-pointer">
+            삭제
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

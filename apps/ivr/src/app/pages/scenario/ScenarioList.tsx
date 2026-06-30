@@ -13,6 +13,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ScenarioAssignedStatusModal, { type ScenarioAssignedStatusModalRef } from '../../features/scenario/components/ScenarioAssignedStatusModal';
 import ScenarioCard from '../../features/scenario/components/ScenarioCard';
+import ScenarioDeploySidebar from '../../features/scenario/components/ScenarioDeploySidebar';
 import ScenarioMasterSheet, { type ScenarioMasterSheetRef } from '../../features/scenario/components/ScenarioMasterSheet';
 import ScenarioTypeMultiSelect from '../../features/scenario/components/ScenarioTypeMultiSelect';
 import { scenarioQueryKeys, useDeleteScenario, useGetScenarios } from '../../features/scenario/hooks/useScenarioQueries';
@@ -61,6 +62,8 @@ export default function ScenarioList() {
   const [searchText, setSearchText] = useState('');
   const masterSheetRef = useRef<ScenarioMasterSheetRef>(null);
   const assignedStatusRef = useRef<ScenarioAssignedStatusModalRef>(null);
+  // 목록에서 바로 배포(카드 '배포' 버튼) — 사이드바에 버전 드롭다운(기본 최신) 표시
+  const [deploySidebar, setDeploySidebar] = useState<{ open: boolean; serviceId: number | null }>({ open: false, serviceId: null });
   // 신규 등록 직후 그 카드로 스크롤 + 하이라이트
   const pendingFocusIdRef = useRef<number | null>(null);
   const [focusedId, setFocusedId] = useState<number | null>(null);
@@ -75,7 +78,8 @@ export default function ScenarioList() {
   const { data: scenarios = [] } = useGetScenarios({ params: queryParams });
 
   // 배포여부 필터는 클라이언트 측(목록 응답의 deploySystems 기준)
-  const filteredScenarios = useMemo(() => scenarios.filter((s) => matchesDeployFilter(s, selectedDeploy)), [scenarios, selectedDeploy]);
+  // 정렬: serviceId 내림차순(최신순) — 새로 추가한 시나리오가 항상 맨 위에 노출되도록(수정해도 자리 고정)
+  const filteredScenarios = useMemo(() => scenarios.filter((s) => matchesDeployFilter(s, selectedDeploy)).sort((a, b) => b.serviceId - a.serviceId), [scenarios, selectedDeploy]);
 
   // 신규 등록 후 목록이 갱신되어 새 카드가 나타나면 그 카드로 스크롤 + 잠시 하이라이트
   useEffect(() => {
@@ -173,7 +177,8 @@ export default function ScenarioList() {
               highlighted={focusedId === s.serviceId}
               onDetail={handleDetail}
               onDelete={handleDelete}
-              onShowAssigned={() => assignedStatusRef.current?.open(s.serviceId)}
+              onShowAssigned={() => assignedStatusRef.current?.open(s.serviceId, s.serviceName)}
+              onDeploy={() => setDeploySidebar({ open: true, serviceId: s.serviceId })}
             />
           ))}
         </div>
@@ -188,6 +193,14 @@ export default function ScenarioList() {
         }}
       />
       <ScenarioAssignedStatusModal ref={assignedStatusRef} />
+      <ScenarioDeploySidebar
+        open={deploySidebar.open}
+        serviceId={deploySidebar.serviceId ?? 0}
+        selectedVersion={null}
+        enableVersionPicker
+        onPublished={() => queryClient.invalidateQueries({ queryKey: scenarioQueryKeys.getScenarios._def })}
+        onClose={() => setDeploySidebar({ open: false, serviceId: null })}
+      />
     </div>
   );
 }

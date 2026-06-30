@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Settings } from 'lucide-react';
 import { toast } from '@/shared-util';
 import PanelBarChart from '../../panel/components/chart/PanelBarChart';
@@ -7,7 +8,7 @@ import PanelRadarChart from '../../panel/components/chart/PanelRadarChart';
 import PanelGrid from '../../panel/components/grid/PanelGrid';
 import PanelKpiCard from '../../panel/components/kpi/PanelKpiCard';
 import { useReportEditorStore } from '../../report/hooks/useReportEditorStore';
-import { useDeletePanel } from '../../report/hooks/useReportQueries';
+import { reportKeys, useDeletePanel } from '../../report/hooks/useReportQueries';
 import type { PanelDetail } from '../../report/types';
 import { IconTrash } from '@/libs/shared-ui/src/components/custom/Icons';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -23,12 +24,16 @@ interface PanelWrapperProps {
 
 export default function PanelWrapper({ panel, reportId, mode, onEdit, draggableClass = '' }: PanelWrapperProps) {
   const modal = useModal();
+  const queryClient = useQueryClient();
   const { removePanel } = useReportEditorStore();
 
   const { mutate: deletePanel } = useDeletePanel({
     mutationOptions: {
       onSuccess: () => {
         removePanel(panel.panelId);
+        // 보고서 상세 캐시 무효화 — 안 하면 보기 화면이 stale 캐시(삭제된 패널 포함)를
+        // 다시 렌더해 삭제 패널 query-execute 가 "패널을 찾을 수 없습니다" 오류를 낸다.
+        queryClient.invalidateQueries({ queryKey: reportKeys.detail(reportId).queryKey });
         toast.success('패널이 삭제되었습니다.');
       },
     },
@@ -36,7 +41,16 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit, draggableC
 
   const handleDelete = () => {
     modal.confirm.delete({
-      onOk: () => deletePanel({ reportId, panelId: panel.panelId }),
+      onOk: () => {
+        // 드래프트(미저장 보고서 reportId=0 또는 임시 패널 panelId<0)는 서버에 없으므로
+        // API 삭제(보고서 0 조회 실패) 대신 스토어에서만 제거한다.
+        if (reportId === 0 || panel.panelId < 0) {
+          removePanel(panel.panelId);
+          toast.success('패널이 삭제되었습니다.');
+          return;
+        }
+        deletePanel({ reportId, panelId: panel.panelId });
+      },
     });
   };
 

@@ -4,7 +4,6 @@ import { Button, Card, Dropdown, type MenuProps, Tag } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { DASHBOARD_ICON_SVG, DEFAULT_DASHBOARD_ICON } from '../constants/dashboardIconConstants';
-import { DOMAIN_LABELS, DOMAIN_TAG_COLOR } from '../constants/monitoringConstants';
 import { dashboardKeys, useDeleteDashboard } from '../hooks/useDashboardQueries';
 import type { DashboardListItem } from '../types';
 import { IconMoreVertical } from '@/components/custom/Icons';
@@ -40,8 +39,6 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
     modal.confirm.delete({
       onOk: () => deleteDashboard(dashboard.dashboardId),
     });
-
-  const domainLabel = DOMAIN_LABELS[dashboard.domainCode] ?? dashboard.domainCode;
 
   const menuItems: MenuProps['items'] = [
     {
@@ -109,12 +106,6 @@ export default function DashboardCard({ dashboard }: DashboardCardProps) {
       onClick={handleView}
     >
       <div className="flex flex-col text-[#495057] gap-2">
-        <div className="flex items-center">
-          <span className="w-[80px] shrink-0 text-sm">도메인</span>
-          <Tag color={DOMAIN_TAG_COLOR[dashboard.domainCode]}>
-            {dashboard.domainCode} · {domainLabel}
-          </Tag>
-        </div>
         <div className="flex items-center">
           <span className="w-[80px] shrink-0 text-sm">위젯</span>
           <span className="text-sm truncate" title={dashboard.widgetNames?.join(', ')}>

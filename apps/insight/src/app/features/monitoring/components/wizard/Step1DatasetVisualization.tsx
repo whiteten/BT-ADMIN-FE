@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Input, Segmented } from 'antd';
+import { Input } from 'antd';
 import { Star } from 'lucide-react';
-import { DOMAIN_COLOR_CLASS, DOMAIN_LABELS, VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
+import { VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
 import { useGetMonitoringDataset, useGetMonitoringDatasets } from '../../hooks/useDatasetQueries';
-import type { DatasetDetail, DatasetListItem, DomainCode, VizType } from '../../types';
+import type { DatasetDetail, DatasetListItem, VizType } from '../../types';
 
 export interface Step1Value {
   datasetId?: number;
@@ -12,18 +12,18 @@ export interface Step1Value {
 }
 
 interface Step1Props {
-  domainCode: DomainCode;
   value: Step1Value;
   onChange: (next: Step1Value) => void;
 }
 
-const ALL_VIZ: VizType[] = ['GRID', 'BAR', 'LINE', 'CARD'];
+const ALL_VIZ: VizType[] = ['GRID', 'BAR', 'LINE', 'CARD', 'PIE'];
 
 const VIZ_DESCRIPTION: Record<VizType, string> = {
   GRID: '표 형태 — 모든 필드',
   BAR: '막대 — DIM × MSR (이중축 최대 2개)',
   LINE: '선 — 시간 X축 + MSR',
   CARD: '카드 — 단일 측정값 (현재값)',
+  PIE: '파이/도넛 — 비중 (DIM 1개 × MSR 1개)',
 };
 
 /** 시각화 가용성 판단 — 데이터셋 필드 구성에 따라 */
@@ -34,6 +34,7 @@ function getVizAvailability(detail?: DatasetDetail): Record<VizType, { available
       BAR: { available: false, reason: '데이터셋 선택 필요' },
       LINE: { available: false, reason: '데이터셋 선택 필요' },
       CARD: { available: false, reason: '데이터셋 선택 필요' },
+      PIE: { available: false, reason: '데이터셋 선택 필요' },
     };
   }
   const visibleFields = detail.fields.filter((f) => f.isVisible);
@@ -47,17 +48,15 @@ function getVizAvailability(detail?: DatasetDetail): Record<VizType, { available
     BAR: dims.length > 0 && msrIncludingCalc > 0 ? { available: true } : { available: false, reason: 'DIM과 MSR 각 1개 이상 필요' },
     LINE: hasDateField && msrIncludingCalc > 0 ? { available: true } : { available: false, reason: '시간 컬럼(DATE/DATETIME) 필요' },
     CARD: msrIncludingCalc > 0 ? { available: true } : { available: false, reason: 'MSR 1개 이상 필요' },
+    PIE: dims.length > 0 && msrIncludingCalc > 0 ? { available: true } : { available: false, reason: 'DIM과 MSR 각 1개 이상 필요' },
   };
 }
 
-export default function Step1DatasetVisualization({ domainCode, value, onChange }: Step1Props) {
+export default function Step1DatasetVisualization({ value, onChange }: Step1Props) {
   const [searchValue, setSearchValue] = useState('');
-  const [filterDomain, setFilterDomain] = useState<DomainCode | 'ALL'>(domainCode);
 
   // 데이터셋 목록
-  const { data: datasets = [] } = useGetMonitoringDatasets({
-    params: { domain: filterDomain !== 'ALL' ? filterDomain : undefined },
-  });
+  const { data: datasets = [] } = useGetMonitoringDatasets();
 
   // 선택된 데이터셋 detail
   const { data: selectedDetail } = useGetMonitoringDataset({
@@ -68,15 +67,12 @@ export default function Step1DatasetVisualization({ domainCode, value, onChange 
   // 필터링
   const filteredDatasets = useMemo(() => {
     let result: DatasetListItem[] = datasets;
-    if (filterDomain !== 'ALL') {
-      result = result.filter((d) => d.domainCode === filterDomain);
-    }
     if (searchValue.trim()) {
       const kw = searchValue.toLowerCase();
       result = result.filter((d) => d.datasetName.toLowerCase().includes(kw) || d.datasetCode.toLowerCase().includes(kw));
     }
     return result;
-  }, [datasets, filterDomain, searchValue]);
+  }, [datasets, searchValue]);
 
   const availability = useMemo(() => getVizAvailability(selectedDetail), [selectedDetail]);
 
@@ -114,17 +110,6 @@ export default function Step1DatasetVisualization({ domainCode, value, onChange 
       <div className="flex-1 flex flex-col overflow-hidden bg-white">
         {/* 필터 바 */}
         <div className="flex items-center gap-3 px-6 py-3">
-          <Segmented
-            value={filterDomain}
-            onChange={(v) => setFilterDomain(v as DomainCode | 'ALL')}
-            options={[
-              { value: 'ALL', label: '전체' },
-              { value: 'IE', label: `IE · ${DOMAIN_LABELS.IE}` },
-              { value: 'IC', label: `IC · ${DOMAIN_LABELS.IC}` },
-              { value: 'IR', label: `IR · ${DOMAIN_LABELS.IR}` },
-            ]}
-            size="small"
-          />
           <Input
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -156,7 +141,6 @@ export default function Step1DatasetVisualization({ domainCode, value, onChange 
                     }`}
                   >
                     <div className="mb-1.5 flex items-center gap-2">
-                      <span className={`shrink-0 rounded px-1.5 py-0.5 mono text-[9.5px] font-bold ${DOMAIN_COLOR_CLASS[d.domainCode]}`}>{d.domainCode}</span>
                       <span className="text-[12.5px] font-semibold truncate">{d.datasetName}</span>
                     </div>
                     <div className="mb-1 mono text-[10px] text-[var(--color-bt-fg-muted)] truncate">{d.datasetCode}</div>
@@ -186,7 +170,6 @@ export default function Step1DatasetVisualization({ domainCode, value, onChange 
             {selectedDetail ? (
               <div className="rounded border border-[var(--color-bt-border)] bg-white p-3 space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 mono text-[9.5px] font-bold ${DOMAIN_COLOR_CLASS[selectedDetail.domainCode]}`}>{selectedDetail.domainCode}</span>
                   <span className="text-[12.5px] font-semibold truncate">{selectedDetail.datasetName}</span>
                 </div>
                 <div className="mono text-[10px] text-[var(--color-bt-fg-muted)] truncate">{selectedDetail.datasetCode}</div>

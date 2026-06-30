@@ -5,20 +5,24 @@
  *  - 상단 헤더 카드 (CallSummaryHeader)
  *  - 본문 3분할: 좌 타임라인 / 우상 CallFlow / 우하 IVR/CTI/Agent 탭
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Tabs, message } from 'antd';
-import { ArrowLeft, Copy } from 'lucide-react';
+import { ArrowLeft, BarChart3, Bot, Copy, FileText, GitFork, Headphones, Radio, Settings, User } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import AgentEventTimeline from '../../features/tracking/components/AgentEventTimeline';
 import CallFlowDiagram from '../../features/tracking/components/CallFlowDiagram';
 import CallSummaryHeader from '../../features/tracking/components/CallSummaryHeader';
 import CtiRoutingTimeline from '../../features/tracking/components/CtiRoutingTimeline';
 import DialogView from '../../features/tracking/components/DialogView';
+import IrServiceLogModal from '../../features/tracking/components/IrServiceLogModal';
 import IvrStepTree from '../../features/tracking/components/IvrStepTree';
 import PacketLogModal from '../../features/tracking/components/PacketLogModal';
 import { IeCdrPanel } from '../../features/tracking/components/PbxCallDetailDrawer';
 import RecordingButton from '../../features/tracking/components/RecordingButton';
+import RecordingPlaybackSidebar, { type HopRecordingContext } from '../../features/tracking/components/RecordingPlaybackSidebar';
+import RelatedCallsPanel from '../../features/tracking/components/RelatedCallsPanel';
+import SipLogModal from '../../features/tracking/components/SipLogModal';
 import { useGetAgentEvents, useGetCtiRouting, useGetDialogs, useGetIeCdrDetail, useGetIvrSteps, useGetTrackingDetail } from '../../features/tracking/hooks/useTrackingQueries';
 import type { CallSegment } from '../../features/tracking/types';
 import { fmtTalkTime, fmtTime } from '../../features/tracking/utils/timeFormat';
@@ -32,7 +36,7 @@ function useHasPermission(authKey: string): boolean {
 
 /**
  * hop 별 IE CDR 탭 — PbxCallDetailDrawer 의 IeCdrPanel 재사용.
- * 각 hop 카드의 "IE CDR" 탭에 그 hop 의 IE CDR row 전체 시각화.
+ * 각 hop 카드의 "⚙ IE CDR" 탭에 그 hop 의 TB_DM_IE_BASICCDR row 전체 시각화.
  * (이전엔 hopNodes baseMeta 의 빈약한 정보만 보여 모든 hop 에서 0 홉처럼 보이는 문제 fix)
  */
 function HopIeCdrTab({ ucid, hop }: { ucid: string; hop: number }) {
@@ -46,6 +50,17 @@ function HopIeCdrTab({ ucid, hop }: { ucid: string; hop: number }) {
     </div>
   );
 }
+
+const SEGMENT_META: Record<CallSegment['kind'], { emoji: string; label: string; dot: string; ring: string; accent: string }> = {
+  INBOUND: { emoji: '📥', label: '인입', dot: 'bg-violet-500', ring: 'ring-violet-300', accent: '#8b5cf6' },
+  OUTBOUND: { emoji: '📞', label: '발신', dot: 'bg-cyan-500', ring: 'ring-cyan-300', accent: '#06b6d4' },
+  QUEUE_IN: { emoji: '📨', label: '큐 인입', dot: 'bg-sky-500', ring: 'ring-sky-300', accent: '#0ea5e9' },
+  IVR: { emoji: '🤖', label: 'IVR', dot: 'bg-violet-600', ring: 'ring-violet-300', accent: '#7c3aed' },
+  CTI: { emoji: '🔀', label: 'CTI', dot: 'bg-amber-500', ring: 'ring-amber-300', accent: '#f59e0b' },
+  AGENT: { emoji: '🎧', label: '상담', dot: 'bg-emerald-500', ring: 'ring-emerald-300', accent: '#10b981' },
+  DISCONNECT: { emoji: '📤', label: '종료', dot: 'bg-slate-400', ring: 'ring-slate-300', accent: '#94a3b8' },
+  OTHER: { emoji: '•', label: '기타', dot: 'bg-gray-400', ring: 'ring-gray-300', accent: '#9ca3af' },
+};
 
 const fmtDeltaSec = (totalStart: string, atIso: string | null): string => {
   if (!atIso) return '+0s';
@@ -140,8 +155,13 @@ export default function CallDetail() {
   //                  AGENT: main(상담사) / ie(IE CDR)
   // 다른 hop 으로 이동 시 자동 'main' 으로 reset.
   const [hopSubTab, setHopSubTab] = useState<'main' | 'ie' | 'dialog'>('main');
+  // IR CDR 안 sub-tab — 시나리오 진행 / 대화 (대화 탭 외부에서 통합)
+  const [irInnerTab, setIrInnerTab] = useState<'scenario' | 'dialog'>('scenario');
   // 패킷 전문 모달 — Packet/PacketJson step 클릭 시 열림
   const [packetModalContext, setPacketModalContext] = useState<React.ComponentProps<typeof PacketLogModal>['context']>(null);
+  const [irLogModalContext, setIrLogModalContext] = useState<React.ComponentProps<typeof IrServiceLogModal>['context']>(null);
+  const [sipLogModalContext, setSipLogModalContext] = useState<React.ComponentProps<typeof SipLogModal>['context']>(null);
+  const [recordingCtx, setRecordingCtx] = useState<HopRecordingContext | null>(null);
   const [flowExpanded, setFlowExpanded] = useState(false);
 
   // 권한
@@ -157,8 +177,24 @@ export default function CallDetail() {
   const agentQ = useGetAgentEvents(ucid);
   const dialogQ = useGetDialogs(ucid);
 
+  /**
+   * AS-IS swat IPR30S1060Service:1420 — CTI/AGENT hop SIP 로그는 PBX(IE) 포트에서 가져옴.
+   * 같은 콜의 IE segment(IE_BASICCDR) SYSTEM_ID 를 사용. IE segment 없으면 header → null.
+   */
+  const resolveIeSystemId = useCallback((): number | null => {
+    const ieSeg = (detailQ.data?.segments ?? []).find((s) => s.meta?._segType === 'IE' && s.meta?.systemId != null);
+    const ieSysId = ieSeg?.meta?.systemId;
+    if (ieSysId != null) return Number(ieSysId);
+    const header = (detailQ.data?.header as { systemId?: number | null } | undefined)?.systemId;
+    return header != null ? Number(header) : null;
+  }, [detailQ.data]);
+
   const breadcrumb = useMemo(
-    () => [{ title: '트래킹' }, { title: '통합콜트래킹', path: '/ipron/tracking' }, { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' }],
+    () => [
+      { title: '콜 분석', path: '/ipron/tracking' },
+      { title: '통합 콜트래킹', path: '/ipron/tracking' },
+      { title: ucid ? `UCID ${ucid.slice(0, 8)}...` : '콜 상세', path: '#' },
+    ],
     [ucid],
   );
 
@@ -172,6 +208,8 @@ export default function CallDetail() {
 
   const segments = detailQ.data?.segments ?? [];
   const header = detailQ.data?.header;
+  /** BE 가 사전 판단한 청취 가능 hop 번호 set — 미리 보내준 hop 에만 청취 버튼 노출 */
+  const recordingHops = detailQ.data?.recordingHops ?? [];
 
   // ── HOP 공통축 그룹핑 (사용자 도메인 통찰 기반) ──────────────────────────
   // 모든 CDR(IE/IR/IC)을 HOP 번호로 묶어 hop 단위 노드 1개로 표현.
@@ -273,6 +311,7 @@ export default function CallDetail() {
       //   IR/IC raw 데이터가 있으면 그것이 우선
       const tt = ie ? Number(ie.meta?._tType) : null;
       const ot = ie ? Number(ie.meta?._oType) : null;
+      const ck = ie ? Number(ie.meta?._callKind) : null;
       // IC_AGENT (CTI 콜의 상담사 배정 hop) 는 AGENT 카드. IC_QUEUE/IC_ROUTING 만 IC 카드.
       const hasIcAgent = segs.some((s) => s.meta?._segType === 'IC_AGENT');
       const hasIcQueueOnly = segs.some((s) => {
@@ -284,15 +323,17 @@ export default function CallDetail() {
       else if (hasIcAgent)
         hopType = 'AGENT'; // CTI 콜의 상담사 배정 hop
       else if (hasIcQueueOnly || tt === 5) hopType = 'IC';
+      else if (ck === 0 && ot === 2)
+        hopType = 'EXT'; // 내선 발신 (CALL_KIND=0 + O_TYPE=2) — 상담사 로그인 없이 IVR 테스트 등
       else if (tt === 2 || ot === 2)
         hopType = 'AGENT'; // 상담사 착신(T_TYPE=2) 또는 상담사 발신(O_TYPE=2)
       else hopType = 'IE';
 
       // 첫 hop 전용 — 콜방향(_callDir) + 첫 hop 라벨용 _firstHopType (= hopType 과 동일)
       let firstHopType: string | null = null;
-      let callDir: 'INBOUND' | 'OUTBOUND' | 'QUEUE_IN' | null = null;
+      let callDir: 'INBOUND' | 'OUTBOUND' | 'QUEUE_IN' | 'EXTENSION' | null = null;
       if (idx === 0) {
-        callDir = kind === 'OUTBOUND' ? 'OUTBOUND' : kind === 'QUEUE_IN' ? 'QUEUE_IN' : 'INBOUND';
+        callDir = hopType === 'EXT' ? 'EXTENSION' : kind === 'OUTBOUND' ? 'OUTBOUND' : kind === 'QUEUE_IN' ? 'QUEUE_IN' : 'INBOUND';
         firstHopType = hopType;
       }
 
@@ -384,7 +425,7 @@ export default function CallDetail() {
       accentText: string,
     ) => (
       <div className="flex gap-0 min-h-[200px]">
-        <div className="flex-1 min-w-0 overflow-x-auto">{left}</div>
+        <div className="flex-1 min-w-0 overflow-x-hidden">{left}</div>
         <aside className="w-[280px] flex-shrink-0 border-l p-4" style={{ borderLeftColor: accentBorder, background: accentBg }}>
           <div className="text-[12px] font-semibold mb-2.5 pb-2 border-b" style={{ color: accentText, borderBottomColor: accentBorder }}>
             {metricTitle}
@@ -411,7 +452,8 @@ export default function CallDetail() {
     if (ht === 'IR' || fht === 'IR' || fht === 'IVR') {
       const dur = hop.durationSec ?? 0;
       const endIso = hop.startTime && dur > 0 ? new Date(new Date(hop.startTime).getTime() + dur * 1000).toISOString() : null;
-      // 이 hop 의 cdrPkey 와 매칭되는 IVR group 만 필터. 키 정보가 없거나 매칭 없으면 전체 fallback (데이터 누락 방지)
+      // BE 가 nextHop 을 IvrScenarioGroup 에 채워주면 그것으로 우선 매칭 (한 콜에서 IVR 2번 거치면 cdrPkey 동일해도 hop 으로 구분).
+      // fallback: cdrPkey 매칭 (옛 데이터 호환)
       const irKeysStr = (hop.meta?._irCdrPkeys as string | undefined) ?? '';
       const irKeys = irKeysStr
         ? irKeysStr
@@ -420,7 +462,9 @@ export default function CallDetail() {
             .filter((n) => Number.isFinite(n))
         : [];
       const all = ivrQ.data ?? [];
-      const hopGroups = irKeys.length > 0 ? all.filter((g) => irKeys.includes(Number(g.cdrPkey))) : [];
+      // 1차: nextHop 매칭 (BE 가 채워준 경우). 2차: cdrPkey 매칭 (fallback)
+      const byNextHop = all.filter((g) => g.nextHop != null && Number(g.nextHop) === hopNo);
+      const hopGroups = byNextHop.length > 0 ? byNextHop : irKeys.length > 0 ? all.filter((g) => irKeys.includes(Number(g.cdrPkey))) : [];
       // 그 hop 의 cdrPkey 와 매칭되는 IR group 만 (fallback 제거 — 다른 hop 데이터 섞임 방지)
       const finalGroups = hopGroups;
       const matchedGroup = finalGroups[0];
@@ -428,33 +472,90 @@ export default function CallDetail() {
       const serviceName = (hop.meta?.serviceName as string) ?? gAny?.serviceName ?? '-';
       const version = (hop.meta?.version as string) ?? (hop.meta?._version as string) ?? gAny?.scenarioVersion ?? '-';
       const cdrPkey = hop.meta?._cdrPkey != null ? String(hop.meta._cdrPkey) : gAny?.cdrPkey != null ? String(gAny.cdrPkey) : '-';
+      // IR hop 공통 컨텍스트 계산 (서비스 로그 버튼 + 패킷 모달 양쪽에서 사용)
+      const startIso = detailQ.data?.header?.startTime ?? hop.startTime ?? '';
+      const yyyymmdd = startIso ? startIso.slice(0, 10).replace(/-/g, '') : '';
+      const systemIdRaw = hop.meta?.systemId ?? hop.meta?._systemId;
+      const hopSystemId = systemIdRaw != null ? Number(systemIdRaw) : null;
+      const sleeIdRaw = hop.meta?.sleeId ?? hop.meta?._sleeId ?? hop.meta?.moid;
+      const hopSleeId = sleeIdRaw != null ? Number(sleeIdRaw) : null;
+
       const irContent = renderSplit(
-        <IvrStepTree
-          groups={finalGroups}
-          loading={ivrQ.isLoading}
-          selectedCdrPkey={null}
-          onOpenDialog={() => setHopSubTab('dialog')}
-          onPacketClick={(step) => {
-            const startIso = detailQ.data?.header?.startTime ?? hop.startTime ?? '';
-            const yyyymmdd = startIso ? startIso.slice(0, 10).replace(/-/g, '') : '';
-            const systemIdRaw = hop.meta?.systemId ?? hop.meta?._systemId;
-            const systemId = systemIdRaw != null ? Number(systemIdRaw) : null;
-            // serviceId: matchedGroup.scenarioId(=BE BASICCDR.SERVICE_ID) 우선, fallback 으로 hop.meta
-            const serviceIdRaw = (matchedGroup as { scenarioId?: number })?.scenarioId ?? hop.meta?.serviceId ?? hop.meta?._serviceId;
-            const serviceId = serviceIdRaw != null && Number(serviceIdRaw) !== 0 ? Number(serviceIdRaw) : null;
-            setPacketModalContext({
-              systemId,
-              serviceId,
-              serviceVer: version !== '-' ? version : null,
-              packetId: step.val3 ?? step.menuId ?? null,
-              trKey: step.val8 ?? null,
-              date: yyyymmdd,
-              dataType: step.rawType,
-              menuName: step.mentName ?? step.menuId,
-              typeNm: step.type,
-            });
-          }}
-        />,
+        <div className="flex flex-col">
+          <div className="flex justify-end gap-2 px-3 pt-2 -mb-1">
+            <button
+              onClick={() =>
+                setSipLogModalContext({
+                  ucid: ucid ?? null,
+                  hop: hopNo,
+                  segmentType: 'IR',
+                  systemId: hopSystemId,
+                  callDate: yyyymmdd,
+                })
+              }
+              className="inline-flex items-center gap-1 text-[11px] text-blue-700 hover:bg-blue-50 border border-blue-200 px-2 py-1 rounded transition"
+              title="IVR 장비의 SIP 트랜잭션 시퀀스 (실시간 조회)"
+            >
+              <Radio className="size-3" /> SIP 로그
+            </button>
+            {recordingHops.includes(hopNo) && (
+              <button
+                onClick={() =>
+                  ucid &&
+                  setRecordingCtx({
+                    ucid,
+                    hop: hopNo,
+                    hopLabel: `IR hop ${hopNo}`,
+                    agentName: null,
+                    ani: (hop.meta?.ani as string) ?? null,
+                    dnis: (hop.meta?.dnis as string) ?? null,
+                  })
+                }
+                className="inline-flex items-center gap-1 text-[11px] text-purple-700 hover:bg-purple-50 border border-purple-200 px-2 py-1 rounded transition"
+                title="IR 녹취 청취"
+              >
+                <Headphones className="size-3" /> 청취
+              </button>
+            )}
+            <button
+              onClick={() =>
+                setIrLogModalContext({
+                  ucid: ucid ?? null,
+                  hop: hopNo,
+                  systemId: hopSystemId,
+                  sleeId: hopSleeId,
+                  callDate: yyyymmdd,
+                })
+              }
+              className="inline-flex items-center gap-1 text-[11px] text-violet-700 hover:bg-violet-50 border border-violet-200 px-2 py-1 rounded transition"
+              title="IR 장비에서 해당 HOP 의 서비스 로그를 조회 (캐시 hit 이면 빠름)"
+            >
+              <FileText className="size-3" /> 서비스 로그
+            </button>
+          </div>
+          <IvrStepTree
+            groups={finalGroups}
+            loading={ivrQ.isLoading}
+            selectedCdrPkey={null}
+            dialogTurns={dialogQ.data ?? []}
+            dialogLoading={dialogQ.isLoading}
+            onPacketClick={(step) => {
+              const serviceIdRaw = (matchedGroup as { scenarioId?: number })?.scenarioId ?? hop.meta?.serviceId ?? hop.meta?._serviceId;
+              const serviceId = serviceIdRaw != null && Number(serviceIdRaw) !== 0 ? Number(serviceIdRaw) : null;
+              setPacketModalContext({
+                systemId: hopSystemId,
+                serviceId,
+                serviceVer: version !== '-' ? version : null,
+                packetId: step.val3 ?? step.menuId ?? null,
+                trKey: step.val8 ?? null,
+                date: yyyymmdd,
+                dataType: step.rawType,
+                menuName: step.mentName ?? step.menuId,
+                typeNm: step.type,
+              });
+            }}
+          />
+        </div>,
         'IR CDR 정보',
         [
           { k: '서비스', v: serviceName },
@@ -470,27 +571,33 @@ export default function CallDetail() {
         '#DDD3FB',
         '#5b21b6',
       );
-      // IR hop 은 IR CDR + IE CDR 두 탭 — 같은 hop 의 IE CDR 도 함께 표시.
-      // 다른 분기(CTI/AGENT/IE)와 이질감 없게 wrapper 없이 minimal Tabs (tab bar 만 얇게 위에)
-      const dialogCount = (dialogQ.data ?? []).length;
+      // IR hop 은 IR CDR + IE CDR 두 탭 — 대화는 IR CDR 안 sub-tab 으로 통합 (외부 탭에서 제거).
       return (
         <Tabs
-          activeKey={hopSubTab}
-          onChange={(k) => setHopSubTab(k as 'main' | 'ie' | 'dialog')}
+          activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
+          onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
           size="small"
-          tabPosition="bottom"
-          tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
+          tabBarStyle={{ marginBottom: 0, paddingLeft: 12, paddingRight: 12 }}
           items={[
-            { key: 'main', label: 'IR CDR', children: irContent },
-            { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
             {
-              key: 'dialog',
-              label: dialogCount > 0 ? `대화 (${dialogCount})` : '대화',
-              children: (
-                <div className="px-3 pt-2 pb-3">
-                  <DialogView turns={dialogQ.data ?? []} loading={dialogQ.isLoading} />
-                </div>
+              key: 'main',
+              label: (
+                <span className="inline-flex items-center gap-1">
+                  <Bot className="size-3.5" />
+                  IR CDR
+                </span>
               ),
+              children: irContent,
+            },
+            {
+              key: 'ie',
+              label: (
+                <span className="inline-flex items-center gap-1">
+                  <Settings className="size-3.5" />
+                  IE CDR
+                </span>
+              ),
+              children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null,
             },
           ]}
         />
@@ -503,8 +610,30 @@ export default function CallDetail() {
       // 매칭 없으면 빈 표시 (다른 hop 데이터 섞임 방지)
       const allCti = ctiQ.data ?? [];
       const hopCti = allCti.filter((c) => Number(c.meta?._parentHop) === hopNo);
+      const ctiHopSystemId = resolveIeSystemId();
+      const ctiYyyymmdd = (detailQ.data?.header?.startTime ?? hop.startTime ?? '').slice(0, 10).replace(/-/g, '');
       const ctiContent = renderSplit(
-        <CtiRoutingTimeline hops={hopCti} loading={ctiQ.isLoading} />,
+        <div className="flex flex-col">
+          <div className="flex justify-end px-3 pt-2 -mb-1">
+            <button
+              onClick={() =>
+                setSipLogModalContext({
+                  ucid: ucid ?? null,
+                  hop: hopNo,
+                  // AS-IS detailExecute: CTI/AGENT hop SIP 로그는 PBX(IE) 포트에서 가져옴 — IC 장비는 SIP 자체 처리하지 않음
+                  segmentType: 'IE',
+                  systemId: ctiHopSystemId,
+                  callDate: ctiYyyymmdd,
+                })
+              }
+              className="inline-flex items-center gap-1 text-[11px] text-blue-700 hover:bg-blue-50 border border-blue-200 px-2 py-1 rounded transition"
+              title="CTI 장비의 SIP 트랜잭션 시퀀스 (실시간 조회)"
+            >
+              <Radio className="size-3" /> SIP 로그
+            </button>
+          </div>
+          <CtiRoutingTimeline hops={hopCti} loading={ctiQ.isLoading} />
+        </div>,
         'CTI 큐 정보',
         [
           { k: 'Queue', v: (hop.meta?.queueName as string) ?? '-' },
@@ -524,11 +653,28 @@ export default function CallDetail() {
           activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
           onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
           size="small"
-          tabPosition="bottom"
           tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
           items={[
-            { key: 'main', label: 'CTI 큐', children: ctiContent },
-            { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+            {
+              key: 'main',
+              label: (
+                <span className="inline-flex items-center gap-1">
+                  <GitFork className="size-3.5" />
+                  CTI 큐
+                </span>
+              ),
+              children: ctiContent,
+            },
+            {
+              key: 'ie',
+              label: (
+                <span className="inline-flex items-center gap-1">
+                  <Settings className="size-3.5" />
+                  IE CDR
+                </span>
+              ),
+              children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null,
+            },
           ]}
         />
       );
@@ -554,8 +700,50 @@ export default function CallDetail() {
       const matchedByHop = matchedByHopAndAgent.length > 0 ? matchedByHopAndAgent : allAgent.filter((e) => Number((e as { hop?: number | string | null }).hop) === hopNo);
       // fallback 2: hop 도 0건 → 전체 (디버깅 가시성)
       const finalAgent = matchedByHop.length > 0 ? matchedByHop : allAgent;
+      const agentHopSystemId = resolveIeSystemId();
+      const agentYyyymmdd = (detailQ.data?.header?.startTime ?? hop.startTime ?? '').slice(0, 10).replace(/-/g, '');
       const agentContent = renderSplit(
-        <AgentEventTimeline events={finalAgent} loading={agentQ.isLoading} />,
+        <div className="flex flex-col">
+          <div className="flex justify-end px-3 pt-2 -mb-1">
+            <button
+              onClick={() =>
+                setSipLogModalContext({
+                  ucid: ucid ?? null,
+                  hop: hopNo,
+                  // AS-IS detailExecute: AGENT hop SIP 로그도 PBX(IE) 포트
+                  segmentType: 'IE',
+                  systemId: agentHopSystemId,
+                  callDate: agentYyyymmdd,
+                })
+              }
+              className="inline-flex items-center gap-1 text-[11px] text-blue-700 hover:bg-blue-50 border border-blue-200 px-2 py-1 rounded transition"
+              title="CTI 장비의 SIP 트랜잭션 시퀀스 (실시간 조회)"
+            >
+              <Radio className="size-3" /> SIP 로그
+            </button>
+            {recordingHops.includes(hopNo) && (
+              <button
+                onClick={() =>
+                  ucid &&
+                  setRecordingCtx({
+                    ucid,
+                    hop: hopNo,
+                    hopLabel: `AGENT hop ${hopNo}`,
+                    agentName: (hop.meta?.agentName as string) ?? null,
+                    agentId: hop.meta?.agentId ?? null,
+                    ani: (hop.meta?.ani as string) ?? null,
+                    dnis: (hop.meta?.dnis as string) ?? null,
+                  })
+                }
+                className="ml-1 inline-flex items-center gap-1 text-[11px] text-purple-700 hover:bg-purple-50 border border-purple-200 px-2 py-1 rounded transition"
+                title="녹취 청취"
+              >
+                <Headphones className="size-3" /> 청취
+              </button>
+            )}
+          </div>
+          <AgentEventTimeline events={finalAgent} loading={agentQ.isLoading} />
+        </div>,
         '상담사 정보',
         [
           { k: '상담사', v: (hop.meta?.agentName as string) ?? '-' },
@@ -573,11 +761,28 @@ export default function CallDetail() {
           activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
           onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
           size="small"
-          tabPosition="bottom"
           tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
           items={[
-            { key: 'main', label: '상담사', children: agentContent },
-            { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+            {
+              key: 'main',
+              label: (
+                <span className="inline-flex items-center gap-1">
+                  <User className="size-3.5" />
+                  상담사
+                </span>
+              ),
+              children: agentContent,
+            },
+            {
+              key: 'ie',
+              label: (
+                <span className="inline-flex items-center gap-1">
+                  <Settings className="size-3.5" />
+                  IE CDR
+                </span>
+              ),
+              children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null,
+            },
           ]}
         />
       );
@@ -637,9 +842,47 @@ export default function CallDetail() {
       const endIso = hop.startTime && dur > 0 ? new Date(new Date(hop.startTime).getTime() + dur * 1000).toISOString() : null;
       const sysNameDisplay = sysName ?? (sysId != null ? `(${sysId})` : '-');
 
+      const ieYyyymmdd = (detailQ.data?.header?.startTime ?? hop.startTime ?? '').slice(0, 10).replace(/-/g, '');
       return renderSplit(
         <div className="p-4 text-[12.5px] text-gray-600 space-y-3">
-          <div className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">IE 자원 (PBX 처리)</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">IE 자원 (PBX 처리)</div>
+            <button
+              onClick={() =>
+                setSipLogModalContext({
+                  ucid: ucid ?? null,
+                  hop: hopNo,
+                  segmentType: 'IE',
+                  systemId: sysId,
+                  callDate: ieYyyymmdd,
+                })
+              }
+              disabled={sysId == null}
+              className="inline-flex items-center gap-1 text-[11px] text-blue-700 hover:bg-blue-50 border border-blue-200 px-2 py-1 rounded transition disabled:opacity-40 disabled:cursor-not-allowed"
+              title="PBX 장비의 SIP 트랜잭션 시퀀스 (실시간 조회)"
+            >
+              <Radio className="size-3" /> SIP 로그
+            </button>
+            {recordingHops.includes(hopNo) && (
+              <button
+                onClick={() =>
+                  ucid &&
+                  setRecordingCtx({
+                    ucid,
+                    hop: hopNo,
+                    hopLabel: `IE hop ${hopNo}`,
+                    agentName: (hop.meta?.agentName as string) ?? null,
+                    ani: (hop.meta?.ani as string) ?? null,
+                    dnis: (hop.meta?.dnis as string) ?? null,
+                  })
+                }
+                className="ml-1 inline-flex items-center gap-1 text-[11px] text-purple-700 hover:bg-purple-50 border border-purple-200 px-2 py-1 rounded transition"
+                title="녹취 청취"
+              >
+                <Headphones className="size-3" /> 청취
+              </button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px]">
             <div>
               <span className="text-gray-400 mr-2">발신번호</span>
@@ -685,11 +928,19 @@ export default function CallDetail() {
         activeKey={hopSubTab === 'dialog' ? 'main' : hopSubTab}
         onChange={(k) => setHopSubTab(k as 'main' | 'ie')}
         size="small"
-        tabPosition="bottom"
         tabBarStyle={{ marginTop: 0, paddingLeft: 12, paddingRight: 12, borderTop: 'none' }}
         items={[
-          { key: 'main', label: 'IE 자원', children: buildIeMetric() },
-          { key: 'ie', label: 'IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
+          {
+            key: 'main',
+            label: (
+              <span className="inline-flex items-center gap-1">
+                <Settings className="size-3.5" />
+                IE 자원
+              </span>
+            ),
+            children: buildIeMetric(),
+          },
+          { key: 'ie', label: '📋 IE CDR', children: ucid ? <HopIeCdrTab ucid={ucid} hop={hopNo} /> : null },
         ]}
       />
     );
@@ -715,9 +966,7 @@ export default function CallDetail() {
       <div className="flex flex-col gap-4 w-full h-full">
         <div className="bg-white rounded-md border border-gray-200 p-8 text-center shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
           <div className="text-[14px] text-red-600 mb-3">콜 상세 정보를 불러올 수 없습니다.</div>
-          <Button icon={<ArrowLeft className="size-3.5" />} onClick={() => navigate('/ipron/tracking')}>
-            검색으로 돌아가기
-          </Button>
+          <Button onClick={() => navigate('/ipron/tracking')}>← 검색으로 돌아가기</Button>
         </div>
       </div>
     );
@@ -749,16 +998,16 @@ export default function CallDetail() {
               }`}
             >
               {header.result === 'COMPLETED'
-                ? '정상'
+                ? '✅ 정상'
                 : header.result === 'ABANDONED'
-                  ? '포기'
+                  ? '🚪 포기'
                   : header.result === 'DISCONNECTED'
-                    ? '호장애'
+                    ? '🔴 호장애'
                     : header.result === 'IVR_SELF'
-                      ? 'IVR 자가해결'
+                      ? 'IVR 자가'
                       : header.result === 'TRANSFERRED'
                         ? '호전환'
-                        : '미응답'}
+                        : '🔇 미응답'}
             </span>
           )}
           <span className="text-[11.5px] text-gray-500 whitespace-nowrap inline-flex items-center gap-1">
@@ -850,7 +1099,10 @@ export default function CallDetail() {
               {/* 위 — 핵심 메트릭 (콜유형 행 추가로 max-h 늘림, 스크롤 안 생기게) */}
               <div className="flex-shrink-0 max-h-[420px] bg-white rounded-md border border-gray-200 flex flex-col overflow-hidden shadow-[0_1px_2px_0_rgba(56,65,74,0.15)]">
                 <div className="h-[44px] px-4 flex items-center justify-between border-b border-gray-100 flex-shrink-0 bg-gradient-to-b from-white to-gray-50/60">
-                  <div className="text-[13px] font-semibold text-gray-800">핵심 메트릭</div>
+                  <div className="text-[13px] font-semibold text-gray-800 inline-flex items-center gap-1">
+                    <BarChart3 className="size-3.5" />
+                    핵심 메트릭
+                  </div>
                   <div className="text-[10px] text-gray-400 font-mono">콜 전체</div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 py-3">
@@ -864,12 +1116,12 @@ export default function CallDetail() {
                     const ivrStepsCount = (ivrQ.data ?? []).reduce((a, g) => a + ((g as { steps?: unknown[] }).steps?.length ?? 0), 0);
                     const isError = ['DISCONNECTED', 'ABANDONED'].includes(header.result ?? '');
                     const resultLabel: Record<string, { text: string; cls: string }> = {
-                      COMPLETED: { text: '정상 종료', cls: 'text-emerald-700' },
-                      ABANDONED: { text: '고객 포기', cls: 'text-amber-700' },
-                      DISCONNECTED: { text: '호장애', cls: 'text-red-700' },
+                      COMPLETED: { text: '✅ 정상 종료', cls: 'text-emerald-700' },
+                      ABANDONED: { text: '🚪 고객 포기', cls: 'text-amber-700' },
+                      DISCONNECTED: { text: '🔴 호장애', cls: 'text-red-700' },
                       IVR_SELF: { text: 'IVR 자가해결', cls: 'text-blue-700' },
                       TRANSFERRED: { text: '호 전환', cls: 'text-purple-700' },
-                      NORMAL: { text: '정상 종료', cls: 'text-emerald-700' },
+                      NORMAL: { text: '✅ 정상 종료', cls: 'text-emerald-700' },
                     };
                     const r = resultLabel[header.result ?? ''] ?? { text: header.result ?? '-', cls: 'text-gray-700' };
                     const Row = ({ k, v, vCls = 'text-gray-900 font-medium' }: { k: string; v: React.ReactNode; vCls?: string }) => (
@@ -933,7 +1185,7 @@ export default function CallDetail() {
                         </div>
                         {isError && (
                           <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 rounded">
-                            <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">이상 신호</div>
+                            <div className="text-[10px] font-semibold text-amber-700 uppercase tracking-wider mb-1">⚠ 이상 신호</div>
                             <div className="text-[11px] text-amber-900 leading-relaxed">
                               {header.result === 'ABANDONED' && 'CTI 큐 대기 중 고객 포기. 라우팅 정책 / 상담사 풀 점검 권장.'}
                               {header.result === 'DISCONNECTED' && '호 장애로 비정상 종료. 네트워크 / 시스템 로그 확인 필요.'}
@@ -945,6 +1197,9 @@ export default function CallDetail() {
                   })()}
                 </div>
               </div>
+
+              {/* 아래 — 연관 통화 (고객 최근 30일 / 상담사 오늘) */}
+              {ucid && <RelatedCallsPanel currentUcid={ucid} agentId={header.agentId} currentCallStartTime={header.startTime} />}
             </div>
           </div>
         )}
@@ -952,6 +1207,9 @@ export default function CallDetail() {
 
       {/* 패킷 전문 모달 (시나리오 트리의 Packet step 클릭 시) */}
       <PacketLogModal open={packetModalContext != null} onClose={() => setPacketModalContext(null)} context={packetModalContext} />
+      <IrServiceLogModal open={irLogModalContext != null} onClose={() => setIrLogModalContext(null)} context={irLogModalContext} />
+      <SipLogModal open={sipLogModalContext != null} onClose={() => setSipLogModalContext(null)} context={sipLogModalContext} />
+      <RecordingPlaybackSidebar open={recordingCtx != null} onClose={() => setRecordingCtx(null)} context={recordingCtx} />
     </div>
   );
 }

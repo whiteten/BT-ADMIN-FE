@@ -9,7 +9,7 @@
  * AS-IS IPR30S1060.jsp:showMessage 대응.
  */
 import { useEffect, useState } from 'react';
-import { Alert, Empty, Modal, Spin, Tabs, message } from 'antd';
+import { Alert, Empty, Modal, Spin, message } from 'antd';
 import { Copy, Download } from 'lucide-react';
 import { type PacketLogRequest, type PacketLogResponse, packetLogApi } from '../api/packetLogApi';
 
@@ -162,10 +162,10 @@ export default function PacketLogModal({ open, onClose, context }: Props) {
         onClose();
       }}
       footer={null}
-      width={900}
+      width={1280}
       title={
         <div className="flex items-center gap-2">
-          <span className="text-[14px] font-semibold">패킷 전문</span>
+          <span className="text-[14px] font-semibold">📡 패킷 전문</span>
           {context?.packetId && <span className="text-[12px] text-gray-500">/ {context.packetId}</span>}
           {context?.menuName && <span className="text-[12px] text-gray-400">— {context.menuName}</span>}
         </div>
@@ -202,22 +202,21 @@ export default function PacketLogModal({ open, onClose, context }: Props) {
           <Spin tip="IVR 장비 통신 중..." size="large" />
         </div>
       ) : state.kind === 'ready' ? (
-        <Tabs
-          defaultActiveKey="send"
-          size="small"
-          items={[
-            {
-              key: 'send',
-              label: '요청 전문',
-              children: <PacketBody data={state.send} error={state.sendErr} dataType={context?.dataType ?? 3} />,
-            },
-            {
-              key: 'recv',
-              label: '응답 전문',
-              children: <PacketBody data={state.recv} error={state.recvErr} dataType={context?.dataType ?? 3} />,
-            },
-          ]}
-        />
+        // 요청/응답을 좌우 분할 — 동시에 한 화면에서 비교
+        <div className="grid grid-cols-2 gap-3 min-h-0">
+          <section className="flex flex-col min-w-0 border border-gray-200 rounded-md overflow-hidden">
+            <header className="px-3 py-1.5 bg-blue-50 border-b border-blue-100 text-[12px] font-semibold text-blue-700">📤 요청 전문</header>
+            <div className="flex-1 min-h-0 overflow-auto p-2">
+              <PacketBody data={state.send} error={state.sendErr} dataType={context?.dataType ?? 3} />
+            </div>
+          </section>
+          <section className="flex flex-col min-w-0 border border-gray-200 rounded-md overflow-hidden">
+            <header className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100 text-[12px] font-semibold text-emerald-700">📥 응답 전문</header>
+            <div className="flex-1 min-h-0 overflow-auto p-2">
+              <PacketBody data={state.recv} error={state.recvErr} dataType={context?.dataType ?? 3} />
+            </div>
+          </section>
+        </div>
       ) : null}
     </Modal>
   );

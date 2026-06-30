@@ -157,6 +157,60 @@ useEffect(() => {
 }, []);
 ```
 
+## 4. 403 권한 없음(FORBIDDEN) 처리
+
+백엔드는 각 API에 `@PreAuthorize`로 권한을 걸어 권한 없는 요청에 **403 + 응답 본문 `code: "FORBIDDEN"`**(메시지 "접근 권한이 없습니다")을 내려준다. 메뉴가 안 내려온 화면을 URL로 강제 접근해도, 그 안의 데이터 API가 403으로 막아 빈 화면만 노출된다(데이터 유출 아님).
+
+> ⚠️ **403은 CSRF 토큰 만료와 의미가 겹친다.** `apiClient`는 403을 받으면 기본적으로 CSRF 토큰 재발급 후 재시도하는데, 권한 없음 403은 `code === 'FORBIDDEN'`으로 구분해 재발급을 건너뛰고 곧장 에러 핸들러로 보낸다. 이 분기는 `apiClient.ts` + `useApiErrorHandler.ts`에 이미 구현돼 있으니 **api 함수·훅에서 별도 처리할 필요 없다.**
+
+### 기본 동작 (대부분 추가 작업 불필요)
+
+전역 핸들러(`useApiErrorHandler`)가 403 FORBIDDEN을 요청 메서드 기준으로 자동 처리한다:
+
+| 요청 | 기본 동작 | 의미 |
+| --- | --- | --- |
+| **GET** | `/forbidden` 페이지로 이동 | 페이지 진입 조회 거부 = 화면 자체를 못 봄 |
+| **POST/PUT/DELETE 등** | 토스트로만 안내 | 액션 거부 = 화면은 유지 |
+
+대부분은 이 기본값으로 충분하므로 **api 함수·훅에 아무것도 추가하지 않는다.**
+
+### 특정 페이지에서 기본 동작을 뒤집을 때 — `redirectOnForbidden`
+
+기본과 다르게 처리해야 하는 **특정 화면**에서만(POST로 body에 조건을 실어 "조회"하므로 GET처럼 이동시키고 싶다 / GET 부가조회라 이동 막고 토스트만 원한다) 사용처가 `requestConfig.redirectOnForbidden`(boolean)을 주입한다. `ApiRequestConfig`(`@/shared-util`)에 이미 정의돼 있다.
+
+- **명시값 우선, 미지정 시 GET=이동·그 외=토스트.** `false`로 주면 GET이어도 토스트만, `true`로 주면 POST여도 이동.
+- 값은 **항상 사용처(컴포넌트)가 결정**한다. api 함수·훅은 통로로 전달만 하고 값을 하드코딩하지 않는다.
+
+쓸 화면이 없으면 통로도 뚫지 않는다. 필요한 그 한 쌍(api 함수 1곳 + 훅 1곳)만 인라인으로 통로를 추가한다(공용 타입 `QueryHookWithParamsOptions`는 건드리지 않는다):
+
+```typescript
+// ① api 함수 — 두 번째(get/delete) 또는 세 번째(post/put) 인자로 config를 받아 전달만 한다
+import ApiClient, { type ApiResponse, type ApiRequestConfig } from '@/shared-util';
+
+getUsers: async (params?: Record<string, unknown>, config?: ApiRequestConfig) => {
+  const response = await apiClient.get<ApiResponse<{ items: UserListItem[] }>>('/users', { params, ...config });
+  return response.data?.data?.items ?? [];
+},
+
+// ② 훅 — 공용 타입에 인라인 교차(&)로 requestConfig만 더해 받아 전달한다
+import type { ApiRequestConfig } from '@/shared-util';
+
+export const useGetUsers = ({
+  params,
+  queryOptions,
+  requestConfig,
+}: QueryHookWithParamsOptions<UserListItem[]> & { requestConfig?: ApiRequestConfig } = {}) => {
+  return useQuery({
+    queryKey: userQueryKeys.getUsers(params).queryKey,
+    queryFn: () => userApi.getUsers(params, requestConfig),
+    ...queryOptions,
+  });
+};
+
+// ③ 사용처(특정 페이지) — 여기서만 값을 정한다
+useGetUsers({ params, requestConfig: { redirectOnForbidden: false } });
+```
+
 ## 체크리스트
 
 - [ ] `api/<feature>Api.ts`에 함수들을 객체로 묶어 named export 했는가?
@@ -166,4 +220,5 @@ useEffect(() => {
 - [ ] 훅 네이밍이 `useGet<Feature>s` / `useGet<Feature>` / `useCreate/Update/Delete<Feature>` 규약을 따르는가?
 - [ ] 컴포넌트에서 `apiClient`를 직접 import 한 곳은 없는가?
 - [ ] 뮤테이션 후 캐시 무효화가 컴포넌트의 `mutationOptions.onSuccess`에서 처리되는가?
+- [ ] 403 권한 처리는 기본 동작(GET 이동 / 그 외 토스트)으로 충분한가? 기본을 뒤집어야 하는 특정 페이지에서만 `requestConfig.redirectOnForbidden` 통로를 뚫었는가(api 함수·훅에 값 하드코딩 금지)?
 - [ ] 파일 수정 후 `npx eslint --fix <file-path>`를 실행했는가?

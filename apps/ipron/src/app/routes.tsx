@@ -69,6 +69,9 @@ const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssig
 // skillset-master (스킬셋 관리 — SWAT IPR20S5010)
 const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
 
+// agent-schedule (상담사/상담그룹 스케줄 관리 — SWAT IPR20S4010/IPR20S4020 스케줄 탭 통합)
+const AgentScheduleList = React.lazy(() => import('./pages/agent-schedule/AgentScheduleList'));
+
 // device (단말기관리 — SWAT IPR20S2110 + IPR20S2130, 단말모델관리 — IPR20S2120)
 const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
 const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
@@ -80,6 +83,10 @@ const BsrGroupManage = React.lazy(() => import('./pages/bsr-group/BsrGroupManage
 // tracking
 const TrackingSearch = React.lazy(() => import('./pages/tracking/TrackingSearch'));
 const CallDetail = React.lazy(() => import('./pages/tracking/CallDetail'));
+const TrackingAuditPage = React.lazy(() => import('./features/tracking-audit/components/TrackingAuditPage'));
+
+// agent-state-log (상담사 상태 로그 보기 — ipron-tracking-agent-journey)
+const AgentStateLog = React.lazy(() => import('./pages/agent-state-log/AgentStateLog'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('ipron');
@@ -246,6 +253,10 @@ export const routes = [
         element: pv('skillset-master', SkillsetMasterList),
       },
       {
+        path: 'agent-schedule',
+        element: pv('agent-schedule', AgentScheduleList),
+      },
+      {
         path: 'device',
         element: <Outlet />,
         children: [
@@ -286,7 +297,12 @@ export const routes = [
         children: [
           { index: true, element: pv('tracking', TrackingSearch) },
           { path: 'call/:ucid', element: pv('tracking/call/:ucid', CallDetail) },
+          { path: 'agent-state-log', element: pv('tracking/agent-state-log', AgentStateLog) },
         ],
+      },
+      {
+        path: 'tracking-audit',
+        element: <TrackingAuditPage />,
       },
     ],
   },

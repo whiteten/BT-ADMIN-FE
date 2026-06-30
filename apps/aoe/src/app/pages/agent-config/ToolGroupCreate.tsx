@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel';
 import FormSummaryValue from '../../features/shared/components/FormSummaryValue';
 import { toolQueryKeys, useCreateToolGroup } from '../../features/tool/hooks/useToolQueries';
@@ -26,6 +27,7 @@ export default function ToolGroupCreate() {
   const queryClient = useQueryClient();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.TOOL_WRITE));
   const [form] = Form.useForm<FormValues>();
   const formValues = Form.useWatch([], form);
 

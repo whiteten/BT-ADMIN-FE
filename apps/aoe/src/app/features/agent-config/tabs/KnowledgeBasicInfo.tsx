@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, type FormProps, Input, InputNumber, Row, Select } from 'antd';
 import { Log } from '@/log';
+import { useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../../constants/permissions';
 import { knowledgeQueryKeys, useDeleteKnowledge, useGetKnowledge, useUpdateKnowledge } from '../hooks/useKnowledgeQueries';
 import type { KnowledgeUpdateDatas } from '../types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -28,6 +30,7 @@ export default function KnowledgeBasicInfo() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const modal = useModal();
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.KNOWLEDGE_WRITE));
   const [form] = Form.useForm<FormValues>();
   const [searchType, setSearchType] = useState<string>('0');
 
@@ -149,12 +152,12 @@ export default function KnowledgeBasicInfo() {
               </Button>
             </Col>
             <Col>
-              <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn}>
+              <Button color="red" variant="solid" loading={isDeleting} onClick={handleClickDeleteBtn} disabled={!canWrite}>
                 삭제
               </Button>
             </Col>
             <Col>
-              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating}>
+              <Button color="primary" variant="solid" htmlType="submit" loading={isUpdating} disabled={!canWrite}>
                 저장
               </Button>
             </Col>

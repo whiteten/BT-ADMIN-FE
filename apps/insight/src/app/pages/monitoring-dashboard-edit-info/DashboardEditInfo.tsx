@@ -11,7 +11,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DashboardMetaFields from '../../features/monitoring/components/DashboardMetaFields';
 import { dashboardKeys, useGetDashboard, useUpdateDashboard } from '../../features/monitoring/hooks/useDashboardQueries';
-import type { DashboardIconType, DomainCode } from '../../features/monitoring/types';
+import type { DashboardIconType } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function DashboardEditInfo() {
@@ -24,7 +24,7 @@ export default function DashboardEditInfo() {
 
   const [showErrors, setShowErrors] = useState(false);
   const [name, setName] = useState('');
-  const [domain, setDomain] = useState<DomainCode | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [icon, setIcon] = useState<DashboardIconType | null>(null);
   const [description, setDescription] = useState('');
   const [hydrated, setHydrated] = useState(false);
@@ -37,7 +37,7 @@ export default function DashboardEditInfo() {
   useEffect(() => {
     if (dashboard && !hydrated) {
       setName(dashboard.dashboardName);
-      setDomain(dashboard.domainCode);
+      setTags(dashboard.tags ?? []);
       setIcon(dashboard.iconType ?? null);
       setDescription(dashboard.description ?? '');
       setHydrated(true);
@@ -76,6 +76,7 @@ export default function DashboardEditInfo() {
       dashboardId,
       data: {
         dashboardName: name.trim(),
+        tags: tags.length > 0 ? tags : undefined,
         description: description.trim() || undefined,
         iconType: icon,
       },
@@ -106,14 +107,13 @@ export default function DashboardEditInfo() {
             <DashboardMetaFields
               name={name}
               onNameChange={setName}
-              domain={domain}
-              onDomainChange={setDomain}
+              tags={tags}
+              onTagsChange={setTags}
               icon={icon}
               onIconChange={setIcon}
               description={description}
               onDescriptionChange={setDescription}
               showErrors={showErrors}
-              domainLocked
             />
           </div>
 

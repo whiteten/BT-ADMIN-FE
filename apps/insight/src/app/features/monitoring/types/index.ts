@@ -3,16 +3,19 @@
  * 설계서: docs/insight/monitoring/00-OVERVIEW.md, 01-MONITORING.md, 02-MONITORING-UI.md
  */
 
-// ─── 도메인 / 공용 ─────────────────────────────────────────────────────────
+// 차트 표시 옵션은 통계(보고서)와 1:1 동일 — 단일 SoT 위해 report 타입을 재사용.
+import type { BarChartOptions, GridOptions, LineChartOptions, PieChartOptions } from '../../report/types';
 
-export type DomainCode = 'IE' | 'IC' | 'IR';
+export type { BarChartOptions, GridOptions, LineChartOptions, PieChartOptions } from '../../report/types';
+
+// ─── 공용 ─────────────────────────────────────────────────────────
 
 /** 대시보드 카드 아이콘 — 보고서(ReportIconType)와 동일 세트. */
 export type DashboardIconType = 'agent' | 'cti' | 'ivr' | 'channel' | 'system';
 
 export type DashboardStatus = 'DRAFT' | 'PUBLISHED';
 
-export type VizType = 'GRID' | 'BAR' | 'LINE' | 'CARD';
+export type VizType = 'GRID' | 'BAR' | 'LINE' | 'CARD' | 'PIE';
 
 export type KpiDirection = 'HIGHER_BETTER' | 'LOWER_BETTER' | 'NEUTRAL';
 
@@ -20,16 +23,38 @@ export type FieldDataType = 'STRING' | 'NUMBER' | 'DATE' | 'DATETIME' | 'TIME' |
 
 export type ColumnFormat = 'Number' | 'Decimal' | 'Rate' | 'String' | 'Date' | 'Time';
 
-/** 데이터셋 베이스 타입 — XML(Redis) 또는 SQL(DB 직접 쿼리). 어댑터(baseRef)는 BE에서 자동 결정 (M5). */
-export type DatasetBaseType = 'XML' | 'SQL';
+/**
+ * 데이터셋 베이스 타입(소스 종류). 어댑터(baseRef)는 BE에서 자동 결정.
+ * - REDIS: Redis Hash 직접 읽기 (키 패턴 + 트리 탐색으로 컬럼 발견)
+ * - QUERY: 테이블/뷰 SELECT (DB 직접 쿼리)
+ * - EXTERNAL: 외부 API 연동 (미구현 — 고도화 예정)
+ */
+export const DATASET_BASE_TYPE = {
+  REDIS: 'REDIS',
+  QUERY: 'QUERY',
+  EXTERNAL: 'EXTERNAL',
+} as const;
+
+export type DatasetBaseType = (typeof DATASET_BASE_TYPE)[keyof typeof DATASET_BASE_TYPE];
+
+/**
+ * REDIS 값 모드 — Hash 해석 방식.
+ * - JSON_PER_FIELD: value가 JSON. 행=field, 컬럼=value JSON 키
+ * - HASH_AS_ROW: field=지표명·value=스칼라. 행=키, 컬럼=field 이름들
+ */
+export type DatasetValueMode = 'JSON_PER_FIELD' | 'HASH_AS_ROW';
+
+/** REDIS 컬럼 출처. JSON(value JSON 키) / HASH_FIELD(field명) / KEY_SEGMENT(키 세그먼트) / FIELD_SUBKEY(field 위치분해). */
+export type DatasetFieldSource = 'JSON' | 'HASH_FIELD' | 'KEY_SEGMENT' | 'FIELD_SUBKEY';
 
 // ─── 대시보드 (§2) ─────────────────────────────────────────────────────────
 
 export interface DashboardListItem {
   dashboardId: number;
   dashboardName: string;
-  domainCode: DomainCode;
   description?: string;
+  /** 분류·검색용 태그 (보고서와 동일 패턴, 도메인 대체). */
+  tags?: string[];
   /** 목록 카드 아이콘 (보고서와 동일 세트). */
   iconType?: DashboardIconType;
   status: DashboardStatus;
@@ -45,14 +70,17 @@ export interface DashboardListItem {
 
 export interface DashboardCreateDatas {
   dashboardName: string;
-  domainCode: DomainCode;
   description?: string;
+  /** 분류·검색용 태그 (보고서와 동일 패턴). 최대 5개. */
+  tags?: string[];
   iconType?: DashboardIconType;
 }
 
 export interface DashboardUpdateDatas {
   dashboardName?: string;
   description?: string;
+  /** 분류·검색용 태그 (보고서와 동일 패턴). 최대 5개. */
+  tags?: string[];
   status?: DashboardStatus;
   iconType?: DashboardIconType;
 }
@@ -73,15 +101,20 @@ export interface WidgetPosition {
 }
 
 export interface TemplateWidgetMapping {
-  GRID?: { columns: string[] };
-  BAR?: { x: string; y: string[] }; // y max 2 (이중축)
-  LINE?: { x: string; y: string[] }; // x DATE 필수
+  /** 위젯에 바인딩된 데이터셋 id 목록 (1:N). 각 시각화는 이 중 하나를 골라 자기 데이터로 사용. */
+  datasets?: number[];
+  /** 그리드 = 위젯 데이터 뷰의 기준. datasetId=이 시각화의 데이터셋, columns=표시 필드 순서, groupBy=행 그룹화(트리) DIM 필드. options=표시 옵션(합계행). */
+  GRID?: { datasetId?: number; columns: string[]; groupBy?: string[]; options?: GridOptions };
+  BAR?: { datasetId?: number; x: string; y: string[]; options?: BarChartOptions }; // y max 2 (이중축), options=방향·누적·라벨·범례·목표선
+  LINE?: { datasetId?: number; x: string; y: string[]; options?: LineChartOptions }; // x DATE 필수, options=라벨·범례·평균선·목표선
   CARD?: {
+    datasetId?: number;
     measure: string;
     unit?: string;
     kpiDirection?: KpiDirection;
     threshold?: { warn?: number; danger?: number };
   };
+  PIE?: { datasetId?: number; dimension: string; measure: string; donut?: boolean; options?: PieChartOptions }; // 슬라이스 DIM 1 + 값 MSR 1, donut=도넛, options=라벨타입·가운데합계·범례
 }
 
 export interface BaseWidget {
@@ -146,7 +179,8 @@ export type WidgetCategory = 'KPI' | 'CHART' | 'TABLE' | 'STATUS' | 'GENERIC' | 
 export interface CustomWidgetCatalogItem {
   widgetTypeId: string;
   widgetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   description?: string;
   defaultOptions?: Record<string, unknown>;
   /** 기본 settings(JSON) — 사용자 미저장 시 위젯 설정 기본값으로 바인딩됨. */
@@ -169,7 +203,8 @@ export interface CustomWidgetCatalogItem {
 export interface CustomWidgetCatalogUpdateDatas {
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   widgetCategory: WidgetCategory;
   minW: number;
   minH: number;
@@ -184,7 +219,8 @@ export interface TemplateWidgetDefinitionListItem {
   templateWidgetId: number;
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   datasetId: number;
   datasetName?: string;
   visualizations: VizType[];
@@ -206,7 +242,8 @@ export interface TemplateWidgetDefinitionDetail extends TemplateWidgetDefinition
 export interface TemplateWidgetDefinitionCreateDatas {
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   datasetId: number;
   visualizations: VizType[];
   defaultViz: VizType;
@@ -218,13 +255,14 @@ export interface TemplateWidgetDefinitionCreateDatas {
   layoutH?: number;
 }
 
-// ─── 데이터셋 (XML 기반) (§1, §1-A) ─────────────────────────────────────────
+// ─── 데이터셋 (REDIS / QUERY / EXTERNAL) (§1, §1-A) ──────────────────────────
 
 export interface DatasetListItem {
   datasetId: number;
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   baseType: DatasetBaseType;
   fieldCount: number;
   lookupCount: number;
@@ -235,7 +273,7 @@ export interface DatasetListItem {
 
 export interface DatasetField {
   fieldId?: number;
-  columnName: string;
+  fieldName: string;
   classification: 'DIM' | 'MSR';
   displayName: string;
   dataType: FieldDataType;
@@ -244,11 +282,13 @@ export interface DatasetField {
   orderNo: number;
   isVirtual?: boolean; // 룩업 가상 필드 여부
   parentField?: string; // 가상 필드의 부모 코드 필드
+  source?: DatasetFieldSource; // REDIS 컬럼 출처
+  sourceRef?: string; // SOURCE 보조값 (KEY_SEGMENT=세그먼트 인덱스 등)
 }
 
 export interface CalcField {
   calcFieldId?: number;
-  fieldCode: string;
+  fieldName: string;
   displayName: string;
   rowExpression: string;
   columnFormat: ColumnFormat;
@@ -262,11 +302,15 @@ export interface DatasetDetail {
   datasetId: number;
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   baseType: DatasetBaseType;
-  baseRef: string; // adapter id — BE 자동 결정 (XML=redis-hash, SQL=jdbc-query)
+  baseRef: string; // adapter id — BE 자동 결정 (REDIS=redis-hash, QUERY=jdbc-query)
   description?: string;
-  schemaSnapshot: string; // baseType=XML이면 XML 원본, SQL이면 SELECT 문
+  schemaSnapshot: string; // 소스 공통 운반체 — REDIS=키 패턴 / QUERY=SELECT 문 / EXTERNAL=config(JSON, 미구현)
+  valueMode?: DatasetValueMode; // REDIS 전용 — JSON_PER_FIELD / HASH_AS_ROW
+  /** REDIS 전용 — 키 패턴 #변수 바인딩 설정 (JSON 문자열 원문). 그 외 baseType은 BE가 null 강제. */
+  keyVarBindings?: string;
   fields: DatasetField[];
   calcFields: CalcField[];
   lookups: DatasetLookup[];
@@ -277,14 +321,49 @@ export interface DatasetDetail {
 export interface DatasetCreateDatas {
   datasetCode: string;
   datasetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). 최대 5개. */
+  tags?: string[];
   description?: string;
   baseType: DatasetBaseType;
   schemaSnapshot: string;
+  valueMode?: DatasetValueMode; // REDIS 전용 — JSON_PER_FIELD / HASH_AS_ROW
+  /** REDIS 전용 — 키 패턴 #변수 바인딩 설정 (JSON 문자열 원문). 그 외 baseType은 BE가 null 강제. */
+  keyVarBindings?: string;
   fields: DatasetField[];
   calcFields: CalcField[];
   /** 코드 룩업 정의 (N개). 데이터셋과 한 트랜잭션에 저장. */
   lookups: DatasetLookup[];
+}
+
+// ─── 모니터링 설정 (config — 범용 category/key/value) ───────────────────────
+
+/** 모니터링 설정 카테고리 — REDIS_PREFIX(데이터 소스 키 패턴 화이트리스트) 등. */
+export const MON_CONFIG_CATEGORY = {
+  REDIS_PREFIX: 'REDIS_PREFIX',
+} as const;
+export type MonConfigCategory = (typeof MON_CONFIG_CATEGORY)[keyof typeof MON_CONFIG_CATEGORY];
+
+/** 설정 응답 1건. */
+export interface MonConfigItem {
+  configCategory: string;
+  configKey: string;
+  configValue?: string;
+  valueType: string;
+  description?: string;
+  isEnabled: boolean;
+  sortOrder: number;
+  updatedBy?: string;
+  updatedAt?: string;
+}
+
+/** 카테고리 일괄 저장(교체) 항목 — category는 URL path. */
+export interface MonConfigSaveItem {
+  configKey: string;
+  configValue?: string;
+  valueType?: string;
+  description?: string;
+  isEnabled: boolean;
+  sortOrder: number;
 }
 
 // ─── 코드 룩업 (§1-B) ───────────────────────────────────────────────────────
@@ -299,10 +378,14 @@ export type LookupMissPolicy = 'PASSTHROUGH' | 'EMPTY' | 'UNKNOWN';
  */
 export type LookupWhereOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN' | 'NOT IN' | 'IS NULL' | 'IS NOT NULL';
 
+/** WHERE 조건 값의 비교 타입 — 숫자 컬럼은 NUMBER로 캐스팅 비교. 기본 STRING. */
+export type LookupWhereValueType = 'STRING' | 'NUMBER';
+
 export interface LookupWhereCondition {
   column: string;
   operator: LookupWhereOperator;
   values?: string[];
+  valueType?: LookupWhereValueType;
 }
 
 export interface LookupCatalogItem {
@@ -314,6 +397,7 @@ export interface LookupCatalogItem {
   recommendedKey: string;
   recommendedValues: string[];
   whereConditions?: LookupWhereCondition[];
+  tags?: string[];
   registeredBy?: string; // ADMIN 즉석 등록자
   usageCount: number;
 }
@@ -342,6 +426,7 @@ export interface LookupCatalogCreateDatas {
   recommendedKey: string;
   recommendedValues: string[];
   whereConditions?: LookupWhereCondition[];
+  tags?: string[];
 }
 
 export interface DatasetLookupField {

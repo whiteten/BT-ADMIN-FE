@@ -4,8 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Col, Form, Input, InputNumber, Row, Steps, Switch } from 'antd';
 import { Brain, Cpu, type LucideIcon, Server, Sparkles, Wand2, Zap } from 'lucide-react';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import { modelQueryKeys, useDeleteModel, useGetModel, useUpdateModel } from '../../features/agent-config/hooks/useModelQueries';
 import type { ModelDetailItem, ModelDetailUpdateDatas } from '../../features/agent-config/types';
 import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel';
@@ -43,6 +44,7 @@ export default function ModelDetail() {
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.MODEL_WRITE));
   const [form] = Form.useForm<{ modelName: string; apiKey?: string; useYn: 0 | 1 }>();
   const [currentStep, setCurrentStep] = useState(0);
   const [detailChanges, setDetailChanges] = useState<Record<string, ModelDetailUpdateDatas>>({});
@@ -324,7 +326,7 @@ export default function ModelDetail() {
           </Button>
         </Col>
         <Col>
-          <Button color="danger" variant="solid" onClick={handleDelete}>
+          <Button color="danger" variant="solid" onClick={handleDelete} disabled={!canWrite}>
             삭제
           </Button>
         </Col>
@@ -344,7 +346,7 @@ export default function ModelDetail() {
         )}
         {currentStep === 1 && (
           <Col>
-            <Button color="primary" variant="solid" onClick={handleSave} loading={isUpdating}>
+            <Button color="primary" variant="solid" onClick={handleSave} loading={isUpdating} disabled={!canWrite}>
               저장
             </Button>
           </Col>

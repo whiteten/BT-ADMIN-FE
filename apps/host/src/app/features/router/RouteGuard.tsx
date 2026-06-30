@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Log } from '@/log';
 import { useNavigationStore } from '@/shared-store';
-import { toast } from '@/shared-util';
 import { findMenuByLocation, hasAllPermissions } from './lib/menuPermission';
 
 export default function RouteGuard({ children }: { children?: React.ReactNode }) {
@@ -13,15 +13,19 @@ export default function RouteGuard({ children }: { children?: React.ReactNode })
   const allowed = hasAllPermissions(permissions, menu?.permissions);
 
   useEffect(() => {
-    if (allowed && menu) {
-      lastValidPathRef.current = location.pathname + location.search;
-    } else if (!allowed) {
-      toast.warning('접근 권한이 없습니다.');
+    const target = location.pathname + location.search;
+    if (allowed) {
+      lastValidPathRef.current = target;
+    } else {
+      Log.warn('[RouteGuard] 접근 권한 없음 → /forbidden', {
+        from: lastValidPathRef.current ?? '(from is empty)',
+        to: target,
+      });
     }
-  }, [allowed, menu, location.pathname, location.search]);
+  }, [allowed, location.pathname, location.search]);
 
   if (!allowed) {
-    return <Navigate to={lastValidPathRef.current ?? '/'} replace />;
+    return <Navigate to="/forbidden" replace />;
   }
 
   return children ?? <Outlet />;

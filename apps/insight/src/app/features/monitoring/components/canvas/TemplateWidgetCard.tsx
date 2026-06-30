@@ -1,46 +1,30 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import WidgetCardHeader from './WidgetCardHeader';
 import { useGetMonitoringDataset } from '../../hooks/useDatasetQueries';
-import { generateMockRows } from '../../mocks/mockWidgetData';
 import type { KpiDirection, TemplateWidget, VizType } from '../../types';
-import MiniBar from '../preview/MiniBar';
-import MiniCard from '../preview/MiniCard';
-import MiniGrid from '../preview/MiniGrid';
-import MiniLine from '../preview/MiniLine';
+import WidgetBarChart from '../widget/WidgetBarChart';
+import WidgetGrid from '../widget/WidgetGrid';
+import WidgetKpiCard from '../widget/WidgetKpiCard';
+import WidgetLineChart from '../widget/WidgetLineChart';
+import WidgetPieChart from '../widget/WidgetPieChart';
 
 interface TemplateWidgetCardProps {
   widget: TemplateWidget;
   editMode: boolean;
+  /** WebSocket DATA 프레임의 행 배열(키=데이터셋 fieldName). 첫 프레임 도착 전엔 undefined. */
+  data?: unknown;
   onDelete?: () => void;
   draggableClass?: string;
 }
 
-export default function TemplateWidgetCard({ widget, editMode, onDelete, draggableClass }: TemplateWidgetCardProps) {
+export default function TemplateWidgetCard({ widget, editMode, data, onDelete, draggableClass }: TemplateWidgetCardProps) {
   const [currentViz, setCurrentViz] = useState<VizType>(widget.defaultViz);
-  const [jitter, setJitter] = useState(0.5);
 
+  // 데이터셋 정의(스키마)는 컬럼 메타용으로만 사용. 행은 WS 실데이터.
   const { data: detail } = useGetMonitoringDataset({ params: { datasetId: widget.datasetId }, queryOptions: { enabled: !!widget.datasetId, retry: false } });
 
-  // 실시간 갱신 시뮬레이션
-  useEffect(() => {
-    const interval = widget.refreshInterval > 0 ? widget.refreshInterval : 3;
-    const id = setInterval(() => setJitter(Math.random()), interval * 1000);
-    return () => clearInterval(id);
-  }, [widget.refreshInterval]);
-
-  const rows = useMemo(() => generateMockRows(detail, jitter), [detail, jitter]);
-  // 단순화 — Step 2 override를 위젯 카드에서는 비워두고 데이터셋 원본 사용
-  const fieldOverrides = useMemo(() => {
-    if (!detail) return {};
-    const ovr: Record<string, { isVisible: boolean; displayName: string; columnFormat: 'Number' | 'Decimal' | 'Rate' | 'String' | 'Date' | 'Time' }> = {};
-    for (const f of detail.fields) {
-      ovr[f.columnName] = { isVisible: f.isVisible, displayName: f.displayName, columnFormat: f.columnFormat };
-    }
-    for (const c of detail.calcFields) {
-      ovr[c.fieldCode] = { isVisible: true, displayName: c.displayName, columnFormat: c.columnFormat };
-    }
-    return ovr;
-  }, [detail]);
+  // WS 실데이터 행. 첫 프레임 전(undefined)에는 로딩 표시, 빈 배열이면 빈 그리드/차트로 정상 렌더.
+  const rows = Array.isArray(data) ? (data as Record<string, unknown>[]) : undefined;
 
   if (!detail) {
     return (
@@ -55,18 +39,40 @@ export default function TemplateWidgetCard({ widget, editMode, onDelete, draggab
     <div className="flex flex-col h-full bg-white rounded shadow-sm border border-[var(--color-bt-border)] overflow-hidden">
       <WidgetCardHeader widget={widget} currentViz={currentViz} onChangeViz={setCurrentViz} editMode={editMode} onDelete={onDelete} draggableClass={draggableClass} />
       <div className="flex-1 overflow-hidden">
-        {currentViz === 'GRID' && <MiniGrid detail={detail} fieldOverrides={fieldOverrides} columns={widget.mapping.GRID?.columns ?? []} rows={rows} />}
-        {currentViz === 'BAR' && <MiniBar detail={detail} x={widget.mapping.BAR?.x ?? ''} y={widget.mapping.BAR?.y ?? []} rows={rows} />}
-        {currentViz === 'LINE' && <MiniLine detail={detail} x={widget.mapping.LINE?.x ?? ''} y={widget.mapping.LINE?.y ?? []} rows={rows} />}
-        {currentViz === 'CARD' && (
-          <MiniCard
-            detail={detail}
-            measure={widget.mapping.CARD?.measure ?? ''}
-            unit={widget.mapping.CARD?.unit}
-            kpiDirection={(widget.mapping.CARD?.kpiDirection ?? 'NEUTRAL') as KpiDirection}
-            threshold={widget.mapping.CARD?.threshold}
-            rows={rows}
-          />
+        {rows === undefined ? (
+          <div className="h-full flex items-center justify-center text-[12px] text-[var(--color-bt-fg-muted)]">데이터 로딩 중…</div>
+        ) : (
+          <>
+            {currentViz === 'GRID' && (
+              <WidgetGrid detail={detail} columns={widget.mapping.GRID?.columns ?? []} groupBy={widget.mapping.GRID?.groupBy} rows={rows} options={widget.mapping.GRID?.options} />
+            )}
+            {currentViz === 'BAR' && (
+              <WidgetBarChart detail={detail} x={widget.mapping.BAR?.x ?? ''} y={widget.mapping.BAR?.y ?? []} rows={rows} options={widget.mapping.BAR?.options} />
+            )}
+            {currentViz === 'LINE' && (
+              <WidgetLineChart detail={detail} x={widget.mapping.LINE?.x ?? ''} y={widget.mapping.LINE?.y ?? []} rows={rows} options={widget.mapping.LINE?.options} />
+            )}
+            {currentViz === 'CARD' && (
+              <WidgetKpiCard
+                detail={detail}
+                measure={widget.mapping.CARD?.measure ?? ''}
+                unit={widget.mapping.CARD?.unit}
+                kpiDirection={(widget.mapping.CARD?.kpiDirection ?? 'NEUTRAL') as KpiDirection}
+                threshold={widget.mapping.CARD?.threshold}
+                rows={rows}
+              />
+            )}
+            {currentViz === 'PIE' && (
+              <WidgetPieChart
+                detail={detail}
+                dimension={widget.mapping.PIE?.dimension ?? ''}
+                measure={widget.mapping.PIE?.measure ?? ''}
+                donut={widget.mapping.PIE?.donut}
+                rows={rows}
+                options={widget.mapping.PIE?.options}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

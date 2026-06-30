@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { createElement, useMemo } from 'react';
 import { type GridOptions, type SideBarDef, type StatusPanelDef, themeQuartz } from 'ag-grid-community';
 import { localeKr } from '../assets/json/aggrid_kr';
 import AggridAlarmLevelRenderer from '../components/custom/AggridAlarmLevelRenderer';
@@ -10,6 +10,13 @@ import AggridPagination from '../components/custom/AggridPagination';
 import AggridPercentBarRenderer from '../components/custom/AggridPercentBarRenderer';
 import AggridRowDataSidebar from '../components/custom/AggridRowDataSidebar';
 import { FallbackSpinner } from '../components/custom/FallbackSpinner';
+
+/**
+ * AG-Grid 로딩 오버레이 래퍼 — AG-Grid가 커스텀 오버레이에 주입하는 내부 prop(reactContainer 등)이
+ * FallbackSpinner → Spinner → svg(DOM)로 새어나가 React 경고("does not recognize the `reactContainer` prop")가
+ * 발생하는 것을 막는다. AG-Grid가 넘기는 props를 받지 않고 FallbackSpinner를 그대로 렌더.
+ */
+const GridLoadingOverlay = () => createElement(FallbackSpinner);
 
 export default function useAggridOptions() {
   // theme도 useMemo로 메모이제이션 (무한 리렌더링 방지)
@@ -109,7 +116,7 @@ export default function useAggridOptions() {
       noRowsOverlayComponentParams: {
         message: '검색된 데이터가 없습니다.',
       },
-      loadingOverlayComponent: FallbackSpinner,
+      loadingOverlayComponent: GridLoadingOverlay,
       localeText: localeKr,
       tooltipShowDelay: 0,
       tooltipHideDelay: 10000,

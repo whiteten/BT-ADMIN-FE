@@ -19,6 +19,8 @@ export interface Role {
   permissionCount?: number;
   userCount?: number;
   authKeys?: string[];
+  /** 화면에서 readonly(체크 고정·비활성) 처리할 권한 KEY. 시스템 관리자 역할의 IAM 핵심 권한 등. BE가 판단해 내려준다. */
+  lockedAuthKeys?: string[];
   createdAt?: string;
   createdBy?: number;
   updatedAt?: string;

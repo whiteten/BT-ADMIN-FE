@@ -65,6 +65,8 @@ export default function AcdGdnList() {
   const [memberSearch, setMemberSearch] = useState('');
   const [memberQuickFilter, setMemberQuickFilter] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<GdnMemberResponse[]>([]);
+  // 교차테넌트 방지: GDN row 선택 시 그 tenantId 로 멤버 풀을 좁힘. 선택 해제 시 null(전체 복귀).
+  const [lockedTenantId, setLockedTenantId] = useState<number | null>(null);
 
   // Drawer
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -196,6 +198,19 @@ export default function AcdGdnList() {
     if (kw) rows = rows.filter((g) => g.gdnNo.toLowerCase().includes(kw) || (g.gdnName ?? '').toLowerCase().includes(kw));
     return rows;
   }, [gdns, viewMode, selectedNodeId, selectedTenantId, selectedCardId, acdTypeFilter, gdnSearch]);
+
+  // 카드 전환 시 잠금 초기화 (전체↔특정테넌트 전환 시 이전 잠금이 잔류하지 않도록)
+  useEffect(() => {
+    setLockedTenantId(null);
+    setSelectedMembers([]);
+  }, [selectedCardId]);
+
+  // 선택이 모두 빈 배열이 되면 lockedTenantId 를 해제
+  useEffect(() => {
+    if (selectedMembers.length === 0) {
+      setLockedTenantId(null);
+    }
+  }, [selectedMembers]);
 
   // ─── Auto-select ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -455,6 +470,13 @@ export default function AcdGdnList() {
     const row = rows.length > 0 ? rows[0] : null;
     setSelectedGdn(row);
     setSelectedMembers([]);
+    // 전체보기(selectedCardId === null) 에서 GDN 선택 시 그 tenantId 로 멤버 풀 잠금.
+    // 단일테넌트 선택 시에는 어차피 같은 테넌트라 필터 무영향.
+    if (row != null) {
+      setLockedTenantId(row.tenantId ?? null);
+    } else {
+      setLockedTenantId(null);
+    }
   }, []);
 
   // ─── 멤버 컨텍스트 칩 ─────────────────────────────────────────────────────
@@ -467,6 +489,13 @@ export default function AcdGdnList() {
 
   const assignedSelCount = selectedMembers.filter((m) => m.assigned).length;
   const unassignedSelCount = selectedMembers.filter((m) => !m.assigned).length;
+
+  // 전체보기에서 GDN row 선택 시 그 tenantId 로 멤버 풀 좁힘 (교차테넌트 배정 방지).
+  // lockedTenantId === null 이면 전체 반환 (단일테넌트 선택 상태 or 미선택).
+  const filteredMemberPool = useMemo(() => {
+    if (lockedTenantId == null) return memberPool;
+    return memberPool.filter((m) => m.tenantId === lockedTenantId);
+  }, [memberPool, lockedTenantId]);
 
   const tenantOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName })), [tenants]);
   // NUM-001: 노드 옵션 — 할당된 노드만 (DnForm:nodeOptions 패턴 정합)
@@ -700,7 +729,7 @@ export default function AcdGdnList() {
                   </SegBtn>
                 </div>
                 <span className="text-xs text-gray-400">
-                  총<strong className="ml-1 text-[#405189]">{selectedGdn ? memberPool.length.toLocaleString() : '-'}</strong>건
+                  총<strong className="ml-1 text-[#405189]">{selectedGdn ? filteredMemberPool.length.toLocaleString() : '-'}</strong>건
                 </span>
                 <Input
                   size="small"
@@ -726,7 +755,7 @@ export default function AcdGdnList() {
             ) : (
               <div className="flex-1 min-h-0 ag-theme-quartz">
                 <MemberGridWithFilter
-                  rowData={memberPool}
+                  rowData={filteredMemberPool}
                   isLoading={isMembersLoading}
                   quickFilter={memberQuickFilter}
                   onSelectionChanged={setSelectedMembers}

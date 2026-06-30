@@ -10,14 +10,15 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Empty, Input, Switch } from 'antd';
-import { ChevronLeft, ChevronRight, Pencil, Play, Plus, Search } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { type BreadcrumbProps, Button, Empty, Input, Select, Switch } from 'antd';
+import { ChevronLeft, ChevronRight, Copy, Pencil, Play, Plus, Search } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import CopyPolicyToTenantModal, { type CopyPolicyToTenantModalRef } from '../../features/mask-policy/components/CopyPolicyToTenantModal';
 import MaskCategoryEditModal, { type MaskCategoryEditModalRef } from '../../features/mask-policy/components/MaskCategoryEditModal';
 import MaskPolicyDrawer, { type MaskPolicyDrawerRef } from '../../features/mask-policy/components/MaskPolicyDrawer';
 import MaskTestModal, { type MaskTestModalRef } from '../../features/mask-policy/components/MaskTestModal';
-import { useDeleteCategory, useDeletePolicy, useGetCategories, useGetPolicies } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
+import { useDeletePolicy, useGetCategories, useGetPolicies, useGetTenantsForMask } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
 import { type MaskCategoryConfig, type MaskPolicy, RULE_TYPE_OPTIONS } from '../../features/mask-policy/types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -65,27 +66,28 @@ export default function MaskPolicyManagement() {
   // ─── State ────────────────────────────────────────────────────────────────
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  // 카테고리/정책은 항상 특정 테넌트 소속. 기본값 = 로그인 사용자 tenant. 시스템 어드민은 select 로 변경 가능.
+  const userTenantId = useAuthStore((s) => (s.userInfo?.tenant ? Number(s.userInfo.tenant) : null));
+  const [viewerTenantId, setViewerTenantId] = useState<number | null>(userTenantId);
+  useEffect(() => {
+    if (viewerTenantId == null && userTenantId != null) setViewerTenantId(userTenantId);
+  }, [userTenantId, viewerTenantId]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const categoryEditRef = useRef<MaskCategoryEditModalRef>(null);
   const policyDrawerRef = useRef<MaskPolicyDrawerRef>(null);
   const testModalRef = useRef<MaskTestModalRef>(null);
+  const copyToTenantRef = useRef<CopyPolicyToTenantModalRef>(null);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: categories = [], isLoading: isCategoriesLoading, refetch: refetchCategories } = useGetCategories();
-  const { data: policies = [], isLoading: isPoliciesLoading, refetch: refetchPolicies } = useGetPolicies(selectedCategory);
+  const { data: categories = [], isLoading: isCategoriesLoading, refetch: refetchCategories } = useGetCategories(viewerTenantId);
+  const { data: policies = [], isLoading: isPoliciesLoading, refetch: refetchPolicies } = useGetPolicies(selectedCategory, viewerTenantId);
+  const { data: tenants = [] } = useGetTenantsForMask();
+  const tenantOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: `${t.tenantName} (${t.tenantId})` })), [tenants]);
 
   // ─── Mutations ────────────────────────────────────────────────────────────
-  const { mutate: deleteCategory } = useDeleteCategory({
-    mutationOptions: {
-      onSuccess: () => {
-        toast.success('카테고리가 삭제되었습니다.');
-        setSelectedCategory(null);
-      },
-    },
-  });
-
+  // 카테고리 추가/삭제는 SSOT(코드 어노테이션) 기반이라 운영자 불가 — TenantSeedService 자동 INSERT.
   const { mutate: deletePolicy } = useDeletePolicy({
     mutationOptions: {
       onSuccess: () => {
@@ -126,23 +128,8 @@ export default function MaskPolicyManagement() {
     setSelectedCategory(cat);
   };
 
-  const handleCreateCategory = () => {
-    categoryEditRef.current?.open('create');
-  };
-
   const handleEditCategory = () => {
     if (selectedConfig) categoryEditRef.current?.open('edit', selectedConfig);
-  };
-
-  const handleDeleteCategory = () => {
-    if (!selectedConfig) return;
-    modal.confirm.execute({
-      onOk: () => deleteCategory(selectedConfig.configId),
-      options: {
-        title: '카테고리 삭제',
-        content: `"${selectedConfig.label}" 카테고리를 삭제하시겠습니까?\n해당 카테고리의 모든 패턴 정책도 함께 삭제됩니다.`,
-      },
-    });
   };
 
   const handleCreatePolicy = () => {
@@ -232,7 +219,7 @@ export default function MaskPolicyManagement() {
       {
         headerName: '',
         colId: 'actions',
-        width: 90,
+        width: 120,
         sortable: false,
         filter: false,
         suppressHeaderMenuButton: true,
@@ -250,6 +237,16 @@ export default function MaskPolicyManagement() {
                 title="편집"
               >
                 <Pencil className="size-4 text-gray-500 hover:text-blue-600 hover:cursor-pointer" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  copyToTenantRef.current?.open(p.data!);
+                }}
+                title="테넌트로 복사"
+              >
+                <Copy className="size-4 text-gray-500 hover:text-emerald-600 hover:cursor-pointer" />
               </button>
               <button
                 type="button"
@@ -283,6 +280,20 @@ export default function MaskPolicyManagement() {
               <span className="text-[13px] font-semibold text-gray-700">카테고리</span>
               <span className="text-[11px] text-gray-400">{filteredCategories.length}</span>
             </div>
+            {/* 테넌트 선택 — 기본값=본인 tenant. 시스템 어드민만 다른 테넌트 선택 가능 */}
+            <div className="ml-3 flex items-center gap-1.5">
+              <span className="text-[11px] text-gray-500">테넌트:</span>
+              <Select
+                size="small"
+                showSearch
+                placeholder="테넌트 선택"
+                value={viewerTenantId ?? undefined}
+                onChange={(v) => setViewerTenantId(typeof v === 'number' ? v : null)}
+                options={tenantOptions}
+                optionFilterProp="label"
+                style={{ width: 240 }}
+              />
+            </div>
             <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
@@ -292,9 +303,6 @@ export default function MaskPolicyManagement() {
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateCategory}>
-                카테고리 추가
-              </Button>
             </div>
           </div>
 
@@ -409,14 +417,9 @@ export default function MaskPolicyManagement() {
                 {selectedConfig ? `${CATEGORY_ICONS[selectedConfig.category] ?? '🔒'} ${selectedConfig.label} (${selectedConfig.category}) 설정` : '카테고리 설정'}
               </div>
               {selectedConfig && (
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={handleEditCategory} className="text-[11px] text-[#405189] hover:underline px-1">
-                    편집
-                  </button>
-                  <button type="button" onClick={handleDeleteCategory} className="text-[11px] text-red-500 hover:underline px-1">
-                    삭제
-                  </button>
-                </div>
+                <button type="button" onClick={handleEditCategory} className="text-[11px] text-[#405189] hover:underline px-1">
+                  편집
+                </button>
               )}
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -547,6 +550,7 @@ export default function MaskPolicyManagement() {
         <MaskPolicyDrawer
           ref={policyDrawerRef}
           category={selectedCategory}
+          targetTenantId={viewerTenantId}
           onSuccess={() => {
             refetchPolicies();
             refetchCategories();
@@ -554,6 +558,7 @@ export default function MaskPolicyManagement() {
         />
       )}
       <MaskTestModal ref={testModalRef} categories={categories} />
+      <CopyPolicyToTenantModal ref={copyToTenantRef} />
     </div>
   );
 }

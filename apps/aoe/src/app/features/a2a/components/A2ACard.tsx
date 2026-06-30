@@ -10,10 +10,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 type A2ACardProps = A2AItem & {
   onDetail?: (a2aId: string) => void;
   onDelete?: (a2a: A2AItem) => void;
+  canWrite?: boolean;
 };
 
 export default function A2ACard(props: A2ACardProps) {
-  const { a2aId, agentName, agentDescription, skills, workTime, onDetail, onDelete } = props;
+  const { a2aId, agentName, agentDescription, skills, workTime, onDetail, onDelete, canWrite = false } = props;
   const navigate = useNavigate();
 
   const handleClick = () => (onDetail ? onDetail(a2aId) : navigate(`../${a2aId}`));
@@ -42,7 +43,7 @@ export default function A2ACard(props: A2ACardProps) {
           <DropdownMenuItem onClick={handleClick} className="hover:cursor-pointer">
             상세보기
           </DropdownMenuItem>
-          {onDelete && (
+          {canWrite && onDelete && (
             <DropdownMenuItem onClick={() => onDelete({ a2aId, agentName, agentDescription, skills, workTime } as A2AItem)} className="hover:cursor-pointer">
               삭제
             </DropdownMenuItem>
