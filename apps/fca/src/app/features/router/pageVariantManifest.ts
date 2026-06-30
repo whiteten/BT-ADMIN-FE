@@ -1,4 +1,3 @@
-import { botListVariants } from '../../pages/bot-config/BotList.variants';
 import type { PageVariantManifestConfig } from '@/components/custom/DynamicElement';
 
 /**
@@ -11,6 +10,4 @@ import type { PageVariantManifestConfig } from '@/components/custom/DynamicEleme
  *
  * MF './PageVariantManifest'로 host에 노출되며, host는 메타만 추출해 picker UI에서 사용한다.
  */
-export const pageVariantManifest: Record<string, PageVariantManifestConfig> = {
-  [botListVariants.path]: botListVariants,
-};
+export const pageVariantManifest: Record<string, PageVariantManifestConfig> = {};
