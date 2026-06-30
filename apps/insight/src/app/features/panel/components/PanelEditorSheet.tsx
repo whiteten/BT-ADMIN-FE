@@ -402,8 +402,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     const chartOptions = buildChartOptions();
     const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title: trimmedTitle, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
     if (isDraft) {
-      addPanel({ panelId: -Date.now(), reportId: 0, ...data });
-      toast.success('패널이 추가되었습니다.');
+      // 기존 드래프트 패널 재편집이면 제자리 수정(중복 생성 방지), 신규면 추가
+      if (isEdit && panelId) {
+        storeUpdatePanel(panelId, data);
+        toast.success('패널이 수정되었습니다.');
+      } else {
+        addPanel({ panelId: -Date.now(), reportId: 0, ...data });
+        toast.success('패널이 추가되었습니다.');
+      }
       onSaved?.();
       onClose();
       return;
