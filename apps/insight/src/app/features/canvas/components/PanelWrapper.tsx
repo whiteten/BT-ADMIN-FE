@@ -36,7 +36,16 @@ export default function PanelWrapper({ panel, reportId, mode, onEdit, draggableC
 
   const handleDelete = () => {
     modal.confirm.delete({
-      onOk: () => deletePanel({ reportId, panelId: panel.panelId }),
+      onOk: () => {
+        // 드래프트(미저장 보고서 reportId=0 또는 임시 패널 panelId<0)는 서버에 없으므로
+        // API 삭제(보고서 0 조회 실패) 대신 스토어에서만 제거한다.
+        if (reportId === 0 || panel.panelId < 0) {
+          removePanel(panel.panelId);
+          toast.success('패널이 삭제되었습니다.');
+          return;
+        }
+        deletePanel({ reportId, panelId: panel.panelId });
+      },
     });
   };
 
