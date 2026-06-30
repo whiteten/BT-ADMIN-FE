@@ -10,10 +10,13 @@ import WidgetGrid from './WidgetGrid';
 import WidgetKpiCard from './WidgetKpiCard';
 import WidgetLineChart from './WidgetLineChart';
 import WidgetPieChart from './WidgetPieChart';
+import TagInput from '../../../../components/TagInput';
 import { KPI_DIRECTION_LABELS, VIZ_ICON, VIZ_LABELS } from '../../constants/monitoringConstants';
 import { useGetMonitoringDataset, useGetMonitoringDatasets } from '../../hooks/useDatasetQueries';
-import { generateMockRows } from '../../mocks/mockWidgetData';
-import type { DatasetDetail, KpiDirection, TemplateWidgetMapping, VizType } from '../../types';
+import type { BarChartOptions, DatasetDetail, GridOptions, KpiDirection, LineChartOptions, PieChartOptions, TemplateWidgetMapping, VizType } from '../../types';
+
+// 미리보기는 설정 구조만 보여준다 — 데이터는 표시하지 않음(통계 보고서와 동일).
+const EMPTY_ROWS: Record<string, unknown>[] = [];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +31,8 @@ interface FieldInfo {
 
 export interface TemplateWidgetEditorInitial {
   widgetName?: string;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   /** 구버전(단일 데이터셋) 호환용 — mapping.datasets / viz.datasetId 가 없을 때 폴백. */
   datasetId?: number;
   visualizations?: VizType[];
@@ -40,6 +45,8 @@ export interface TemplateWidgetEditorInitial {
 
 export interface TemplateWidgetEditorSaveDatas {
   widgetName: string;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags: string[];
   /** BE 엔티티/목록 표시용 대표 데이터셋 (기본 시각화의 데이터셋, 없으면 첫 바인딩). */
   datasetId: number;
   visualizations: VizType[];
@@ -83,13 +90,14 @@ function normalizeMapping(m?: TemplateWidgetMapping, fallbackDatasetId?: number)
   const src = m ?? {};
   const datasets = src.datasets && src.datasets.length > 0 ? [...src.datasets] : fallbackDatasetId != null ? [fallbackDatasetId] : [];
   const fb = (id?: number) => id ?? fallbackDatasetId ?? datasets[0];
+  // 표시 옵션(options)은 통계와 동일 키 — 불투명 JSON 으로 보존(라운드트립).
   const next: TemplateWidgetMapping = {
     datasets,
-    GRID: { datasetId: fb(src.GRID?.datasetId), columns: src.GRID?.columns ?? [], groupBy: src.GRID?.groupBy ?? [] },
+    GRID: { datasetId: fb(src.GRID?.datasetId), columns: src.GRID?.columns ?? [], groupBy: src.GRID?.groupBy ?? [], options: src.GRID?.options },
   };
-  if (src.BAR) next.BAR = { datasetId: fb(src.BAR.datasetId), x: src.BAR.x ?? '', y: src.BAR.y ?? [] };
-  if (src.LINE) next.LINE = { datasetId: fb(src.LINE.datasetId), x: src.LINE.x ?? '', y: src.LINE.y ?? [] };
-  if (src.PIE) next.PIE = { datasetId: fb(src.PIE.datasetId), dimension: src.PIE.dimension ?? '', measure: src.PIE.measure ?? '', donut: src.PIE.donut };
+  if (src.BAR) next.BAR = { datasetId: fb(src.BAR.datasetId), x: src.BAR.x ?? '', y: src.BAR.y ?? [], options: src.BAR.options };
+  if (src.LINE) next.LINE = { datasetId: fb(src.LINE.datasetId), x: src.LINE.x ?? '', y: src.LINE.y ?? [], options: src.LINE.options };
+  if (src.PIE) next.PIE = { datasetId: fb(src.PIE.datasetId), dimension: src.PIE.dimension ?? '', measure: src.PIE.measure ?? '', donut: src.PIE.donut, options: src.PIE.options };
   if (src.CARD)
     next.CARD = {
       datasetId: fb(src.CARD.datasetId),
@@ -157,6 +165,7 @@ function EmptyHint({ text }: { text: string }) {
 
 export default function TemplateWidgetEditor({ initialDatasetId, initial, onCancel, onSave, saving }: TemplateWidgetEditorProps) {
   const [widgetName, setWidgetName] = useState(initial?.widgetName ?? '');
+  const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [mapping, setMapping] = useState<TemplateWidgetMapping>(() => normalizeMapping(initial?.mapping, initial?.datasetId ?? initialDatasetId));
   const [visualizations, setVisualizations] = useState<VizType[]>(initial?.visualizations?.length ? initial.visualizations : ['GRID']);
   const [defaultViz, setDefaultViz] = useState<VizType>(initial?.defaultViz ?? initial?.visualizations?.[0] ?? 'GRID');
@@ -292,13 +301,13 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
       const id = m[currentEditViz]?.datasetId;
       switch (currentEditViz) {
         case 'GRID':
-          return { ...m, GRID: { datasetId: id, columns: [], groupBy: [] } };
+          return { ...m, GRID: { datasetId: id, columns: [], groupBy: [], options: m.GRID?.options } };
         case 'BAR':
-          return { ...m, BAR: { datasetId: id, x: '', y: [] } };
+          return { ...m, BAR: { datasetId: id, x: '', y: [], options: m.BAR?.options } };
         case 'LINE':
-          return { ...m, LINE: { datasetId: id, x: '', y: [] } };
+          return { ...m, LINE: { datasetId: id, x: '', y: [], options: m.LINE?.options } };
         case 'PIE':
-          return { ...m, PIE: { datasetId: id, dimension: '', measure: '', donut: false } };
+          return { ...m, PIE: { datasetId: id, dimension: '', measure: '', donut: false, options: m.PIE?.options } };
         case 'CARD':
           return { ...m, CARD: { datasetId: id, measure: '', unit: '', kpiDirection: 'NEUTRAL', threshold: {} } };
         default:
@@ -309,8 +318,27 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
   const selectAllGridColumns = () =>
     setMapping((m) => ({
       ...m,
-      GRID: { datasetId: m.GRID?.datasetId, columns: [...baseDims, ...baseMsrs, ...calcFields].map((f) => f.fieldName), groupBy: m.GRID?.groupBy },
+      GRID: { datasetId: m.GRID?.datasetId, columns: [...baseDims, ...baseMsrs, ...calcFields].map((f) => f.fieldName), groupBy: m.GRID?.groupBy, options: m.GRID?.options },
     }));
+
+  // ─── 표시 옵션 patch (통계 PanelEditorSheet 옵션과 동일 키 — mapping[viz].options 에 보존) ──
+  const patchGridOptions = (partial: Partial<GridOptions>) =>
+    setMapping((m) => ({
+      ...m,
+      GRID: { datasetId: m.GRID?.datasetId, columns: m.GRID?.columns ?? [], groupBy: m.GRID?.groupBy, options: { ...(m.GRID?.options ?? {}), ...partial } },
+    }));
+  const patchBarLineOptions = (kind: 'BAR' | 'LINE', partial: Partial<BarChartOptions & LineChartOptions>) =>
+    setMapping((m) => {
+      const e = m[kind];
+      if (!e) return m;
+      return { ...m, [kind]: { ...e, options: { ...(e.options ?? {}), ...partial } } };
+    });
+  const patchPieOptions = (partial: Partial<PieChartOptions>) =>
+    setMapping((m) => {
+      const e = m.PIE;
+      if (!e) return m;
+      return { ...m, PIE: { ...e, options: { ...(e.options ?? {}), ...partial } } };
+    });
 
   // ─── 팔레트 체크 토글 (현재 viz 기준) ─────────────────────────────────────────
   const usedFieldsForCurrent = (): Set<string> => {
@@ -409,27 +437,28 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
     if (visualizations.length > 0 && !visualizations.includes(defaultViz)) setDefaultViz(visualizations[0]);
   }, [visualizations, defaultViz]);
 
-  // ─── Live preview ─────────────────────────────────────────────────────────────
-  const [jitter, setJitter] = useState(0.5);
-  useEffect(() => {
-    if (refreshInterval <= 0) return;
-    const id = setInterval(() => setJitter(Math.random()), refreshInterval * 1000);
-    return () => clearInterval(id);
-  }, [refreshInterval]);
-  const rows = useMemo(() => generateMockRows(detail, jitter), [detail, jitter]);
-
+  // ─── Preview (구성만 표시 — 데이터 없음) ─────────────────────────────────────────
   const previewKey = `${currentEditViz}:${currentVizDatasetId ?? ''}:${JSON.stringify(mapping[currentEditViz])}`;
 
   const renderPreview = (d: DatasetDetail) => {
     switch (currentEditViz) {
       case 'GRID':
-        return <WidgetGrid detail={d} columns={mapping.GRID?.columns ?? []} groupBy={mapping.GRID?.groupBy} rows={rows} />;
+        return <WidgetGrid detail={d} columns={mapping.GRID?.columns ?? []} groupBy={mapping.GRID?.groupBy} rows={EMPTY_ROWS} options={mapping.GRID?.options} />;
       case 'BAR':
-        return <WidgetBarChart detail={d} x={mapping.BAR?.x ?? ''} y={mapping.BAR?.y ?? []} rows={rows} />;
+        return <WidgetBarChart detail={d} x={mapping.BAR?.x ?? ''} y={mapping.BAR?.y ?? []} rows={EMPTY_ROWS} options={mapping.BAR?.options} />;
       case 'LINE':
-        return <WidgetLineChart detail={d} x={mapping.LINE?.x ?? ''} y={mapping.LINE?.y ?? []} rows={rows} />;
+        return <WidgetLineChart detail={d} x={mapping.LINE?.x ?? ''} y={mapping.LINE?.y ?? []} rows={EMPTY_ROWS} options={mapping.LINE?.options} />;
       case 'PIE':
-        return <WidgetPieChart detail={d} dimension={mapping.PIE?.dimension ?? ''} measure={mapping.PIE?.measure ?? ''} donut={mapping.PIE?.donut} rows={rows} />;
+        return (
+          <WidgetPieChart
+            detail={d}
+            dimension={mapping.PIE?.dimension ?? ''}
+            measure={mapping.PIE?.measure ?? ''}
+            donut={mapping.PIE?.donut}
+            rows={EMPTY_ROWS}
+            options={mapping.PIE?.options}
+          />
+        );
       case 'CARD':
         return (
           <WidgetKpiCard
@@ -438,7 +467,7 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
             unit={mapping.CARD?.unit}
             kpiDirection={(mapping.CARD?.kpiDirection ?? 'NEUTRAL') as KpiDirection}
             threshold={mapping.CARD?.threshold}
-            rows={rows}
+            rows={EMPTY_ROWS}
           />
         );
       default:
@@ -465,7 +494,7 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
     const primaryDatasetId = mapping[defaultViz]?.datasetId ?? visualizations.map((v) => mapping[v]?.datasetId).find((id): id is number => id != null);
     if (primaryDatasetId == null) return;
     const finalMapping: TemplateWidgetMapping = { ...mapping, datasets: deriveDatasets(mapping) };
-    onSave({ widgetName: widgetName.trim(), datasetId: primaryDatasetId, visualizations, defaultViz, mapping: finalMapping, refreshInterval, layoutW, layoutH });
+    onSave({ widgetName: widgetName.trim(), tags, datasetId: primaryDatasetId, visualizations, defaultViz, mapping: finalMapping, refreshInterval, layoutW, layoutH });
   };
 
   // ─── 좌측 팔레트 ───────────────────────────────────────────────────────────────
@@ -675,6 +704,15 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
             )}
           </div>
         </SlotCard>
+
+        {/* 표시 옵션 (통계 GridOptions 동일) */}
+        <SlotCard badge="O" title="표시 옵션" subtitle="— 합계 행">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">합계 행</span>
+            <span className="text-xs text-[var(--color-bt-fg-muted)]">— 하단 고정</span>
+            <Switch className="ml-auto" checked={mapping.GRID?.options?.showSumRow ?? false} onChange={(v) => patchGridOptions({ showSumRow: v })} />
+          </div>
+        </SlotCard>
       </>
     );
   };
@@ -729,6 +767,73 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
               />
             ) : (
               conf.y.length === 0 && <EmptyHint text="MSR 필드를 Y축으로 추가" />
+            )}
+          </div>
+        </SlotCard>
+
+        {/* 표시 옵션 (통계 Bar/LineChartOptions 동일) */}
+        <SlotCard badge="O" title="표시 옵션" subtitle={kind === 'BAR' ? '— 방향·누적·라벨·범례·목표선' : '— 라벨·범례·평균선·목표선'}>
+          <div className="space-y-2">
+            {kind === 'BAR' && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">방향</span>
+                  <Segmented
+                    className="ml-auto"
+                    size="small"
+                    value={(conf.options as BarChartOptions | undefined)?.direction ?? 'vertical'}
+                    onChange={(v) => patchBarLineOptions('BAR', { direction: v as 'vertical' | 'horizontal' })}
+                    options={[
+                      { value: 'vertical', label: '수직' },
+                      { value: 'horizontal', label: '수평' },
+                    ]}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">누적</span>
+                  <span className="text-xs text-[var(--color-bt-fg-muted)]">— 시리즈 쌓기</span>
+                  <Switch
+                    className="ml-auto"
+                    checked={(conf.options as BarChartOptions | undefined)?.style === 'stacked'}
+                    onChange={(v) => patchBarLineOptions('BAR', { style: v ? 'stacked' : 'simple' })}
+                  />
+                </div>
+              </>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">데이터 라벨</span>
+              <Switch className="ml-auto" checked={conf.options?.dataLabel ?? false} onChange={(v) => patchBarLineOptions(kind, { dataLabel: v })} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">범례</span>
+              <Switch className="ml-auto" checked={conf.options?.legend ?? conf.y.length > 1} onChange={(v) => patchBarLineOptions(kind, { legend: v })} />
+            </div>
+            {kind === 'LINE' && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">평균선</span>
+                <Switch
+                  className="ml-auto"
+                  checked={(conf.options as LineChartOptions | undefined)?.avgLine ?? false}
+                  onChange={(v) => patchBarLineOptions('LINE', { avgLine: v })}
+                />
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold">목표선</span>
+              <Switch
+                className="ml-auto"
+                checked={conf.options?.goalLine?.enabled ?? false}
+                onChange={(v) => patchBarLineOptions(kind, { goalLine: { enabled: v, value: conf.options?.goalLine?.value } })}
+              />
+            </div>
+            {conf.options?.goalLine?.enabled && (
+              <InputNumber
+                size="small"
+                className="w-full"
+                placeholder="목표값 입력"
+                value={conf.options?.goalLine?.value}
+                onChange={(v) => patchBarLineOptions(kind, { goalLine: { enabled: true, value: v ?? undefined } })}
+              />
             )}
           </div>
         </SlotCard>
@@ -792,6 +897,38 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
             <span className="text-xs text-[var(--color-bt-fg-muted)]">— 가운데 합계 표시</span>
             <Switch className="ml-auto" checked={!!conf.donut} onChange={setDonut} />
           </div>
+        )}
+
+        {/* 표시 옵션 (통계 PieChartOptions 동일) */}
+        {conf.dimension && conf.measure && (
+          <SlotCard badge="O" title="표시 옵션" subtitle="— 라벨타입·가운데합계·범례">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">라벨 타입</span>
+                <Segmented
+                  className="ml-auto"
+                  size="small"
+                  value={conf.options?.labelType ?? 'percent'}
+                  onChange={(v) => patchPieOptions({ labelType: v as 'name' | 'value' | 'percent' })}
+                  options={[
+                    { value: 'name', label: '이름' },
+                    { value: 'value', label: '값' },
+                    { value: 'percent', label: '비율' },
+                  ]}
+                />
+              </div>
+              {conf.donut && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">가운데 합계</span>
+                  <Switch className="ml-auto" checked={conf.options?.centerTotal ?? true} onChange={(v) => patchPieOptions({ centerTotal: v })} />
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold">범례</span>
+                <Switch className="ml-auto" checked={conf.options?.legend ?? true} onChange={(v) => patchPieOptions({ legend: v })} />
+              </div>
+            </div>
+          </SlotCard>
         )}
       </>
     );
@@ -964,7 +1101,11 @@ export default function TemplateWidgetEditor({ initialDatasetId, initial, onCanc
                 status={!widgetName.trim() ? 'error' : undefined}
               />
               {!widgetName.trim() && <span className="shrink-0 text-xs text-red-500">위젯명을 입력하세요</span>}
-              <span className="ml-auto text-xs text-muted-foreground">실시간 미리보기 · {refreshInterval}초</span>
+              <label className="ml-3 shrink-0 text-xs font-medium text-[var(--color-bt-fg-muted)]">태그</label>
+              <div className="w-64 min-w-[160px]">
+                <TagInput value={tags} onChange={setTags} maxTags={5} size="small" placeholder="태그 입력 (선택)" />
+              </div>
+              <span className="ml-auto text-xs text-muted-foreground">구성 미리보기 (데이터 없음)</span>
             </div>
 
             {/* 시각화 토글 스트립 */}

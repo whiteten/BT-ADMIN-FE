@@ -1,17 +1,14 @@
 import { type ReactNode, useMemo, useState } from 'react';
-import { Input, Segmented } from 'antd';
-import { X } from 'lucide-react';
+import { Input } from 'antd';
+import { Tags, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import WidgetSizePicker from './WidgetSizePicker';
-import { DOMAIN_COLOR_CLASS, DOMAIN_LABELS } from '../constants/monitoringConstants';
 import { useGetCustomWidgetCatalog } from '../hooks/useDashboardQueries';
-import type { CustomWidgetCatalogItem, DomainCode } from '../types';
+import type { CustomWidgetCatalogItem } from '../types';
 import { resolveSize } from '../utils/autoPackPosition';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 
 interface CustomWidgetCatalogPanelProps {
-  /** 현재 대시보드의 도메인 (기본 필터) */
-  domainCode: DomainCode;
   /** 위젯 추가 핸들러 — size 미지정 시 추천 크기로 배치. */
   onAdd: (widget: CustomWidgetCatalogItem, size?: { w: number; h: number }) => void;
   /** 닫기 (× 또는 ESC) */
@@ -122,23 +119,42 @@ const DEFAULT_ICON = {
   bg: 'bg-[var(--color-bt-bg-muted)] text-[var(--color-bt-fg)]',
 };
 
-export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }: CustomWidgetCatalogPanelProps) {
-  const [filterDomain, setFilterDomain] = useState<DomainCode | 'ALL'>(domainCode);
+export default function CustomWidgetCatalogPanel({ onAdd, onClose }: CustomWidgetCatalogPanelProps) {
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [searchValue, setSearchValue] = useState('');
 
   const { data: allWidgets = [] } = useGetCustomWidgetCatalog();
 
+  // 전체 위젯 태그(빈도 내림차순) — 칩 필터 소스
+  const sortedTags = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allWidgets.forEach((w) => (w.tags ?? []).forEach((t) => (counts[t] = (counts[t] ?? 0) + 1)));
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([t]) => t);
+  }, [allWidgets]);
+
+  const toggleTag = (t: string) =>
+    setSelectedTags((prev) => {
+      const next = new Set(prev);
+      next.has(t) ? next.delete(t) : next.add(t);
+      return next;
+    });
+
   const filtered = useMemo(() => {
     let result: CustomWidgetCatalogItem[] = allWidgets;
-    if (filterDomain !== 'ALL') {
-      result = result.filter((w) => w.domainCode === filterDomain);
+    if (selectedTags.size > 0) {
+      result = result.filter((w) => {
+        const tags = w.tags ?? [];
+        return [...selectedTags].every((t) => tags.includes(t));
+      });
     }
     if (searchValue.trim()) {
       const kw = searchValue.toLowerCase();
       result = result.filter((w) => w.widgetName.toLowerCase().includes(kw) || w.widgetTypeId.toLowerCase().includes(kw) || w.description?.toLowerCase().includes(kw));
     }
     return result;
-  }, [allWidgets, filterDomain, searchValue]);
+  }, [allWidgets, selectedTags, searchValue]);
 
   const handleAdd = (widget: CustomWidgetCatalogItem, size: { w: number; h: number }) => {
     onAdd(widget, size);
@@ -151,10 +167,7 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
       <div className="flex items-center justify-between px-5 py-3">
         <div className="min-w-0">
           <div className="text-[13px] font-semibold">커스텀 위젯 카탈로그</div>
-          <div className="text-[10.5px] text-[var(--color-bt-fg-muted)] mt-0.5">
-            <span className={`shrink-0 rounded px-1 py-0.5 mono text-[9px] font-bold ${DOMAIN_COLOR_CLASS[domainCode]}`}>{domainCode}</span> 도메인 · {filtered.length}종 (FE 파일로
-            직접 구현)
-          </div>
+          <div className="text-[10.5px] text-[var(--color-bt-fg-muted)] mt-0.5">{filtered.length}종 (FE 파일로 직접 구현)</div>
         </div>
         <button
           type="button"
@@ -168,19 +181,39 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
 
       {/* 필터 */}
       <div className="flex flex-col gap-2 px-5 py-3">
-        <Segmented
-          value={filterDomain}
-          onChange={(v) => setFilterDomain(v as DomainCode | 'ALL')}
-          options={[
-            { value: 'ALL', label: '전체' },
-            { value: 'IE', label: `IE · ${DOMAIN_LABELS.IE}` },
-            { value: 'IC', label: `IC · ${DOMAIN_LABELS.IC}` },
-            { value: 'IR', label: `IR · ${DOMAIN_LABELS.IR}` },
-          ]}
-          size="small"
-          block
-        />
         <Input size="small" value={searchValue} onChange={(e) => setSearchValue(e.target.value)} placeholder="위젯 이름·설명 검색…" allowClear />
+        {sortedTags.length > 0 && (
+          <div className="flex items-start gap-1.5">
+            <span className="mt-0.5 flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">
+              <Tags className="size-3" />
+              태그
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {sortedTags.map((t) => {
+                const on = selectedTags.has(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTag(t)}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+                      on
+                        ? 'border-transparent bg-[var(--color-bt-primary)] text-white'
+                        : 'border-[var(--color-bt-border)] bg-white text-[var(--color-bt-fg-muted)] hover:border-[var(--color-bt-primary)]'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+              {selectedTags.size > 0 && (
+                <button type="button" onClick={() => setSelectedTags(new Set())} className="px-1.5 py-0.5 text-[11px] text-[var(--color-bt-primary)] hover:underline">
+                  초기화
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 위젯 목록 */}
@@ -202,12 +235,20 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-1">
                         <span className="text-[12.5px] font-semibold truncate">{widget.widgetName}</span>
-                        <span className={`shrink-0 rounded px-1 py-0.5 mono text-[9px] font-bold ${DOMAIN_COLOR_CLASS[widget.domainCode]}`}>{widget.domainCode}</span>
                       </div>
                       <div className="mono text-[10px] text-[var(--color-bt-fg-muted)] mb-1 truncate" title={widget.widgetTypeId}>
                         {widget.widgetTypeId}
                       </div>
                       <p className="text-[10.5px] text-[var(--color-bt-fg-muted)] leading-snug line-clamp-2">{widget.description}</p>
+                      {(widget.tags ?? []).length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {(widget.tags ?? []).map((t) => (
+                            <span key={t} className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5 text-[9.5px] text-[var(--color-bt-fg-muted)]">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-1.5 flex items-center gap-2 text-[9.5px] text-[var(--color-bt-fg-muted)]">
                         <span className="rounded bg-[var(--color-bt-bg-muted)] px-1.5 py-0.5">
                           최소 {widget.minW}×{widget.minH}
@@ -226,7 +267,6 @@ export default function CustomWidgetCatalogPanel({ domainCode, onAdd, onClose }:
                       <div className="truncate text-[12.5px] font-semibold text-[var(--color-bt-fg)]">{widget.widgetName}</div>
                       <div className="mt-0.5 text-[9.5px] font-semibold uppercase tracking-wider text-[var(--color-bt-fg-muted)]">크기 선택</div>
                     </div>
-                    <span className={`shrink-0 rounded px-1 py-0.5 mono text-[9px] font-bold ${DOMAIN_COLOR_CLASS[widget.domainCode]}`}>{widget.domainCode}</span>
                   </div>
                   {/* 본문 */}
                   <div className="px-3.5 py-3">

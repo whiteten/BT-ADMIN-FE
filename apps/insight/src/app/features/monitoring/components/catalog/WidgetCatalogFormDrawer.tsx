@@ -4,16 +4,13 @@ import { Info } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import WidgetCatalogSettingsForm from './WidgetCatalogSettingsForm';
+import TagInput from '../../../../components/TagInput';
 import { useUpdateCustomWidgetCatalog } from '../../hooks/useDashboardQueries';
-import type { CustomWidgetCatalogItem, DomainCode, WidgetCategory } from '../../types';
+import type { CustomWidgetCatalogItem, WidgetCategory } from '../../types';
 
 const { TextArea } = Input;
 
-const DOMAIN_OPTIONS: { value: DomainCode; label: string }[] = [
-  { value: 'IC', label: 'IC (CTI)' },
-  { value: 'IE', label: 'IE (교환기)' },
-  { value: 'IR', label: 'IR (IVR)' },
-];
+const MAX_TAGS = 5;
 
 const CATEGORY_OPTIONS: { value: WidgetCategory; label: string }[] = [
   { value: 'KPI', label: 'KPI' },
@@ -26,7 +23,6 @@ const CATEGORY_OPTIONS: { value: WidgetCategory; label: string }[] = [
 interface FormValues {
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
   widgetCategory: WidgetCategory;
   minW: number;
   minH: number;
@@ -45,25 +41,26 @@ const roValueCls = 'text-[12px] font-mono text-[#495057] break-all';
 /**
  * 커스텀 위젯 카탈로그 편집 Drawer (관리 화면).
  * <p>
- * 변경 허용: 위젯명·설명·도메인·카테고리·최소 크기 + 위젯별 기본 설정(구조화 폼).
+ * 변경 허용: 위젯명·설명·태그·카테고리·최소 크기 + 위젯별 기본 설정(구조화 폼).
  * 읽기전용: 위젯 식별자·BE Bean·FE 컴포넌트·등록 시각 (BE 화이트리스트로도 보호).
  */
 export default function WidgetCatalogFormDrawer({ open, initial, onClose, onSaved }: Props) {
   const [form] = Form.useForm<FormValues>();
-  // settings(JSON) 은 위젯 타입별 구조가 달라 Form 밖 로컬 상태로 제어
+  // settings(JSON)·tags 는 antd Form value 체계 밖이라 로컬 상태로 제어
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open || !initial) return;
     form.setFieldsValue({
       widgetName: initial.widgetName,
       description: initial.description ?? '',
-      domainCode: initial.domainCode,
       widgetCategory: initial.widgetCategory,
       minW: initial.minW,
       minH: initial.minH,
     });
     setSettings({ ...(initial.defaultSettings ?? {}) });
+    setTags([...(initial.tags ?? [])]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
 
@@ -84,7 +81,7 @@ export default function WidgetCatalogFormDrawer({ open, initial, onClose, onSave
       data: {
         widgetName: values.widgetName.trim(),
         description: values.description?.trim() || undefined,
-        domainCode: values.domainCode,
+        tags,
         widgetCategory: values.widgetCategory,
         minW: values.minW,
         minH: values.minH,
@@ -128,26 +125,21 @@ export default function WidgetCatalogFormDrawer({ open, initial, onClose, onSave
             </div>
           </div>
 
-          <Row gutter={16}>
-            <Col span={16}>
-              <Form.Item
-                label="위젯명"
-                name="widgetName"
-                rules={[
-                  { required: true, message: '위젯명을 입력하세요.' },
-                  { whitespace: true, message: '위젯명을 입력하세요.' },
-                  { max: 120, message: '120자까지 입력 가능합니다.' },
-                ]}
-              >
-                <Input placeholder="예: 상담사 상태 매트릭스" />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item label="도메인" name="domainCode" rules={[{ required: true, message: '도메인을 선택하세요.' }]}>
-                <Select options={DOMAIN_OPTIONS} />
-              </Form.Item>
-            </Col>
-          </Row>
+          <Form.Item
+            label="위젯명"
+            name="widgetName"
+            rules={[
+              { required: true, message: '위젯명을 입력하세요.' },
+              { whitespace: true, message: '위젯명을 입력하세요.' },
+              { max: 120, message: '120자까지 입력 가능합니다.' },
+            ]}
+          >
+            <Input placeholder="예: 상담사 상태 매트릭스" />
+          </Form.Item>
+
+          <Form.Item label="태그" tooltip="분류·검색에 사용됩니다." extra={`Enter 또는 쉼표로 여러 개 추가 — 최대 ${MAX_TAGS}개`}>
+            <TagInput value={tags} onChange={setTags} maxTags={MAX_TAGS} />
+          </Form.Item>
 
           <Form.Item label="설명" name="description" rules={[{ max: 500, message: '500자까지 입력 가능합니다.' }]}>
             <TextArea rows={3} autoSize={{ minRows: 3, maxRows: 6 }} placeholder="사용자에게 보일 위젯 설명" />

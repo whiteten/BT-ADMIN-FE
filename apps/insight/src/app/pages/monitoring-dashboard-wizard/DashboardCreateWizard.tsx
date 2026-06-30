@@ -11,7 +11,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DashboardMetaFields from '../../features/monitoring/components/DashboardMetaFields';
 import { dashboardKeys, useCreateDashboard } from '../../features/monitoring/hooks/useDashboardQueries';
-import type { DashboardIconType, DomainCode } from '../../features/monitoring/types';
+import type { DashboardIconType } from '../../features/monitoring/types';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '모니터링', path: '/insight/monitoring' },
@@ -27,7 +27,7 @@ export default function DashboardCreateWizard() {
 
   const [showErrors, setShowErrors] = useState(false);
   const [name, setName] = useState('');
-  const [domain, setDomain] = useState<DomainCode | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [icon, setIcon] = useState<DashboardIconType | null>(null);
   const [description, setDescription] = useState('');
 
@@ -47,16 +47,15 @@ export default function DashboardCreateWizard() {
   });
 
   const handleSubmit = () => {
-    if (!name.trim() || !domain || !icon) {
+    if (!name.trim() || !icon) {
       setShowErrors(true);
       if (!name.trim()) toast.error('대시보드 이름을 입력하세요.');
-      else if (!domain) toast.error('카테고리를 선택하세요.');
       else toast.error('아이콘을 선택하세요.');
       return;
     }
     createDashboardMutation.mutate({
-      domainCode: domain,
       dashboardName: name.trim(),
+      tags: tags.length > 0 ? tags : undefined,
       description: description.trim() || undefined,
       iconType: icon,
     });
@@ -72,8 +71,8 @@ export default function DashboardCreateWizard() {
             <DashboardMetaFields
               name={name}
               onNameChange={setName}
-              domain={domain}
-              onDomainChange={setDomain}
+              tags={tags}
+              onTagsChange={setTags}
               icon={icon}
               onIconChange={setIcon}
               description={description}

@@ -3,8 +3,9 @@ import { Button, Checkbox, Col, Drawer, Form, type FormProps, Input, Row, Select
 import { CheckCircle2, Plus } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import TagInput from '../../../../components/TagInput';
 import { useCreateMonitoringLookupCatalog, useFetchLookupCatalogSchemaPreview, useUpdateMonitoringLookupCatalog } from '../../hooks/useLookupCatalogQueries';
-import type { LookupCatalogItem, LookupWhereCondition, LookupWhereOperator, SchemaPreview } from '../../types';
+import type { LookupCatalogItem, LookupWhereCondition, LookupWhereOperator, LookupWhereValueType, SchemaPreview } from '../../types';
 import { IconTrash } from '@/components/custom/Icons';
 
 const { TextArea } = Input;
@@ -14,6 +15,11 @@ const CATEGORY_OPTIONS = [
   { value: 'IE', label: 'IE (교환기)' },
   { value: 'IC', label: 'IC (CTI)' },
   { value: 'IR', label: 'IR (IVR)' },
+];
+
+const WHERE_VALUE_TYPE_OPTIONS: Array<{ value: LookupWhereValueType; label: string }> = [
+  { value: 'STRING', label: '문자' },
+  { value: 'NUMBER', label: '숫자' },
 ];
 
 const WHERE_OPERATOR_OPTIONS: Array<{ value: LookupWhereOperator; label: string }> = [
@@ -43,6 +49,7 @@ interface FormValues {
   displayName: string;
   category: string;
   description?: string;
+  tags: string[];
   recommendedKey: string;
   recommendedValues: string[];
   whereConditions: LookupWhereCondition[];
@@ -53,6 +60,7 @@ const DEFAULT_VALUES: FormValues = {
   displayName: '',
   category: '일반',
   description: '',
+  tags: [],
   recommendedKey: '',
   recommendedValues: [],
   whereConditions: [],
@@ -86,9 +94,10 @@ export default function LookupCatalogFormDrawer({ open, initial, onClose, onSave
         displayName: initial.displayName,
         category: initial.category ?? '일반',
         description: initial.description ?? '',
+        tags: initial.tags ?? [],
         recommendedKey: initial.recommendedKey,
         recommendedValues: initial.recommendedValues,
-        whereConditions: initial.whereConditions ?? [],
+        whereConditions: (initial.whereConditions ?? []).map((c) => ({ ...c, valueType: c.valueType ?? 'STRING' })),
       });
       // 편집 모드 — 기존 스키마 자동 로드 (옵션 노출용)
       fetchPreviewSilent(initial.tableName);
@@ -162,13 +171,14 @@ export default function LookupCatalogFormDrawer({ open, initial, onClose, onSave
     const normalizedWhere: LookupWhereCondition[] = (values.whereConditions ?? [])
       .filter((c) => c.column && c.operator)
       .map((c) => {
-        if (NO_VALUE_OPERATORS.has(c.operator)) return { column: c.column, operator: c.operator };
+        const valueType: LookupWhereValueType = c.valueType ?? 'STRING';
+        if (NO_VALUE_OPERATORS.has(c.operator)) return { column: c.column, operator: c.operator, valueType };
         if (MULTI_VALUE_OPERATORS.has(c.operator)) {
-          return { column: c.column, operator: c.operator, values: (c.values ?? []).filter((v) => v?.trim().length > 0) };
+          return { column: c.column, operator: c.operator, values: (c.values ?? []).filter((v) => v?.trim().length > 0), valueType };
         }
         // 단일값 연산자 — 첫 값만 사용
         const first = (c.values ?? [])[0];
-        return { column: c.column, operator: c.operator, values: first?.trim() ? [first.trim()] : [] };
+        return { column: c.column, operator: c.operator, values: first?.trim() ? [first.trim()] : [], valueType };
       });
 
     const payload = {
@@ -176,6 +186,7 @@ export default function LookupCatalogFormDrawer({ open, initial, onClose, onSave
       tableName: preview.tableName,
       category: values.category,
       description: values.description?.trim() || undefined,
+      tags: values.tags ?? [],
       recommendedKey: values.recommendedKey,
       recommendedValues: values.recommendedValues,
       whereConditions: normalizedWhere.length > 0 ? normalizedWhere : undefined,
@@ -278,6 +289,10 @@ export default function LookupCatalogFormDrawer({ open, initial, onClose, onSave
               <TextArea rows={2} autoSize={{ minRows: 2, maxRows: 4 }} placeholder="예: 스킬 그룹 코드 / 명칭 / 우선순위" />
             </Form.Item>
 
+            <Form.Item label="태그" name="tags" extra="최대 5개까지 입력할 수 있습니다. 목록에서 태그로 검색·필터됩니다.">
+              <TagInput value={[]} onChange={() => undefined} maxTags={5} placeholder="태그 입력 후 Enter 또는 쉼표" />
+            </Form.Item>
+
             <Form.Item label="권장 키 컬럼 (룩업 시 기본 채워질 키)" name="recommendedKey" rules={[{ required: true, message: '권장 키 컬럼을 선택하세요.' }]}>
               <Select options={columnOptions} placeholder="키 컬럼 선택" showSearch optionFilterProp="label" />
             </Form.Item>
@@ -311,14 +326,19 @@ export default function LookupCatalogFormDrawer({ open, initial, onClose, onSave
                       const multiValue = MULTI_VALUE_OPERATORS.has(op);
                       return (
                         <Row key={key} gutter={8} align="middle">
-                          <Col span={9}>
+                          <Col span={6}>
                             <Form.Item name={[name, 'column']} rules={[{ required: true, message: '컬럼 선택' }]} className="!mb-0">
                               <Select options={columnOptions} placeholder="컬럼" showSearch optionFilterProp="label" />
                             </Form.Item>
                           </Col>
-                          <Col span={6}>
+                          <Col span={5}>
                             <Form.Item name={[name, 'operator']} rules={[{ required: true }]} className="!mb-0">
                               <Select options={WHERE_OPERATOR_OPTIONS} placeholder="연산자" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={4}>
+                            <Form.Item name={[name, 'valueType']} className="!mb-0">
+                              <Select options={WHERE_VALUE_TYPE_OPTIONS} disabled={noValue} />
                             </Form.Item>
                           </Col>
                           <Col span={8}>
@@ -344,7 +364,7 @@ export default function LookupCatalogFormDrawer({ open, initial, onClose, onSave
                     })}
                     <button
                       type="button"
-                      onClick={() => add({ column: '', operator: '=', values: [] })}
+                      onClick={() => add({ column: '', operator: '=', values: [], valueType: 'STRING' })}
                       className="w-full flex items-center justify-center gap-1 py-1 border border-dashed border-[#d9d9d9] rounded text-sm text-[#595959] hover:border-[var(--color-bt-primary)] hover:text-[var(--color-bt-primary)] transition-colors"
                     >
                       <Plus className="size-4" />

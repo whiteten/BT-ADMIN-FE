@@ -3,9 +3,12 @@
  * 설계서: docs/insight/monitoring/00-OVERVIEW.md, 01-MONITORING.md, 02-MONITORING-UI.md
  */
 
-// ─── 도메인 / 공용 ─────────────────────────────────────────────────────────
+// 차트 표시 옵션은 통계(보고서)와 1:1 동일 — 단일 SoT 위해 report 타입을 재사용.
+import type { BarChartOptions, GridOptions, LineChartOptions, PieChartOptions } from '../../report/types';
 
-export type DomainCode = 'IE' | 'IC' | 'IR';
+export type { BarChartOptions, GridOptions, LineChartOptions, PieChartOptions } from '../../report/types';
+
+// ─── 공용 ─────────────────────────────────────────────────────────
 
 /** 대시보드 카드 아이콘 — 보고서(ReportIconType)와 동일 세트. */
 export type DashboardIconType = 'agent' | 'cti' | 'ivr' | 'channel' | 'system';
@@ -49,8 +52,9 @@ export type DatasetFieldSource = 'JSON' | 'HASH_FIELD' | 'KEY_SEGMENT' | 'FIELD_
 export interface DashboardListItem {
   dashboardId: number;
   dashboardName: string;
-  domainCode: DomainCode;
   description?: string;
+  /** 분류·검색용 태그 (보고서와 동일 패턴, 도메인 대체). */
+  tags?: string[];
   /** 목록 카드 아이콘 (보고서와 동일 세트). */
   iconType?: DashboardIconType;
   status: DashboardStatus;
@@ -66,14 +70,17 @@ export interface DashboardListItem {
 
 export interface DashboardCreateDatas {
   dashboardName: string;
-  domainCode: DomainCode;
   description?: string;
+  /** 분류·검색용 태그 (보고서와 동일 패턴). 최대 5개. */
+  tags?: string[];
   iconType?: DashboardIconType;
 }
 
 export interface DashboardUpdateDatas {
   dashboardName?: string;
   description?: string;
+  /** 분류·검색용 태그 (보고서와 동일 패턴). 최대 5개. */
+  tags?: string[];
   status?: DashboardStatus;
   iconType?: DashboardIconType;
 }
@@ -96,10 +103,10 @@ export interface WidgetPosition {
 export interface TemplateWidgetMapping {
   /** 위젯에 바인딩된 데이터셋 id 목록 (1:N). 각 시각화는 이 중 하나를 골라 자기 데이터로 사용. */
   datasets?: number[];
-  /** 그리드 = 위젯 데이터 뷰의 기준. datasetId=이 시각화의 데이터셋, columns=표시 필드 순서, groupBy=행 그룹화(트리) DIM 필드. */
-  GRID?: { datasetId?: number; columns: string[]; groupBy?: string[] };
-  BAR?: { datasetId?: number; x: string; y: string[] }; // y max 2 (이중축)
-  LINE?: { datasetId?: number; x: string; y: string[] }; // x DATE 필수
+  /** 그리드 = 위젯 데이터 뷰의 기준. datasetId=이 시각화의 데이터셋, columns=표시 필드 순서, groupBy=행 그룹화(트리) DIM 필드. options=표시 옵션(합계행). */
+  GRID?: { datasetId?: number; columns: string[]; groupBy?: string[]; options?: GridOptions };
+  BAR?: { datasetId?: number; x: string; y: string[]; options?: BarChartOptions }; // y max 2 (이중축), options=방향·누적·라벨·범례·목표선
+  LINE?: { datasetId?: number; x: string; y: string[]; options?: LineChartOptions }; // x DATE 필수, options=라벨·범례·평균선·목표선
   CARD?: {
     datasetId?: number;
     measure: string;
@@ -107,7 +114,7 @@ export interface TemplateWidgetMapping {
     kpiDirection?: KpiDirection;
     threshold?: { warn?: number; danger?: number };
   };
-  PIE?: { datasetId?: number; dimension: string; measure: string; donut?: boolean }; // 슬라이스 DIM 1 + 값 MSR 1, donut=도넛
+  PIE?: { datasetId?: number; dimension: string; measure: string; donut?: boolean; options?: PieChartOptions }; // 슬라이스 DIM 1 + 값 MSR 1, donut=도넛, options=라벨타입·가운데합계·범례
 }
 
 export interface BaseWidget {
@@ -172,7 +179,8 @@ export type WidgetCategory = 'KPI' | 'CHART' | 'TABLE' | 'STATUS' | 'GENERIC' | 
 export interface CustomWidgetCatalogItem {
   widgetTypeId: string;
   widgetName: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   description?: string;
   defaultOptions?: Record<string, unknown>;
   /** 기본 settings(JSON) — 사용자 미저장 시 위젯 설정 기본값으로 바인딩됨. */
@@ -195,7 +203,8 @@ export interface CustomWidgetCatalogItem {
 export interface CustomWidgetCatalogUpdateDatas {
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   widgetCategory: WidgetCategory;
   minW: number;
   minH: number;
@@ -210,7 +219,8 @@ export interface TemplateWidgetDefinitionListItem {
   templateWidgetId: number;
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   datasetId: number;
   datasetName?: string;
   visualizations: VizType[];
@@ -232,7 +242,8 @@ export interface TemplateWidgetDefinitionDetail extends TemplateWidgetDefinition
 export interface TemplateWidgetDefinitionCreateDatas {
   widgetName: string;
   description?: string;
-  domainCode: DomainCode;
+  /** 분류·검색용 태그 (도메인 대체). */
+  tags?: string[];
   datasetId: number;
   visualizations: VizType[];
   defaultViz: VizType;
@@ -298,6 +309,8 @@ export interface DatasetDetail {
   description?: string;
   schemaSnapshot: string; // 소스 공통 운반체 — REDIS=키 패턴 / QUERY=SELECT 문 / EXTERNAL=config(JSON, 미구현)
   valueMode?: DatasetValueMode; // REDIS 전용 — JSON_PER_FIELD / HASH_AS_ROW
+  /** REDIS 전용 — 키 패턴 #변수 바인딩 설정 (JSON 문자열 원문). 그 외 baseType은 BE가 null 강제. */
+  keyVarBindings?: string;
   fields: DatasetField[];
   calcFields: CalcField[];
   lookups: DatasetLookup[];
@@ -314,6 +327,8 @@ export interface DatasetCreateDatas {
   baseType: DatasetBaseType;
   schemaSnapshot: string;
   valueMode?: DatasetValueMode; // REDIS 전용 — JSON_PER_FIELD / HASH_AS_ROW
+  /** REDIS 전용 — 키 패턴 #변수 바인딩 설정 (JSON 문자열 원문). 그 외 baseType은 BE가 null 강제. */
+  keyVarBindings?: string;
   fields: DatasetField[];
   calcFields: CalcField[];
   /** 코드 룩업 정의 (N개). 데이터셋과 한 트랜잭션에 저장. */
@@ -363,10 +378,14 @@ export type LookupMissPolicy = 'PASSTHROUGH' | 'EMPTY' | 'UNKNOWN';
  */
 export type LookupWhereOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'LIKE' | 'IN' | 'NOT IN' | 'IS NULL' | 'IS NOT NULL';
 
+/** WHERE 조건 값의 비교 타입 — 숫자 컬럼은 NUMBER로 캐스팅 비교. 기본 STRING. */
+export type LookupWhereValueType = 'STRING' | 'NUMBER';
+
 export interface LookupWhereCondition {
   column: string;
   operator: LookupWhereOperator;
   values?: string[];
+  valueType?: LookupWhereValueType;
 }
 
 export interface LookupCatalogItem {
@@ -378,6 +397,7 @@ export interface LookupCatalogItem {
   recommendedKey: string;
   recommendedValues: string[];
   whereConditions?: LookupWhereCondition[];
+  tags?: string[];
   registeredBy?: string; // ADMIN 즉석 등록자
   usageCount: number;
 }
@@ -406,6 +426,7 @@ export interface LookupCatalogCreateDatas {
   recommendedKey: string;
   recommendedValues: string[];
   whereConditions?: LookupWhereCondition[];
+  tags?: string[];
 }
 
 export interface DatasetLookupField {
