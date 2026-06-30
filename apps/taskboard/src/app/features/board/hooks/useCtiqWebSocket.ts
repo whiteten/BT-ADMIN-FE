@@ -28,8 +28,9 @@ function subscriptionsKey(subs: CtiWsSubscription[]): string {
 }
 
 /**
- * CTI 실시간 WebSocket 훅 — 여러 hashKey(큐/그룹/상담사 등)를 한 번의 연결로 동시 구독한다.
- * BE: /ws/ctiq (BFF 프록시: /ws/proxy/taskboard/ctiq → ws://taskboard:8600/ws/ctiq)
+ * CTI 실시간 WebSocket 훅 — 여러 hashKey(큐/그룹/상담사·table-redis 등)를 한 번의 연결로 동시 구독한다.
+ * BE: /ws/taskboard-rt (BFF 프록시: /ws/proxy/taskboard/taskboard-rt → ws://taskboard:8600/ws/taskboard-rt)
+ * (경로명은 "taskboard-rt"이지만 훅/핸들러 이름은 큐 전용이던 시절 이름 그대로 유지 — 2026-06-25 CHANGELOG 참고)
  *
  * 구독은 연결 시 1번만 보낸다 — BE가 5초 주기로 "값이 바뀐 id만" 알아서 푸시해주므로, 클라이언트가
  * 주기적으로 같은 구독을 재전송할 필요가 없다(구독 hashKey/id 수가 늘어나도 변경 없는 항목은 매번
@@ -70,7 +71,7 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
       if (destroyed) return;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${protocol}//${window.location.host}/ws/proxy/taskboard/ctiq`);
+      ws = new WebSocket(`${protocol}//${window.location.host}/ws/proxy/taskboard/taskboard-rt`);
 
       ws.onopen = () => {
         setIsConnected(true);

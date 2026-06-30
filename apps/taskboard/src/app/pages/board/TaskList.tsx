@@ -4,17 +4,23 @@ import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardDisplayList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
-import { type TaskboardLayout, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
+import { type TaskboardLayout, parseLayoutSections, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
 
 const getWidgetCount = (layoutJson?: string): number => parseLayoutWidgets(layoutJson).length;
+
+// 미지정 구역(기타) 전용 키 — 구역이 배정되지 않은 위젯의 fallback 뷰 그룹
+const ETC_KEY = '__etc';
 
 // ─── 뷰 그룹 선택 팝오버 — 전광판(레이아웃)과 뷰 그룹은 매핑되지 않는 별개 풀이라, 전체 뷰 그룹 중 아무거나 즉시 선택해 실행한다 ───
 function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; onClose: () => void }) {
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const { data: displays = [], isLoading } = useGetTaskboardDisplayList();
+  const sections = parseLayoutSections(layout.layoutJson);
+  const hasSections = sections.length > 0;
+  const [sectionDisplayMap, setSectionDisplayMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -24,31 +30,154 @@ function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; on
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [onClose]);
 
+  // 섹션 일부만 배정해도 실행 가능 — 미배정 구역은 __etc(기타) fallback으로 처리
+  const buildSectionUrl = (base: string) => {
+    if (!hasSections) return null;
+    const pairs: string[] = [];
+    sections.forEach((s) => {
+      if (sectionDisplayMap[s]) pairs.push(`${s}:${sectionDisplayMap[s]}`);
+    });
+    if (sectionDisplayMap[ETC_KEY]) pairs.push(`${ETC_KEY}:${sectionDisplayMap[ETC_KEY]}`);
+    if (pairs.length === 0) return null; // 최소 1개는 배정해야 실행 가능
+    return `${base}?s=${pairs.join(',')}`;
+  };
+
+  const copyPublicUrlForDisplay = (publicPath: string) => {
+    const url = `${window.location.origin}${publicPath}`;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => toast.success('공개 링크가 복사되었습니다.'));
+    } else {
+      const el = document.createElement('input');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      toast.success('공개 링크가 복사되었습니다.');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
-      <div ref={ref} className="bg-white rounded-xl shadow-2xl w-[340px] overflow-hidden">
+      <div ref={ref} className="bg-white rounded-xl shadow-2xl w-[360px] overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
           <h3 className="text-sm font-bold text-slate-800 truncate">{layout.layoutName}</h3>
-          <p className="text-xs text-slate-400 mt-0.5">실행할 뷰 그룹(표시값 세트)을 선택하세요.</p>
+          <p className="text-xs text-slate-400 mt-0.5">{hasSections ? `섹션 ${sections.length}개 — 섹션별 뷰 그룹을 선택하세요.` : '실행할 뷰 그룹(표시값 세트)을 선택하세요.'}</p>
         </div>
-        <div className="max-h-72 overflow-y-auto">
-          {isLoading ? (
-            <div className="py-8 text-center text-sm text-slate-400">불러오는 중...</div>
-          ) : displays.length === 0 ? (
-            <div className="py-8 text-center text-sm text-slate-400 px-5">등록된 뷰 그룹이 없습니다.</div>
-          ) : (
-            displays.map((d) => (
+
+        {/* 섹션 모드 — 섹션별 뷰 그룹 선택 */}
+        {hasSections ? (
+          <div className="p-4 flex flex-col gap-3">
+            {isLoading ? (
+              <div className="py-4 text-center text-sm text-slate-400">불러오는 중...</div>
+            ) : (
+              <>
+                {sections.map((s) => (
+                  <div key={s}>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">구역 {s}</label>
+                    <select
+                      value={sectionDisplayMap[s] ?? ''}
+                      onChange={(e) => setSectionDisplayMap((prev) => ({ ...prev, [s]: Number(e.target.value) }))}
+                      className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                    >
+                      <option value="">뷰 그룹 선택... (미배정 시 기타로 대체)</option>
+                      {displays.map((d) => (
+                        <option key={d.displayId} value={d.displayId}>
+                          {d.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+                {/* 기본 — 구역 미배정 위젯의 fallback 뷰 그룹 */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                    기본 (미지정 구역) <span className="normal-case font-normal text-slate-400">— 구역 미배정 위젯에 적용</span>
+                  </label>
+                  <select
+                    value={sectionDisplayMap[ETC_KEY] ?? ''}
+                    onChange={(e) => setSectionDisplayMap((prev) => ({ ...prev, [ETC_KEY]: Number(e.target.value) }))}
+                    className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                  >
+                    <option value="">선택 안 함 (기본 뷰 그룹 사용)</option>
+                    {displays.map((d) => (
+                      <option key={d.displayId} value={d.displayId}>
+                        {d.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+            <div className="flex gap-2 mt-1">
               <button
-                key={d.displayId}
-                onClick={() => navigate(`/taskboard/board/task-view/${layout.layoutId}/${d.displayId}`)}
-                className="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-50 last:border-0"
+                disabled={!buildSectionUrl(`/taskboard/board/task-view/${layout.layoutId}`)}
+                onClick={() => {
+                  const url = buildSectionUrl(`/taskboard/board/task-view/${layout.layoutId}`);
+                  if (url) window.open(url, `taskview_${layout.layoutId}`, 'noopener,noreferrer');
+                }}
+                className="flex-1 py-2 text-xs font-bold text-white bg-[#0f5b9e] rounded-lg hover:bg-[#0d4f8a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <span className="text-sm font-semibold text-slate-700 truncate">{d.displayName}</span>
-                <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">#{d.displayId}</span>
+                새창으로 실행
               </button>
-            ))
-          )}
-        </div>
+              <button
+                disabled={!buildSectionUrl(`/taskboard/board/task-view-public/${layout.layoutId}`)}
+                onClick={() => {
+                  const url = buildSectionUrl(`/taskboard/board/task-view-public/${layout.layoutId}`);
+                  if (url) copyPublicUrlForDisplay(url);
+                }}
+                title="로그인 없이 접근 가능한 공개 링크"
+                className="px-3 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                공개 링크 복사
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* 기존 단일 뷰 그룹 모드 */
+          <div className="max-h-72 overflow-y-auto">
+            {isLoading ? (
+              <div className="py-8 text-center text-sm text-slate-400">불러오는 중...</div>
+            ) : displays.length === 0 ? (
+              <div className="py-8 text-center text-sm text-slate-400 px-5">등록된 뷰 그룹이 없습니다.</div>
+            ) : (
+              displays.map((d) => {
+                const viewPath = `/taskboard/board/task-view/${layout.layoutId}/${d.displayId}`;
+                const publicPath = `/taskboard/board/task-view-public/${layout.layoutId}/${d.displayId}`;
+                return (
+                  <div key={d.displayId} className="flex items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                    <button onClick={() => navigate(viewPath)} className="flex-1 flex items-center justify-between px-5 py-3 text-left">
+                      <span className="text-sm font-semibold text-slate-700 truncate">{d.displayName}</span>
+                      <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">#{d.displayId}</span>
+                    </button>
+                    <button
+                      title="새 창으로 열기 (로그인 필요)"
+                      onClick={() => window.open(viewPath, `taskview_${layout.layoutId}_${d.displayId}`, 'noopener,noreferrer')}
+                      className="flex-shrink-0 px-2.5 py-3 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </button>
+                    <button
+                      title="공개 링크 복사 (로그인 없이 접근 가능)"
+                      onClick={() => copyPublicUrlForDisplay(publicPath)}
+                      className="flex-shrink-0 px-2.5 py-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
         <div className="flex border-t border-slate-100">
           <button onClick={onClose} className="flex-1 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-r border-slate-100">
             취소

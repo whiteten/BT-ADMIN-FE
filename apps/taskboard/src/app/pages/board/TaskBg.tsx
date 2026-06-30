@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -448,9 +448,6 @@ export default function TaskBg() {
     selectedResRef.current = selectedRes;
   }, [selectedRes]);
 
-  const leafCells = useCallback(() => getLeafCells(rootCell, 0, 0, 100, 100), [rootCell]);
-  const dividers = useCallback(() => getNodeDividers(rootCell, 0, 0, 100, 100), [rootCell]);
-
   // ── 셀 분할 / 제거 ─────────────────────────────────────────────────────────
   const handleSplitCell = (cellId: string, dir: 'h' | 'v') => {
     setRootCell((prev) => splitCellNode(prev, cellId, dir, ZONE_COLORS));
@@ -493,7 +490,7 @@ export default function TaskBg() {
   };
 
   const saveCustomLayout = () => {
-    const cells = leafCells();
+    const cells = getLeafCells(rootCell, 0, 0, 100, 100);
     if (cells.length <= 1) {
       toast.error('셀을 2개 이상 분할하세요.');
       return;
@@ -790,8 +787,8 @@ export default function TaskBg() {
     return () => window.removeEventListener('pointerup', up);
   }, []);
 
-  const cells = leafCells();
-  const cellDividers = dividers();
+  const cells = getLeafCells(rootCell, 0, 0, 100, 100);
+  const cellDividers = getNodeDividers(rootCell, 0, 0, 100, 100);
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen w-full font-sans">

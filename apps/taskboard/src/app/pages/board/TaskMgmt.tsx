@@ -4,7 +4,14 @@ import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifi
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { GripVertical, X } from 'lucide-react';
 import { createUUID, toast } from '@/shared-util';
-import { type RollingLayout, RollingPlayer, TRANSITION_OPTIONS, TRANSITION_PREVIEW_ANIMATION, TRANSITION_PREVIEW_CSS } from '../../features/board/components/RollingDisplay';
+import {
+  type RollingLayout,
+  RollingPlayer,
+  TRANSITION_OPTIONS,
+  TRANSITION_PREVIEW_ANIMATION,
+  TRANSITION_PREVIEW_CSS,
+  parseSelection,
+} from '../../features/board/components/RollingDisplay';
 import {
   useCreateRollingGroup,
   useDeleteRollingGroup,
@@ -13,7 +20,7 @@ import {
   useGetTaskboardLayoutList,
   useUpdateRollingGroup,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { RollingGroup, TaskboardDisplay, TaskboardLayout } from '../../features/board/types/taskboard.types';
+import { type RollingGroup, type TaskboardDisplay, type TaskboardLayout, parseLayoutSections } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
 
@@ -32,16 +39,23 @@ interface RunOptions {
   applyAll: boolean;
   allDisplayId: number | null;
   perLayoutDisplayId: Record<number, number>;
+  /** occurrenceIndex → sectionKey → displayId (섹션이 있는 레이아웃 슬롯 전용) */
+  perLayoutSectionMap: Record<number, Record<string, number>>;
 }
 
 function loadRunOptions(groupId: number): RunOptions {
   try {
     const raw = localStorage.getItem(`${RUN_OPTIONS_STORAGE_PREFIX}${groupId}`);
-    if (!raw) return { applyAll: false, allDisplayId: null, perLayoutDisplayId: {} };
+    if (!raw) return { applyAll: false, allDisplayId: null, perLayoutDisplayId: {}, perLayoutSectionMap: {} };
     const parsed = JSON.parse(raw) as Partial<RunOptions>;
-    return { applyAll: !!parsed.applyAll, allDisplayId: parsed.allDisplayId ?? null, perLayoutDisplayId: parsed.perLayoutDisplayId ?? {} };
+    return {
+      applyAll: !!parsed.applyAll,
+      allDisplayId: parsed.allDisplayId ?? null,
+      perLayoutDisplayId: parsed.perLayoutDisplayId ?? {},
+      perLayoutSectionMap: parsed.perLayoutSectionMap ?? {},
+    };
   } catch {
-    return { applyAll: false, allDisplayId: null, perLayoutDisplayId: {} };
+    return { applyAll: false, allDisplayId: null, perLayoutDisplayId: {}, perLayoutSectionMap: {} };
   }
 }
 
@@ -51,6 +65,15 @@ function saveRunOptions(groupId: number, options: RunOptions) {
   } catch {
     /* storage 사용 불가 환경 — 무시 */
   }
+}
+
+// 섹션 모드 URL 인코딩: layoutId:s:sectionKey:displayId:sectionKey:displayId (__ etc → _)
+const ETC_KEY_SHORT = '_';
+function encodeSectionSlot(layoutId: number, sectionMap: Record<string, number>): string {
+  const parts = Object.entries(sectionMap)
+    .filter(([, dId]) => dId > 0)
+    .map(([sKey, dId]) => `${sKey === '__etc' ? ETC_KEY_SHORT : sKey}:${dId}`);
+  return parts.length === 0 ? '' : `${layoutId}:s:${parts.join(':')}`;
 }
 
 function resolveRollingLayout(layout: TaskboardLayout, display: TaskboardDisplay): RollingLayout {
@@ -349,31 +372,92 @@ function RunOptionsView({ group, layoutList, displayList, onStart, onCancel }: R
   // 자리(occurrence) 인덱스를 key로 둬서 같은 전광판이 여러 번 들어가도 자리마다 다른 뷰 그룹을 고를 수 있게 한다.
   const boardLayouts = parseIdArray(group.displayIds)
     .map((id, occurrenceIndex) => ({ occurrenceIndex, layout: layoutList.find((l) => l.layoutId === id) }))
-    .filter((entry): entry is { occurrenceIndex: number; layout: TaskboardLayout } => entry.layout !== undefined);
+    .filter((entry): entry is { occurrenceIndex: number; layout: TaskboardLayout } => entry.layout !== undefined)
+    .map(({ occurrenceIndex, layout }) => ({
+      occurrenceIndex,
+      layout,
+      sections: parseLayoutSections(layout.layoutJson), // 이 슬롯에 구역이 있는지 확인
+    }));
 
   const stored = loadRunOptions(group.groupId);
   const [applyAll, setApplyAll] = useState(stored.applyAll);
   const [allDisplayId, setAllDisplayId] = useState<number | null>(stored.allDisplayId);
   const [perLayoutDisplayId, setPerLayoutDisplayId] = useState<Record<number, number>>(stored.perLayoutDisplayId);
+  const [perLayoutSectionMap, setPerLayoutSectionMap] = useState<Record<number, Record<string, number>>>(stored.perLayoutSectionMap);
 
-  const handleStart = () => {
+  const buildLayouts = (): RollingLayout[] | null => {
     const layouts: RollingLayout[] = [];
-    for (const { occurrenceIndex, layout } of boardLayouts) {
-      const displayId = applyAll ? allDisplayId : perLayoutDisplayId[occurrenceIndex];
-      if (!displayId) {
-        toast.error(applyAll ? '뷰 그룹을 선택해 주세요.' : `"${occurrenceIndex + 1}. ${layout.layoutName}"에서 보여줄 뷰 그룹을 선택해 주세요.`);
-        return;
+    for (const { occurrenceIndex, layout, sections } of boardLayouts) {
+      const hasSections = sections.length > 0;
+      if (hasSections) {
+        // 섹션 모드: sectionMap에 최소 1개 이상 배정되어야 실행 가능
+        const sectionMap = perLayoutSectionMap[occurrenceIndex] ?? {};
+        const assignedCount = Object.values(sectionMap).filter((dId) => dId > 0).length;
+        if (assignedCount === 0) {
+          toast.error(`"${occurrenceIndex + 1}. ${layout.layoutName}"에서 최소 1개 구역의 뷰 그룹을 선택해 주세요.`);
+          return null;
+        }
+        const sectionSelections = Object.fromEntries(
+          Object.entries(sectionMap)
+            .filter(([, dId]) => dId > 0)
+            .map(([sKey, dId]) => {
+              const display = displayList.find((d) => d.displayId === dId);
+              return [sKey, parseSelection(display?.selectionJson)];
+            }),
+        );
+        // 단일 displayId는 첫 번째 배정 구역의 display를 사용(RollingPlayer 호환)
+        const firstDisplayId = Object.values(sectionMap).find((dId) => dId > 0) ?? 0;
+        const firstDisplay = displayList.find((d) => d.displayId === firstDisplayId);
+        layouts.push({
+          ...resolveRollingLayout(layout, firstDisplay ?? displayList[0]),
+          displayId: firstDisplayId,
+          sectionSelections,
+        });
+      } else {
+        // 단일 모드
+        const displayId = applyAll ? allDisplayId : perLayoutDisplayId[occurrenceIndex];
+        if (!displayId) {
+          toast.error(applyAll ? '뷰 그룹을 선택해 주세요.' : `"${occurrenceIndex + 1}. ${layout.layoutName}"에서 보여줄 뷰 그룹을 선택해 주세요.`);
+          return null;
+        }
+        const display = displayList.find((d) => d.displayId === displayId);
+        if (!display) continue;
+        layouts.push(resolveRollingLayout(layout, display));
       }
-      const display = displayList.find((d) => d.displayId === displayId);
-      if (!display) continue;
-      layouts.push(resolveRollingLayout(layout, display));
     }
     if (layouts.length === 0) {
       toast.error('실행할 전광판이 없습니다.');
-      return;
+      return null;
     }
-    saveRunOptions(group.groupId, { applyAll, allDisplayId, perLayoutDisplayId });
+    return layouts;
+  };
+
+  const saveOptions = () => saveRunOptions(group.groupId, { applyAll, allDisplayId, perLayoutDisplayId, perLayoutSectionMap });
+
+  const handleStart = () => {
+    const layouts = buildLayouts();
+    if (!layouts) return;
+    saveOptions();
     onStart(layouts);
+  };
+
+  const handleStartNewWindow = () => {
+    const layouts = buildLayouts();
+    if (!layouts) return;
+    saveOptions();
+    const l = boardLayouts
+      .map(({ occurrenceIndex, layout, sections }) => {
+        if (sections.length > 0) {
+          const sectionMap = perLayoutSectionMap[occurrenceIndex] ?? {};
+          return encodeSectionSlot(layout.layoutId, sectionMap);
+        }
+        const displayId = applyAll ? allDisplayId : perLayoutDisplayId[occurrenceIndex];
+        return displayId ? `${layout.layoutId}:${displayId}` : '';
+      })
+      .filter(Boolean)
+      .join(',');
+    const url = `/taskboard/board/task-rolling?l=${encodeURIComponent(l)}&i=${group.intervalSec}&t=${encodeURIComponent(group.transitionType ?? '')}`;
+    window.open(url, `taskboard-rolling-${group.groupId}`, 'noopener,noreferrer');
   };
 
   return (
@@ -413,16 +497,66 @@ function RunOptionsView({ group, layoutList, displayList, onStart, onCancel }: R
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {boardLayouts.map(({ occurrenceIndex, layout }) => {
+              {boardLayouts.map(({ occurrenceIndex, layout, sections }) => {
+                const hasSections = sections.length > 0;
                 return (
-                  <div key={occurrenceIndex}>
+                  <div key={occurrenceIndex} className={hasSections ? 'border border-indigo-100 rounded-lg p-3 bg-indigo-50/40' : ''}>
                     <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                       <span className="text-slate-400 font-mono mr-1">{occurrenceIndex + 1}.</span>
                       {layout.layoutName}
+                      {hasSections && <span className="ml-1.5 text-[9px] text-indigo-500 font-bold bg-indigo-100 px-1.5 py-0.5 rounded">구역 {sections.length}개</span>}
                     </label>
                     {displayList.length === 0 ? (
                       <p className="text-[11px] text-slate-400">등록된 뷰 그룹이 없습니다. 뷰 그룹 관리에서 먼저 등록해 주세요.</p>
+                    ) : hasSections ? (
+                      /* 섹션 모드: 구역별 뷰 그룹 선택 */
+                      <div className="flex flex-col gap-2">
+                        {sections.map((s) => (
+                          <div key={s} className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded min-w-[28px] text-center">{s}</span>
+                            <select
+                              value={perLayoutSectionMap[occurrenceIndex]?.[s] ?? ''}
+                              onChange={(e) =>
+                                setPerLayoutSectionMap((prev) => ({
+                                  ...prev,
+                                  [occurrenceIndex]: { ...(prev[occurrenceIndex] ?? {}), [s]: e.target.value ? Number(e.target.value) : 0 },
+                                }))
+                              }
+                              className="flex-1 border border-slate-200 rounded-md px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#0f5b9e]"
+                            >
+                              <option value="">뷰 그룹 선택... (미배정 시 기본으로 대체)</option>
+                              {displayList.map((d) => (
+                                <option key={d.displayId} value={d.displayId}>
+                                  {d.displayName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ))}
+                        {/* 기본 — 구역 미배정 위젯 fallback */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-indigo-100">
+                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded min-w-[28px] text-center">기본</span>
+                          <select
+                            value={perLayoutSectionMap[occurrenceIndex]?.['__etc'] ?? ''}
+                            onChange={(e) =>
+                              setPerLayoutSectionMap((prev) => ({
+                                ...prev,
+                                [occurrenceIndex]: { ...(prev[occurrenceIndex] ?? {}), __etc: e.target.value ? Number(e.target.value) : 0 },
+                              }))
+                            }
+                            className="flex-1 border border-slate-200 rounded-md px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-[#0f5b9e]"
+                          >
+                            <option value="">선택 안 함 (기본 뷰 그룹 사용)</option>
+                            {displayList.map((d) => (
+                              <option key={d.displayId} value={d.displayId}>
+                                {d.displayName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
                     ) : (
+                      /* 단일 모드 */
                       <select
                         value={perLayoutDisplayId[occurrenceIndex] ?? ''}
                         onChange={(e) => setPerLayoutDisplayId((prev) => ({ ...prev, [occurrenceIndex]: e.target.value ? Number(e.target.value) : 0 }))}
@@ -446,6 +580,18 @@ function RunOptionsView({ group, layoutList, displayList, onStart, onCancel }: R
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-2 flex-shrink-0">
           <button onClick={onCancel} className="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-md transition-colors">
             취소
+          </button>
+          <button
+            onClick={handleStartNewWindow}
+            className="px-4 py-2 bg-slate-600 text-white rounded-md text-sm font-semibold hover:bg-slate-700 transition-colors shadow-sm flex items-center gap-1.5"
+            title="새 브라우저 창에서 롤링 시작"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            새창으로 시작
           </button>
           <button
             onClick={handleStart}

@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { AnimatedTableCell } from './AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
-import { RedisTableWidget, isRedisTableWidget } from './RedisTableWidget';
+import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from './RedisTableWidget';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
-import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetRedisHashEntries } from '../hooks/useTaskboardQueries';
+import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
 import { useValueChangeKey } from '../hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../utils/clockFormat';
 import {
+  buildGroupReasonHashKeys,
   buildSelectionIdsByHashKey,
+  collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
   getCalcDisplayValue,
   getRedisDisplayValue,
+  groupSumAcrossHashKeys,
   groupSumRedisHashEntries,
   mergeWsSubscriptions,
+  parseGroupReasonHashKey,
 } from '../utils/redisValue';
 import {
   VALUE_CHANGE_ANIMATION_CSS,
@@ -33,9 +38,11 @@ export interface RollingLayout {
   layoutName: string;
   fileName?: string;
   layoutJson?: string;
-  /** 이 슬라이드에 입힐 뷰 그룹(선택값 묶음) ID — TaskboardDisplay.displayId */
+  /** 이 슬라이드에 입힐 뷰 그룹(선택값 묶음) ID — 단일 모드 */
   displayId: number;
   selectionJson?: string;
+  /** 섹션 모드일 때 구역별 뷰 그룹 선택값 (있으면 sectionKey 기준으로 selection을 골라 씀) */
+  sectionSelections?: Record<string, TaskboardDisplaySelection>;
 }
 
 export interface RollingData {
@@ -250,6 +257,22 @@ export const TRANSITION_PREVIEW_CSS = `
 
 const CHART_ROLLING_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
+/** 정렬 기준 컬럼(sortKey)이 있으면 숫자 기준 정렬 후, limit(미지정 시 20)만큼만 잘라서 반환 */
+function applySortAndLimit(rows: Record<string, string | number>[], sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number }): Record<string, string | number>[] {
+  let result = rows;
+  if (sortConfig?.key) {
+    const order = sortConfig.order ?? 'desc';
+    const key = sortConfig.key;
+    result = [...result].sort((a, b) => {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+      return order === 'asc' ? av - bv : bv - av;
+    });
+  }
+  if (sortConfig?.limit && sortConfig.limit > 0) return result.slice(0, sortConfig.limit);
+  return result;
+}
+
 // ── 실시간 테이블 행 생성 헬퍼 ───────────────────────────────────────────────
 function buildLiveTableRows(
   widgetId: string,
@@ -261,6 +284,7 @@ function buildLiveTableRows(
   mediaTypes: string[],
   dataByHashKey: Record<string, Record<string, CtiqRecord>>,
   agentHashKeys: string[],
+  sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number },
 ): Record<string, string | number>[] {
   if (widgetId === 'table-queue') {
     const selectedQueueIds = selection.queueIds ?? [];
@@ -269,7 +293,7 @@ function buildLiveTableRows(
       mediaTypes.map((mt) => `IC:CTIQ:${mt}`),
     );
     const filtered = selectedQueueIds.length > 0 ? queueRows.filter((q) => selectedQueueIds.includes(q.ctiqId)) : queueRows;
-    return filtered.slice(0, 20).map((q) => {
+    const result = filtered.map((q) => {
       const ws = ctiqWsData[q.ctiqId];
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
@@ -289,12 +313,13 @@ function buildLiveTableRows(
       });
       return row;
     });
+    return applySortAndLimit(result, sortConfig);
   }
   if (widgetId === 'table-agent') {
     const selectedAgentIds = selection.agentIds ?? [];
     const agentWsData = mergeByHashKeys(dataByHashKey, agentHashKeys);
     const filtered = selectedAgentIds.length > 0 ? agentRows.filter((a) => selectedAgentIds.includes(a.agentId)) : agentRows;
-    return filtered.slice(0, 20).map((agent) => {
+    const result = filtered.map((agent) => {
       const ws = agentWsData[agent.agentId];
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
@@ -314,11 +339,12 @@ function buildLiveTableRows(
       });
       return row;
     });
+    return applySortAndLimit(result, sortConfig);
   }
   if (widgetId === 'table-group') {
     const selectedGroupIds = selection.groupIds ?? [];
     const filtered = selectedGroupIds.length > 0 ? groupRows.filter((g) => selectedGroupIds.includes(g.groupId)) : groupRows;
-    return filtered.slice(0, 20).map((group) => {
+    const result = filtered.map((group) => {
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
         switch (col.key) {
@@ -342,6 +368,7 @@ function buildLiveTableRows(
       });
       return row;
     });
+    return applySortAndLimit(result, sortConfig);
   }
   return [];
 }
@@ -400,7 +427,10 @@ function RollingTableWidget({
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const rows = liveRows && liveRows.length > 0 ? liveRows : cfg.sampleRows;
-  const columns = columnsOverride ?? (cfg.columns as TableColumn[]);
+  const columns = (columnsOverride ?? (cfg.columns as TableColumn[])).filter((c) => !c.hidden);
+  const cellBorderBottom = cfg.showBorder === false ? 'none' : `${cfg.borderWidth ?? 1}px solid ${widget.style.color}40`;
+  const cellBorderRight = cellBorderBottom;
+  const rowHeight = cfg.rowGap ?? 0;
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {showTitle && (
@@ -418,24 +448,43 @@ function RollingTableWidget({
       )}
       <div className="flex-1 overflow-hidden">
         <table
-          className="w-full border-collapse"
-          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
+          className="w-full"
+          style={{
+            fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`,
+            color: widget.style.color,
+            fontFamily: widget.style.fontFamily,
+            borderCollapse: 'collapse',
+            tableLayout: 'fixed',
+          }}
         >
           <thead>
             <tr>
-              {columns.map((col) => (
+              {columns.map((col, colIdx) => (
                 <th
                   key={col.key}
                   style={{
                     width: col.width,
-                    borderBottom: `1px solid ${widget.style.color}40`,
-                    padding: '1px 3px',
+                    padding: cfg.hideColumnLabels ? 0 : '1px 3px',
+                    height: cfg.hideColumnLabels ? 0 : rowHeight || undefined,
                     textAlign: col.align ?? 'center',
-                    opacity: 0.7,
+                    verticalAlign: col.verticalAlign ?? 'middle',
                     fontWeight: 600,
+                    fontFamily: widget.style.fontFamily,
+                    borderRight: colIdx < columns.length - 1 ? cellBorderRight : 'none',
                   }}
                 >
-                  {col.label}
+                  <span
+                    style={{
+                      opacity: 0.7,
+                      display: 'block',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      ...(cfg.hideColumnLabels ? { fontSize: 0, lineHeight: 0 } : {}),
+                    }}
+                  >
+                    {!cfg.hideColumnLabels && col.label}
+                  </span>
                 </th>
               ))}
             </tr>
@@ -443,13 +492,17 @@ function RollingTableWidget({
           <tbody>
             {rows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
-                {columns.map((col) => (
-                  <td
+                {columns.map((col, colIdx) => (
+                  <AnimatedTableCell
                     key={col.key}
-                    style={{ padding: '1px 3px', textAlign: col.align ?? 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', color: getThresholdColor(row[col.key], col) }}
-                  >
-                    {formatWidgetValue(row[col.key], col.useThousandSep)}
-                  </td>
+                    value={row[col.key]}
+                    col={col}
+                    style={widget.style}
+                    align={col.align ?? 'center'}
+                    borderBottom={cellBorderBottom}
+                    borderRight={colIdx < columns.length - 1 ? cellBorderRight : 'none'}
+                    rowHeight={rowHeight}
+                  />
                 ))}
               </tr>
             ))}
@@ -530,15 +583,19 @@ function RollingValueWidget({
   widgets,
   redisData,
   selectionIdsByHashKey,
+  targetGroupIds = [],
   fontScale = 1,
 }: {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   redisData?: CtiWsDataByHashKey;
   selectionIdsByHashKey?: Record<string, string[]>;
+  /** IC:GROUP:REASON 패밀리 단일값 위젯 전용 — 이 슬라이드의 디스플레이 선택 그룹ID 목록(없으면 전체 그룹). */
+  targetGroupIds?: string[];
   fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && ROLLING_ETC_CLOCK_IDS.has(widget.item.id);
+  const isDbQuery = widget.item.category === 'DbQuery' && !!widget.item.dbQueryKey;
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -546,6 +603,14 @@ function RollingValueWidget({
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, [isEtcClock]);
+
+  // DbQuery: WS(DB:QUERY 가상 해시키)로 실시간 데이터 수신 — REST 폴링 불필요.
+  const dbRecord = isDbQuery ? ((redisData?.['DB:QUERY'] as Record<string, Record<string, string>> | undefined)?.[widget.item.dbQueryKey!] ?? {}) : {};
+  const dbQueryValue = isDbQuery
+    ? widget.item.dbQueryColumn
+      ? (dbRecord[widget.item.dbQueryColumn] ?? dbRecord[widget.item.dbQueryColumn.toUpperCase()] ?? String(widget.item.sampleValue ?? ''))
+      : (Object.values(dbRecord)[0] ?? String(widget.item.sampleValue ?? ''))
+    : '';
 
   const getLiveValue = (): string => {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -565,13 +630,22 @@ function RollingValueWidget({
   const isRedis = widget.item.category === 'Redis' && !!widget.item.redisHashKey;
   const isCalc = widget.item.category === 'Calc';
   const groupBy = isRedis ? widget.item.groupBy : undefined;
-  const { data: groupByEntries } = useGetRedisHashEntries(widget.item.redisHashKey ?? '', { queryOptions: { enabled: !!groupBy, refetchInterval: 5000 } });
-  const groupBySum = groupBy ? (groupSumRedisHashEntries(groupByEntries ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0) : undefined;
+  // IC:GROUP:REASON:{groupId}:{mediaType}처럼 그룹마다 키가 따로 있는 패밀리는 이 슬라이드가 선택한
+  // 그룹들의 키를 전부 모아 합산한다(뷰그룹에 없는 그룹은 절대 섞이지 않음). 데이터는 REST 폴링이 아니라
+  // 화면 단일 WS 연결(redisData)에서 그대로 읽는다.
+  const groupReason = isRedis ? parseGroupReasonHashKey(widget.item.redisHashKey!) : null;
+  const groupBySum = groupBy
+    ? groupReason
+      ? (groupSumAcrossHashKeys(redisData ?? {}, buildGroupReasonHashKeys(groupReason.mediaType, targetGroupIds), groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
+      : (groupSumRedisHashEntries(redisData?.[widget.item.redisHashKey!] ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
+    : undefined;
   const displayValue = isEtcClock
     ? getLiveValue()
-    : isCalc
-      ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
-      : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
+    : isDbQuery
+      ? dbQueryValue
+      : isCalc
+        ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
+        : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const animKey = useValueChangeKey(displayValue);
@@ -635,6 +709,7 @@ interface LayoutScreenProps {
 export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGroups = [], dataByHashKey = {}, agentHashKeys = [] }: LayoutScreenProps) {
   const widgets = parseLayoutWidgets(layout.layoutJson);
   const selection = parseSelection(layout.selectionJson);
+  const { sectionSelections } = layout;
   const [imgRatio, setImgRatio] = useState(16 / 9);
   const fontScale = useResponsiveFontScale(imgRatio);
 
@@ -663,6 +738,9 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
     (w.item.tableConfig!.columns as TableColumn[]).filter((c) => !['name', 'agents', 'talk'].includes(c.key)).map((c) => c.key.toUpperCase()),
   );
   const groupCompositeKeys = [...new Set(liveGroups.filter((g) => !selection.groupIds?.length || selection.groupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))];
+  // IC:GROUP:REASON 패밀리 전용 — 이 슬라이드 자신의 선택값 기준(선택 없음=전체 그룹). 뷰그룹에 없는
+  // 그룹은 절대 나오지 않아야 하므로 다른 슬라이드의 선택값과 섞지 않는다.
+  const groupReasonTargetGroupIds = selection.groupIds?.length ? selection.groupIds : liveGroups.map((g) => g.groupId);
   const groupHashRtsFallback =
     configuredRtsCols.length === 0 && tableGroupWidgets.length > 0
       ? [...new Set(groupMediaTypes.flatMap((mt) => Object.keys(dataByHashKey?.[`IC:GROUP:${mt}`]?.[groupCompositeKeys[0] ?? ''] ?? {}).filter((k) => k.startsWith('RTS_'))))]
@@ -679,8 +757,15 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
 
   const renderWidget = (widget: DroppedWidget) => {
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} />;
+    // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc fallback, 그것도 없으면 기본 selection
+    const effectiveSel = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
     const dt = widget.item.displayType;
+    // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetGroupIds={groupReasonTargetGroupIds} />;
+    if (dt === 'chart') {
+      const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, effectiveSel.queueIds ?? []);
+      return <RollingChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
+    }
     if (dt === 'table') {
       const cfg = widget.item.tableConfig;
       let tableColumns = (cfg?.columns ?? []) as TableColumn[];
@@ -690,15 +775,24 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
         tableColumns = [...tableColumns, ...extraCols];
       }
       const liveRows = cfg
-        ? buildLiveTableRows(widget.item.id, liveQueues, liveAgents, liveGroups, tableColumns, selection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys)
+        ? buildLiveTableRows(widget.item.id, liveQueues, liveAgents, liveGroups, tableColumns, effectiveSel, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys, {
+            key: cfg.sortKey,
+            order: cfg.sortOrder,
+            limit: cfg.limit,
+          })
         : [];
       return <RollingTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
     }
-    if (dt === 'chart') {
-      const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, selection.queueIds ?? []);
-      return <RollingChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
-    }
-    return <RollingValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} selectionIdsByHashKey={selectionIdsByHashKey} fontScale={fontScale} />;
+    return (
+      <RollingValueWidget
+        widget={widget}
+        widgets={widgets}
+        redisData={dataByHashKey}
+        selectionIdsByHashKey={selectionIdsByHashKey}
+        targetGroupIds={groupReasonTargetGroupIds}
+        fontScale={fontScale}
+      />
+    );
   };
 
   return (
@@ -749,9 +843,11 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // HTTP 폴링 — 큐/상담사/그룹 전체 목록 (정적 마스터성 데이터, 마운트 시 1회만)
-  const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const { data: agentRows = [] } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
-  const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+  const { data: queueRows = [], isLoading: queueLoading } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
+  const { data: agentRows = [], isLoading: agentLoading } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
+  const { data: groupRows = [], isLoading: groupLoading } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+  // 마스터 데이터가 모두 로드될 때까지 WS 연결을 미뤄 데이터 로드 순서에 따른 재연결을 방지한다.
+  const isMasterLoading = queueLoading || agentLoading || groupLoading;
 
   // 로테이션에 포함된 모든 레이아웃의 디스플레이 선택값(큐/그룹/상담사) + 위젯 컬럼/미디어타입을 합산해 WS 구독 하나로 커버.
   // 미디어타입은 디스플레이 선택값이 아니라 위젯 등록 시점에 고정된 값(item.mediaType).
@@ -797,13 +893,26 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
     }),
   );
 
-  // WebSocket — 전체 레이아웃 큐/그룹/상담사 KPI + 단일값 Redis 위젯 실시간 수신 (미디어타입·그룹별 hashKey로 분리 구독)
-  const subscriptions: CtiWsSubscription[] = mergeWsSubscriptions([
-    ...(allQueueIds.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: allQueueIds, columns: queueColumns })) : []),
-    ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
-    ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
-    ...widgetRedisSubscriptions,
-  ]);
+  // IC:GROUP:REASON 패밀리 전용 — 로테이션 내 모든 슬라이드 선택값의 합집합(없으면 전체 그룹). 화면별
+  // 실제 표시는 LayoutScreen이 그 슬라이드 자신의 선택값으로 다시 걸러서 보여준다.
+  const allGroupReasonTargetGroupIds = allSelectedGroupIds.length > 0 ? allSelectedGroupIds : groupRows.map((g) => g.groupId);
+  // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다 — 따로 소켓을
+  // 열면 위젯이 있는 화면마다 ctiq 소켓이 2개로 보임(RedisTableWidget.tsx의 collectRedisTableWsSubscriptions 참고)
+  const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allGroupReasonTargetGroupIds);
+
+  // WebSocket — 전체 레이아웃 큐/그룹/상담사 KPI + 단일값 Redis + DbQuery 위젯 실시간 수신
+  // 마스터 데이터 로딩 중에는 빈 구독 → WS 연결 미룸(로드 순서에 따른 재연결 방지)
+  const subscriptions: CtiWsSubscription[] = isMasterLoading
+    ? []
+    : mergeWsSubscriptions([
+        ...(allQueueIds.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: allQueueIds, columns: queueColumns })) : []),
+        ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
+        ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
+        ...widgetRedisSubscriptions,
+        ...redisTableSubscriptions,
+        ...collectDbQueryWsSubscriptions(allWidgets),
+      ]);
   const { dataByHashKey } = useCtiqWebSocket(subscriptions);
 
   const resetHideTimer = useCallback(() => {

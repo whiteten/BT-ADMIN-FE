@@ -5,23 +5,117 @@ import type { CalcOperand, CallDataItem, DroppedWidget } from '../types/taskboar
 type RedisValueHost = Pick<DroppedWidget, 'item' | 'aggregation'>;
 
 /**
- * Redis 해시 entries(field → JSON 문자열, useGetRedisHashEntries 결과)를 byKey 필드값으로 묶어
- * aggKey 필드를 합산한다. Redis 테이블의 "그룹별 합계"와 단일값 위젯의 "그룹별 합계" 양쪽에서 공용.
+ * Redis 해시 entries(field → JSON, REST의 raw 문자열 또는 WS의 이미 파싱된 객체 둘 다 받음)를
+ * byKey 필드값으로 묶어 aggKey 필드를 합산한다. Redis 테이블의 "그룹별 합계"와 단일값 위젯의
+ * "그룹별 합계" 양쪽에서 공용.
  */
-export function groupSumRedisHashEntries(entries: Record<string, string>, byKey: string, aggKey: string): Map<string, number> {
+export function groupSumRedisHashEntries(entries: Record<string, string | Record<string, unknown>>, byKey: string, aggKey: string): Map<string, number> {
   const sums = new Map<string, number>();
   Object.values(entries).forEach((raw) => {
-    let parsed: Record<string, unknown> = {};
-    try {
-      parsed = JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      return;
+    let parsed: Record<string, unknown>;
+    if (typeof raw === 'string') {
+      try {
+        parsed = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        return;
+      }
+    } else {
+      parsed = raw;
     }
     const key = String(parsed[byKey] ?? '');
     const num = Number(parsed[aggKey]) || 0;
     sums.set(key, (sums.get(key) ?? 0) + num);
   });
   return sums;
+}
+
+/**
+ * IC:GROUP:REASON:{groupId}:{mediaType}처럼 "그룹 1개당 키가 따로 있는" 해시 패밀리의 접두사.
+ * 위젯의 redisHashKey에 들어있는 {groupId} 세그먼트는 디자인 시점 placeholder일 뿐이고, 실제로
+ * 보여줄 그룹은 항상 디스플레이의 선택값(groupIds)으로 결정한다 — 뷰그룹에서 빠진 그룹은 보이지 않아야 한다.
+ */
+export const GROUP_REASON_HASH_PREFIX = 'IC:GROUP:REASON:';
+
+/** hashKey가 GROUP_REASON_HASH_PREFIX 패밀리인지 판별하고, 맞으면 끝 세그먼트(mediaType)만 추출한다.
+ * - 세그먼트 1개: IC:GROUP:REASON:{mediaType} → 와일드카드 형식(그룹 전체 대상)
+ * - 세그먼트 2개: IC:GROUP:REASON:{groupId}:{mediaType} → 구체 그룹 형식
+ * (중간 groupId 세그먼트는 무시 — 실제 그룹은 buildGroupReasonHashKeys가 별도로 채운다). */
+export function parseGroupReasonHashKey(hashKey: string): { mediaType: string } | null {
+  if (!hashKey.startsWith(GROUP_REASON_HASH_PREFIX)) return null;
+  const rest = hashKey.slice(GROUP_REASON_HASH_PREFIX.length).split(':');
+  if (rest.length === 1) return { mediaType: rest[0] };
+  if (rest.length === 2) return { mediaType: rest[1] };
+  return null;
+}
+
+/** allKeys 중 IC:GROUP:REASON:{groupId}:{mediaType} 형태이고 mediaType이 일치하는 실제 그룹 키를 모두 반환한다.
+ * resolveCategoryKeys에서 와일드카드 입력(IC:GROUP:REASON:{mediaType})에 대해 실제 키를 찾을 때 사용. */
+export function findGroupReasonKeys(mediaType: string, allKeys: string[]): string[] {
+  return allKeys.filter((k) => {
+    if (!k.startsWith(GROUP_REASON_HASH_PREFIX)) return false;
+    const rest = k.slice(GROUP_REASON_HASH_PREFIX.length).split(':');
+    return rest.length === 2 && rest[1] === mediaType;
+  });
+}
+
+/** IC:GROUP:REASON:{groupId}:{mediaType} 키에서 groupId 세그먼트만 추출한다.
+ * PIVOT 렌더링에서 행 식별자(그룹ID)를 해시 키로부터 가져올 때 사용. */
+export function extractGroupIdFromGroupReasonKey(key: string): string {
+  if (!key.startsWith(GROUP_REASON_HASH_PREFIX)) return key;
+  const rest = key.slice(GROUP_REASON_HASH_PREFIX.length).split(':');
+  return rest.length === 2 ? rest[0] : key;
+}
+
+/** targetGroupIds(디스플레이가 선택한 그룹들 — 없으면 호출 측이 전체 그룹으로 넘김) 각각에 대한
+ * 실제 IC:GROUP:REASON:{groupId}:{mediaType} 키 목록을 만든다. */
+export function buildGroupReasonHashKeys(mediaType: string, targetGroupIds: string[]): string[] {
+  return targetGroupIds.map((groupId) => `${GROUP_REASON_HASH_PREFIX}${groupId}:${mediaType}`);
+}
+
+/** 여러 hashKey(예: 디스플레이가 선택한 여러 그룹의 IC:GROUP:REASON 해시)의 entries를 모두 byKey로 묶어
+ * aggKey를 합산한다 — groupSumRedisHashEntries를 hashKey별로 적용한 뒤 합친 버전. */
+export function groupSumAcrossHashKeys(
+  entriesByHashKey: Record<string, Record<string, string | Record<string, unknown>>>,
+  hashKeys: string[],
+  byKey: string,
+  aggKey: string,
+): Map<string, number> {
+  const total = new Map<string, number>();
+  hashKeys.forEach((hk) => {
+    groupSumRedisHashEntries(entriesByHashKey[hk] ?? {}, byKey, aggKey).forEach((v, k) => total.set(k, (total.get(k) ?? 0) + v));
+  });
+  return total;
+}
+
+/**
+ * IC:GROUP:{mediaType}처럼 SYSTEM_ID(10자리)+NODE_ID(6자리)를 이어붙인 16자리 숫자 필드를 Hash field로
+ * 쓰는 해시(DS_GROUP/DS_SKILL/DS_BSR_GROUP 등)인지 판별. 이런 해시를 table-redis로 통째로 펼치면 같은
+ * SYSTEM_ID가 노드 수만큼 행이 중복돼 보인다 — 노드별로 따로 표기할 필요가 없으므로 SYSTEM_ID로 묶어
+ * 1행으로 합쳐야 한다(숫자 컬럼은 노드 합계, 그 외는 첫 값).
+ */
+export function isSystemNodeCompositeFieldKey(fieldKey: string): boolean {
+  return /^\d{16}$/.test(fieldKey);
+}
+
+/** SYSTEM_ID(앞 10자리)만 추출 — composite 필드 키를 그룹화할 때 사용. */
+export function extractSystemIdFromCompositeFieldKey(fieldKey: string): string {
+  return fieldKey.slice(0, 10);
+}
+
+/**
+ * 같은 SYSTEM_ID로 묶인 여러 노드의 entry(JSON Record)들을 1개로 합친다 — 숫자 필드는 노드 합계,
+ * 그 외(문자열 등, 어차피 노드 간 동일한 GROUP_NAME 같은 값)는 첫 번째 값을 그대로 사용한다.
+ */
+export function mergeCompositeNodeEntries(entriesForSystemId: Record<string, unknown>[]): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...entriesForSystemId[0] };
+  const allKeys = new Set(entriesForSystemId.flatMap((e) => Object.keys(e)));
+  allKeys.forEach((key) => {
+    const numericValues = entriesForSystemId.map((e) => Number(e[key]));
+    if (numericValues.every((n) => !Number.isNaN(n))) {
+      merged[key] = numericValues.reduce((sum, n) => sum + n, 0);
+    }
+  });
+  return merged;
 }
 
 /** WS로 받은 hashKey/id(field)의 값(객체 또는 원본 문자열)에서 redisJsonField 컬럼값을 꺼낸다 */
@@ -209,6 +303,16 @@ export function collectRedisWsSubscriptions(widgets: DroppedWidget[], selectionI
     ids: [...ids],
     columns: columns.size > 0 ? [...columns] : undefined,
   }));
+}
+
+/**
+ * DbQuery 위젯(category='DbQuery')들이 구독해야 하는 WS 구독 목록을 수집한다.
+ * 가상 hashKey "DB:QUERY" 하나로 모든 dbQueryKey를 묶어 BE로 보낸다.
+ */
+export function collectDbQueryWsSubscriptions(widgets: DroppedWidget[]): CtiWsSubscription[] {
+  const keys = [...new Set(widgets.filter((w) => w.item.category === 'DbQuery' && !!w.item.dbQueryKey).map((w) => w.item.dbQueryKey!))];
+  if (keys.length === 0) return [];
+  return [{ hashKey: 'DB:QUERY', ids: keys }];
 }
 
 /**
