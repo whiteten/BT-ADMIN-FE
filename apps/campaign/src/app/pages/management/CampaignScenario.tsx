@@ -74,7 +74,12 @@ export default function CampaignScenario() {
   };
 
   const handleRandomDispatch = () => {
-    toast.info('랜덤발신 기능은 준비 중입니다.');
+    if (!selectedScenarioId) {
+      toast.warning('랜덤발신을 설정할 캠페인 시나리오를 선택하세요.');
+      return;
+    }
+
+    navigate(`random-dispatch/${selectedScenarioId}`);
   };
 
   const handleSelect = (scenarioId: string) => {

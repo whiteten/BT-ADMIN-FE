@@ -16,12 +16,14 @@ const ScheduleServerSettings = React.lazy(() => import('./pages/schedule/Schedul
 const ScheduleParameterManagement = React.lazy(() => import('./pages/schedule/ScheduleParameterManagement'));
 const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
 const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
+const ReceiveTargetAdd = React.lazy(() => import('./pages/execution/ReceiveTargetAdd'));
 const ExecutionManagement = React.lazy(() => import('./pages/execution/ExecutionManagement'));
 const ExecutionDetail = React.lazy(() => import('./pages/execution/ExecutionDetail'));
 const ExecutionTargetDetail = React.lazy(() => import('./pages/execution/ExecutionTargetDetail'));
 const CampaignScenario = React.lazy(() => import('./pages/management/CampaignScenario'));
 const CampaignScenarioDetail = React.lazy(() => import('./pages/management/CampaignScenarioDetail'));
 const CampaignScenarioCreate = React.lazy(() => import('./pages/management/CampaignScenarioCreate'));
+const RandomDispatch = React.lazy(() => import('./pages/management/RandomDispatch'));
 const IngestionMappingList = React.lazy(() => import('./pages/ingestion/IngestionMappingList'));
 const IngestionMappingEdit = React.lazy(() => import('./pages/ingestion/IngestionMappingEdit'));
 const IngestionHistory = React.lazy(() => import('./pages/ingestion/IngestionHistory'));
@@ -60,6 +62,7 @@ export const routes = [
           { path: ':campaignId', element: <CampaignDetail /> },
           { path: 'campaign-scenario', element: <CampaignScenario /> },
           { path: 'campaign-scenario/create', element: <CampaignScenarioCreate /> },
+          { path: 'campaign-scenario/random-dispatch/:scenarioId', element: <RandomDispatch /> },
           { path: 'campaign-scenario/:scenarioId', element: <CampaignScenarioDetail /> },
         ],
       },
@@ -82,6 +85,7 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="receive-file" replace /> },
           { path: 'receive-file', element: <ReceiveFileList /> },
+          { path: 'receive-file/:receiveFileId/targets/add', element: <ReceiveTargetAdd /> },
           { path: 'execution-management/targets/:targetId', element: <ExecutionTargetDetail /> },
           { path: 'execution-management/:executionId', element: <ExecutionDetail /> },
           { path: 'execution-management', element: <ExecutionManagement /> },

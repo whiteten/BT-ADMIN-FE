@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select, Tag } from 'antd';
@@ -211,6 +212,8 @@ function ReceiveFileCard({ item, selected, onSelect }: { item: ReceiveFileSummar
 }
 
 export default function ReceiveFileList() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const modal = useModal();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -219,6 +222,16 @@ export default function ReceiveFileList() {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
+
+  useEffect(() => {
+    const addedReceiveTarget = (location.state as { addedReceiveTarget?: ReceiveFileDetailItem } | null)?.addedReceiveTarget;
+    if (!addedReceiveTarget) return;
+
+    setReceiveFileDetails((prev) => [...prev, addedReceiveTarget]);
+    setSelectedReceiveFileId(addedReceiveTarget.receiveFileId);
+    setSelectedDetailId(addedReceiveTarget.detailId);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
 
   const { gridOptions } = useAggridOptions();
   const isInitialTenantHydrationDone = useRef(false);
@@ -450,7 +463,7 @@ export default function ReceiveFileList() {
       return;
     }
 
-    toast.info('수신대상 추가 기능은 준비 중입니다.');
+    navigate(`${selectedReceiveFileId}/targets/add`);
   };
 
   const handleDetailDelete = () => {
