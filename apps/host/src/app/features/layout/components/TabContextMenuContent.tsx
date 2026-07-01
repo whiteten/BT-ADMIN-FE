@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRightFromLine, ListX, Trash2, X } from 'lucide-react';
+import { ArrowRightFromLine, CopyPlus, ListX, Trash2, X } from 'lucide-react';
 import { useOpenTabsStore } from '@/shared-store';
 import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu';
 
@@ -10,6 +10,7 @@ import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/com
 export default function TabContextMenuContent({ tabId }: { tabId: string }) {
   const navigate = useNavigate();
   const tabs = useOpenTabsStore((s) => s.tabs);
+  const openTab = useOpenTabsStore((s) => s.openTab);
   const closeTab = useOpenTabsStore((s) => s.closeTab);
   const closeOthers = useOpenTabsStore((s) => s.closeOthers);
   const closeToRight = useOpenTabsStore((s) => s.closeToRight);
@@ -17,6 +18,16 @@ export default function TabContextMenuContent({ tabId }: { tabId: string }) {
 
   const go = (result: { nextPath: string | null }) => {
     if (result.nextPath) navigate(result.nextPath);
+  };
+
+  // 탭 복제 — 대상 탭의 meta(url·라벨·isDynamic)로 새 탭을 열어 활성화하고 그 url로 이동한다.
+  // openTab이 중복 탭 생성을 지원하므로(같은 url 별개 id) 브라우저 '탭 복제'와 동일: 내용은 별개
+  // keepAlive 노드라 새로 로드되고 입력·스크롤 등 상태는 원본과 공유하지 않는다.
+  const handleDuplicate = () => {
+    const tab = tabs.find((t) => t.id === tabId);
+    if (!tab) return;
+    openTab({ appId: tab.appId, url: tab.url, label: tab.label, isDynamic: tab.isDynamic });
+    navigate(tab.url);
   };
 
   const idx = tabs.findIndex((t) => t.id === tabId);
@@ -30,6 +41,10 @@ export default function TabContextMenuContent({ tabId }: { tabId: string }) {
     // 있어, 항목 클릭이 React 버블링으로 antd item onClick(activate+navigate(tab.path))까지 닿아 우리
     // navigate를 덮는다(모두닫기 시 '/'로 안 가고 잔상). 여기서 전파를 끊어 antd item 핸들러 발화를 막는다.
     <ContextMenuContent className="z-[1100] w-40" onClick={(e) => e.stopPropagation()}>
+      <ContextMenuItem onClick={handleDuplicate}>
+        <CopyPlus />탭 복제
+      </ContextMenuItem>
+      <ContextMenuSeparator />
       <ContextMenuItem onClick={() => go(closeTab(tabId))}>
         <X />탭 닫기
       </ContextMenuItem>
