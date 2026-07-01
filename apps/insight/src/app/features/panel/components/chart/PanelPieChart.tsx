@@ -41,9 +41,17 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
   const option = useMemo(() => {
     if (!sliceField || !valueField) return {};
     const raw = (isDraft ? [] : (queryResult?.current ?? [])) as Record<string, unknown>[];
-    const data = raw.map((row, i) => ({
-      name: String(row[sliceField.fieldName] ?? ''),
-      value: Number(row[valueField.fieldName] ?? 0),
+    // 기간조회 시 BE 가 시간축(PSR_TIME_KEY)으로 GROUP BY 분할 → 같은 슬라이스(테넌트 등)가
+    // 시간대 수만큼 여러 행으로 온다. PanelBarChart 와 동일하게 동일 name 값을 합산해
+    // 슬라이스당 1건으로 집계한다(중복 조각 제거 + name 유니크 → 범례 정상 표시).
+    const sumByName = new Map<string, number>();
+    for (const row of raw) {
+      const name = String(row[sliceField.fieldName] ?? '');
+      sumByName.set(name, (sumByName.get(name) ?? 0) + Number(row[valueField.fieldName] ?? 0));
+    }
+    const data = [...sumByName.entries()].map(([name, value], i) => ({
+      name,
+      value,
       itemStyle: { color: PANEL_PALETTE[i % PANEL_PALETTE.length] },
     }));
     const total = data.reduce((s, d) => s + d.value, 0);
