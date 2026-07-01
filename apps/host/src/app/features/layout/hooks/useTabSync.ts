@@ -1,10 +1,38 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useLocation, useNavigationType } from 'react-router-dom';
 import { useBreadcrumbStore, useLayoutStore, useMenuStore, useOpenTabsStore, useRemoteRoutesStore } from '@/shared-store';
 import { deriveTabMeta, findLeafEntry, getAppId, resolveBreadcrumbTail } from '../utils/openTabs';
 
 /** 탭으로 추적하지 않는 경로 prefix(인증/오류 화면). host index('/')는 별도 처리. */
 const SKIP_PREFIXES = ['/login', '/forbidden'];
+
+/**
+ * 히스토리 칸(location.key) → 탭 id 장부의 sessionStorage 키·상한.
+ * 상한은 브라우저 히스토리 깊이(구현마다 다름, 대략 수십~수백)를 넉넉히 덮는 값. 브라우저가 버려 도달
+ * 불가능해진 옛 key 엔트리는 조회되지 않는 죽은 값이라, 상한으로 오래된 것부터 밀어내 누적을 막는다.
+ */
+const KEY_LEDGER_STORAGE = 'tab-history-key-ledger';
+const KEY_LEDGER_CAP = 300;
+
+/** sessionStorage에서 장부 복원(없거나 파싱 실패 시 빈 Map). */
+function loadKeyLedger(): Map<string, string> {
+  try {
+    const raw = sessionStorage.getItem(KEY_LEDGER_STORAGE);
+    if (!raw) return new Map();
+    return new Map(JSON.parse(raw) as [string, string][]);
+  } catch {
+    return new Map();
+  }
+}
+
+/** 장부를 sessionStorage에 직렬화 저장(접근 불가 시 무시 — 유실돼도 미매핑 폴백으로 동작). */
+function saveKeyLedger(ledger: Map<string, string>): void {
+  try {
+    sessionStorage.setItem(KEY_LEDGER_STORAGE, JSON.stringify([...ledger]));
+  } catch {
+    // 용량 초과·프라이빗 모드 등 sessionStorage 접근 실패 — 장부 없이도 폴백으로 안전하므로 삼킨다.
+  }
+}
 
 /**
  * 현재 location을 열린 탭과 동기화한다(Layout에서 1회 호출).
@@ -19,7 +47,8 @@ const SKIP_PREFIXES = ['/login', '/forbidden'];
  * url의 탭(들)에 매핑되도록 breadcrumbUrl 기준으로 미러한다.
  */
 export function useTabSync() {
-  const { pathname, search } = useLocation();
+  const { pathname, search, key } = useLocation();
+  const navType = useNavigationType();
   const menuConfigs = useMenuStore((s) => s.menuConfigs);
   const chromeless = useLayoutStore((s) => s.chromeless);
   const items = useBreadcrumbStore((s) => s.items);
@@ -34,9 +63,26 @@ export function useTabSync() {
   const renameLabel = useOpenTabsStore((s) => s.renameLabel);
   const setTabBreadcrumb = useOpenTabsStore((s) => s.setTabBreadcrumb);
 
+  // 히스토리 칸(location.key) → 그 칸을 점유한 탭 id 장부. 브라우저 뒤로/앞으로(POP)로 도착한 url이 원래
+  // 어느 탭 소속인지 되찾는 데 쓴다. url은 중복 탭 때문에 소속 판별에 못 쓰지만(같은 url 탭 여럿), key는
+  // 히스토리 칸마다 유일해 정확하다. react-router가 이동마다 key를 자동 발급하고 POP 시 history.state로
+  // 복원해 주므로(useLocation().key), 우리는 이동 시 기록하고 POP 시 조회만 한다.
+  //
+  // sessionStorage에 영속(상한 KEY_LEDGER_CAP). useOpenTabsStore도 sessionStorage persist라 새로고침 후
+  // 탭 id(tab-N)가 동일하게 복원되고, 브라우저도 history.state로 key를 복원하므로, 새로고침 직후 뒤로/앞으로도
+  // 폴백 없이 소속 탭을 되찾는다. 닫힌 탭 key는 조회 시 tabs 존재 체크로 걸러진다.
+  // lazy init: useRef는 초기화 함수를 못 받으므로 최초 렌더에서 1회 sessionStorage에서 복원한다.
+  const keyLedgerRef = useRef<Map<string, string> | null>(null);
+  if (keyLedgerRef.current === null) keyLedgerRef.current = loadKeyLedger();
+
   // 1) location 변경 → 활성 탭 url 동기화(탭 내 이동) 또는 부트스트랩(활성 탭 없을 때).
   //    tabs/activeId는 getState()로 최신값을 읽는다 — 셀렉터 클로저로 받으면 StrictMode 이중 실행 시
   //    낡은 activeId로 부트스트랩이 두 번 발사돼 탭이 중복 생성될 수 있다(메뉴 로드 후 라벨 보정을 위해 menuConfigs 의존).
+  //
+  //    브라우저 뒤로/앞으로(navType==='POP'): 단일 공유 히스토리라 딴 탭이 만든 url이 스택에 섞여 있다.
+  //    이때 그 url을 활성 탭에 덮어쓰면 "2번 탭 화면이 1번 탭으로 넘어오는" 오염이 생긴다. 그래서 POP은
+  //    먼저 장부로 도착 key의 소속 탭을 찾아 그 탭으로 활성 전환하고(활성 탭은 안 건드림), 그 탭 url을
+  //    도착 위치로 맞춘다. 소속 탭이 닫혔거나(장부에 없거나) 미매핑이면 아래 일반 동기화로 폴백한다.
   useEffect(() => {
     if (chromeless) return;
     const id = pathname + search;
@@ -60,8 +106,21 @@ export function useTabSync() {
     if (registryLoaded && !findLeafEntry(entries, relPath)) return;
 
     const { tabs, activeId } = useOpenTabsStore.getState();
-    const active = activeId ? tabs.find((t) => t.id === activeId) : undefined;
     const meta = deriveTabMeta(menuConfigs, routesMap, pathname, search);
+
+    // POP(뒤로/앞으로): 도착 key의 소속 탭이 살아 있고 활성이 아니면 그 탭으로 전환 + url 동기화 후 종료.
+    // (소속 탭이 이미 활성이면 그 탭 내부 뒤로가기이므로 아래 일반 동기화가 처리한다.)
+    if (navType === 'POP') {
+      const ownerId = keyLedgerRef.current?.get(key);
+      const owner = ownerId ? tabs.find((t) => t.id === ownerId) : undefined;
+      if (owner && owner.id !== activeId) {
+        activateTab(owner.id);
+        if (owner.url !== id && meta) setTabMeta(owner.id, meta);
+        return;
+      }
+    }
+
+    const active = activeId ? tabs.find((t) => t.id === activeId) : undefined;
 
     if (active) {
       // 탭 내 페이지 이동 — 활성 탭의 url(+라벨/isDynamic)을 현재 위치로 갱신. 메뉴 클릭으로 새 탭이 열린
@@ -74,7 +133,21 @@ export function useTabSync() {
       if (matched) activateTab(matched.id);
       else if (meta) openTab(meta);
     }
-  }, [pathname, search, chromeless, menuConfigs, routesMap, openTab, setTabMeta, activateTab, clearActive]);
+
+    // 이 히스토리 칸을 최종 활성 탭에 연결(다음 POP이 소속을 되찾을 수 있게). 위 동기화/부트스트랩으로
+    // activeId가 바뀌었을 수 있어 getState로 최종값을 읽는다. 상한 초과 시 삽입순(=옛 히스토리 칸)부터 밀어낸다.
+    const finalActiveId = useOpenTabsStore.getState().activeId;
+    const ledger = keyLedgerRef.current;
+    if (finalActiveId && ledger) {
+      ledger.set(key, finalActiveId);
+      while (ledger.size > KEY_LEDGER_CAP) {
+        const oldest = ledger.keys().next().value;
+        if (oldest === undefined) break;
+        ledger.delete(oldest);
+      }
+      saveKeyLedger(ledger);
+    }
+  }, [pathname, search, key, navType, chromeless, menuConfigs, routesMap, openTab, setTabMeta, activateTab, clearActive]);
 
   // 2) breadcrumb 변경 또는 탭 추가 → 그 breadcrumb을 소유한 url의 탭(들)에 미러 + 라벨 정밀화.
   //    - breadcrumbUrl은 "breadcrumb leaf 항목의 self-path"(없으면 현재 location). keep-alive로 얼어 있는
