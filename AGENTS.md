@@ -370,6 +370,7 @@ if (isLoading) return <FallbackSpinner />;
 10. **라우팅 보조 모듈은 `features/router/`**: 세션 이벤트 핸들러·variant manifest·query selector 등은 `features/router/`에 두고 routes.tsx는 import만 함
 11. **변형·분기**: 정식 variant(2개 이상)를 가진 path만 `pv` 대신 `<DynamicElement variants={...} />`를 직접 사용("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조 — `pv` 소켓과 공존 가능)
 12. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
+13. **탭은 "메뉴 클릭"으로만 열리고 "X"로만 닫힌다 — `navigate`에 탭 전용 옵션 불필요**: 화면 이동은 host가 탭으로 추적한다(host `useTabSync`). 사이드바·즐겨찾기·통합검색 등 **메뉴를 누르면 새 탭**이 열리고(같은 화면도 중복 탭 허용), 페이지 안에서의 `navigate`(목록→상세, 삭제·생성·수정·취소 후 목록 복귀 등)는 **현재 활성 탭의 내용(url)만 바꿀 뿐 새 탭을 만들지 않는다**. 탭은 사용자가 X 버튼으로만 닫으므로, 이동하면서 탭을 닫으려고 `{ replace: true }`를 지정할 필요가 없다(예: 삭제 후 `navigate('../list')`만으로 그 탭이 목록으로 바뀜 — 죽은 탭이 남지 않음). `{ replace: true }`는 순수 브라우저 히스토리 목적(예: 삭제된 상세로 뒤로가기 방지)일 때만 판단해서 사용한다. 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "탭 모델(메뉴 기준 탭 스트립)" 참조
 
 상세 골격·중첩 상세 페이지·공통 라우트 추출 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "라우팅(routes.tsx) 가이드" 섹션 참조.
 

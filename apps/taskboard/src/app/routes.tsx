@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
@@ -19,7 +19,7 @@ export const routes = [
     path: '/',
     element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="/" replace /> },
+      // 루트 index redirect는 host(app.tsx)가 담당 — 비활성 remote에서 발동하던 <Navigate to="/"> 제거.
       {
         path: 'board',
         element: <Outlet />,

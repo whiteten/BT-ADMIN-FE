@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, closestCenter } from '@dnd-kit/core';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
@@ -13,6 +13,7 @@ import { isMenuActive } from './PanelMenuPrimitives';
 import { NewWindowButton } from '../components/NewWindowButton';
 import { useUpdateFavorite } from '../hooks/useFavoriteQueries';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { useOpenInNewTab } from '../hooks/useOpenInNewTab';
 import { findMenuInfo } from '../utils/findMenuInfo';
 import { IconStar } from '@/components/custom/Icons';
 import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
@@ -98,7 +99,7 @@ interface PanelFavoritesSectionProps {
 }
 
 const PanelFavoritesSection = ({ className }: PanelFavoritesSectionProps) => {
-  const navigate = useNavigate();
+  const openInNewTab = useOpenInNewTab();
   const queryClient = useQueryClient();
   const { menuConfigs } = useMenuStore();
   const { favorites } = useNavigationStore();
@@ -153,7 +154,8 @@ const PanelFavoritesSection = ({ className }: PanelFavoritesSectionProps) => {
 
   const handleClick = (favorite: Favorite, path?: string) => {
     if (!path) return;
-    navigate(`/${favorite.appId}/${path}`);
+    // 즐겨찾기 클릭도 메뉴와 동일하게 새 탭으로 연다(중복 허용).
+    openInNewTab(`/${favorite.appId}/${path}`);
     setOpen(false);
   };
 

@@ -236,97 +236,67 @@ function formatTsConfig() {
 
 function rollbackAndUpdateAppTsx(appName) {
   const timer = createTimer();
-  logStart('host/app.tsx', 'Git 롤백 및 React.lazy 추가');
+  logStart('host/app.tsx', 'Git 롤백 및 REMOTES 등록');
   try {
     // Git으로 App.tsx 변경사항 롤백
     execSync('git checkout -- apps/host/src/app/app.tsx', { stdio: 'inherit', cwd: process.cwd() });
     logProgress('App.tsx Git 롤백 완료');
 
-    addReactLazyToApp(appName);
-    logSuccess('host/app.tsx', 'Git 롤백 및 React.lazy 추가', timer);
+    registerRemoteInApp(appName);
+    logSuccess('host/app.tsx', 'Git 롤백 및 REMOTES 등록', timer);
   } catch (error) {
-    logError('host/app.tsx', 'Git 롤백 및 React.lazy 추가', error);
+    logError('host/app.tsx', 'Git 롤백 및 REMOTES 등록', error);
   }
 }
 
-function addReactLazyToApp(appName) {
+// host app.tsx 의 REMOTES 배열에 새 remote 항목 한 줄을 추가한다.
+// 라우트(루트 redirect + 모듈)는 app.tsx 가 이 배열을 map 으로 일괄 생성하므로,
+// 개별 React.lazy 선언이나 <Route> 삽입은 필요 없다(과거 방식 폐기).
+function registerRemoteInApp(appName) {
   const timer = createTimer();
-  logStart('host/app.tsx', `${appName} React.lazy 및 Route 추가`);
+  logStart('host/app.tsx', `${appName} REMOTES 등록`);
   try {
     const appPath = path.join(process.cwd(), 'apps/host/src/app/app.tsx');
-    const content = fs.readFileSync(appPath, 'utf8');
-    const lines = content.split('\n');
+    const lines = fs.readFileSync(appPath, 'utf8').split('\n');
 
-    // const 변수명 = React.lazy로 시작하는 라인들 찾기
-    const lazyLines = [];
-    lines.forEach((line, index) => {
-      if (line.trim().startsWith('const ') && line.includes('React.lazy')) {
-        lazyLines.push(index);
+    // REMOTES 배열의 시작과 끝(']') 라인 찾기
+    const startIndex = lines.findIndex((line) => line.includes('const REMOTES'));
+    if (startIndex === -1) {
+      logError('host/app.tsx', 'REMOTES 배열을 찾을 수 없음');
+      return;
+    }
+    let endIndex = -1;
+    for (let i = startIndex; i < lines.length; i++) {
+      if (lines[i].trim() === '];') {
+        endIndex = i;
+        break;
       }
-    });
-
-    if (lazyLines.length === 0) {
-      logError('host/app.tsx', '기존 React.lazy 구문을 찾을 수 없음');
+    }
+    if (endIndex === -1) {
+      logError('host/app.tsx', 'REMOTES 배열의 끝(];)을 찾을 수 없음');
       return;
     }
 
-    // 마지막 React.lazy 라인 찾기
-    const lastLazyLineIndex = lazyLines[lazyLines.length - 1];
+    // 이미 등록돼 있으면 건너뜀(멱등)
+    const alreadyRegistered = lines.slice(startIndex, endIndex).some((line) => line.includes(`id: '${appName}'`));
+    if (alreadyRegistered) {
+      logProgress(`${appName} 은(는) 이미 REMOTES 에 등록됨 — 건너뜀`);
+      return;
+    }
 
-    // 앱 이름을 PascalCase로 변환 (첫 글자 대문자)
-    const componentName = appName.charAt(0).toUpperCase() + appName.slice(1);
+    // 배열 마지막 항목 뒤(']' 앞)에 새 항목 삽입
+    const newEntry = `  { id: '${appName}', Module: lazyRemote(() => import('${appName}/Module')) },`;
+    lines.splice(endIndex, 0, newEntry);
 
-    // 새로운 React.lazy 구문 생성
-    const newLazyImport = `const ${componentName} = React.lazy(() => import('${appName}/Module').catch(() => ({ default: () => <NotFound /> })));`;
-
-    // 마지막 React.lazy 라인 다음에 새 라인 추가
-    lines.splice(lastLazyLineIndex + 1, 0, newLazyImport);
-
-    // Route 패턴 찾아서 추가
-    addRoutePattern(lines, appName, componentName);
-
-    // 파일 저장
-    const updatedContent = lines.join('\n');
-    fs.writeFileSync(appPath, updatedContent);
-    logProgress(`${componentName} React.lazy 및 Route 추가 완료`);
+    fs.writeFileSync(appPath, lines.join('\n'));
+    logProgress(`${appName} REMOTES 항목 추가 완료`);
 
     // ESLint로 포맷팅
     execSync('npx eslint --fix apps/host/src/app/app.tsx', { stdio: 'inherit', cwd: process.cwd() });
-    logSuccess('host/app.tsx', `${appName} React.lazy 및 Route 추가`, timer);
+    logSuccess('host/app.tsx', `${appName} REMOTES 등록`, timer);
   } catch (error) {
-    logError('host/app.tsx', `${appName} React.lazy 및 Route 추가`, error);
+    logError('host/app.tsx', `${appName} REMOTES 등록`, error);
   }
-}
-
-function addRoutePattern(lines, appName, componentName) {
-  // 기존 Route 패턴 찾기 (예: <Route path="/ipron" element={<Layout />}>)
-  let lastRouteBlockEndIndex = -1;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    // Route 블록 패턴 찾기: path 속성과 Layout을 가진 Route
-    if (line.includes('<Route path="/') && line.includes('element={<Layout />}>')) {
-      // 해당 Route 블록의 끝 찾기 (다음 </Route>)
-      for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j].trim() === '</Route>') {
-          lastRouteBlockEndIndex = j;
-          break;
-        }
-      }
-    }
-  }
-
-  if (lastRouteBlockEndIndex === -1) {
-    logError('host/app.tsx', '기존 Route 패턴을 찾을 수 없음');
-    return;
-  }
-
-  // 새로운 Route 블록 생성
-  const newRouteBlock = [`          <Route path="/${appName}" element={<Layout />}>`, `            <Route index path="*" element={<${componentName} />} />`, `          </Route>`];
-
-  // 마지막 Route 블록 다음에 새 Route 블록 추가
-  lines.splice(lastRouteBlockEndIndex + 1, 0, ...newRouteBlock);
-  logProgress(`/${appName} Route 패턴 추가 완료`);
 }
 
 function clearStyleCss(appName) {
