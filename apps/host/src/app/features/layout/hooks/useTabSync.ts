@@ -26,6 +26,7 @@ export function useTabSync() {
   const params = useBreadcrumbStore((s) => s.params);
   const breadcrumbUrl = useBreadcrumbStore((s) => s.url);
   const routesMap = useRemoteRoutesStore((s) => s.routes);
+  const tabs = useOpenTabsStore((s) => s.tabs);
   const openTab = useOpenTabsStore((s) => s.openTab);
   const setTabMeta = useOpenTabsStore((s) => s.setTabMeta);
   const activateTab = useOpenTabsStore((s) => s.activateTab);
@@ -75,20 +76,25 @@ export function useTabSync() {
     }
   }, [pathname, search, chromeless, menuConfigs, routesMap, openTab, setTabMeta, activateTab, clearActive]);
 
-  // 2) breadcrumb 변경 → 그 breadcrumb을 소유한 url의 탭(들)에 미러 + 라벨 정밀화.
+  // 2) breadcrumb 변경 또는 탭 추가 → 그 breadcrumb을 소유한 url의 탭(들)에 미러 + 라벨 정밀화.
   //    - breadcrumbUrl은 "breadcrumb leaf 항목의 self-path"(없으면 현재 location). keep-alive로 얼어 있는
   //      페이지의 늦은(async) 쓰기여도 자기 url로 매핑돼, 다른 탭을 덮는 오염을 막는다. 같은 url 탭이
   //      여럿(중복)이면 모두 같은 breadcrumb/라벨이 되도록 함께 갱신한다.
+  //    - tabs를 dep으로 둔다(getState 아님): 라벨 정밀화는 breadcrumb 변화뿐 아니라 "소비자(탭) 집합" 변화에도
+  //      반응해야 한다. 같은 메뉴를 연속 클릭해 중복 탭이 열리면 breadcrumb store 값은 그대로라(모듈 const items
+  //      ref 동일) breadcrumb 변화 dep만으론 미발화 → 새 탭이 메뉴발 라벨에 고정된다. tabs 변화로 재발화해
+  //      store에 남은 breadcrumb으로 새 탭까지 정밀화한다. url 필터 덕에 매칭 탭에만 쓰고, rename/setTabBreadcrumb는
+  //      동일값 early-return이라 여분 실행은 무해(idempotent).
   //    - 빈 items(페이지 unmount 시 clearBreadcrumb)는 무시 — clear가 탭 슬롯을 비우는 오염 방지
   //      (탭 슬롯은 closeTab에서만 purge).
   useEffect(() => {
     if (!items || items.length === 0 || !breadcrumbUrl) return;
-    const targets = useOpenTabsStore.getState().tabs.filter((t) => t.url === breadcrumbUrl);
+    const targets = tabs.filter((t) => t.url === breadcrumbUrl);
     if (targets.length === 0) return;
     const label = resolveBreadcrumbTail(items, params);
     for (const t of targets) {
       setTabBreadcrumb(t.id, { items, params });
       if (label) renameLabel(t.id, label);
     }
-  }, [items, params, breadcrumbUrl, renameLabel, setTabBreadcrumb]);
+  }, [items, params, breadcrumbUrl, tabs, renameLabel, setTabBreadcrumb]);
 }
