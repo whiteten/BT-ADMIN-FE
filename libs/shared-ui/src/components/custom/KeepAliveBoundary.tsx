@@ -16,26 +16,27 @@ interface KeepAliveBoundaryProps {
  *    동일한 `<RemoteModule/>` element가 되어 keepalive가 탭별 캐시를 구분하지 못한다.
  *  - remote의 `useRoutes(location)` 결과는 경로별로 다른 매칭 element라 키별 캐시가 동작한다.
  *
- * 역할 분담(2계층 keep-alive): 이 경계는 한 remote 안에서의 "탭별" 캐시를 담당한다.
- * cross-remote(다른 remote로 이동) 보존은 host Layout이 "remote 모듈"을 appId 단위로 keep-alive 해서
- * 처리한다(단일 공유 Layout 덕에 remote 전환에도 Layout이 안 죽음). 즉 remote 모듈 캐시(host) +
- * 그 안의 탭 캐시(이 경계)가 합쳐져 cross-remote 페이지 상태까지 보존된다.
+ * 역할 분담(2계층 keep-alive): 이 경계는 한 remote 안에서의 "탭별" 캐시를 담당한다. host Layout은 "remote
+ * 모듈"을 appId 단위로 keep-alive 한다(단일 공유 Layout 덕에 remote 전환에도 Layout이 안 죽음). 이 둘이
+ * 합쳐져 cross-remote 페이지 상태가 보존되는데, host 모듈 캐시만으론 부족하다 — 다른 remote로 갈 때 이
+ * 경계가 자기 remote의 활성 탭 노드를 freeze로 지켜야(아래 cacheKey 규칙) 그 탭이 안 깨진다. 실제로 host
+ * Layout이 바이트 동일해도 이 경계의 cacheKey 판정이 틀리면 cross-remote 페이지 상태가 유실된 적이 있다.
  *
- * cacheKey 규칙:
- *  - 이 remote가 화면에 보일 때(onOwnRemote): 활성 own 탭 id → 같은 url 중복 탭도 탭마다 별개 캐시 노드.
- *  - 다른 remote가 보일 때(백그라운드): 현재 location → 이 remote의 탭 노드들은 자연히 freeze되어 보존되고,
- *    foreign 매칭 결과는 location 키의 임시 노드로 격리됐다가 복귀 시 destroy된다.
+ * cacheKey 규칙 — 핵심: cacheKey는 keepalive의 children(= useRoutes(location))과 정합해야 한다.
+ *  - 활성 own 탭의 url이 현재 location과 일치: 그 탭 id → 같은 url 중복 탭도 탭마다 별개 캐시 노드.
+ *  - 어긋나는 전환 lag 프레임(activeId·location 비동기): location과 일치하는 own 탭(탭 전환 시 '이전 탭')
+ *    또는 활성 own 탭(탭 내 이동 lag)에 머물러, 남의 화면을 엉뚱한 노드에 덮어쓰지 않는다.
+ *  - 다른 remote가 보일 때(백그라운드): 현재 location 키 → 이 remote 탭 노드들은 freeze되어 보존되고,
+ *    foreign 매칭 결과는 location 키 임시 노드로 격리됐다가 복귀 시 destroy된다.
  *  - 탭을 X로 닫거나 LRU로 밀려나면(=열린 탭 id 목록에서 사라지면) 그 노드를 destroy해 상태를 폐기한다.
  *
- * ⚠️ "지금 화면에 보이는 remote"는 activeId가 아니라 location으로 판정해야 한다(onOwnRemote).
- * useOpenInNewTab은 navigate보다 먼저 openTab으로 activeId를 새(foreign) 탭으로 flip한다. 그래서 activeId로
- * own/foreign을 판정하면, location이 아직 이 remote(/fca) 안인 전환 찰나에 foreign으로 오판해 cacheKey가
- * "활성 탭 id"에서 "현재 location(= 아직 이 remote의 url)"로 튄다. 그러면 원본 탭 노드(tab-N)와 같은 url의
- * 중복 노드가 새로 분열되고(keepalive는 활성 노드에만 children을 덮어써 원본 페이지가 언마운트됨), 이후
- * destroy effect가 그 노드를 폐기하며 cross-remote 복귀 시 화면이 리셋된다(입력·스크롤·그리드 유실).
- * location 기준으로 판정하면 전환 찰나에도 cacheKey가 활성 탭 id에 머물러 노드 분열이 없다(브라우저 실측 확인).
- * 자기 appId는 첫 마운트 location에서 1회 캡처한다 — remote 모듈은 자기 remote가 활성일 때만 처음
- * 마운트되므로 첫 location은 항상 자기 remote다.
+ * ⚠️ TabChip은 activateTab(activeId flip) → navigate(location 변경) 순서라 두 상태가 한 프레임 어긋난다.
+ * 이 lag 프레임에 activeId만 보고 cacheKey를 목적 탭으로 옮기면, 그 탭 노드에 아직 이전 location이 그리는
+ * 화면이 덮여 들어간다. 그래서 같은 remote 탭 전환(봇→모델)에서 모델탭 노드에 봇목록이 그려지며 모델탭
+ * 보존상태가 파괴되고 봇목록 API가 다시 나가고(=keepAlive 실패), cross-remote에선 노드가 분열된다.
+ * 해결: "활성 탭 id"는 그 탭 url이 현재 location과 일치할 때만 채택하고, 어긋나는 lag엔 location이 그리는
+ * 화면에 맞는 노드에 머문다. 자기 appId는 첫 마운트 location에서 1회 캡처한다 — remote 모듈은 자기 remote가
+ * 활성일 때만 처음 마운트되므로 첫 location은 항상 자기 remote다.
  *
  * 캐시 컨테이너/노드에 w-full h-full을 줘 페이지의 h-full 레이아웃이 무너지지 않게 한다.
  */
@@ -51,17 +52,32 @@ export default function KeepAliveBoundary({ children }: KeepAliveBoundaryProps) 
   ownAppIdRef.current ??= location.pathname.split('/').filter(Boolean)[0] ?? null;
   const ownAppId = ownAppIdRef.current;
 
-  // "지금 화면에 보이는 remote"는 activeId가 아니라 location으로 판정한다.
-  // useOpenInNewTab이 navigate보다 먼저 activeId를 새(foreign) 탭으로 flip하므로, activeId로 판정하면
-  // location이 아직 이 remote(/fca) 안인 전환 찰나에 foreign으로 오판→cacheKey가 탭 id에서 own url로 튀어
-  // 원본 탭 노드와 같은 url의 중복 노드가 분열되고, 이후 destroy effect가 그 노드를 폐기하며 페이지가 파괴된다.
+  // cacheKey(활성 캐시 노드)는 keepalive의 children(= useRoutes(location))과 반드시 정합해야 한다. 어긋나면
+  // keepalive가 "활성 노드"에 지금 location이 그리는 화면을 덮어써, 엉뚱한 탭 노드에 남의 화면이 들어가며
+  // 보존 상태가 파괴되고 스퍼리어스 API가 나간다.
+  //
+  // TabChip은 activateTab(activeId flip) → navigate(location 변경) 순이라 두 상태가 한 프레임 어긋난다(lag).
+  // 이 lag 프레임에 activeId만 보고 cacheKey를 목적 탭으로 옮기면 그 탭 노드에 아직 이전 location의 화면이
+  // 그려진다(같은 remote 탭 전환 시 목적 탭 보존상태 파괴 + 이전 페이지 API 재발사, cross-remote 시 노드 분열).
+  // 그래서 "활성 탭 id"는 그 탭 url이 현재 location과 일치할 때만 채택하고, 어긋나는 lag엔 location이 그리는
+  // 화면에 맞는 노드에 머문다.
+  const currentUrl = location.pathname + location.search;
   const onOwnRemote = (location.pathname.split('/').filter(Boolean)[0] ?? null) === ownAppId;
   const activeTab = activeId ? tabs.find((t) => t.id === activeId) : undefined;
-  // 이 remote가 화면에 보이는 동안의 "활성 own 탭 id"를 기억한다(중복 탭 구분용). 전환 찰나(activeId가 이미
-  // foreign이지만 location은 아직 own)엔 직전 own 탭 id를 유지해 키가 흔들리지 않게 한다.
-  const lastOwnActiveIdRef = useRef<string | null>(null);
-  if (activeTab && activeTab.appId === ownAppId) lastOwnActiveIdRef.current = activeTab.id;
-  const cacheKey = onOwnRemote ? (lastOwnActiveIdRef.current ?? location.pathname + location.search) : location.pathname + location.search;
+  const activeOwn = activeTab && activeTab.appId === ownAppId ? activeTab : undefined;
+  let cacheKey: string;
+  if (activeOwn && activeOwn.url === currentUrl) {
+    // 정상 상태 + 같은 url 중복 탭: 활성 own 탭이 지금 location을 그림 → 탭 id로(중복도 독립 노드).
+    cacheKey = activeOwn.id;
+  } else {
+    // lag 프레임 또는 activeTab이 foreign/none. location과 일치하는 own 탭이 있으면(탭 전환 lag의 '이전 탭')
+    // 그 탭에 머문다. 없고 location이 아직 own이며 활성 탭도 own이면(탭 내 이동 lag: 목적 url이 아직 어느
+    // 탭에도 미반영) 활성 own 탭에 머문다. 그도 아니면(foreign 화면/부트스트랩) location 키 임시 노드로 격리.
+    const ownHere = tabs.find((t) => t.appId === ownAppId && t.url === currentUrl);
+    if (ownHere) cacheKey = ownHere.id;
+    else if (onOwnRemote && activeOwn) cacheKey = activeOwn.id;
+    else cacheKey = currentUrl;
+  }
 
   // 이 remote 소속 열린 탭 id만 보존 대상. 닫히거나 LRU로 밀려난(=목록에 없는) 노드, foreign 키 노드는 폐기.
   useEffect(() => {
