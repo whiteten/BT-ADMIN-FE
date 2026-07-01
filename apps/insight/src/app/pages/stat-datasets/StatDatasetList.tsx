@@ -675,6 +675,8 @@ function DetailField({ label, value, className }: { label: string; value: ReactN
 }
 
 // ─── 정보수정 Drawer (이름·설명·태그) ────────────────────────────────────────
+const MAX_TAGS = 5;
+
 function InfoDrawer({ datasetId, dataset, onClose }: { datasetId: number | null; dataset: DatasetListItem | null; onClose: () => void }) {
   const open = datasetId != null;
   const [name, setName] = useState('');
@@ -706,7 +708,7 @@ function InfoDrawer({ datasetId, dataset, onClose }: { datasetId: number | null;
 
   const addTag = () => {
     const v = tagInput.trim().replace(/,$/, '').trim();
-    if (v && !tags.includes(v)) setTags((p) => [...p, v]);
+    if (v && !tags.includes(v) && tags.length < MAX_TAGS) setTags((p) => [...p, v]);
     setTagInput('');
   };
 
@@ -768,16 +770,20 @@ function InfoDrawer({ datasetId, dataset, onClose }: { datasetId: number | null;
                 <X className="size-3 cursor-pointer text-gray-400 hover:text-gray-700" onClick={() => setTags((p) => p.filter((_, idx) => idx !== i))} />
               </span>
             ))}
-            <input
-              className="min-w-[100px] flex-1 px-1 text-sm outline-none"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={onTagKeyDown}
-              onBlur={addTag}
-              placeholder="태그 입력 (Enter·쉼표로 추가)"
-            />
+            {tags.length < MAX_TAGS && (
+              <input
+                className="min-w-[100px] flex-1 px-1 text-sm outline-none"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={onTagKeyDown}
+                onBlur={addTag}
+                placeholder="태그 입력 (Enter·쉼표로 추가)"
+              />
+            )}
           </div>
-          <span className="text-xs text-gray-400">Enter 또는 쉼표로 추가, 칩의 ×로 삭제</span>
+          <span className="text-xs text-gray-400">
+            Enter 또는 쉼표로 추가, 칩의 ×로 삭제 — 최대 {MAX_TAGS}개 ({tags.length}/{MAX_TAGS})
+          </span>
         </div>
       </div>
     </Drawer>

@@ -165,7 +165,13 @@ export default function DashboardCanvas({
         {widgets.map((widget) => (
           <div key={String(widget.widgetId)}>
             {widget.kind === 'TEMPLATE' ? (
-              <TemplateWidgetCard widget={widget as TemplateWidget} editMode={editMode} onDelete={() => setDeleteTarget(widget)} draggableClass={DRAG_HANDLE_CLASS} />
+              <TemplateWidgetCard
+                widget={widget as TemplateWidget}
+                editMode={editMode}
+                data={widgetData?.[String(widget.widgetId)]?.rows}
+                onDelete={() => setDeleteTarget(widget)}
+                draggableClass={DRAG_HANDLE_CLASS}
+              />
             ) : widget.kind === 'CUSTOM' ? (
               <CustomWidgetCard
                 widget={widget as CustomWidget}

@@ -1,4 +1,5 @@
-import ApiClient, { type ApiResponse } from '@/shared-util';
+import ApiClient, { type ApiRequestConfig, type ApiResponse } from '@/shared-util';
+import { publicAuthHeaders } from './publicAuth';
 import { type RollingGroup, type TaskboardBg, type TaskboardDisplay, type TaskboardLayout, type TaskboardNotice } from '../types/taskboard.types';
 
 /**
@@ -7,11 +8,18 @@ import { type RollingGroup, type TaskboardBg, type TaskboardDisplay, type Taskbo
  */
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
+/** 공개 Bearer 토큰이 있으면 기존 config에 Authorization 헤더를 병합해 반환한다. */
+const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
+  const auth = publicAuthHeaders();
+  if (!auth) return config;
+  return { ...config, headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } };
+};
+
 export const taskboardApi = {
   // ── 배경 API ─────────────────────────────────────────────────────────────
 
   getTaskBoardBgs: async (params?: Record<string, unknown>): Promise<TaskboardBg[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardBg[] }>>('/taskboard-bglist', { params });
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardBg[] }>>('/taskboard-bglist', withAuth({ params }));
     return response.data?.data?.items ?? [];
   },
 
@@ -33,7 +41,7 @@ export const taskboardApi = {
   // ── 레이아웃 API ──────────────────────────────────────────────────────────
 
   getLayoutList: async (): Promise<TaskboardLayout[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardLayout[] }>>('/taskboard-layoutlist');
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardLayout[] }>>('/taskboard-layoutlist', withAuth());
     return response.data?.data?.items ?? [];
   },
 
@@ -59,7 +67,7 @@ export const taskboardApi = {
   // ── 뷰 그룹 API (레이아웃과 매핑되지 않는 독립된 선택값 묶음) ───────────────────────
 
   getDisplayList: async (): Promise<TaskboardDisplay[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardDisplay[] }>>('/taskboard-display-list');
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardDisplay[] }>>('/taskboard-display-list', withAuth());
     return response.data?.data?.items ?? [];
   },
 
@@ -81,7 +89,7 @@ export const taskboardApi = {
   // ── 롤링 그룹 API ────────────────────────────────────────────────────────
 
   getRollingGroupList: async (): Promise<RollingGroup[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: RollingGroup[] }>>('/taskboard-rollinggroup-list');
+    const response = await apiClient.get<ApiResponse<{ items: RollingGroup[] }>>('/taskboard-rollinggroup-list', withAuth());
     return response.data?.data?.items ?? [];
   },
 
@@ -103,12 +111,12 @@ export const taskboardApi = {
   // ── 공지사항 API ─────────────────────────────────────────────────────────
 
   getNoticeList: async (): Promise<TaskboardNotice[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardNotice[] }>>('/taskboard-noticelist');
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardNotice[] }>>('/taskboard-noticelist', withAuth());
     return response.data?.data?.items ?? [];
   },
 
   getNoticeListByKey: async (noticeKey: string): Promise<TaskboardNotice[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardNotice[] }>>('/taskboard-noticelist-bykey', { params: { noticeKey } });
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardNotice[] }>>('/taskboard-noticelist-bykey', withAuth({ params: { noticeKey } }));
     return response.data?.data?.items ?? [];
   },
 
@@ -125,5 +133,26 @@ export const taskboardApi = {
   deleteNotice: async (noticeId: number) => {
     const response = await apiClient.delete('/taskboard-noticedelete', { params: { noticeId } });
     return response;
+  },
+
+  // ── 외부 API 테스트 (서버사이드 호출 — CORS 우회) ──────────────────────────
+  testExternalApiUrl: async ({ url, headers }: { url: string; headers?: string }): Promise<unknown> => {
+    const response = await apiClient.post<ApiResponse<unknown>>('/taskboard-external-api-test', {
+      url,
+      ...(headers ? { headers } : {}),
+    });
+    return response.data?.data;
+  },
+
+  // ── yml 기반 커스텀 DB 쿼리 실행 (custom1~custom10) ────────────────────────
+  executeDbQuery: async (key: string): Promise<unknown> => {
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-db-query', { params: { key } });
+    const data = response.data?.data;
+    // BFF single-step은 List 응답을 { value: [...] }로 감싸므로 배열을 꺼내 반환
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const rec = data as Record<string, unknown>;
+      if (Array.isArray(rec.value)) return rec.value;
+    }
+    return data;
   },
 };

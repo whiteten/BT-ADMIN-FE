@@ -1,4 +1,5 @@
-import ApiTaskboard from '@/shared-util';
+import ApiTaskboard, { type ApiRequestConfig } from '@/shared-util';
+import { publicAuthHeaders } from './publicAuth';
 
 /**
  * CTI Redis 실시간 데이터 API
@@ -10,6 +11,12 @@ import ApiTaskboard from '@/shared-util';
  *   - taskboard-redis-group  : GET → TASKBOARD /api/taskboard/redis/cti-group
  */
 const apiTaskboard = new ApiTaskboard({ serviceURL: '/bff' });
+
+const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
+  const auth = publicAuthHeaders();
+  if (!auth) return config;
+  return { ...config, headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } };
+};
 
 /** TB_IC_CTIQMASTER 큐 행 */
 export interface CtiQueueRow {
@@ -66,28 +73,28 @@ export interface CtiGroupRow {
 export const ctiRedisApi = {
   /** 큐 리스트 (TB_IC_CTIQMASTER via Redis) */
   getCtiQueueList: async (): Promise<CtiQueueRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-queue');
+    const response = await apiTaskboard.get<any>('/taskboard-redis-queue', withAuth());
     const list = response?.data?.data?.value ?? response?.data?.data;
     return Array.isArray(list) ? list : [];
   },
 
   /** 상담사 리스트 (TB_IC_AGENTMASTER via Redis) */
   getCtiAgentList: async (): Promise<CtiAgentRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-agent');
+    const response = await apiTaskboard.get<any>('/taskboard-redis-agent', withAuth());
     const list = response?.data?.data?.value ?? response?.data?.data;
     return Array.isArray(list) ? list : [];
   },
 
   /** 상담그룹 리스트 (TB_IC_GROUPMASTER via Redis) */
   getCtiGroupList: async (): Promise<CtiGroupRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-group');
+    const response = await apiTaskboard.get<any>('/taskboard-redis-group', withAuth());
     const list = response?.data?.data?.value ?? response?.data?.data;
     return Array.isArray(list) ? list : [];
   },
 
   /** Redis Hash 타입 키 목록 조회. refresh=true이면 서버 캐시를 다시 SCAN하여 갱신한 뒤 반환 */
   getRedisHashKeys: async (refresh?: boolean): Promise<string[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-hashkeys', { params: refresh ? { refresh: true } : undefined });
+    const response = await apiTaskboard.get<any>('/taskboard-redis-hashkeys', withAuth({ params: refresh ? { refresh: true } : undefined }));
     const list = response?.data?.data?.value ?? response?.data?.data;
     return Array.isArray(list) ? list : [];
   },
@@ -98,7 +105,7 @@ export const ctiRedisApi = {
    * (예: SUM_CONN_CNT)에 사용. 최신 캐시가 필요하면 getRedisHashKeys(true)를 먼저 호출.
    */
   getRedisHashColumns: async (): Promise<Record<string, string[]>> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-hashcolumns');
+    const response = await apiTaskboard.get<any>('/taskboard-redis-hashcolumns', withAuth());
     const data = response?.data?.data?.value ?? response?.data?.data;
     return data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, string[]>) : {};
   },
@@ -108,31 +115,15 @@ export const ctiRedisApi = {
    * "해시그룹"(IC:GROUP:0 등)에서 task-create가 특정 compositeKey(그룹/큐/상담사)를 선택할 수 있는 UI를 위해 사용.
    */
   getRedisHashEntries: async (hashKey: string): Promise<Record<string, string>> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-hashentries', { params: { hashKey } });
+    const response = await apiTaskboard.get<any>('/taskboard-redis-hashentries', withAuth({ params: { hashKey } }));
     const data = response?.data?.data?.value ?? response?.data?.data;
     return data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, string>) : {};
   },
 
   /** TB_IC_MEDIA_USAGE 미디어타입 목록 조회 */
   getCtiMediaTypeList: async (): Promise<CtiMediaTypeRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-media-type');
+    const response = await apiTaskboard.get<any>('/taskboard-redis-media-type', withAuth());
     const list = response?.data?.data?.value ?? response?.data?.data;
     return Array.isArray(list) ? list : [];
-  },
-
-  /**
-   * IC:GROUP:{mediaType} 해시에서 특정 compositeKey 목록의 컬럼값 조회.
-   * table-group 위젯의 그룹별 RTS 집계에 사용.
-   * 반환: { hashKey → { compositeKey → { column → value } } }
-   */
-  getRedisGroupValuesBatch: async (request: {
-    hashKeys: string[];
-    compositeKeys: string[];
-    columns: string[];
-  }): Promise<Record<string, Record<string, Record<string, number>>>> => {
-    if (!request.hashKeys.length || !request.compositeKeys.length || !request.columns.length) return {};
-    const response = await apiTaskboard.post<any>('/taskboard-redis-group-values-batch', request);
-    const data = response?.data?.data?.value ?? response?.data?.data;
-    return data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, Record<string, Record<string, number>>>) : {};
   },
 };

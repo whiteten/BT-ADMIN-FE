@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, type MenuProps, Tag, Tooltip } from 'antd';
@@ -16,11 +17,35 @@ interface DashboardRowProps {
   query?: string;
 }
 
-// 도메인 뱃지(antd Tag) 색과 동일한 조합 — 아이콘칩 배경/글자/테두리. 미정의 도메인은 primary fallback.
-const DOMAIN_ICON_COLOR: Record<string, { bg: string; fg: string; border: string }> = {
-  IE: { bg: '#e6f4ff', fg: '#1677ff', border: '#91caff' },
-  IC: { bg: '#f6ffed', fg: '#389e0d', border: '#b7eb8f' },
-  IR: { bg: '#fff7e6', fg: '#d46b08', border: '#ffd591' },
+// 한 줄(고정 높이)에 다 못 들어가 다음 줄로 넘어간 태그 개수 계산 — fca BotCard / ReportRow 와 동일 패턴(+N 표기용)
+const useWrappedItemCount = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [wrappedCount, setWrappedCount] = useState(0);
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current || containerRef.current.children.length === 0) {
+        setWrappedCount(0);
+        return;
+      }
+      const children = containerRef.current.children;
+      const firstItemTop = (children[0] as HTMLElement).getBoundingClientRect().top;
+      let count = 0;
+      for (let i = 1; i < children.length; i++) {
+        const itemTop = (children[i] as HTMLElement).getBoundingClientRect().top;
+        if (itemTop > firstItemTop) count++;
+      }
+      setWrappedCount(count);
+    };
+    handleResize();
+    const resizeObserver = new ResizeObserver(handleResize);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  return { containerRef, wrappedCount };
 };
 
 /**
@@ -32,6 +57,7 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
   const modal = useModal();
   const queryClient = useQueryClient();
   const iconType: DashboardIconType = dashboard.iconType ?? DEFAULT_DASHBOARD_ICON;
+  const { containerRef: tagsRef, wrappedCount: tagsWrapped } = useWrappedItemCount();
 
   const { mutate: deleteDashboard } = useDeleteDashboard({
     mutationOptions: {
@@ -89,6 +115,7 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
   ];
 
   const widgetNames = dashboard.widgetNames ?? [];
+  const tags = dashboard.tags ?? [];
 
   return (
     <div
@@ -97,11 +124,10 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
       className="group flex items-center gap-3 px-5 py-2.5 border-b border-[#e9ebec] cursor-pointer transition-colors hover:bg-[#f5f8fc]"
     >
       <span
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-transparent"
         style={{
-          background: DOMAIN_ICON_COLOR[dashboard.domainCode]?.bg ?? 'var(--color-bt-primary-soft)',
-          color: DOMAIN_ICON_COLOR[dashboard.domainCode]?.fg ?? 'var(--color-bt-primary)',
-          borderColor: DOMAIN_ICON_COLOR[dashboard.domainCode]?.border ?? 'transparent',
+          background: 'var(--color-bt-primary-soft)',
+          color: 'var(--color-bt-primary)',
         }}
       >
         {DASHBOARD_ICON_SVG[iconType]}
@@ -122,7 +148,7 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
             </Tag>
           )}
         </div>
-        <span className={cn('truncate text-xs', dashboard.description ? 'text-[var(--color-bt-fg-muted)]' : 'italic text-gray-300')}>{dashboard.description || '설명 없음'}</span>
+        <span className={cn('truncate text-xs', dashboard.description ? 'text-[var(--color-bt-fg-muted)]' : 'italic text-gray-300')}>{dashboard.description ?? '설명 없음'}</span>
         {/* 칩 영역은 항상 고정 높이로 예약 — 칩 유무에 따른 행 높이 들쭉날쭉 방지 */}
         <div className="mt-0.5 flex h-[18px] items-center gap-1 overflow-hidden">
           {widgetNames.slice(0, 3).map((name) => (
@@ -142,6 +168,34 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
             >
               <span className="shrink-0 cursor-help text-[11px] text-[var(--color-bt-fg-muted)]">외 {widgetNames.length - 3}</span>
             </Tooltip>
+          )}
+        </div>
+        {/* 태그 칩 — 한 줄 고정. 넘치는 태그는 숨기고 +N 으로 표기(fca BotCard / ReportRow 패턴) */}
+        <div className="mt-0.5 flex items-center gap-1">
+          {tags.length > 0 ? (
+            <>
+              {/* 한 줄(h-[18px]) 고정 + overflow-hidden → 둘째 줄로 넘친 칩은 숨김, ResizeObserver 가 그 수를 셈 */}
+              <div ref={tagsRef} className="flex h-[18px] min-w-0 flex-1 flex-wrap gap-1 overflow-hidden">
+                {tags.map((t) => (
+                  <span
+                    key={`tag-${t}`}
+                    className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#dbe7f5] bg-[#eef5fc] px-1.5 text-[11px] text-[var(--color-bt-primary)]"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+              {tagsWrapped > 0 && (
+                <span
+                  title={tags.join(', ')}
+                  className="inline-flex h-[18px] shrink-0 items-center rounded-full border border-[#dbe7f5] bg-[#eef5fc] px-1.5 text-[11px] font-medium text-[var(--color-bt-primary)]"
+                >
+                  +{tagsWrapped}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[11px] italic text-gray-300">태그 없음</span>
           )}
         </div>
       </div>

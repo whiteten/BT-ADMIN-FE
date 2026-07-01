@@ -5,7 +5,6 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import TemplateWidgetEditor, { type TemplateWidgetEditorSaveDatas } from '../../features/monitoring/components/widget/TemplateWidgetEditor';
 import { templateWidgetKeys, useCreateTemplateWidget, useGetTemplateWidget, useUpdateTemplateWidget } from '../../features/monitoring/hooks/useTemplateWidgetQueries';
-import type { DomainCode } from '../../features/monitoring/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 /**
@@ -20,10 +19,6 @@ export default function TemplateWidgetBuilder() {
   const queryClient = useQueryClient();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
-
-  // TODO 템플릿 위젯 도메인 UX — 데이터셋에서 도메인 개념이 제거되어 더 이상 데이터셋에서 가져올 수 없음.
-  //   빌더에 도메인 선택 UI를 추가하는 작업은 별도. 현재는 컴파일·저장 유지를 위한 임시 기본값.
-  const selectedDomain: DomainCode = 'IC';
 
   // 편집 모드 — 기존 정의 prefill
   const { data: detail, isLoading: isDetailLoading } = useGetTemplateWidget({
@@ -65,7 +60,7 @@ export default function TemplateWidgetBuilder() {
   const handleSave = (datas: TemplateWidgetEditorSaveDatas) => {
     const payload = {
       widgetName: datas.widgetName,
-      domainCode: selectedDomain,
+      tags: datas.tags,
       datasetId: datas.datasetId,
       visualizations: datas.visualizations,
       defaultViz: datas.defaultViz,
@@ -89,6 +84,7 @@ export default function TemplateWidgetBuilder() {
           isEdit && detail
             ? {
                 widgetName: detail.widgetName,
+                tags: detail.tags,
                 datasetId: detail.datasetId,
                 visualizations: detail.visualizations,
                 defaultViz: detail.defaultViz,

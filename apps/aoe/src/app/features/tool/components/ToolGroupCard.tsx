@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 type ToolGroupCardProps = ToolGroup & {
+  canWrite?: boolean;
   onOpen?: (group: ToolGroup) => void;
   onDelete?: (group: ToolGroup) => void;
 };
 
-export default function ToolGroupCard({ groupId, groupName, description, toolCount, workTime, onOpen, onDelete }: ToolGroupCardProps) {
+export default function ToolGroupCard({ groupId, groupName, description, toolCount, workTime, canWrite = false, onOpen, onDelete }: ToolGroupCardProps) {
   const group: ToolGroup = { groupId, groupName, description, toolCount, workTime };
 
   const title = (
@@ -43,9 +44,11 @@ export default function ToolGroupCard({ groupId, groupName, description, toolCou
         <DropdownMenuItem onClick={() => onOpen?.(group)} className="hover:cursor-pointer">
           상세보기
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete?.(group)} className="hover:cursor-pointer">
-          삭제
-        </DropdownMenuItem>
+        {canWrite && (
+          <DropdownMenuItem onClick={() => onDelete?.(group)} className="hover:cursor-pointer">
+            삭제
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

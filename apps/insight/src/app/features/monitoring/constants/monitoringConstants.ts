@@ -2,40 +2,7 @@
  * 인사이트 모니터링 — 상수
  */
 
-import type { DomainCode, KpiDirection, VizType } from '../types';
-
-// ─── 도메인 ──────────────────────────────────────────────────────────────
-
-export const DOMAIN_LABELS: Record<DomainCode, string> = {
-  IE: 'PBX',
-  IC: 'CTI',
-  IR: 'IVR',
-};
-
-export const DOMAIN_TAG_COLOR: Record<DomainCode, string> = {
-  IE: 'blue',
-  IC: 'green',
-  IR: 'orange',
-};
-
-export const DOMAIN_COLOR_CLASS: Record<DomainCode, string> = {
-  IE: 'bg-[var(--color-bt-primary)] text-white',
-  IC: 'bg-[var(--color-bt-success)] text-white',
-  IR: 'bg-[var(--color-bt-warn)] text-white',
-};
-
-// 도메인 색상만 (배경 점, 좌측 액센트 바 등에 사용)
-export const DOMAIN_DOT_CLASS: Record<DomainCode, string> = {
-  IE: 'bg-[var(--color-bt-primary)]',
-  IC: 'bg-[var(--color-bt-success)]',
-  IR: 'bg-[var(--color-bt-warn)]',
-};
-
-export const DOMAIN_OPTIONS: Array<{ value: DomainCode; label: string }> = [
-  { value: 'IE', label: 'IE · 교환기' },
-  { value: 'IC', label: 'IC · CTI' },
-  { value: 'IR', label: 'IR · IVR' },
-];
+import type { KpiDirection, VizType } from '../types';
 
 // ─── 시각화 ──────────────────────────────────────────────────────────────
 

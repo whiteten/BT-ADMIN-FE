@@ -9,7 +9,7 @@ import { CSS } from '@dnd-kit/utilities';
 import CodeMirror, { type Extension } from '@uiw/react-codemirror';
 import type { CellStyle, ColDef, ICellRendererParams, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, Col, Divider, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
+import { AutoComplete, type BreadcrumbProps, Button, Checkbox, Col, Divider, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
 import { CheckCircle2, Edit2, Play, Plus, Trash2, Wand2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { Log } from '@/log';
@@ -56,6 +56,73 @@ interface DatasetWizardForm {
   fields: DatasetField[];
   calcFields: CalcField[];
   lookups: DatasetLookup[];
+}
+
+// ────────── REDIS 키 변수 바인딩 (#name → 런타임 검색조건) ──────────
+type KeyVarBind = 'FIELD' | 'DATE';
+type KeyVarDateFormat = 'yyyy' | 'yyyymm' | 'yyyymmdd';
+
+/** 키 패턴의 #변수 1개에 대한 바인딩 설정. BE keyVarBindings JSON 스키마와 1:1 (LITERAL 없음). */
+interface KeyVarBinding {
+  name: string; // 키 패턴의 #name 과 동일
+  bind: KeyVarBind;
+  field?: string; // FIELD — 행 재검증용 value JSON 필드명
+  format?: KeyVarDateFormat; // DATE 필수
+  fallback: string; // Redis glob (미지정 시 BE가 *)
+}
+
+const KEY_VAR_DATE_FORMAT_OPTIONS: { value: KeyVarDateFormat; label: string }[] = [
+  { value: 'yyyy', label: 'yyyy' },
+  { value: 'yyyymm', label: 'yyyymm' },
+  { value: 'yyyymmdd', label: 'yyyymmdd' },
+];
+
+/** 키 패턴에서 `#name` 변수명을 등장 순서대로(중복 제거) 추출. */
+function parseKeyVarNames(pattern: string): string[] {
+  const re = /#([A-Za-z0-9_]+)/g;
+  const names: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(pattern)) !== null) {
+    if (!names.includes(m[1])) names.push(m[1]);
+  }
+  return names;
+}
+
+/** 편집 진입 시 detail.keyVarBindings(JSON 문자열) → 바인딩 배열. 파싱 실패/빈값은 빈 배열. */
+function parseKeyVarBindings(json?: string): KeyVarBinding[] {
+  if (!json?.trim()) return [];
+  try {
+    const parsed: unknown = JSON.parse(json);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+      .filter((x) => typeof x.name === 'string' && x.name)
+      .map((x) => {
+        const bind: KeyVarBind = x.bind === 'DATE' ? 'DATE' : 'FIELD';
+        return {
+          name: x.name as string,
+          bind,
+          field: typeof x.field === 'string' ? x.field : undefined,
+          format: x.format === 'yyyy' || x.format === 'yyyymm' || x.format === 'yyyymmdd' ? x.format : undefined,
+          fallback: typeof x.fallback === 'string' && x.fallback ? x.fallback : '*',
+        };
+      });
+  } catch {
+    return [];
+  }
+}
+
+/** 바인딩 배열 → 저장용 JSON 문자열 (BE 스키마). FIELD는 field(있으면)·fallback, DATE는 format·fallback. */
+function serializeKeyVarBindings(vars: KeyVarBinding[]): string {
+  const out = vars.map((v) => {
+    const fb = v.fallback?.trim() ? v.fallback.trim() : '*';
+    if (v.bind === 'DATE') {
+      return { name: v.name, bind: 'DATE', format: v.format ?? 'yyyymmdd', fallback: fb };
+    }
+    const fieldVal = v.field?.trim();
+    return fieldVal ? { name: v.name, bind: 'FIELD', field: fieldVal, fallback: fb } : { name: v.name, bind: 'FIELD', fallback: fb };
+  });
+  return JSON.stringify(out);
 }
 
 const initialForm: DatasetWizardForm = {
@@ -668,6 +735,8 @@ export default function DatasetWizard() {
   const keyUserPickedRef = useRef(false);
   // 검증 결과 모달 — 실패·경고 시에만 노출 (통과+경고없음은 토스트만)
   const validationModalRef = useRef<SourceValidationResultModalRef>(null);
+  // REDIS 키 변수 바인딩 — 키 패턴의 #변수를 런타임 검색조건에 매핑. 폼이 아닌 로컬 상태로 관리(저장 시 JSON 직렬화)
+  const [keyVars, setKeyVars] = useState<KeyVarBinding[]>([]);
 
   // 편집 모드 — 기존 데이터셋 로드
   const { data: detail } = useGetMonitoringDataset({ params: { datasetId }, queryOptions: { enabled: isEdit, retry: false } });
@@ -688,11 +757,35 @@ export default function DatasetWizard() {
         lookups: detail.lookups ?? [],
       });
       setSourceValidated(true);
+      // 키 변수 바인딩 초기값 — 저장된 JSON 파싱 (이후 reconcile 효과가 현재 키 패턴과 정합)
+      setKeyVars(parseKeyVarBindings(detail.keyVarBindings));
     }
   }, [detail, form]);
 
   // 폼 값 실시간 추적 (스텝 렌더링용)
   const formValues = Form.useWatch([], form);
+
+  // 키 변수 reconcile — REDIS 키 패턴의 #변수와 keyVars 정합.
+  // 사라진 변수는 제거, 새 변수는 기본값(FIELD, fallback '*')으로 추가, 기존 설정은 보존. REDIS가 아니면 비움.
+  const schemaSnapshotWatch = (formValues?.schemaSnapshot ?? '') as string;
+  const baseTypeWatch = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
+  useEffect(() => {
+    if (baseTypeWatch !== 'REDIS') {
+      setKeyVars((prev) => (prev.length ? [] : prev));
+      return;
+    }
+    const names = parseKeyVarNames(schemaSnapshotWatch);
+    setKeyVars((prev) => {
+      const byName = new Map(prev.map((v) => [v.name, v]));
+      const next: KeyVarBinding[] = names.map((n) => byName.get(n) ?? { name: n, bind: 'FIELD', fallback: '*' });
+      const same = next.length === prev.length && next.every((v, i) => v === prev[i]);
+      return same ? prev : next;
+    });
+  }, [schemaSnapshotWatch, baseTypeWatch]);
+
+  const updateKeyVar = useCallback((name: string, patch: Partial<KeyVarBinding>) => {
+    setKeyVars((prev) => prev.map((v) => (v.name === name ? { ...v, ...patch } : v)));
+  }, []);
 
   // Breadcrumb
   const datasetNameWatch = Form.useWatch('datasetName', form);
@@ -999,6 +1092,8 @@ export default function DatasetWizard() {
       baseType: values.baseType,
       schemaSnapshot: values.schemaSnapshot,
       valueMode: values.baseType === 'REDIS' ? values.valueMode : undefined,
+      // REDIS만 키 변수 바인딩 저장 (그 외 baseType은 BE가 null 강제)
+      keyVarBindings: values.baseType === 'REDIS' ? serializeKeyVarBindings(keyVars) : undefined,
       fields: visibleFields,
       calcFields: values.calcFields ?? [],
       lookups,
@@ -1017,6 +1112,8 @@ export default function DatasetWizard() {
     // 기본 정보 + 데이터셋 소스 통합 단계 (통계 WizardStepA 패턴 — 이름·설명·태그 + 소스 선택)
     const text = (formValues?.schemaSnapshot ?? '') as string;
     const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
+    // 키 변수 FIELD 자동완성 후보 — 추출된 데이터셋 필드명
+    const keyVarFieldOptions = ((formValues?.fields as DatasetField[]) ?? []).map((f) => ({ value: f.fieldName, label: f.fieldName }));
 
     // 카드 활성/비활성 시각 분리. 편집 모드에서는 비선택 카드를 클릭 불가(disabled)로 명시
     const cardClass = (selected: boolean) => {
@@ -1173,6 +1270,67 @@ export default function DatasetWizard() {
           <div className="h-[380px]">
             <RedisTreeExplorer value={baseType === 'REDIS' ? text : ''} onChange={handleSchemaChange} onSchemaLoaded={handleRedisSchemaLoaded} />
           </div>
+
+          {/* ── 키 변수 — 키 패턴의 #변수를 런타임 검색조건에 바인딩 ── */}
+          {keyVars.length > 0 && (
+            <div className="mt-4 rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-gray-700">키 변수</span>
+                <span className="text-[11px] text-gray-500">
+                  키 패턴의 <span className="font-mono">#변수</span>를 런타임 검색조건에 바인딩합니다. (FIELD=value 필드 / DATE=날짜 포맷)
+                </span>
+              </div>
+              <div className="space-y-2">
+                {keyVars.map((v) => (
+                  <div key={v.name} className="flex flex-wrap items-center gap-2">
+                    <span className="w-32 shrink-0 truncate font-mono text-[12px] font-semibold text-[var(--color-bt-primary)]">#{v.name}</span>
+                    <Select
+                      size="small"
+                      value={v.bind}
+                      style={{ width: 96 }}
+                      onChange={(b) => updateKeyVar(v.name, { bind: b as KeyVarBind })}
+                      options={[
+                        { value: 'FIELD', label: '필드' },
+                        { value: 'DATE', label: '날짜' },
+                      ]}
+                    />
+                    {v.bind === 'FIELD' ? (
+                      <AutoComplete
+                        size="small"
+                        style={{ width: 220 }}
+                        value={v.field ?? ''}
+                        onChange={(val) => updateKeyVar(v.name, { field: val })}
+                        options={keyVarFieldOptions}
+                        filterOption={(input, option) =>
+                          String(option?.value ?? '')
+                            .toLowerCase()
+                            .includes(input.toLowerCase())
+                        }
+                        placeholder="value 필드명 (예: MEDIA_TYPE)"
+                        allowClear
+                      />
+                    ) : (
+                      <Select
+                        size="small"
+                        style={{ width: 132 }}
+                        value={v.format ?? 'yyyymmdd'}
+                        onChange={(f) => updateKeyVar(v.name, { format: f as KeyVarDateFormat })}
+                        options={KEY_VAR_DATE_FORMAT_OPTIONS}
+                      />
+                    )}
+                    <Input
+                      size="small"
+                      style={{ width: 200 }}
+                      value={v.fallback}
+                      onChange={(e) => updateKeyVar(v.name, { fallback: e.target.value })}
+                      addonBefore="fallback"
+                      placeholder="* (예: [0-9]*)"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── QUERY 입력 — 좌: SQL 쿼리 / 우: 필드 스키마(검증 시 표시) ── 스크롤 컨텍스트라 고정 높이 사용 */}

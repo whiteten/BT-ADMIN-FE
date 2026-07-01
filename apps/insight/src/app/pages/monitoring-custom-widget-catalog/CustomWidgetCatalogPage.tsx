@@ -123,7 +123,7 @@ export default function CustomWidgetCatalogPage() {
           )}
         </div>
 
-        <CustomWidgetCatalogPanel domainCode={dashboard.domainCode} onAdd={handleAdd} onClose={handleClose} />
+        <CustomWidgetCatalogPanel onAdd={handleAdd} onClose={handleClose} />
       </div>
     </div>
   );

@@ -402,8 +402,14 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     const chartOptions = buildChartOptions();
     const data = { panelType: (isGrid ? 'GRID' : chartType) as PanelType, title: trimmedTitle, datasetId: selectedDatasetId, layout, fieldMap, chartOptions };
     if (isDraft) {
-      addPanel({ panelId: -Date.now(), reportId: 0, ...data });
-      toast.success('패널이 추가되었습니다.');
+      // 기존 드래프트 패널 재편집이면 제자리 수정(중복 생성 방지), 신규면 추가
+      if (isEdit && panelId) {
+        storeUpdatePanel(panelId, data);
+        toast.success('패널이 수정되었습니다.');
+      } else {
+        addPanel({ panelId: -Date.now(), reportId: 0, ...data });
+        toast.success('패널이 추가되었습니다.');
+      }
       onSaved?.();
       onClose();
       return;
@@ -1059,7 +1065,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
     if (!selectedDatasetId) return <div className="flex h-full items-center justify-center text-xs text-muted-foreground">데이터셋을 먼저 선택하세요</div>;
     switch (previewPanel.panelType) {
       case 'GRID':
-        return <PanelGrid panel={previewPanel} reportId={0} />;
+        return <PanelGrid panel={previewPanel} reportId={0} preview />;
       case 'BAR':
         return <PanelBarChart panel={previewPanel} reportId={0} />;
       case 'LINE':

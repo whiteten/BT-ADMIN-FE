@@ -1,43 +1,27 @@
 import { Divider, Form, Input } from 'antd';
+import TagInput from '../../../components/TagInput';
 import { DASHBOARD_ICON_LABELS, DASHBOARD_ICON_SVG, DASHBOARD_ICON_TYPES } from '../constants/dashboardIconConstants';
-import type { DashboardIconType, DomainCode } from '../types';
+import type { DashboardIconType } from '../types';
 
-const DOMAIN_CHOICES: Array<{ value: DomainCode; label: string; hint: string }> = [
-  { value: 'IE', label: '교환기', hint: '내선·국선·트렁크·콜 라우팅' },
-  { value: 'IC', label: 'CTI', hint: '상담사·상담그룹·통화·CDR' },
-  { value: 'IR', label: 'IVR', hint: '시나리오·음성안내·통계' },
-];
+const MAX_TAGS = 5;
 
 interface Props {
   name: string;
   onNameChange: (v: string) => void;
-  domain: DomainCode | null;
-  onDomainChange: (d: DomainCode) => void;
+  tags: string[];
+  onTagsChange: (tags: string[]) => void;
   icon: DashboardIconType | null;
   onIconChange: (icon: DashboardIconType) => void;
   description: string;
   onDescriptionChange: (v: string) => void;
   showErrors: boolean;
-  /** 수정 모드 — 도메인은 생성 후 변경 불가. */
-  domainLocked?: boolean;
 }
 
 /**
  * 대시보드 메타 입력 폼 — 등록/수정 공용.
- * 통계 보고서 생성 화면과 동일한 단일 컬럼 구성: 이름 → 카테고리 카드 → 아이콘 그리드 → 설명.
+ * 단일 컬럼 구성: 이름 → 태그 → 아이콘 그리드 → 설명.
  */
-export default function DashboardMetaFields({
-  name,
-  onNameChange,
-  domain,
-  onDomainChange,
-  icon,
-  onIconChange,
-  description,
-  onDescriptionChange,
-  showErrors,
-  domainLocked = false,
-}: Props) {
+export default function DashboardMetaFields({ name, onNameChange, tags, onTagsChange, icon, onIconChange, description, onDescriptionChange, showErrors }: Props) {
   return (
     <div className="p-7 pb-4">
       <Form layout="vertical">
@@ -52,40 +36,8 @@ export default function DashboardMetaFields({
 
         <Divider />
 
-        <Form.Item label="카테고리" required extra={domainLocked ? '생성 후에는 변경할 수 없습니다.' : undefined}>
-          <div className="grid grid-cols-3 gap-4">
-            {DOMAIN_CHOICES.map((d) => {
-              const isSelected = domain === d.value;
-              const disabled = domainLocked && !isSelected;
-              return (
-                <button
-                  key={d.value}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => !domainLocked && onDomainChange(d.value)}
-                  className={`rounded-md p-4 text-left transition-all border-2 ${
-                    isSelected ? 'bg-blue-50/40 shadow-md' : 'border-gray-200 bg-white hover:border-gray-400 hover:shadow-sm'
-                  } ${disabled ? 'opacity-40 cursor-not-allowed hover:border-gray-200 hover:shadow-none' : ''} ${domainLocked && isSelected ? 'cursor-default' : ''}`}
-                  style={isSelected ? { borderColor: '#085fb5' } : undefined}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded text-xs font-bold text-white" style={{ backgroundColor: '#085fb5' }}>
-                      {d.value}
-                    </span>
-                    {isSelected && (
-                      <span className="rounded px-2 py-1 text-xs font-semibold text-white" style={{ backgroundColor: '#085fb5' }}>
-                        선택됨
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-sm font-bold" style={isSelected ? { color: '#085fb5' } : { color: '#1f2937' }}>
-                    {d.label}
-                  </div>
-                  <div className="mt-1 text-xs text-gray-400">{d.hint}</div>
-                </button>
-              );
-            })}
-          </div>
+        <Form.Item label="태그" tooltip="분류·검색에 사용됩니다." extra={`Enter 또는 쉼표로 여러 개 추가 — 최대 ${MAX_TAGS}개 (예: CTI, IVR, PBX, 통합, 상담사)`}>
+          <TagInput value={tags} onChange={onTagsChange} maxTags={MAX_TAGS} size="large" />
         </Form.Item>
 
         <Divider />

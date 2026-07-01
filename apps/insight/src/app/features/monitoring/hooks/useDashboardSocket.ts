@@ -9,14 +9,51 @@ import { getCustomWidgetFields } from '../widgets/registry';
  * 를 통해 양방향 통신한다.
  *
  * Envelope 은 BE 와 1:1 일치 — CONNECTED · SUBSCRIBE · SUBSCRIBED · DATA ·
- * UNSUBSCRIBE · UNSUBSCRIBED · ERROR. v0.1 에서는 CUSTOM 위젯만 지원
- * (`widget.kind === 'CUSTOM'` 만 SUBSCRIBE 송신, TEMPLATE 은 skip).
+ * UNSUBSCRIBE · UNSUBSCRIBED · ERROR. CUSTOM 위젯(`widgetType = widgetTypeId`)과
+ * TEMPLATE 위젯(센티넬 `widgetType = 'dataset'`, `options.datasetId`) 모두 SUBSCRIBE 송신.
  *
  * MOCK_MODE — BE 미가동 / 로컬 시연 용도. 기본 false. true 로 두면 위젯별 빈 데이터 tick 만 발생.
  */
 
 const WS_ENDPOINT = '/ws/proxy/insight/monitoring';
 const MOCK_MODE = false;
+
+/**
+ * 위젯 1개 → SUBSCRIBE 메시지 변환.
+ * - CUSTOM: `widgetType = widgetTypeId`, options 에 카탈로그 옵션·글로벌·사용자설정·fields 머지.
+ * - TEMPLATE: 센티넬 `widgetType = 'dataset'`, options 에 `datasetId`(필수)·글로벌·사용자설정 머지.
+ * - PLACEHOLDER 등 구독 대상이 아니면 null.
+ */
+function buildSubscribeMessage(w: Widget, globalOptions: Record<string, unknown>, widgetUserSettings: Record<string, Record<string, unknown>>): WsSubscribeMessage | null {
+  const userSetting = widgetUserSettings[String(w.widgetId)] ?? {};
+  if (w.kind === 'CUSTOM') {
+    const fields = getCustomWidgetFields(w.widgetTypeId);
+    return {
+      type: 'SUBSCRIBE',
+      widgetId: String(w.widgetId),
+      widgetType: w.widgetTypeId,
+      options: {
+        ...(w.options ?? {}),
+        ...globalOptions,
+        ...userSetting,
+        ...(fields && fields.length > 0 ? { fields } : {}),
+      },
+    };
+  }
+  if (w.kind === 'TEMPLATE') {
+    return {
+      type: 'SUBSCRIBE',
+      widgetId: String(w.widgetId),
+      widgetType: 'dataset',
+      options: {
+        datasetId: w.datasetId,
+        ...globalOptions,
+        ...userSetting,
+      },
+    };
+  }
+  return null;
+}
 
 interface UseDashboardSocketOptions {
   dashboardId: number;
@@ -85,22 +122,10 @@ export function useDashboardSocket({
       ws.onopen = () => {
         setConnectionState('connected');
         reconnectAttemptRef.current = 0;
-        // CUSTOM 위젯만 SUBSCRIBE — TEMPLATE 위젯은 v0.1 OUT
+        // CUSTOM·TEMPLATE 위젯 SUBSCRIBE (TEMPLATE 은 widgetType='dataset')
         widgets.forEach((w) => {
-          if (w.kind !== 'CUSTOM') return;
-          const fields = getCustomWidgetFields(w.widgetTypeId);
-          const msg: WsSubscribeMessage = {
-            type: 'SUBSCRIBE',
-            widgetId: String(w.widgetId),
-            widgetType: w.widgetTypeId,
-            options: {
-              ...(w.options ?? {}),
-              ...globalOptions,
-              ...(widgetUserSettings[String(w.widgetId)] ?? {}),
-              ...(fields && fields.length > 0 ? { fields } : {}),
-            },
-          };
-          ws.send(JSON.stringify(msg));
+          const msg = buildSubscribeMessage(w, globalOptions, widgetUserSettings);
+          if (msg) ws.send(JSON.stringify(msg));
         });
       };
 
@@ -167,14 +192,14 @@ export function useDashboardSocket({
 
   // ─── 연결 시작 / 정리 ────────────────────────────────────────────────
 
-  // 구독 대상(CUSTOM 위젯)의 시그니처. 대시보드가 비동기로 로드되어 위젯이
+  // 구독 대상(CUSTOM·TEMPLATE 위젯)의 시그니처. 대시보드가 비동기로 로드되어 위젯이
   // [] → [populated] 로 바뀌면 이 값이 변해 소켓을 재연결 → onopen 에서 최신 위젯으로 SUBSCRIBE.
   // (자동 시작 시 마운트 시점엔 위젯이 아직 로드 전이라 빈 구독이 되는 레이스 방지)
   const subscriptionKey = useMemo(
     () =>
       widgets
-        .filter((w) => w.kind === 'CUSTOM')
-        .map((w) => `${w.widgetId}:${w.widgetTypeId}`)
+        .filter((w) => w.kind === 'CUSTOM' || w.kind === 'TEMPLATE')
+        .map((w) => (w.kind === 'CUSTOM' ? `${w.widgetId}:${w.widgetTypeId}` : `${w.widgetId}:dataset:${w.datasetId}`))
         .join(','),
     [widgets],
   );
@@ -207,20 +232,9 @@ export function useDashboardSocket({
   const resubscribe = useCallback(() => {
     if (MOCK_MODE || !socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
     widgets.forEach((w) => {
-      if (w.kind !== 'CUSTOM') return;
+      const msg = buildSubscribeMessage(w, globalOptions, widgetUserSettings);
+      if (!msg) return;
       socketRef.current!.send(JSON.stringify({ type: 'UNSUBSCRIBE', widgetId: String(w.widgetId) }));
-      const fields = getCustomWidgetFields(w.widgetTypeId);
-      const msg: WsSubscribeMessage = {
-        type: 'SUBSCRIBE',
-        widgetId: String(w.widgetId),
-        widgetType: w.widgetTypeId,
-        options: {
-          ...(w.options ?? {}),
-          ...globalOptions,
-          ...(widgetUserSettings[String(w.widgetId)] ?? {}),
-          ...(fields && fields.length > 0 ? { fields } : {}),
-        },
-      };
       socketRef.current!.send(JSON.stringify(msg));
     });
   }, [widgets, globalOptions, widgetUserSettings]);

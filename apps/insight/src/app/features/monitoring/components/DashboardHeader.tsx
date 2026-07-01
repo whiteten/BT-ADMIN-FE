@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from 'antd';
 import { Play, Plus, Square } from 'lucide-react';
-import { DOMAIN_LABELS } from '../constants/monitoringConstants';
 import type { DashboardDetail, WsConnectionState } from '../types';
 
 type Mode = 'view' | 'edit';
@@ -97,8 +96,6 @@ export default function DashboardHeader({
           ) : (
             <span className="text-sm font-medium text-[#495057] shrink-0">{dashboard.dashboardName}</span>
           )}
-
-          <span className="text-xs text-[#868e96] shrink-0">· {DOMAIN_LABELS[dashboard.domainCode]}</span>
 
           {mode === 'view' && monitoringStarted && (
             <span className={`ml-2 inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${conn.pillClass}`}>

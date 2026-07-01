@@ -20,6 +20,12 @@ interface PermissionSelectorProps {
   value?: Set<string>;
   onChange?: (authKeys: Set<string>) => void;
   className?: string;
+  /**
+   * readonly(체크 고정 + 비활성)로 잠글 권한 KEY 집합.
+   * BE(역할 상세 응답 role.lockedAuthKeys)가 판단해 내려준 값만 그대로 잠근다.
+   * 예: 시스템 관리자 역할의 IAM 핵심 권한 — self-lockout 방지.
+   */
+  lockedAuthKeys?: Set<string>;
 }
 
 /** 고정 권한 타입 열 */
@@ -125,7 +131,7 @@ function flattenMenuTree(menu: MenuWithPermissions, depth = 0): FlatMenuItem[] {
   return result;
 }
 
-export default function PermissionSelector({ value = new Set(), onChange, className }: PermissionSelectorProps) {
+export default function PermissionSelector({ value = new Set(), onChange, className, lockedAuthKeys = new Set() }: PermissionSelectorProps) {
   const [searchText, setSearchText] = useState('');
   const [collapsedApps, setCollapsedApps] = useState<Set<string>>(new Set());
 
@@ -151,8 +157,9 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
       .filter((g) => g.flatMenus.length > 0);
   }, [flatMenusByApp, searchText]);
 
-  // 권한 토글
+  // 권한 토글 — locked 키는 변경 불가
   const handlePermissionToggle = (authKey: string) => {
+    if (lockedAuthKeys.has(authKey)) return;
     const next = new Set(value);
     if (next.has(authKey)) {
       next.delete(authKey);
@@ -162,27 +169,27 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
     onChange?.(next);
   };
 
-  // 메뉴(행) 전체 선택/해제
+  // 메뉴(행) 전체 선택/해제 — locked 키는 해제 대상에서 제외
   const handleRowToggle = (menu: MenuWithPermissions, checked: boolean) => {
     const allKeys = collectAuthKeysFromMenu(menu);
     const next = new Set(value);
-    allKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
+    allKeys.forEach((key) => (checked ? next.add(key) : lockedAuthKeys.has(key) || next.delete(key)));
     onChange?.(next);
   };
 
-  // 열(액션 타입) 전체 선택/해제
+  // 열(액션 타입) 전체 선택/해제 — locked 키는 해제 대상에서 제외
   const handleColumnToggle = (group: PermissionGroup, action: string, checked: boolean) => {
     const actionKeys = collectAuthKeysByAction(group, action);
     const next = new Set(value);
-    actionKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
+    actionKeys.forEach((key) => (checked ? next.add(key) : lockedAuthKeys.has(key) || next.delete(key)));
     onChange?.(next);
   };
 
-  // 앱 전체 선택/해제
+  // 앱 전체 선택/해제 — locked 키는 해제 대상에서 제외
   const handleAppToggle = (group: PermissionGroup, checked: boolean) => {
     const allKeys = collectAllAuthKeysFromGroup(group);
     const next = new Set(value);
-    allKeys.forEach((key) => (checked ? next.add(key) : next.delete(key)));
+    allKeys.forEach((key) => (checked ? next.add(key) : lockedAuthKeys.has(key) || next.delete(key)));
     onChange?.(next);
   };
 
@@ -365,6 +372,17 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
                         }
 
                         const isSelected = value.has(authKey);
+                        const isLocked = lockedAuthKeys.has(authKey);
+
+                        if (isLocked) {
+                          // BE가 readonly로 내린 권한 — 체크 고정 + 비활성 (self-lockout 방지)
+                          return (
+                            <div key={action} className="flex items-center justify-center py-2" title="시스템 관리자 필수 권한 — 변경할 수 없습니다">
+                              <Checkbox checked disabled />
+                            </div>
+                          );
+                        }
+
                         return (
                           <div
                             key={action}

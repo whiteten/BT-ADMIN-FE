@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { toast } from '@/shared-util';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../../features/board/api/ctiRedisApi';
+import { taskboardApi } from '../../features/board/api/taskboardApi';
+import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { MultiSelectDropdown } from '../../features/board/components/MultiSelectDropdown';
-import { RedisTableWidget, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
+import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../../features/board/hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../../features/board/hooks/useResponsiveFontScale';
 import {
   useGetCtiAgentList,
   useGetCtiGroupList,
   useGetCtiQueueList,
-  useGetRedisHashEntries,
+  useGetRedisHashKeys,
   useGetTaskboardDisplayList,
   useGetTaskboardLayoutList,
   useUpdateTaskboardDisplay,
@@ -21,12 +23,16 @@ import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnim
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
 import {
+  buildGroupReasonHashKeys,
   buildSelectionIdsByHashKey,
+  collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
   getCalcDisplayValue,
   getRedisDisplayValue,
+  groupSumAcrossHashKeys,
   groupSumRedisHashEntries,
   mergeWsSubscriptions,
+  parseGroupReasonHashKey,
 } from '../../features/board/utils/redisValue';
 import {
   VALUE_CHANGE_ANIMATION_CSS,
@@ -38,6 +44,9 @@ import {
   getWidgetVisualStyle,
   isTransparentBg,
 } from '../../features/board/utils/widgetVisualStyle';
+
+/** 섹션키 → selection 맵. TaskView 섹션 모드에서 각 섹션의 뷰 그룹 선택값을 담는다. */
+type SectionSelections = Record<string, TaskboardDisplaySelection>;
 
 const CHART_VIEW_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
 
@@ -60,6 +69,22 @@ function mergeByHashKeys(dataByHashKey: CtiWsDataByHashKey, hashKeys: string[]):
   return merged;
 }
 
+/** 정렬 기준 컬럼(sortKey)이 있으면 숫자 기준 정렬 후, limit(미지정 시 20)만큼만 잘라서 반환 */
+function applySortAndLimit(rows: Record<string, string | number>[], sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number }): Record<string, string | number>[] {
+  let result = rows;
+  if (sortConfig?.key) {
+    const order = sortConfig.order ?? 'desc';
+    const key = sortConfig.key;
+    result = [...result].sort((a, b) => {
+      const av = Number(a[key]) || 0;
+      const bv = Number(b[key]) || 0;
+      return order === 'asc' ? av - bv : bv - av;
+    });
+  }
+  if (sortConfig?.limit && sortConfig.limit > 0) return result.slice(0, sortConfig.limit);
+  return result;
+}
+
 // ── 실시간 테이블 행 생성 헬퍼 ───────────────────────────────────────────────
 function buildLiveTableRows(
   widgetId: string,
@@ -71,6 +96,7 @@ function buildLiveTableRows(
   mediaTypes: string[],
   dataByHashKey: CtiWsDataByHashKey,
   agentHashKeys: string[],
+  sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number },
 ): Record<string, string | number>[] {
   if (widgetId === 'table-queue') {
     const selectedQueueIds = selection.queueIds ?? [];
@@ -79,7 +105,7 @@ function buildLiveTableRows(
       mediaTypes.map((mt) => `IC:CTIQ:${mt}`),
     );
     const filtered = selectedQueueIds.length > 0 ? queueRows.filter((q) => selectedQueueIds.includes(q.ctiqId)) : queueRows;
-    return filtered.slice(0, 20).map((q) => {
+    const result = filtered.map((q) => {
       const ws = ctiqWsData[q.ctiqId];
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
@@ -99,12 +125,13 @@ function buildLiveTableRows(
       });
       return row;
     });
+    return applySortAndLimit(result, sortConfig);
   }
   if (widgetId === 'table-agent') {
     const selectedAgentIds = selection.agentIds ?? [];
     const agentWsData = mergeByHashKeys(dataByHashKey, agentHashKeys);
     const filtered = selectedAgentIds.length > 0 ? agentRows.filter((a) => selectedAgentIds.includes(a.agentId)) : agentRows;
-    return filtered.slice(0, 20).map((agent) => {
+    const result = filtered.map((agent) => {
       const ws = agentWsData[agent.agentId];
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
@@ -124,11 +151,12 @@ function buildLiveTableRows(
       });
       return row;
     });
+    return applySortAndLimit(result, sortConfig);
   }
   if (widgetId === 'table-group') {
     const selectedGroupIds = selection.groupIds ?? [];
     const filtered = selectedGroupIds.length > 0 ? groupRows.filter((g) => selectedGroupIds.includes(g.groupId)) : groupRows;
-    return filtered.slice(0, 20).map((group) => {
+    const result = filtered.map((group) => {
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
         switch (col.key) {
@@ -152,6 +180,7 @@ function buildLiveTableRows(
       });
       return row;
     });
+    return applySortAndLimit(result, sortConfig);
   }
   return [];
 }
@@ -210,7 +239,10 @@ function ViewTableWidget({
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const rows = liveRows && liveRows.length > 0 ? liveRows : cfg.sampleRows;
-  const columns = columnsOverride ?? (cfg.columns as TableColumn[]);
+  const columns = (columnsOverride ?? (cfg.columns as TableColumn[])).filter((c) => !c.hidden);
+  const cellBorderBottom = cfg.showBorder === false ? 'none' : `${cfg.borderWidth ?? 1}px solid ${widget.style.color}40`;
+  const cellBorderRight = cellBorderBottom;
+  const rowHeight = cfg.rowGap ?? 0;
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       {showTitle && (
@@ -228,24 +260,43 @@ function ViewTableWidget({
       )}
       <div className="flex-1 overflow-hidden">
         <table
-          className="w-full border-collapse"
-          style={{ fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`, color: widget.style.color, fontFamily: widget.style.fontFamily }}
+          className="w-full"
+          style={{
+            fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`,
+            color: widget.style.color,
+            fontFamily: widget.style.fontFamily,
+            borderCollapse: 'collapse',
+            tableLayout: 'fixed',
+          }}
         >
           <thead>
             <tr>
-              {columns.map((col) => (
+              {columns.map((col, colIdx) => (
                 <th
                   key={col.key}
                   style={{
                     width: col.width,
-                    borderBottom: `1px solid ${widget.style.color}40`,
-                    padding: '1px 3px',
+                    padding: cfg.hideColumnLabels ? 0 : '1px 3px',
+                    height: cfg.hideColumnLabels ? 0 : rowHeight || undefined,
                     textAlign: col.align ?? 'center',
-                    opacity: 0.7,
+                    verticalAlign: col.verticalAlign ?? 'middle',
                     fontWeight: 600,
+                    fontFamily: widget.style.fontFamily,
+                    borderRight: colIdx < columns.length - 1 ? cellBorderRight : 'none',
                   }}
                 >
-                  {col.label}
+                  <span
+                    style={{
+                      opacity: 0.7,
+                      display: 'block',
+                      overflow: 'hidden',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      ...(cfg.hideColumnLabels ? { fontSize: 0, lineHeight: 0 } : {}),
+                    }}
+                  >
+                    {!cfg.hideColumnLabels && col.label}
+                  </span>
                 </th>
               ))}
             </tr>
@@ -253,13 +304,17 @@ function ViewTableWidget({
           <tbody>
             {rows.map((row, ri) => (
               <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
-                {columns.map((col) => (
-                  <td
+                {columns.map((col, colIdx) => (
+                  <AnimatedTableCell
                     key={col.key}
-                    style={{ padding: '1px 3px', textAlign: col.align ?? 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', color: getThresholdColor(row[col.key], col) }}
-                  >
-                    {formatWidgetValue(row[col.key], col.useThousandSep)}
-                  </td>
+                    value={row[col.key]}
+                    col={col}
+                    style={widget.style}
+                    align={col.align ?? 'center'}
+                    borderBottom={cellBorderBottom}
+                    borderRight={colIdx < columns.length - 1 ? cellBorderRight : 'none'}
+                    rowHeight={rowHeight}
+                  />
                 ))}
               </tr>
             ))}
@@ -333,6 +388,68 @@ function ViewChartWidget({ widget, liveData, fontScale = 1 }: { widget: DroppedW
   );
 }
 
+/** DB query 결과(배열 또는 단일 행)에서 column 값을 추출. 배열이면 첫 번째 행을 사용 */
+function extractDbResult(json: unknown, column: string): string {
+  let row: unknown = json;
+  if (Array.isArray(row)) row = (row as unknown[])[0] ?? null;
+  if (row == null) return '';
+  if (typeof row !== 'object') return String(row);
+  const rec = row as Record<string, unknown>;
+  if (!column) {
+    const vals = Object.values(rec);
+    return vals.length === 1 ? String(vals[0]) : JSON.stringify(rec);
+  }
+  const val = rec[column] !== undefined ? rec[column] : rec[column.toUpperCase()];
+  return val != null ? String(val) : '';
+}
+
+// ── ExternalApi 중복 호출 방지: 같은 URL은 타이머 1개만 유지 ─────────────────
+type ExternalApiSubscriber = (json: unknown) => void;
+interface ExternalApiCacheEntry {
+  raw: unknown;
+  subscribers: Set<ExternalApiSubscriber>;
+  timer?: ReturnType<typeof setInterval>;
+}
+const externalApiCache = new Map<string, ExternalApiCacheEntry>();
+
+function subscribeExternalApi(url: string, intervalMs: number, headers: string | undefined, onValue: ExternalApiSubscriber): () => void {
+  const cacheKey = headers ? `${url}\0${headers}` : url;
+  let entry = externalApiCache.get(cacheKey);
+  if (!entry) {
+    const isDb = url.startsWith('db:');
+    const newEntry: ExternalApiCacheEntry = { raw: undefined, subscribers: new Set() };
+    externalApiCache.set(cacheKey, newEntry);
+    const fetchAndNotify = () => {
+      const apiFn = isDb ? taskboardApi.executeDbQuery(url.slice(3)) : taskboardApi.testExternalApiUrl({ url, headers });
+      apiFn
+        .then((json) => {
+          const e = externalApiCache.get(cacheKey);
+          if (!e) return;
+          e.raw = json;
+          e.subscribers.forEach((s) => s(json));
+        })
+        .catch(() => {
+          // 실패 시 기존 값 유지
+        });
+    };
+    fetchAndNotify();
+    newEntry.timer = setInterval(fetchAndNotify, intervalMs);
+    entry = newEntry;
+  } else if (entry.raw !== undefined) {
+    onValue(entry.raw);
+  }
+  entry.subscribers.add(onValue);
+  return () => {
+    const e = externalApiCache.get(cacheKey);
+    if (!e) return;
+    e.subscribers.delete(onValue);
+    if (e.subscribers.size === 0) {
+      clearInterval(e.timer);
+      externalApiCache.delete(cacheKey);
+    }
+  };
+}
+
 // ── 단일값 위젯 렌더 ────────────────────────────────────────────────────────
 const VIEW_ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime', 'etc-custom']);
 
@@ -341,22 +458,53 @@ function ViewValueWidget({
   widgets,
   redisData,
   selectionIdsByHashKey,
+  targetGroupIds = [],
   fontScale = 1,
 }: {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   redisData?: CtiWsDataByHashKey;
   selectionIdsByHashKey?: Record<string, string[]>;
+  /** IC:GROUP:REASON 패밀리 단일값 위젯 전용 — 디스플레이가 선택한 그룹ID 목록(없으면 전체 그룹). */
+  targetGroupIds?: string[];
   fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && VIEW_ETC_CLOCK_IDS.has(widget.item.id);
+  const isExternalApi = widget.item.category === 'ExternalApi' && !!widget.item.externalApiUrl;
+  const isDbQuery = widget.item.category === 'DbQuery' && !!widget.item.dbQueryKey;
   const [now, setNow] = useState(() => new Date());
+  const [externalApiValue, setExternalApiValue] = useState<string>(() => String(widget.item.sampleValue ?? ''));
 
   useEffect(() => {
     if (!isEtcClock) return;
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, [isEtcClock]);
+
+  useEffect(() => {
+    if (!isExternalApi) return;
+    const url = widget.item.externalApiUrl!;
+    const intervalMs = Math.max(5, widget.item.externalApiIntervalSec ?? 30) * 1000;
+    const path = widget.item.externalApiJsonPath ?? '';
+    const isDb = url.startsWith('db:');
+    const headers = widget.item.externalApiHeaders || undefined;
+    return subscribeExternalApi(url, intervalMs, headers, (json) => {
+      if (isDb) {
+        setExternalApiValue(extractDbResult(json, path));
+      } else {
+        const raw = path ? (path.split('.').reduce<unknown>((o, k) => (o != null && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), json) ?? json) : json;
+        setExternalApiValue(raw != null ? String(raw) : '');
+      }
+    });
+  }, [isExternalApi, widget.item.externalApiUrl, widget.item.externalApiJsonPath, widget.item.externalApiIntervalSec, widget.item.externalApiHeaders]);
+
+  // DbQuery 위젯 — WS(DB:QUERY 가상 해시키)로 실시간 푸시 수신. REST 폴링 불필요.
+  const dbRecord = isDbQuery ? ((redisData?.['DB:QUERY'] as Record<string, Record<string, string>> | undefined)?.[widget.item.dbQueryKey!] ?? {}) : {};
+  const dbQueryValue = isDbQuery
+    ? widget.item.dbQueryColumn
+      ? (dbRecord[widget.item.dbQueryColumn] ?? dbRecord[widget.item.dbQueryColumn.toUpperCase()] ?? String(widget.item.sampleValue ?? ''))
+      : (Object.values(dbRecord)[0] ?? String(widget.item.sampleValue ?? ''))
+    : '';
 
   const getLiveValue = (): string => {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -376,13 +524,25 @@ function ViewValueWidget({
   const isRedis = widget.item.category === 'Redis' && !!widget.item.redisHashKey;
   const isCalc = widget.item.category === 'Calc';
   const groupBy = isRedis ? widget.item.groupBy : undefined;
-  const { data: groupByEntries } = useGetRedisHashEntries(widget.item.redisHashKey ?? '', { queryOptions: { enabled: !!groupBy, refetchInterval: 5000 } });
-  const groupBySum = groupBy ? (groupSumRedisHashEntries(groupByEntries ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0) : undefined;
+  // IC:GROUP:REASON:{groupId}:{mediaType}처럼 그룹마다 키가 따로 있는 패밀리는 디스플레이가 선택한
+  // 그룹들의 키를 전부 모아 합산한다(뷰그룹에 없는 그룹은 절대 섞이지 않음). 그 외 일반 해시는 기존처럼
+  // widget이 직접 가리키는 hashKey 하나만 본다. 데이터는 REST 폴링이 아니라 화면 단일 WS 연결(redisData —
+  // collectRedisTableWsSubscriptions가 같이 구독해둔 결과)에서 그대로 읽는다.
+  const groupReason = isRedis ? parseGroupReasonHashKey(widget.item.redisHashKey!) : null;
+  const groupBySum = groupBy
+    ? groupReason
+      ? (groupSumAcrossHashKeys(redisData ?? {}, buildGroupReasonHashKeys(groupReason.mediaType, targetGroupIds), groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
+      : (groupSumRedisHashEntries(redisData?.[widget.item.redisHashKey!] ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
+    : undefined;
   const displayValue = isEtcClock
     ? getLiveValue()
-    : isCalc
-      ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
-      : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
+    : isDbQuery
+      ? dbQueryValue
+      : isExternalApi
+        ? externalApiValue
+        : isCalc
+          ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
+          : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const animKey = useValueChangeKey(displayValue);
@@ -572,12 +732,15 @@ function SingleLayoutView({
   displayName,
   layout,
   selection,
+  sectionSelections,
   onSelectionSaved,
 }: {
   displayId: number;
   displayName: string;
   layout: { layoutName: string; layoutJson?: string; fileName?: string; pageName?: string };
   selection: TaskboardDisplaySelection;
+  /** 섹션 모드일 때 섹션키 → selection 맵. 미지정 시 단일 selection 모드(기존 동작). */
+  sectionSelections?: SectionSelections;
   onSelectionSaved: () => void;
 }) {
   const navigate = useNavigate();
@@ -641,15 +804,19 @@ function SingleLayoutView({
     };
   };
 
-  const selectedQueueIds = selection.queueIds ?? [];
-  const selectedGroupIds = selection.groupIds ?? [];
-  const selectedAgentIds = selection.agentIds ?? [];
+  // 섹션 모드 시 모든 섹션의 selection을 합산해 WS 구독에 사용한다.
+  const allSelections = sectionSelections ? Object.values(sectionSelections) : [selection];
+  const selectedQueueIds = [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))];
+  const selectedGroupIds = [...new Set(allSelections.flatMap((s) => s.groupIds ?? []))];
+  const selectedAgentIds = [...new Set(allSelections.flatMap((s) => s.agentIds ?? []))];
 
   // 큐/상담사/그룹 전체 목록 — 이름 표시 및 id↔groupId 매핑용(정적 마스터성 데이터, KPI 값 아님).
   // 실시간 KPI는 WS로 받으므로 5초 자동폴링 끄고 마운트 시 1회만 조회.
-  const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const { data: agentRows = [] } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
-  const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+  const { data: queueRows = [], isLoading: queueLoading } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
+  const { data: agentRows = [], isLoading: agentLoading } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
+  const { data: groupRows = [], isLoading: groupLoading } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
+  // 마스터 데이터가 모두 로드될 때까지 WS 연결을 미뤄 데이터 로드 순서에 따른 재연결을 방지한다.
+  const isMasterLoading = queueLoading || agentLoading || groupLoading;
 
   // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 큐/그룹/상담사 실시간 KPI와 동일한 WS 소켓으로 구독.
   // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 디자인 시점에 고정된 id 대신, 디스플레이 선택값으로 어떤 id들을 볼지 결정한다.
@@ -662,6 +829,13 @@ function SingleLayoutView({
     selectedAgentIds,
   });
   const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey);
+  // IC:GROUP:REASON 패밀리(table-redis/단일값 Redis 위젯 공용) — "선택 없음=전체"는 GROUP과 동일 규칙.
+  // 뷰그룹(디스플레이 선택 그룹)에 없는 그룹은 절대 나오지 않아야 하므로, 선택값이 있으면 그 그룹들만 쓴다.
+  const groupReasonTargetGroupIds = selectedGroupIds.length > 0 ? selectedGroupIds : groupRows.map((g) => g.groupId);
+  // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다 — 따로 소켓을
+  // 열면 위젯이 있는 화면마다 ctiq 소켓이 2개로 보임(RedisTableWidget.tsx의 collectRedisTableWsSubscriptions 참고)
+  const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, groupReasonTargetGroupIds);
 
   // 큐/그룹/상담사 실시간 KPI — WS 구독. "캔버스에 그 데이터를 실제로 쓰는 위젯이 있을 때만" 구독해서
   // 디스플레이에 선택만 돼 있고 화면에 안 보여주는 큐/그룹/상담사까지 불필요하게 통째로 받아오는 걸 막는다.
@@ -726,12 +900,17 @@ function SingleLayoutView({
     ),
   ].filter((c): c is string => !!c);
 
-  const subscriptions: CtiWsSubscription[] = mergeWsSubscriptions([
-    ...(queueIdsForSub.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: queueIdsForSub, columns: queueColumns })) : []),
-    ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
-    ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
-    ...widgetRedisSubscriptions,
-  ]);
+  // 마스터 데이터 로딩 중에는 빈 구독 → WS 연결 미룸(로드 순서에 따른 재연결 방지)
+  const subscriptions: CtiWsSubscription[] = isMasterLoading
+    ? []
+    : mergeWsSubscriptions([
+        ...(queueIdsForSub.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: queueIdsForSub, columns: queueColumns })) : []),
+        ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
+        ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
+        ...widgetRedisSubscriptions,
+        ...redisTableSubscriptions,
+        ...collectDbQueryWsSubscriptions(widgets),
+      ]);
   const { dataByHashKey, isConnected: wsConnected } = useCtiqWebSocket(subscriptions);
   const ctiqWsData = mergeByHashKeys(
     dataByHashKey,
@@ -783,9 +962,20 @@ function SingleLayoutView({
   }, []);
 
   const renderWidget = (widget: DroppedWidget) => {
+    // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. sectionKey가 없으면 합산 selection(전체 공통).
+    const effectiveSelection = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
+    const effectiveQueueIds = effectiveSelection.queueIds ?? [];
+    const effectiveGroupIds = effectiveSelection.groupIds ?? [];
+    const effectiveTargetGroupIds = effectiveGroupIds.length > 0 ? effectiveGroupIds : groupRows.map((g) => g.groupId);
+
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} />;
     const dt = widget.item.displayType;
+    // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetGroupIds={effectiveTargetGroupIds} />;
+    if (dt === 'chart') {
+      const liveChartData = buildLiveChartData(widget.item.id, queueRows, agentRows, groupRows, ctiqWsData, effectiveQueueIds);
+      return <ViewChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
+    }
     if (dt === 'table') {
       const cfg = widget.item.tableConfig;
       let tableColumns = (cfg?.columns ?? []) as TableColumn[];
@@ -795,15 +985,24 @@ function SingleLayoutView({
         tableColumns = [...tableColumns, ...extraCols];
       }
       const liveRows = cfg
-        ? buildLiveTableRows(widget.item.id, queueRows, agentRows, groupRows, tableColumns, selection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys)
+        ? buildLiveTableRows(widget.item.id, queueRows, agentRows, groupRows, tableColumns, effectiveSelection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys, {
+            key: cfg.sortKey,
+            order: cfg.sortOrder,
+            limit: cfg.limit,
+          })
         : [];
       return <ViewTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
     }
-    if (dt === 'chart') {
-      const liveChartData = buildLiveChartData(widget.item.id, queueRows, agentRows, groupRows, ctiqWsData, selectedQueueIds);
-      return <ViewChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
-    }
-    return <ViewValueWidget widget={widget} widgets={widgets} redisData={dataByHashKey} selectionIdsByHashKey={selectionIdsByHashKey} fontScale={fontScale} />;
+    return (
+      <ViewValueWidget
+        widget={widget}
+        widgets={widgets}
+        redisData={dataByHashKey}
+        selectionIdsByHashKey={selectionIdsByHashKey}
+        targetGroupIds={effectiveTargetGroupIds}
+        fontScale={fontScale}
+      />
+    );
   };
 
   const hasLiveSelection = subscriptions.length > 0;
@@ -905,9 +1104,13 @@ function SingleLayoutView({
 }
 
 // ── TaskView 진입점 ─────────────────────────────────────────────────────────
-// 레이아웃(전광판)과 뷰 그룹(표시값)은 서로 매핑되지 않는 독립된 풀이다 — URL에 두 id를 직접 받아 그 자리에서 조합한다.
+// 레이아웃(전광판)과 뷰 그룹(표시값)은 서로 매핑되지 않는 독립된 풀이다.
+// 단일 모드: URL 경로에 layoutId + displayId  (/task-view/:layoutId/:displayId)
+// 섹션 모드: URL 쿼리에 s 파라미터           (/task-view/:layoutId?s=A:1,B:2,C:3)
 export default function TaskView() {
-  const { layoutId, displayId } = useParams<{ layoutId: string; displayId: string }>();
+  const { layoutId, displayId } = useParams<{ layoutId: string; displayId?: string }>();
+  const [searchParams] = useSearchParams();
+  const sectionParam = searchParams.get('s'); // "A:1,B:2,C:3" 형식
   const navigate = useNavigate();
   const numLayoutId = layoutId ? Number(layoutId) : undefined;
   const numDisplayId = displayId ? Number(displayId) : undefined;
@@ -915,7 +1118,8 @@ export default function TaskView() {
   const { data: layoutList = [], isLoading: layoutLoading } = useGetTaskboardLayoutList();
   const { data: displayList = [], isLoading: displayLoading, refetch } = useGetTaskboardDisplayList();
 
-  if (!numLayoutId || !numDisplayId) {
+  // layoutId 없거나 (displayId도 없고 sectionParam도 없으면) 에러
+  if (!numLayoutId || (!numDisplayId && !sectionParam)) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
         <p className="text-lg">전광판 정보가 없습니다.</p>
@@ -931,12 +1135,56 @@ export default function TaskView() {
   }
 
   const layout = layoutList.find((l) => l.layoutId === numLayoutId);
-  const display = displayList.find((d) => d.displayId === numDisplayId);
 
-  if (!layout || !display) {
+  if (!layout) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
-        <p className="text-lg">{!layout ? '전광판을 찾을 수 없습니다.' : '뷰 그룹을 찾을 수 없습니다.'}</p>
+        <p className="text-lg">전광판을 찾을 수 없습니다.</p>
+        <button onClick={() => navigate('/taskboard/board/task-list')} className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82]">
+          목록으로 돌아가기
+        </button>
+      </div>
+    );
+  }
+
+  // 섹션 모드: ?s=A:1,B:2,C:3 파싱 → 섹션키 별 selection 맵 구성
+  if (sectionParam) {
+    const pairs = sectionParam.split(',').map((pair) => {
+      const [sKey, dIdStr] = pair.split(':');
+      const display = displayList.find((d) => d.displayId === Number(dIdStr));
+      return { sKey, display };
+    });
+    const allFound = pairs.every(({ display }) => !!display);
+    if (!allFound) {
+      return (
+        <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
+          <p className="text-lg">일부 뷰 그룹을 찾을 수 없습니다.</p>
+          <button onClick={() => navigate('/taskboard/board/task-list')} className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82]">
+            목록으로 돌아가기
+          </button>
+        </div>
+      );
+    }
+    const sectionSelections: SectionSelections = Object.fromEntries(pairs.map(({ sKey, display }) => [sKey, parseSelection(display!.selectionJson)]));
+    const primaryDisplay = pairs[0].display!;
+    return (
+      <SingleLayoutView
+        displayId={primaryDisplay.displayId}
+        displayName={layout.layoutName}
+        layout={layout}
+        selection={parseSelection(primaryDisplay.selectionJson)}
+        sectionSelections={sectionSelections}
+        onSelectionSaved={() => refetch()}
+      />
+    );
+  }
+
+  // 단일 모드 (기존)
+  const display = displayList.find((d) => d.displayId === numDisplayId);
+  if (!display) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
+        <p className="text-lg">뷰 그룹을 찾을 수 없습니다.</p>
         <button onClick={() => navigate('/taskboard/board/task-list')} className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82]">
           목록으로 돌아가기
         </button>

@@ -7,7 +7,9 @@ import { Input, InputNumber, Space } from 'antd';
 import dayjs from 'dayjs';
 import { Search, Trash2 } from 'lucide-react';
 import { Log } from '@/log';
+import { useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../../constants/permissions';
 import KnowledgeEvalResultModal, { type KnowledgeEvalResultModalRef } from '../components/KnowledgeEvalResultModal';
 import { knowledgeQueryKeys, useDeleteKnowledgeEvalResult, useGetKnowledgeEvalHistory } from '../hooks/useKnowledgeQueries';
 import type { KnowledgeEvalExecution } from '../types';
@@ -39,6 +41,7 @@ export default function EvalExecution() {
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.EVAL_WRITE));
   const resultModalRef = useRef<KnowledgeEvalResultModalRef>(null);
   const [filters, setFilters] = useState<MetricFilter>({ precision: 0, recall: 0, f1: 0, mrr: 0, ndcg: 0, map: 0 });
 
@@ -161,7 +164,7 @@ export default function EvalExecution() {
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<KnowledgeEvalExecution>) => {
         const data = params.data;
-        if (!data) return null;
+        if (!data || !canWrite) return null;
         return (
           <button
             type="button"

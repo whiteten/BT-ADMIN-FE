@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { type BreadcrumbProps, Button, Checkbox, Col, Form, Input, Row, Steps } from 'antd';
 import { Brain, Cpu, type LucideIcon, Server, Sparkles, Wand2, Zap } from 'lucide-react';
 import { Log } from '@/log';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../constants/permissions';
 import { useCreateModel, useValidateModel } from '../../features/agent-config/hooks/useModelQueries';
 import type { AvailableModelItem } from '../../features/agent-config/types';
 import FormSummaryPanel from '../../features/shared/components/FormSummaryPanel';
@@ -44,6 +45,7 @@ export default function ModelCreate() {
   const navigate = useNavigate();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.MODEL_WRITE));
   const [form] = Form.useForm<Step1FormValues>();
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedProvider, setSelectedProvider] = useState<string>('');
@@ -289,7 +291,7 @@ export default function ModelCreate() {
         {currentStep === 0 && (
           <>
             <Col>
-              <Button variant="outlined" color="primary" onClick={handleValidate} loading={isValidating}>
+              <Button variant="outlined" color="primary" onClick={handleValidate} loading={isValidating} disabled={!canWrite}>
                 검증
               </Button>
             </Col>
@@ -302,7 +304,7 @@ export default function ModelCreate() {
         )}
         {currentStep === 1 && (
           <Col>
-            <Button variant="solid" color="primary" onClick={handleSubmit} disabled={!selectedModelIds.length} loading={isCreating}>
+            <Button variant="solid" color="primary" onClick={handleSubmit} disabled={!canWrite || !selectedModelIds.length} loading={isCreating}>
               추가
             </Button>
           </Col>

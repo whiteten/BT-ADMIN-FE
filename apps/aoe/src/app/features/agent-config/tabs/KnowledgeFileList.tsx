@@ -7,7 +7,9 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { FileText, SearchCheck } from 'lucide-react';
 import { Log } from '@/log';
+import { useNavigationStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { AOE_PERM } from '../../../constants/permissions';
 import KnowledgeChunkDrawer, { type KnowledgeChunkDrawerRef } from '../components/KnowledgeChunkDrawer';
 import KnowledgeMetadataDrawer, { type KnowledgeMetadataDrawerRef } from '../components/KnowledgeMetadataDrawer';
 import KnowledgeSearchDrawer, { type KnowledgeSearchDrawerRef } from '../components/KnowledgeSearchDrawer';
@@ -50,6 +52,7 @@ export default function KnowledgeFileList() {
   const { documentId } = useParams();
   const queryClient = useQueryClient();
   const modal = useModal();
+  const canWrite = useNavigationStore((s) => s.permissions.includes(AOE_PERM.KNOWLEDGE_WRITE));
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<KnowledgeFileItem>>(null);
   const fileImportModalRef = useRef<FileImportModalRef>(null);
@@ -188,10 +191,10 @@ export default function KnowledgeFileList() {
           <Button variant="solid" onClick={() => metadataDrawerRef.current?.open({ documentId: documentId! })}>
             메타데이터
           </Button>
-          <Button variant="solid" color="primary" onClick={() => fileImportModalRef.current?.open()}>
+          <Button variant="solid" color="primary" onClick={() => fileImportModalRef.current?.open()} disabled={!canWrite}>
             파일 추가
           </Button>
-          <Button variant="solid" color="red" onClick={handleDeleteFiles} loading={isDeleting}>
+          <Button variant="solid" color="red" onClick={handleDeleteFiles} loading={isDeleting} disabled={!canWrite}>
             파일 삭제
           </Button>
         </div>

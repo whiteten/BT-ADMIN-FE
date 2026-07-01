@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 type ModelCardProps = ModelListItem & {
   onDetail?: (modelId: string) => void;
   onDelete?: (modelId: string) => void;
+  canWrite?: boolean;
 };
 
 interface ModelTypeStyle {
@@ -33,7 +34,7 @@ const getModelTypeStyle = (modelTypeName?: string): ModelTypeStyle => {
   return key ? MODEL_TYPE_STYLES[key] : DEFAULT_STYLE;
 };
 
-export default function ModelCard({ modelId, modelName, modelTypeName, activeDetailCount, totalDetailCount, useYn, onDetail, onDelete }: ModelCardProps) {
+export default function ModelCard({ modelId, modelName, modelTypeName, activeDetailCount, totalDetailCount, useYn, onDetail, onDelete, canWrite = false }: ModelCardProps) {
   const typeStyle = getModelTypeStyle(modelTypeName);
   const Icon = typeStyle.icon;
 
@@ -66,9 +67,11 @@ export default function ModelCard({ modelId, modelName, modelTypeName, activeDet
         <DropdownMenuItem onClick={() => onDetail?.(modelId)} className="hover:cursor-pointer">
           상세보기
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onDelete?.(modelId)} className="hover:cursor-pointer">
-          삭제
-        </DropdownMenuItem>
+        {canWrite && (
+          <DropdownMenuItem onClick={() => onDelete?.(modelId)} className="hover:cursor-pointer">
+            삭제
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
