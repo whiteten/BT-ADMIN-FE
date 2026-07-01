@@ -45,9 +45,14 @@ export interface TableColumnCalc {
 export interface TableColumn {
   key: string;
   label: string;
+  /** 이 컬럼이 차지할 표 전체 폭 대비 비율(예: '32.5%') — TaskCreate 캔버스에서 헤더 경계를 마우스로 드래그하면 설정됨.
+   * 미지정 시 표(table-layout:fixed)가 남은 폭을 너비 미지정 컬럼들끼리 균등분할한다 — 한 컬럼을 넓히면
+   * 나머지 컬럼들은 자동으로 더 좁아지며 서로 다닥다닥 붙는다. */
   width?: string;
-  /** 셀 정렬(기본 'center') — 단일값 위젯의 valueAlign과 동일 개념을 컬럼 단위로 적용 */
+  /** 셀 가로 정렬(기본 'center') — 단일값 위젯의 valueAlign과 동일 개념을 컬럼 단위로 적용 */
   align?: 'left' | 'center' | 'right';
+  /** 셀 세로 정렬(기본 'middle') — 행 간격(rowGap)이 커져서 행이 높아질 때 내용을 위/중간/아래 중 어디에 둘지 */
+  verticalAlign?: 'top' | 'middle' | 'bottom';
   /** 천단위 콤마 표시 */
   useThousandSep?: boolean;
   /** 임계치 색상 사용 여부 — 단일값 위젯의 thresholdEnabled/thresholds를 컬럼 단위로 재사용 */
@@ -55,6 +60,8 @@ export interface TableColumn {
   thresholds?: WidgetThresholdRule[];
   /** 설정되면 이 컬럼은 원본 JSON 필드값 대신 같은 행의 다른 필드들로 계산한 값을 보여준다(Redis 테이블 전용) */
   calc?: TableColumnCalc;
+  /** false면 표/실행화면에서 이 컬럼 자체를 사용하지 않음(데이터·헤더 모두 제외, 설정값 자체는 유지) — 기본 true(사용) */
+  hidden?: boolean;
 }
 
 /** 차트형 위젯 설정 */
@@ -70,7 +77,7 @@ export interface ChartConfig {
 /** 드래그 가능한 콜데이터 위젯 아이템 */
 export interface CallDataItem {
   id: string;
-  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List' | 'Redis' | 'notice' | 'Calc';
+  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List' | 'Redis' | 'notice' | 'Calc' | 'ExternalApi' | 'DbQuery';
   label: string;
   unit?: string;
   sampleValue: string | number;
@@ -85,6 +92,13 @@ export interface CallDataItem {
   redisJsonField?: string;
   /** 해시 그룹의 모든 형제 Hash 키 목록 — 집계(합계/최대/최소) 계산용 */
   hashSiblingKeys?: string[];
+  /**
+   * category=Redis 위젯(특히 table-redis) 전용 — 시스템ID가 해시의 "필드"인지('fields', 예: IC:CTIQ:0 안에
+   * 큐ID들이 필드로 존재) "키 세그먼트"인지('keyed', 예: IC:GROUP:REASON:{groupId}:{mediaType}처럼 시스템ID별로
+   * 키가 따로 존재) 표시. TaskCreate에서 `features/board/utils/redisKeyPattern.ts`의 자동탐지 결과를 한 번
+   * 저장해두고, 실행 화면에서는 이 값만 읽어서 분기 — 매번 다시 탐지(SCAN)하지 않는다. 미지정 시 'fields'로 취급.
+   */
+  redisKeyPattern?: 'fields' | 'keyed';
   /**
    * 단일값 Redis 위젯 전용 — redisField/redisJsonField로 행 1개를 직접 가리키는 대신, 해시의 모든 행을
    * byKey 필드값으로 묶어 matchValue와 일치하는 그룹의 aggKey를 합산해 보여준다(Redis 테이블의
@@ -106,10 +120,69 @@ export interface CallDataItem {
      * byKey='REASON_CODE', aggKey='AGENT_CNT' → 사유코드별 상담사 수 합계.
      */
     groupBy?: { byKey: string; aggKey: string };
+    /**
+     * PIVOT 렌더링 설정 — IC:GROUP:REASON 해시처럼 행/컬럼이 모두 동적인 교차표.
+     * rowKey 필드값을 행으로, colKey 필드값을 컬럼으로, valueKey 필드값을 셀 값으로 표시.
+     * colKey의 유니크 값은 실시간 WS 데이터에서 자동 추출(사전 정의 불필요).
+     * 기본값: rowKey='NODE_ID', colKey='REASON_CDE', valueKey='AGENT_CNT'.
+     */
+    pivot?: {
+      rowKey?: string;
+      colKey?: string;
+      valueKey?: string;
+      /** PIVOT 컬럼(colKey 값)별 표시명/넓이/숨김 정의. 미정의 컬럼은 colKey 값 그대로 표시. */
+      colDefs?: { key: string; label: string; width?: string; hidden?: boolean }[];
+    };
+    /** 행 사이 간격(px) — table 요소 border-spacing의 세로값으로 적용 */
+    rowGap?: number;
+    /** true면 헤더의 컬럼명 텍스트를 표 전체에서 한 번에 숨김(위젯의 showTitle과 동일 개념을 표 단위로) — 데이터(셀 값)는 계속 보여줌 */
+    hideColumnLabels?: boolean;
+    /** 정렬 기준 컬럼 키(숫자로 표시되는 컬럼) — 미지정 시 정렬 없음(원본 순서) */
+    sortKey?: string;
+    /** 정렬 방향 — 기본 desc(내림차순) */
+    sortOrder?: 'asc' | 'desc';
+    /** 최종적으로 보여줄 최대 행 수(TOP N) — 미지정 시 기본 20 */
+    limit?: number;
+    /** 데이터 행 사이 구분선 표시 여부 — 기본 true(표시). 헤더와 첫 데이터 행 사이 줄은 이 옵션과 무관하게 항상 숨김 */
+    showBorder?: boolean;
+    /** 행 구분선 두께(px) — 기본 1 */
+    borderWidth?: number;
+    /** true면 설정된 컬럼의 값이 모두 빈 문자열 또는 0인 행을 숨김 — Redis에 ID만 등록되고 실데이터가 없는 행 제거용 */
+    hideEmptyRows?: boolean;
+    /**
+     * JOIN 테이블(table-join) 전용 — 두 Redis 해시의 행을 연결하는 공통 필드명.
+     * hashKeyA(`redisHashKey`)와 hashKeyB(`joinHashKeyB`) 양쪽 행에 이 이름의 필드가 있어야 한다.
+     * 일치하는 행끼리 컬럼을 합쳐 1행으로 보여주며, 어느 쪽에도 없는 키는 행에서 제외한다(INNER JOIN).
+     */
+    joinKey?: string;
   };
   chartConfig?: ChartConfig;
   /** 개별 공지사항 ID — category=notice 위젯 전용 */
   noticeId?: number;
+  /** 외부 REST API URL — category=ExternalApi 위젯 전용 */
+  externalApiUrl?: string;
+  /**
+   * JSON 경로 — 응답 JSON에서 추출할 값의 점 표기법 경로 (예: "data.score", "result.count").
+   * 미지정 시 응답 전체를 문자열로 표시한다.
+   */
+  externalApiJsonPath?: string;
+  /** 테스트 실패 시 수동 입력한 샘플 JSON 원문 — 실행화면에서 API 호출 실패 시 이 값을 폴백으로 사용 */
+  externalApiSampleJson?: string;
+  /** 외부 API 자동 갱신 주기(초) — 실행화면에서 이 간격으로 API를 재호출해 값을 갱신한다. 기본 30초. */
+  externalApiIntervalSec?: number;
+  /** 외부 API 요청 헤더 — 한 줄에 헤더 하나, `Key: Value` 형식. 빈 줄·`#` 주석 줄은 무시. */
+  externalApiHeaders?: string;
+  /** DB Query 키 — category=DbQuery 위젯 전용 (예: "custom1") */
+  dbQueryKey?: string;
+  /** DB Query 결과 행에서 표시할 컬럼명 (예: "GROUP_ID") — 미지정 시 첫 번째 컬럼 값 표시 */
+  dbQueryColumn?: string;
+  /** DB Query 자동 갱신 주기(초) — 기본 30 */
+  dbQueryIntervalSec?: number;
+  /**
+   * JOIN 테이블 위젯(table-join) 전용 — 두 번째 Redis Hash 키.
+   * 첫 번째 키는 `redisHashKey`이고, 두 Redis 해시의 행을 `tableConfig.joinKey`로 조인한다.
+   */
+  joinHashKeyB?: string;
 }
 
 /** 계산식 위젯의 피연산자 — 캔버스에 배치된 위젯 또는 Redis 해시 필드를 변수로 참조 */
@@ -185,6 +258,8 @@ export interface DroppedWidget {
   showTitle: boolean; // 라벨(타이틀) 표시 여부
   customTitle?: string; // 사용자 정의 타이틀 (item.label 대체)
   style: WidgetStyle;
+  /** 이 위젯이 속하는 섹션 키. layoutJson의 sections 배열에 정의된 값과 매칭. 미지정 시 공통 위젯(모든 섹션에 표시, 기본 selection 사용). */
+  sectionKey?: string;
   noticeKey?: string; // 공지사항 위젯 연동 키
   /** 공지사항 위젯(category=notice)의 슬라이드 속도(초) — 회전 전환 주기 + 마퀴 흐름 속도에 공통 사용. 기본 5 */
   slideIntervalSec?: number;
@@ -197,6 +272,24 @@ export interface DroppedWidget {
   calc?: CalcConfig;
   /** 사용자 지정 시계 위젯(item.id='etc-custom') 포맷 — yyyy/mm/dd/hh24/mi/ss 토큰. 미지정 시 DEFAULT_CUSTOM_CLOCK_FORMAT */
   clockFormat?: string;
+}
+
+/**
+ * layoutJson을 파싱하여 섹션 키 배열 반환.
+ * sections 필드가 없거나 빈 배열이면 빈 배열 반환 → 단일 뷰 그룹 모드.
+ */
+export function parseLayoutSections(layoutJson?: string | null): string[] {
+  if (!layoutJson) return [];
+  try {
+    const raw = JSON.parse(layoutJson) as unknown;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const typed = raw as { sections?: unknown };
+      return Array.isArray(typed.sections) ? (typed.sections as string[]) : [];
+    }
+    return [];
+  } catch {
+    return [];
+  }
 }
 
 /**

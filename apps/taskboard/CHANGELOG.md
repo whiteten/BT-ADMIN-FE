@@ -16,6 +16,62 @@
 
 ---
 
+## 2026-06-30 — 세션N
+
+### task-create: 구역(섹션) UX 개선 + 롤링전광판 구역별 설정 추가
+
+#### 1. `WidgetActionsMenu` — 톱니바퀴 팝업 구역 UI 재설계
+- `ALL_SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')` 모듈 상수 추가
+- 팝업이 뷰포트 하단에 잘릴 것 같으면(spaceBelow < 260px) `bottom` 방향으로 뒤집어 열리도록 flip 로직 추가(`menuPos` 타입을 `{ top?: number; bottom?: number; right: number }` 로 변경)
+- "구역" 행: ▶ 화살표(트리 메뉴 스타일) — 클릭 시 인라인 펼침(`sectionExpanded` state). 복사/삭제와 동일한 행 구조
+- A·B·C 항상 기본 표시(미정의면 dashed 점선 칩) + 정의된 구역은 solid 칩 — 클릭으로 배정/해제 토글
+- `+ D` 버튼: 다음 알파벳 자동 추가 및 배정
+- `newSectionInput` state 제거, `sectionExpanded` state로 대체
+
+#### 2. 왼쪽 패널 구역 관리 UI 재설계
+- `newSectionName` state 제거
+- 텍스트 입력 + 추가 버튼 → A·B·C 기본 칩 + 정의된 구역 × 삭제 + `+ D` 버튼으로 교체
+- 관련 파일: `pages/board/TaskCreate.tsx`
+
+#### 3. TaskList.tsx — 전광판 실행 시 구역 부분 배정 허용 + 기타 fallback
+- `ETC_KEY = '__etc'` 상수 추가
+- `buildSectionUrl`: 모든 구역 배정 필수 → 1개 이상 배정 시 실행 가능으로 완화
+- "기타 (미지정 구역)" 드롭다운 추가 — 구역 미배정 위젯의 fallback 뷰 그룹 지정
+- 관련 파일: `pages/board/TaskList.tsx`
+
+#### 4. TaskView.tsx — `__etc` fallback 적용
+- `effectiveSelection` 에 `?? sectionSelections['__etc']` fallback 추가
+- 관련 파일: `pages/board/TaskView.tsx`
+
+#### 5. 롤링전광판 구역별 설정 지원
+- `RollingLayout` 인터페이스에 `sectionSelections?: Record<string, TaskboardDisplaySelection>` 추가
+- `LayoutScreen.renderWidget`: 위젯 `sectionKey` 기준으로 구역별 selection 적용 (`?? sectionSelections['__etc'] ?? selection` 폴백)
+- `TaskMgmt.tsx RunOptionsView`:
+  - `RunOptions`에 `perLayoutSectionMap: Record<number, Record<string, number>>` 추가
+  - 섹션이 있는 레이아웃 슬롯은 구역별 드롭다운 + 기타 드롭다운으로 UI 분기
+  - `buildLayouts()`: 섹션 모드/단일 모드 혼합 처리
+  - `handleStartNewWindow()`: 섹션 모드 슬롯은 `layoutId:s:sectionKey:displayId:...` 형식으로 URL 인코딩
+  - `encodeSectionSlot()` 헬퍼 함수 추가 (`__etc` → `_` 단축)
+- `TaskRolling.tsx`:
+  - URL 파싱: `layoutId:s:sectionKey:displayId:...` 섹션 모드 파싱 추가
+  - 파싱 결과를 `RollingLayout.sectionSelections`에 세팅
+- 관련 파일: `features/board/components/RollingDisplay.tsx`, `pages/board/TaskMgmt.tsx`, `pages/board/TaskRolling.tsx`
+
+---
+
+## 2026-06-30
+
+### 공개 URL 401 리다이렉트 버그 수정
+
+- **원인**: `apps/host`의 `useApiErrorHandler`가 `api-error` 이벤트(401)를 수신하면 공개 경로 여부와 무관하게 `/login`으로 이동. `SessionGuard`는 public path를 올바르게 우회하지만, `useGetSession` 호출로 발생한 401 이벤트가 이 핸들러에 도달.
+- **수정**: `publicAuth.ts`에 `useSuppressApiError401` 훅 신규 추가.
+  - `window.addEventListener(API_ERROR_EVENT, handler, capture=true)`로 등록 — bubble 단계의 `useApiErrorHandler`보다 먼저 실행됨.
+  - 401 이벤트일 때 `stopImmediatePropagation()`으로 이후 핸들러 차단.
+- `TaskViewPublic.tsx`: `useSuppressApiError401()` 훅 호출 추가.
+- `TaskRolling.tsx`: `useSuppressApiError401()` 훅 호출 추가.
+- **apps/host 수정 없음** — `apps/taskboard` 내에서만 해결.
+- 관련 파일: `features/board/api/publicAuth.ts`, `pages/board/TaskViewPublic.tsx`, `pages/board/TaskRolling.tsx`
+
 ## 2026-06-17
 
 ### CTI WebSocket 다중 구독 일반화
@@ -99,6 +155,284 @@
 - BE 쪽 변경: `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참조(`CtiqWebSocketHandler` 재설계)
 - 검증: `npx eslint --fix` + `typecheck-staged.js` 둘 다 통과. 실제 브라우저에서 델타 수신 시
   안 바뀐 위젯 값이 사라지지 않는지, 화면 전환 시 이전 값이 잔류하지 않는지 확인 필요.
+
+## 2026-06-30 세션6
+
+### task-create 3건 수정
+
+#### 1. 빈 행 숨기기 — 테이블 위젯에서만 표시
+- **원인**: `hideEmptyRows` 토글이 `['table-queue','table-group','table-agent','table-redis']` 조건 블록 밖에 있어 모든 위젯에서 표시됐음.
+- **수정**: 해당 토글 div를 테이블 위젯 조건 블록(`selectedWidget.item.tableConfig` 존재 확인 포함) 안으로 이동.
+- 관련 파일: `TaskCreate.tsx` (~line 4916)
+
+#### 2. 섹션 배정 UI를 톱니바퀴 메뉴로 이동
+- **배경**: 섹션을 왼쪽 패널에서 추가해도 위젯에 어떻게 배정하는지 찾기 어려운 UX 문제.
+- **변경**:
+  - `WidgetActionsMenu` (톱니바퀴 팝업) 하단에 "구역" 섹션 추가.
+    - 등록된 구역 이름이 번호 칩(`1. A센터`, `2. B센터` …)으로 표시 — 클릭하면 토글 배정(재클릭 시 해제).
+    - 새 구역명 입력 + [추가] 버튼 — 클릭 시 구역 생성 AND 이 위젯에 즉시 배정. Enter 키도 동작.
+  - `w-40` → `w-52`로 팝업 폭 확대.
+  - 우측 패널의 섹션 드롭다운(기존 방식) 제거.
+  - `CanvasWidgetFree` / `CanvasWidgetGrid` 두 컴포넌트에 `sections`, `onSectionChange`, `onAddSection` props 추가.
+- 관련 파일: `TaskCreate.tsx` (`WidgetActionsMenu`, `CanvasWidgetFreeProps`, `CanvasWidgetGridProps`, 호출 사이트)
+
+- 검증: `npx eslint --fix` 에러 0.
+
+## 2026-06-30 세션5
+
+### 섹션(Section) 기능 구현 — 한 레이아웃에서 여러 뷰 그룹을 구역별로 할당
+
+**배경**: A센터(ㄱ,ㄴ,ㄷ그룹)와 B센터(ㄹ,ㅁ,ㅂ그룹)처럼 한 전광판 화면 안에서 영역별로 다른 뷰 그룹 데이터를 보여야 하는 요구.
+
+#### 1. 타입 및 유틸 (`taskboard.types.ts`)
+- `DroppedWidget`에 `sectionKey?: string` 필드 추가 — 위젯이 속한 섹션 키 (미설정 시 공통 위젯).
+- `parseLayoutSections(layoutJson?)` 신규 함수 — `layoutJson`에서 `sections` 배열(string[]) 추출.
+
+#### 2. 편집 화면 (`TaskCreate.tsx`)
+- `sections: string[]` / `newSectionName: string` state 추가.
+- `isDirty` 비교에 `sections` 포함.
+- `updateWidgetMeta`의 Pick 타입에 `'sectionKey'` 추가.
+- `handleSave` 시 `layoutJson`에 `sections` 포함(비어있으면 필드 생략).
+- **위젯 미선택 패널 — 섹션 관리 UI**: 섹션 이름 입력 + 추가(+) 버튼, 등록된 섹션 목록 + 삭제(×) 버튼.
+- **위젯 선택 패널 — 섹션 드롭다운**: `sections.length > 0`일 때 "타이틀 표시" 위에 드롭다운 표시. 옵션: "공통 (모든 섹션)" + 등록된 섹션들.
+
+#### 3. 목록/실행 팝오버 (`TaskList.tsx`)
+- `DisplayPickerPopover`에 섹션 모드 분기 추가.
+  - `hasSections` 감지 (`parseLayoutSections` 사용).
+  - **섹션 모드**: `sectionDisplayMap(섹션키→displayId)` state, 섹션별 뷰 그룹 선택 드롭다운.
+  - `buildSectionUrl()` — 모든 섹션에 뷰 그룹이 지정된 경우 `?s=A:1,B:2,C:3` URL 생성.
+  - "새창으로 실행" / "공개 링크 복사" 버튼 (모든 섹션 선택 완료 시 활성화).
+  - **단일 모드**: 기존 동작 그대로 유지.
+
+#### 4. 실행 화면 (`TaskView.tsx`)
+- `SectionSelections = Record<string, TaskboardDisplaySelection>` 타입 추가.
+- `SingleLayoutView` props에 `sectionSelections?: SectionSelections` 추가.
+- WS 구독: 모든 섹션 selection을 합산한 `selectedQueueIds/GroupIds/AgentIds`로 단일 소켓 구독.
+- `renderWidget`: `widget.sectionKey`가 있으면 해당 섹션의 selection을 `effectiveSelection`으로 사용, 없으면 기본 selection 사용.
+- `TaskView` 진입점: `?s=A:1,B:2,C:3` 파라미터 파싱 → `sectionSelections` 조립 → `SingleLayoutView`에 전달.
+- `useSearchParams` import 추가.
+
+#### 5. 라우팅 (`routes.tsx`)
+- 기존: `task-view/:layoutId/:displayId` (displayId 필수)
+- 추가: `task-view/:layoutId` — 섹션 모드에서 `?s=` 쿼리로만 접근하는 경우 처리.
+
+- 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskList.tsx`, `pages/board/TaskView.tsx`, `src/app/routes.tsx`
+- 검증: `npx eslint --fix` 에러 0, 경고 28개(모두 기존 코드 사전 존재 항목). BE 변경 없음.
+
+## 2026-06-30 세션4
+
+### 좌측 패널 UI 개선 3건
+
+#### 1. Redis 섹션 헤더 명칭 변경
+- "Redis 해시 키" → "Redis" 로 축약.
+- 관련 파일: `TaskCreate.tsx` (`RedisHashSection` 섹션 헤더 span)
+
+#### 2. 외부 API · DB Query → "외부 항목" 섹션으로 분리
+- 기존: `FixedItemsSection`(위젯 항목) 말단에 `ExternalApiSection`·`DbQuerySection` 직접 삽입.
+- 변경: 두 섹션을 `FixedItemsSection`에서 제거하고, 초록색 인디케이터 닷을 가진 접을 수 있는 독립 섹션 `ExternalItemsSection`(외부 항목)으로 분리. 좌측 패널 렌더링: `RedisHashSection → FixedItemsSection → ExternalItemsSection`.
+- 관련 파일: `TaskCreate.tsx` (`ExternalItemsSection` 신규, `FixedItemsSection` 내 두 섹션 제거, 메인 패널 렌더 추가)
+
+#### 3. 전광판 목록 — 새 창으로 열기 버튼 추가
+- 뷰 그룹 선택 팝오버에서 기존 [이름 클릭 → 현재 탭 이동] 외에, 각 행 우측에 외부링크(↗) 아이콘 버튼 추가.
+- 클릭 시 `window.open(viewPath, 'taskview_{layoutId}_{displayId}', 'noopener,noreferrer')` — 같은 레이아웃/뷰의 창이 이미 열려 있으면 그 창을 포커스.
+- 관련 파일: `TaskList.tsx` (`DisplayPickerPopover` 내 각 뷰 그룹 행)
+- 검증: `npx eslint --fix` 에러 0.
+
+## 2026-06-30 세션3
+
+### ExternalApi 위젯 — 요청 헤더 설정 기능 추가
+
+- **기능**: 외부 API 호출 시 커스텀 HTTP 헤더를 지정할 수 있게 함. 형식은 Linux curl `-H` 스타일 — 한 줄에 헤더 하나, `Key: Value`. 빈 줄·`#` 주석 줄은 무시.
+- **타입**: `CallDataItem.externalApiHeaders?: string` 필드 추가 (`taskboard.types.ts`)
+- **API**: `taskboardApi.testExternalApiUrl(url)` → `testExternalApiUrl({ url, headers? })` 시그니처 변경 (`taskboardApi.ts`)
+- **TaskCreate.tsx**:
+  - `ExternalApiSection`: `headers` 상태 추가, URL 입력 아래에 헤더 textarea 추가, `handleTest`·`handleAdd` 에 headers 전달
+  - `ExternalApiWidgetProps`: `onUpdate` 타입 + UI textarea 추가, `handleRetest`에 headers 전달
+  - `updateWidgetExternalApi` 타입에 `externalApiHeaders` 추가
+- **TaskView.tsx**: `subscribeExternalApi(url, intervalMs, headers?, onValue)` 시그니처 변경. 같은 URL이라도 헤더가 다르면 별도 캐시 엔트리(`url\0headers` 키). `useEffect` deps에 `externalApiHeaders` 추가.
+- **백엔드** (`ExternalApiTestController.java`): `RestTemplate.getForEntity` → `exchange(url, GET, HttpEntity(httpHeaders), Object.class)`로 교체. `ExternalApiTestRequest`에 `headers` 필드 추가, `parseHeaders()` 메서드로 `Key: Value` 파싱 → `HttpHeaders` 구성.
+- 관련 파일: `taskboard.types.ts`, `taskboardApi.ts`, `TaskCreate.tsx`, `TaskView.tsx`, `ExternalApiTestRequest.java`, `ExternalApiTestController.java`
+- 검증: `npx eslint --fix` 에러 0.
+
+## 2026-06-30 세션2
+
+### PIVOT 방식 변경 — 자동 강제 → 사용자 수동 설정
+
+- **변경 전**: `IC:GROUP:REASON:*` 해시를 쓰면 무조건 PIVOT 모드로 강제 전환.
+- **변경 후**: `tableConfig.pivot.rowKey` + `pivot.colKey` 가 모두 설정됐을 때만 PIVOT 활성화. 빈값이면 flat 테이블로 원시 데이터 표시. 해시 종류와 무관하게 수동 설정.
+- **UI 추가**: 속성 패널 `table-redis` 전용 "PIVOT" 섹션 — 행 키/컬럼 키/값 키 세 가지 입력 필드. 모두 비우면 flat 표시로 복귀.
+- **WS 구독**: PIVOT 모드(`rowKey+colKey` 설정)이거나 `IC:GROUP:REASON:*` 계열이면 컬럼 필터 없이 전체 수신 유지.
+- 관련 파일: `RedisTableWidget.tsx` (PIVOT 트리거 `if (groupReason)` → `if (pivotCfg?.rowKey && pivotCfg?.colKey)`, `collectRedisTableWsSubscriptions` 판단 로직), `TaskCreate.tsx` (PIVOT 섹션 UI)
+- 검증: `npx eslint` 에러 0.
+
+## 2026-06-30
+
+### 버그 수정 3건
+
+#### 1. PIVOT 행 번호 컬럼(`__rowNum`) 미표시 수정
+- **원인**: PIVOT 렌더 경로가 라인 428의 `__rowNum` 주입 전에 `return`으로 빠져나가므로, 컬럼 목록에 `__rowNum`을 추가해도 PIVOT 테이블에서는 항상 무시됐음.
+- **수정**: PIVOT 섹션에 `pivotRowNumCol` 변수를 추가하고, 컬럼 목록에 `__rowNum`이 있으면 헤더 `<th>`와 각 데이터 행의 첫 번째 `<AnimatedTableCell>`로 `ri + 1` 렌더.
+- 관련 파일: `src/app/features/board/components/RedisTableWidget.tsx`
+
+#### 2. 빈 행 숨기기 옵션 신규 (`hideEmptyRows`)
+- **배경**: `IC:CTIQ:0` 같이 Redis에 ID만 등록되고 실데이터가 없는 행이 많은 해시에서 의미 없는 빈 행이 수십 개 렌더됨.
+- **로직**: 설정된 컬럼(가상 키 `__rowNum`/`__id`/`__systemId` 제외) 중 하나라도 비어있지 않은 행만 표시.
+- **UI**: 속성 패널 "행 번호 컬럼 표시" 아래에 "빈 행 숨기기" 토글 추가.
+- 관련 파일: `taskboard.types.ts` (`hideEmptyRows` 필드), `RedisTableWidget.tsx` (필터 로직), `TaskCreate.tsx` (토글 UI)
+- 검증: `npx eslint` 에러 0.
+
+## 2026-06-29 (7)
+
+### 버그 수정 — IC:GROUP:REASON PIVOT 행/컬럼 추출 오류
+
+- **원인**: PIVOT 코드가 `IC:GROUP:REASON:{groupId}:{mediaType}` 다중 키 구조(그룹별 분리)를 전제로 설계됐으나, 실제 데이터는 `IC:GROUP:REASON:0` 단일 해시에 모든 `(NODE_ID × REASON_CODE)` 조합이 들어 있는 구조.
+  - `extractGroupIdFromGroupReasonKey('IC:GROUP:REASON:0')` → 1-세그먼트라 그룹 ID 없이 풀 키 반환 → **행 1개만 생성**
+  - `uniqueCols = Object.keys(hash)` → 해시 필드키(`0000053` 등 `{NODE_ID}{REASON_CODE}` 합성값) → **컬럼 헤더 쓰레기**
+- **수정**: PIVOT 행/컬럼을 해시 구조가 아닌 **entry JSON 값** 에서 읽도록 전면 재작성.
+  - `pivotColKey` 변수 추가 (`tableConfig.pivot.colKey ?? 'REASON_CODE'`)
+  - `uniqueCols` = 각 entry 의 `pivotColKey` 필드값 집합 (숫자 정렬) → `'0','1','2',...,'12'`
+  - `pivotMap` = entry 의 `pivotRowKey`(NODE_ID) × `pivotColKey`(REASON_CODE) → `pivotValueKey`(AGENT_CNT) 합산
+  - 결과: 행 = NODE_ID (1,2,3,5,6,99), 컬럼 = REASON_CODE (0~12), 셀 = AGENT_CNT
+- **기본값**: `rowKey='NODE_ID'`, `colKey='REASON_CODE'`, `valueKey='AGENT_CNT'` — 별도 설정 없이 동작.
+- 관련 파일: `src/app/features/board/components/RedisTableWidget.tsx` (PIVOT 섹션 ~line 196)
+- 검증: `npx eslint --fix` 에러 0.
+
+## 2026-06-29 (6)
+
+### 버그 수정 2건
+
+#### 1. ExternalApi 위젯 — 같은 URL 중복 REST 호출 제거
+
+- **원인**: `TaskView.tsx`의 `ViewValueWidget`이 컴포넌트 단위로 `setInterval`을 소유해, 같은 `externalApiUrl`을 쓰는 위젯이 N개면 N개의 타이머가 동시에 돌았음.
+- **수정**: 모듈 레벨 pub-sub 캐시(`externalApiCache: Map<url, {raw, subscribers, timer}>`) + `subscribeExternalApi(url, intervalMs, onValue)` 헬퍼 추가. 첫 구독자가 타이머를 생성하고 fetch 결과를 `subscribers.forEach`로 브로드캐스트, 후속 구독자는 기존 타이머를 공유하며 `raw` 캐시 값을 즉시 수신. 마지막 구독자가 unsubscribe하면 타이머 제거. `ViewValueWidget.useEffect`를 기존 `setInterval` → `subscribeExternalApi` 반환값(cleanup)으로 교체.
+- **효과**: 같은 URL의 위젯 N개 → REST 호출 1회/인터벌.
+- 관련 파일: `src/app/pages/board/TaskView.tsx` (모듈 레벨 `externalApiCache`, `subscribeExternalApi` 신규, `ViewValueWidget.useEffect` 수정)
+- 검증: `npx eslint --fix` 에러 0.
+
+#### 2. 테이블 위젯 — 행 번호 컬럼 표시 옵션
+
+- **기능**: 테이블 속성 패널에 "행 번호 컬럼 표시 (#)" 토글 추가. ON이면 컬럼 목록 앞에 `{ key: '__rowNum', label: '#', width: '6%', align: 'center' }` 추가, OFF이면 제거.
+- **캔버스 미리보기**: `TableWidget` 내 `sampleRows`는 `__rowNum`을 포함하지 않으므로, `col.key === ROW_NUMBER_COLUMN_KEY`일 때 `ri + 1`을 셀 값으로 직접 렌더하도록 수정.
+- **실행화면**: `RedisTableWidget.tsx`가 이미 `rows.map((row, i) => ({ ...row, __rowNum: i + 1 }))`를 계산하므로 별도 수정 없이 동작.
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx` (`TableWidget` 캔버스 셀 렌더 + 속성 패널 토글)
+- 검증: `npx eslint --fix` 에러 0.
+
+## 2026-06-29 (4)
+
+### 버그 수정 — executeDbQuery BFF 응답 언래핑 오류
+
+- **원인**: BFF `DynamicAggregationService.invokeStepWithContentTypeCheck()`는 single-step JSON 응답이 List일 때 `{ "value": [...] }` 맵으로 감싸서 `ApiResponse.ok(data)`를 반환한다. 따라서 FE의 `response.data?.data`는 배열이 아닌 `{ value: [...] }` 객체가 되어, `Array.isArray()` 검사 실패 → "쿼리 결과가 없습니다 (0건)" 토스트 출력 + `extractDbQueryResult`/`extractDbResult`가 `String(vals[0])` = "[object Object]" 반환.
+- **수정**: `taskboardApi.ts`의 `executeDbQuery` 반환 전에 `{ value: [...] }` 래퍼를 감지해 내부 배열을 꺼내 반환하도록 수정. 영향 범위 — `handleFetchColumns`(컬럼 조회), `DbQuerySection.handleTest`(테스트), `ExternalApi db: URL` REST 폴링, `DbQueryWidgetProps.handleRetest`(재테스트) 전부 커버.
+- **3번 API 콜 원인**: 버튼 클릭 1회 + TaskView ExternalApi `db:custom1` 위젯 2개가 동시에 폴링 — 별도 버그 아님.
+- 관련 파일: `features/board/api/taskboardApi.ts`
+- 검증: `npx eslint --fix` 에러 0.
+
+## 2026-06-29 (3)
+
+### DbQuery 위젯 — WS push 전환 + 컬럼 조회 UX + WS 재연결 감소
+
+#### TaskCreate.tsx — DbQueryWidgetProps 개선
+- **"컬럼 조회" 버튼 신규**: `handleFetchColumns()` — `taskboardApi.executeDbQuery(key)` 호출 후 `Object.keys(result[0])`로 실제 컬럼명 목록을 수집, `fetchedColumns` state에 저장.
+- **컬럼 입력 드롭다운 전환**: `fetchedColumns.length > 0`이면 `<select>`로 전환(조회된 컬럼명 선택), 조회 전엔 기존 text 입력 그대로.
+- **재테스트 오류 표시**: `handleRetest()`에서 catch한 실제 오류 메시지(`retestError`)를 "쿼리 실행 실패: {메시지}" 형태로 화면에 표시. 이전엔 에러가 있어도 빈 상태로만 남았음.
+- **갱신 주기 입력 제거**: WS push(약 5초 고정)로 전환하면서 "갱신 주기(초)" 입력 필드 삭제. 대신 "실행화면에서 WebSocket으로 실시간 수신합니다 (갱신 주기: 약 5초)" 안내 문구 표시.
+- **dbQueryKey 변경 시 컬럼 목록 초기화**: `dbQueryKey` 변경 시 `fetchedColumns = []`로 리셋해 이전 키의 컬럼이 잔류하지 않게.
+
+#### redisValue.ts — `collectDbQueryWsSubscriptions` 신규
+- DbQuery 위젯(`category==='DbQuery'`)의 고유 `dbQueryKey`를 수집해 WS 구독 목록(`CtiWsSubscription`) 반환.
+- `hashKey: 'DB:QUERY'`, `ids: [key1, key2, ...]` 형태 — 여러 DbQuery 위젯도 단일 구독 1건으로 묶음.
+
+#### TaskView.tsx — DB:QUERY WS 데이터 수신 + WS 재연결 감소
+- **REST 폴링 제거**: `ViewValueWidget` 내부의 `dbQueryValue` useState + useEffect(REST 폴링) 완전 삭제.
+- **WS 데이터 읽기**: `redisData?.['DB:QUERY']?.[widget.item.dbQueryKey!]`를 `Record<string, string>`으로 읽어 `dbQueryColumn`으로 값 추출(대소문자 폴백 포함). 컬럼 미지정 시 첫 번째 값 사용.
+- **`isMasterLoading` 게이트**: `queueLoading || agentLoading || groupLoading`이 true인 동안 `subscriptions = []` — 마스터 데이터 3개가 모두 로드된 뒤 1회만 WS 연결. 기존엔 각 쿼리가 순서대로 완료될 때마다 subscriptions가 바뀌어 WS가 최대 3번 재연결됐음.
+- **`collectDbQueryWsSubscriptions` 연동**: subscriptions 구성에 DbQuery 위젯 구독 추가.
+
+#### RollingDisplay.tsx — DB:QUERY WS 데이터 수신 + WS 재연결 감소
+- `RollingPlayer`에도 동일한 `isMasterLoading` 게이트 적용(위와 같은 이유).
+- `RollingValueWidget`: `isDbQuery`/`dbRecord`/`dbQueryValue` 계산 추가 — `redisData?.['DB:QUERY']?.[key]`에서 읽음. `displayValue`에 DbQuery 분기 추가(`isEtcClock ? … : isDbQuery ? dbQueryValue : …`).
+
+- 관련 파일: `src/app/pages/board/TaskCreate.tsx`, `src/app/pages/board/TaskView.tsx`, `src/app/features/board/components/RollingDisplay.tsx`, `src/app/features/board/utils/redisValue.ts`
+- 검증: `npx eslint --fix` 에러 0, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 에러 0. **브라우저 실측 미실시** — BE TASKBOARD 재시작 후 확인 필요.
+- BE 쪽 변경: `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참고 (`TaskboardDbQueryPoller` 신규, `CtiqWebSocketHandler` DB:QUERY 처리).
+
+## 2026-06-29 (2)
+
+### 기능 — ExternalApi 위젯에서 DB 쿼리 호출 (`db:custom1` 프리픽스)
+
+- **`taskboardApi.executeDbQuery(key)` 신규**: `GET /taskboard-db-query?key=customN` — yml에 등록된 커스텀 DB 쿼리 실행
+- **`TaskView.tsx` 수정** (ValueWidget 컴포넌트): `fetchValue` 내부에 `db:` 프리픽스 탐지 추가.
+  `externalApiUrl`이 `db:`로 시작하면 `executeDbQuery(url.slice(3))` 호출, 아니면 기존 `testExternalApiUrl` 호출
+- **`TaskCreate.tsx` 수정** (ExternalApiAddForm, ExternalApiSettings 컴포넌트):
+  - `handleTest`: `db:` 시작이면 `executeDbQuery`로 분기
+  - `handleRetest`: `db:` 시작이면 `executeDbQuery`로 분기
+  - URL 입력 placeholder에 `db:custom1` 예시 추가
+- eslint 에러 0, `tsc --noEmit -p tsconfig.app.json` 에러 0
+- BE 쪽 변경: `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참고 (TaskboardDbQueryController + yml + V95 마이그레이션)
+- **사용 방법**: TaskCreate 외부 API 위젯 URL에 `db:custom1` 입력 → BE의 `application-taskboard-queries.yml`의 `custom1.sql` 실행 → 결과(List<Map>) 반환 → `externalApiJsonPath`로 원하는 값 추출
+- **재시작 필요**: BE TASKBOARD 재기동 + V95 Flyway 마이그레이션 적용 필요
+
+## 2026-06-29
+
+### WebSocket 프레임 초과 수정(BE) + 외부 API 위젯 신규(FE)
+
+#### BE — CtiqWebSocketHandler 분할 전송 (BT-ADMIN-SERVICE-TASKBOARD)
+- **원인**: BFF의 `ReactorNettyWebSocketClient`가 `maxFramePayloadLength = 256 KB`로 프록시하는데,
+  와일드카드 hashKey(`IC:GROUP:REASON:0` 등)가 37개 실제 키로 확장된 초기 스냅샷이 단일 프레임으로
+  전송돼 BFF에서 `content length exceeded 262144 bytes` 오류로 프록시 거부됨.
+- **수정**: `CtiqWebSocketHandler.java`에 `MAX_CHUNK_BYTES = 200KB` 상수 추가.
+  - `forceFull=true`(초기 스냅샷): hashKey 단위로 1건씩 별도 프레임으로 전송(`sendChunk` 반복).
+  - `forceFull=false`(5초 diff): 200KB 임계치 단위로 청크 분할 후 전송(`sendChunked` 추가).
+- 관련 파일: `BT-ADMIN-SERVICE-TASKBOARD/.../CtiqWebSocketHandler.java`
+
+#### FE — 외부 API 위젯 신규 (TaskCreate.tsx)
+- `CallDataItem.category`에 `'ExternalApi'` 추가 + 전용 필드 3개 신규:
+  - `externalApiUrl?: string` — full URL
+  - `externalApiJsonPath?: string` — 점 표기법 경로 (예: `data.score`)
+  - `externalApiSampleJson?: string` — CORS 차단 시 수동 입력 폴백 JSON
+- **`ExternalApiSection` 컴포넌트**(좌측 팔레트 "외부 API" 섹션):
+  - URL 입력 + "테스트" 버튼 → `fetch(url)` 후 JSON 수신 성공 시 키 경로 목록(flattenJsonPaths, depth≤3)
+    선택 또는 직접 입력으로 표시 값 경로 지정.
+  - 실패(CORS/네트워크) 시 textarea로 샘플 JSON 직접 입력.
+  - "추가" 버튼으로 `DraggableSourceItem` 목록에 추가(캔버스로 드래그 가능).
+- **`ExternalApiWidgetProps` 컴포넌트**(우측 속성 패널, `category==='ExternalApi'` 일 때):
+  - URL/값경로/샘플 JSON 편집 + "재테스트" 버튼(미리보기 값 갱신).
+- `getWidgetDataSourcePath`: `ExternalApi` 케이스 추가 (`외부 API > {url}`).
+- `updateWidgetExternalApi` 핸들러 추가.
+- `WidgetContent`: 별도 분기 불필요 — `sampleValue` fallback 그대로 사용.
+- 관련 파일: `src/app/features/board/types/taskboard.types.ts`,
+  `src/app/pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix` — 에러 0, 기존 경고 7건만 유지. **브라우저 실측 미실시** — 사용자가
+  직접 확인 필요(URL 테스트, 키 경로 선택, 캔버스 드래그, 우측 패널 재테스트).
+
+#### FE — 외부 API 갱신 주기 설정 (TaskCreate.tsx)
+- `CallDataItem.externalApiIntervalSec?: number` 신규 필드 추가 (기본 30초).
+- **`ExternalApiSection`**(좌측 팔레트):
+  - "위젯 이름" 입력 아래에 "갱신 주기(초)" 숫자 입력 추가(기본 30, 범위 5~3600).
+  - "추가" 버튼 클릭 시 `externalApiIntervalSec` 값이 `CallDataItem`에 포함됨.
+- **`ExternalApiWidgetProps`**(우측 속성 패널):
+  - "갱신 주기 (초)" 숫자 입력 추가 — 캔버스에 배치된 위젯의 주기를 사후 수정 가능.
+  - 안내 문구: "실행화면에서 이 간격으로 API를 자동 갱신합니다."
+- `updateWidgetExternalApi` 핸들러의 Pick 타입에 `externalApiIntervalSec` 포함.
+- 관련 파일: `src/app/features/board/types/taskboard.types.ts`,
+  `src/app/pages/board/TaskCreate.tsx`
+- 검증: `npx eslint --fix` — 에러 0, 경고 7건(기존 유지, 신규 없음). **브라우저 실측 미실시**.
+- ⚠️ **미구현**: TaskView/RollingDisplay 실행화면에서 `externalApiIntervalSec`를 읽어
+  `setInterval`로 실제 자동 갱신하는 로직은 별도 작업 예정.
+
+### 소스 전체 검토 — 불필요한 코드 제거
+
+#### `ctiRedisApi.ts` — `getRedisGroupValuesBatch` 제거
+- WebSocket 마이그레이션 이전에 REST 배치 조회로 사용하던 `getRedisGroupValuesBatch` 함수 삭제.
+- 정의는 `ctiRedisApi.ts`에 있었으나 코드베이스 전체에서 호출하는 곳이 없는 데드코드였음(Grep으로 확인).
+- 관련 파일: `src/app/features/board/api/ctiRedisApi.ts`
+
+#### `TaskBg.tsx` — 불필요한 `useCallback` 래퍼 제거
+- `leafCells`/`dividers` 두 함수를 `useCallback`으로 감싸던 코드 제거.
+  - 두 함수 모두 JSX 이벤트 핸들러로 전달되거나 `useEffect` 의존성 배열에 쓰이지 않고, 렌더·이벤트 핸들러 내에서 즉시 호출만 함 → 프로젝트 규칙(React Compiler 자동 최적화, `useCallback` 명시적 필요 없으면 금지)에 따라 제거.
+  - `import`에서 `useCallback` 제거, 호출부를 `getLeafCells(...)` / `getNodeDividers(...)` 직접 호출로 교체.
+- 검증: `npx eslint --fix` 에러 0(기존 경고 8건 유지), `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 에러 0.
+- 관련 파일: `src/app/pages/board/TaskBg.tsx`
 
 ## 2026-06-23 세션35
 
@@ -1401,3 +1735,225 @@ overflow-clip 수정과 `imageRatio` onLoad 갱신은 패딩/경계선과 무관
   - 시작 시 `resolveRollingLayout(layout, display)`로 레이아웃+디스플레이(selectionJson)를 바로 합성 — 화면 인스턴스(`TaskboardDisplayLayout`) 링크가 없어도("전체 적용" 모드에서 처음 매칭되는 조합도) 그대로 재생 가능(별도 링크 생성 불필요, 렌더에는 레이아웃 JSON + 디스플레이 selectionJson만 필요하므로)
 - `RollingDisplay.tsx`: 슬라이드 인디케이터 dot의 React key를 `l.displayId`(이제 "전체 적용" 모드에서 여러 슬라이드가 같은 displayId를 가질 수 있어 중복 가능) → 배열 인덱스로 변경
 - 관련 파일: `pages/board/TaskMgmt.tsx`, `features/board/components/RollingDisplay.tsx`
+
+## 2026-06-24
+
+### 기능 — TaskCreate 테이블형 위젯: 행/열 간격, 컬럼 순서·숨김, 정렬/TOP N
+- 사용자 요청 5건 처리: ①행 간격 조절 ②열 간격 조절 ③컬럼 순서 변경 ④컬럼 표시 ON/OFF ⑤숫자 컬럼 기준 정렬 + TOP N(3/5/10/20)
+- `taskboard.types.ts`: `TableColumn.hidden?: boolean`(숨김, 설정값은 유지) 추가, `CallDataItem.tableConfig`에 `rowGap?`/`colGap?`(px, border-spacing)/`sortKey?`/`sortOrder?`('asc'|'desc')/`limit?`(TOP N, 미지정 시 기본 20) 추가
+- 행/열 간격: `<table>`을 `border-collapse: collapse`(tailwind 클래스) → 인라인 `border-collapse: separate` + `border-spacing: {colGap}px {rowGap}px`로 전환해 해결 — 컬럼별 padding을 건드리지 않고 셀 사이 여백만 조절. `TaskCreate.tsx`(`TableWidget`, 캔버스 미리보기) / `TaskView.tsx`(`ViewTableWidget`) / `RollingDisplay.tsx`(`RollingTableWidget`) 3곳 동일 적용
+- 컬럼 순서: `TableColumn[]` 배열 순서가 그대로 표시 순서(모든 렌더 지점이 `cfg.columns.map`을 그대로 따름) — 우측 패널 컬럼 목록에 ▲▼ 버튼(`moveWidgetTableColumn`) 추가해 배열 순서 자체를 바꾸도록 구현(드래그 reorder는 미구현 — 전역 `DndContext`와의 충돌 위험을 피해 버튼 방식으로 한정)
+- 컬럼 숨김: `updateWidgetTableColumn(id, key, { hidden })`으로 토글(👁/🙈 버튼). 행 데이터(`buildLiveTableRows`)는 숨긴 컬럼도 그대로 계산해 보관(다른 컬럼의 계산식이 참조할 수 있으므로) — 렌더 시점(`ViewTableWidget`/`RollingTableWidget`/캔버스 `TableWidget`)에서만 `columns.filter(c => !c.hidden)`로 제외
+- 정렬/TOP N: 우측 패널에 정렬 기준 컬럼 select + 오름차순/내림차순 + TOP 3/5/10/20 버튼 신규(`updateWidgetTableConfig`로 tableConfig에 직접 patch). 실데이터 적용은 `TaskView.tsx`/`RollingDisplay.tsx`의 `buildLiveTableRows`를 수정 — 기존 `filtered.slice(0, 20).map(...)`(자르고 나서 행 변환) 순서를 `filtered.map(...)` → `applySortAndLimit(result, sortConfig)`(행 변환 후 정렬+자르기)로 바꿔, 정렬 기준 값이 변환 후 컬럼 값(WS 실시간 값) 기준으로 정확히 매겨지도록 함
+- 적용 범위: table-queue/table-group/table-agent/table-redis 전부(차트 전환 시에는 영향 없음, table-redis는 그룹별 합계와 별개로 동작)
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(경고 0건 추가). **브라우저 실측 미실시** — 행/열 간격 슬라이더 값 변화, 컬럼 순서 변경·숨김 토글, 정렬+TOP N이 TaskCreate 미리보기와 실제 task-view/롤링 양쪽에서 동일하게 보이는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`
+
+### 수정/추가 — table-redis 간격·사용여부·정렬 미반영 버그 수정 + 컬럼명 숨기기 + 셀 단위 값 변경 애니메이션
+- **버그 원인 확인**: 사용자가 "행/열 간격이 안 먹는다"고 보고 → `table-redis`(`item.id==='table-redis'`) 위젯은 위 기능 추가 당시 수정한 `TableWidget`/`ViewTableWidget`/`RollingTableWidget`이 아니라 **완전히 별도인 `RedisTableWidget.tsx`**로 렌더링되고 있었음(`isRedisTableWidget()` 분기, `TaskCreate.tsx:1004`/`TaskView.tsx`/`RollingDisplay.tsx` 공통). 우측 패널에는 table-redis도 조건에 포함돼 있어 설정은 저장됐지만 렌더러가 `rowGap`/`colGap`/`hidden`/`sortKey`/`sortOrder`/`limit`을 전혀 참조하지 않아 화면에 반영되지 않았던 것 — `RedisTableWidget.tsx`에 동일 로직(정렬+limit, `visibleColumns` 필터, `border-collapse:separate`+`border-spacing`) 추가로 해결
+- **TOP N 기본값 정합성 재검토**: table-queue/group/agent는 원래부터 코드에 `.slice(0, 20)`이 하드코딩돼 있어 "기본 20개 cap"이 실제 동작이었지만, table-redis는 원래 전체 행을 보여줬음(cap 없음) — 신규 TOP N 기능을 붙이면서 4종이 다른 기본값을 가지면 패널의 "TOP 20 선택됨" 표시가 redis에서는 거짓이 되는 문제 발견. **모든 테이블 타입의 기본값을 "전체 표시"로 통일**(`limit` 미지정 시 cap 없음) — `TaskView.tsx`/`RollingDisplay.tsx`의 `applySortAndLimit`에서 강제 20 cap 제거, 패널에 "전체" 버튼 추가(3/5/10/20과 동일 그룹). ⚠️ **동작 변경**: 기존에 table-queue/group/agent 위젯은 항상 20개로 잘려서 보였는데, 이제 한도를 직접 설정하지 않으면 전체 데이터가 그대로 보임 — 이미 만들어둔 위젯 화면이 갑자기 더 많은 행을 보여줄 수 있음(필요 시 TOP N에서 명시적으로 20 선택)
+- **용어 변경**: 컬럼 목록의 👁/🙈("컬럼 숨기기"/"컬럼 표시") 토글을 ☑/☐("컬럼 사용"/"컬럼 사용 안 함")으로 변경 — 동작은 동일(컬럼 자체를 표/실행화면에서 완전히 제외), 사용자 피드백("이 기능은 좋은데 이름을 컬럼 사용여부로")에 따른 명칭만 정정
+- **신규 — 컬럼명 숨기기(`TableColumn.hideLabel`)**: 사용자가 의도한 "숨기기"는 별도 개념이었음 — 위젯의 "타이틀 숨기기"처럼 **헤더의 컬럼명 텍스트만 숨기고 데이터(셀 값)는 계속 표시**. 컬럼 ⚙ 펼침 패널에 토글 추가(`updateWidgetTableColumn(id, key, { hideLabel })`). `TableWidget`/`ViewTableWidget`/`RollingTableWidget`/`RedisTableWidget` 4곳 모두 `<th>` 내용을 `{!col.hideLabel && col.label}`로 변경(헤더 셀·테두리·너비는 유지, 텍스트만 비움)
+- **신규 — 테이블 셀 단위 값 변경 애니메이션**: "왜 테이블엔 값 변경 애니메이션/값 위치 세밀조정이 안 보이냐"는 질문에 답변 — 두 기능 모두 "숫자 1개"를 보여주는 단일값 위젯 전용으로 설계돼 있었음(`valueOffsetX/Y`는 한 텍스트를 픽셀 이동시키는 개념이라 행이 N개인 테이블엔 적용 대상이 불명확하고, 렌더 코드도 두 옵션을 전혀 참조하지 않아 패널에 노출해도 무동작이었음). 사용자 확인 결과 "값 변경 애니메이션"만 셀 단위로 추가 결정(위치 세밀조정은 컬럼 정렬(`align`)과 중복돼 보류)
+  - 신규 공유 컴포넌트 `features/board/components/AnimatedTableCell.tsx` — `useValueChangeKey(value)`로 셀 값이 바뀔 때만 그 셀 하나가 펄스/깜빡임/흔들림/튀어오름/하이라이트(`widget.style.valueChangeAnimation`, 위젯 전체에 동일 설정 적용) 재생. 기존 단일값 위젯의 `getValueAnimationClass`/`getValueAnimationStyle`(하이라이트는 `<td>` 전체를 덮는 오버레이) 그대로 재사용 — 신규 keyframes 없음
+  - `TableWidget`(TaskCreate 미리보기)/`ViewTableWidget`(TaskView)/`RollingTableWidget`(RollingDisplay)/`RedisTableWidget` 4곳의 `<td>` 렌더를 `<AnimatedTableCell>`로 교체
+  - 우측 패널 "값 변경 애니메이션" 노출 조건을 `displayType !== 'table' && displayType !== 'chart'` → `displayType !== 'chart'`로 완화(테이블도 노출, 차트는 여전히 제외)
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(경고 0건 추가). **브라우저 실측 미실시** — table-redis 간격이 실제로 보이는지, 컬럼명숨기기가 데이터는 유지한 채 헤더만 비우는지, 테이블 셀 애니메이션이 실시간 값 변경 시 재생되는지, TOP N "전체" 기본값 변경 후 기존 queue/group/agent 위젯들이 의도와 다르게 너무 많은 행을 보여주지 않는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`, `features/board/components/AnimatedTableCell.tsx`(신규)
+
+### 수정 — 컬럼명 숨기기를 표 전체 단위로 변경, 컬럼별 열 간격 + 마우스 드래그, 테이블 애니메이션 transform 버그
+- **컬럼명 숨기기를 컬럼 단위 → 표 전체 단위로 변경**: 사용자가 "컬럼명숨기기는 통으로 움직이니까 낱개로 말고 전체로"라고 피드백 → `TableColumn.hideLabel`(컬럼별) 제거, `tableConfig.hideColumnLabels`(표 전체 1개 토글)로 교체. 우측 패널의 컬럼별 ⚙ 펼침에 있던 토글을 제거하고, "표 간격" 섹션 안에 표 전체용 스위치 1개로 통합. `TableWidget`/`ViewTableWidget`/`RollingTableWidget`/`RedisTableWidget` 4곳의 `<th>` 조건을 `!col.hideLabel` → `!cfg.hideColumnLabels`(또는 그 동치)로 교체
+- **컬럼별 열 간격 + 캔버스 마우스 드래그**: `TableColumn.colGap?: number` 신규(컬럼별 오버라이드, 미지정 시 `tableConfig.colGap`를 표 전체 기본값으로 사용). 구현 방식을 `border-spacing`(표 전체 균일값, 컬럼별 분리 불가) → `border-spacing: 0 {rowGap}px`(가로 0, 세로만) + 각 `<th>/<td>`의 `paddingRight`로 변경(컬럼마다 다른 값 가능). TaskCreate 캔버스 표 헤더의 각 컬럼 우측 경계에 보이지 않는 드래그 핸들(`cursor-col-resize`, hover 시 파란 줄)을 추가해 마우스로 직접 그 컬럼의 간격을 조절 가능 — `TableColumnGapContext`(React Context) 신규: `TableWidget`이 `CanvasWidgetFree`/`CanvasWidgetGrid`/`WidgetContent`를 거쳐 깊이 중첩돼 있어 각 컴포넌트 prop 시그니처를 건드리는 prop drilling 대신, `TaskCreate` 컴포넌트 최상단(`DndContext` 내부)에서 `Provider`로 `updateWidgetTableColumn(id, key, { colGap })`을 주입하고 `TableWidget`이 `useContext`로 바로 사용. 드래그 핸들의 `onPointerDown`은 `e.stopPropagation()`으로 캔버스 위젯 이동 핸들러(부모 div의 `onPointerDown`)가 같이 발동하지 않게 분리. 실행화면(`TaskView`/`RollingDisplay`/`RedisTableWidget`)에는 마우스 드래그 UI 없음(읽기 전용 화면이라 TaskCreate에서 설정한 값만 그대로 반영)
+- **테이블 셀 애니메이션 중 펄스/흔들림/튀어오름 무동작 버그 수정**: 원인은 CSS 스펙 — `transform`은 `display: inline`인 비대체(non-replaced) 인라인 요소에는 적용되지 않음(스펙상 명시된 동작). `AnimatedTableCell`이 값을 감싸는 `<span>`에 별도 display를 안 줘서 기본값 `inline`이었고, opacity 기반(깜빡임)·별도 오버레이 div(하이라이트)만 동작하고 transform 기반 3종(펄스/흔들림/튀어오름)은 전부 무시되고 있었음 → 그 `<span>`에 `display: 'inline-block'` 추가로 해결
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(경고 0건 추가, 빈 화살표 함수 에러 1건은 `() => undefined`로 수정). **브라우저 실측 미실시** — 표 전체 컬럼명 숨기기 스위치, 캔버스에서 마우스로 컬럼 경계 드래그 시 그 컬럼만 간격이 바뀌는지, 펄스/흔들림/튀어오름 애니메이션이 테이블 셀에서 재생되는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`, `features/board/components/AnimatedTableCell.tsx`
+
+### 수정 — 컬럼 간격 드래그 핸들이 안 보이는 문제 + table-redis에도 드래그 핸들 누락
+- **핸들 시인성 문제**: 드래그 핸들을 `hover:bg-.../40`로만 만들어 평상시 완전히 투명했고, 그 핸들이 `opacity: 0.7`이 걸린 `<th>`의 자식이라 hover 색상까지 같이 흐려져서 사실상 안 보였음(사용자 보고: "드래그 UI가 보이지않아") → `<th>`에서 opacity를 빼고 라벨 텍스트만 별도 `<span style={{opacity:0.7}}>`로 감싸 핸들은 영향 안 받게 분리, 핸들 내부에 항상 보이는 얇은 세로선(평상시 40% 불투명도) + hover 시 두꺼워지고 100% 불투명+파란색으로 변하는 2단 구성으로 교체(`group`/`group-hover` 패턴)
+- **table-redis(`RedisTableWidget.tsx`) 드래그 핸들 누락**: 직전 작업(행/열 간격 버그 수정)에서 또 발견된 것과 같은 원인 — TaskCreate 캔버스에서도 `table-redis` 위젯은 `TableWidget`이 아니라 `RedisTableWidget`으로 렌더링되는데, 마우스 드래그 핸들은 `TableWidget`에만 추가했었음. `TableColumnGapContext`를 `TaskCreate.tsx` 안에 두지 않고 별도 파일 `features/board/components/TableColumnGapContext.ts`로 분리해 양쪽에서 공유하도록 변경, `RedisTableWidget`에 `editable?: boolean`(기본 false) prop 추가해 TaskCreate 호출부(`<RedisTableWidget widget={widget} editable />`)에서만 핸들이 보이고 TaskView/RollingDisplay(읽기 전용 실행화면)에는 안 보이게 함
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — table-queue/group/agent와 table-redis 양쪽 모두 캔버스에서 컬럼 경계에 마우스를 올리면 얇은 선이 항상 보이고, 드래그하면 그 컬럼만 간격이 바뀌는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskCreate.tsx`, `features/board/components/RedisTableWidget.tsx`, `features/board/components/TableColumnGapContext.ts`(신규)
+
+### 수정 — 컬럼 간격 드래그 가능 범위가 너무 좁음
+- 사용자가 핸들 동작은 확인됐지만 "좌우 영역이 너무 좁다, 쭉쭉 움직일 수 있게"라고 피드백 → `COLUMN_GAP_MAX`를 60 → 400(px)으로 상향(드래그·숫자 입력 둘 다 적용). 드래그 자체는 마우스 이동 px를 1:1로 그대로 반영하던 로직이라 체감 폭이 좁았던 원인은 순전히 60px 캡이었음
+- 관련 파일: `features/board/components/TableColumnGapContext.ts`, `pages/board/TaskCreate.tsx`
+
+### 수정 — 컬럼 간격을 더 늘려도 캡(400px)에 또 걸림 + 전광판 고정폭 안에서 텍스트가 깨지는 문제
+- 사용자가 "원하는 만큼 안 움직인다"고 재차 피드백 → `COLUMN_GAP_MAX`를 400 → 9999(사실상 무제한, 음수만 차단)로 재상향
+- 동시에 사용자가 "전광판 UI는 고정폭에 무조건 맞아야 하니, 간격을 쭉쭉 늘리는 대신 그로 인해 칸이 좁아져서 글자가 넘치면 줄바꿈/깨짐 대신 '...'으로 잘리게 해달라"고 요구 → 표 레이아웃을 `table-layout: auto`에서 **`table-layout: fixed`**로 전환(4곳: `TableWidget`/`ViewTableWidget`/`RollingTableWidget`/`RedisTableWidget`). `table-layout:auto`에서는 `white-space:nowrap`인 셀의 최소 너비가 "줄바꿈 없는 전체 텍스트 너비"가 돼서 컬럼이 그 아래로는 절대 안 줄어들어(`text-overflow:ellipsis`를 줘도 트리거가 안 됨) 간격을 늘리면 표가 위젯 폭을 넘어 그냥 잘려버렸던 것 — `fixed`로 바꾸면 전체 표 폭(=위젯 폭, 고정)을 컬럼들이 정해진 비율로만 나눠 갖고, 한 컬럼의 패딩(간격)이 늘어나면 그 컬럼 자신의 내용 영역만 줄어들어 ellipsis가 정상 동작
+- `AnimatedTableCell`의 값 `<span>`과 4곳의 헤더 라벨 `<span>`에 `display:'block', width:'100%', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis'` 적용(헤더는 `opacity:0.7`도 이 span으로 이동)
+- ⚠️ **side effect**: `width`를 지정 안 한 컬럼(현재 UI에 컬럼별 너비 설정 기능이 없어 전부 이 경우)은 `table-layout:auto`일 때 텍스트 길이에 비례해 자동으로 너비가 잡혔는데, `fixed`로 전환하면서 **그런 컬럼들은 남은 폭을 균등분할**로 받게 됨 — 기존에 떠 있는 표 위젯들의 컬럼 비율이 이전과 달라 보일 수 있음(예: "이름" 컬럼이 길어도 더 넓게 안 잡힘). 컬럼별 너비 직접 지정 UI는 아직 없음(`TableColumn.width`는 타입에만 존재) — 필요하면 추후 요청
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — 간격을 끝까지 드래그했을 때 옆 컬럼 텍스트가 정상적으로 "..."로 잘리는지, 기존 표 위젯들의 컬럼 비율이 허용 가능한 수준으로 바뀌었는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/components/TableColumnGapContext.ts`, `features/board/components/AnimatedTableCell.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 재설계 — 컬럼 "간격(padding)" 드래그 → 컬럼 "너비(width)" 드래그로 전환
+- 사용자가 "A-----------B-C, A----------------B-C-D 이렇게 하고 싶은데 잘 안 된다"고 재현 → 원인 확인: `colGap`은 한 컬럼의 우측 **padding**만 키우는 방식이라 `table-layout:fixed`에서는 옆 컬럼들의 위치/너비에 전혀 영향을 못 줌(각 컬럼은 자기 몫의 고정폭 안에서 padding만 먹고, 형제 컬럼은 안 움직임) — "A를 넓히면 B·C가 따라서 좁아지며 붙는" 효과 자체가 애초에 안 나오는 설계였음
+- **TableColumn.colGap/tableConfig.colGap 완전 제거**, 기존에 타입에만 있던 `TableColumn.width`(CSS width 문자열)를 실제로 드래그 대상으로 사용 — 드래그하면 그 컬럼의 `width`를 `"32.5%"` 같은 표 전체 대비 비율로 직접 설정. `table-layout:fixed`에서 너비를 지정 안 한 컬럼들은 남은 폭을 자기들끼리 균등분할하므로, 한 컬럼 너비를 늘리면 나머지가 자동으로 좁아지며 다닥다닥 붙는 — 사용자가 원한 "A-----B-C" 패턴이 정확히 이 메커니즘으로 나옴
+- 드래그 측정 방식 변경: 기존엔 `dragRef`로 시작 gap 값만 들고 px delta를 더하는 식이었는데, 이제는 `e.currentTarget.closest('th'|'table')`로 드래그 시작 시점의 실제 렌더된 th/table 픽셀 너비를 측정해 시작 비율(%)을 구하고, 그 위에 마우스 이동 px를 표 너비 기준 %로 환산해 더함(`handleColumnResizePointerDown`, `TableColumnGapContext.ts`로 이동해 `TableWidget`/`RedisTableWidget` 양쪽이 공유 — 기존엔 각자 비슷한 핸들러를 중복 작성했었음) — ref 불필요, 드래그 중 표 크기가 안 변한다는 전제로 매 move마다 재계산 없이 시작 시점 1회만 측정
+- `COLUMN_GAP_MIN/MAX` → `COLUMN_WIDTH_MIN_PERCENT(5)`/`COLUMN_WIDTH_MAX_PERCENT(90)`로 교체(컬럼이 0%나 100%까지 가는 극단은 차단)
+- TaskCreate 우측 패널 "표 간격" 섹션을 "표 설정"으로 정리 — 행 간격(px) 입력만 남기고 "기본 열 간격" 입력은 제거(열 너비는 캔버스 드래그가 유일한 조절 방법), 안내문을 새 동작에 맞게 수정
+- `AnimatedTableCell`의 `gapRight` prop 제거(더 이상 컬럼 패딩을 동적으로 더하지 않음 — 기본 padding `1px 3px`로 고정)
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고는 사전 존재하던 것만 남음 — 새로 만든 안내문의 raw 쌍따옴표는 `&ldquo;`/`&rdquo;`로 교체해 경고 제거). **브라우저 실측 미실시** — A 컬럼을 넓게 드래그했을 때 B·C·D가 실제로 좁아지며 붙는지, 너비%가 의도한 비율로 유지되는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/components/TableColumnGapContext.ts`, `features/board/components/AnimatedTableCell.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 기능 — 테이블 행 구분선 표시/두께 옵션 + 헤더-데이터 사이 줄 영구 제거
+- 사용자 요청 2건: ①표 테두리(선)를 켜고 끄고 두께를 조절하는 옵션 ②컬럼명과 데이터 사이의 줄은 항상 안 보이게
+- `tableConfig.showBorder?: boolean`(기본 true)/`borderWidth?: number`(기본 1px) 신규 — 데이터 행 사이 구분선(`<td>`의 `borderBottom`)에 적용. `AnimatedTableCell`에 `borderBottom` prop 추가(기본값 `1px solid rgba(255,255,255,0.08)` 유지, 호출부가 `showBorder===false`면 `'none'`을 넘김)
+- TaskCreate 우측 패널 "표 설정"에 "행 구분선 표시" 토글 + (켜져 있을 때만) "구분선 두께(px)" 입력(1~5) 추가
+- 헤더(`<th>`)의 `borderBottom: \`1px solid ${widget.style.color}40\`` 는 옵션과 무관하게 4곳(`TableWidget`/`ViewTableWidget`/`RollingTableWidget`/`RedisTableWidget`) 전부에서 완전히 제거 — 사용자가 "이 줄은 그냥 안 보였으면 한다"고 명확히 요청했으므로 토글 대상에 넣지 않고 코드에서 삭제
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — 행 구분선 토글/두께가 실제 반영되는지, 헤더-데이터 사이 줄이 완전히 사라졌는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/components/AnimatedTableCell.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 수정 — 컬럼 너비 드래그 핸들이 너무 작아서 안 보임
+- 사용자가 "버튼이 너무 작아서 안 보인다"고 피드백 → 히트 영역을 `w-3`(12px)→`w-5`(20px)로 키우고, 평상시에도 항상 보이는 막대를 `w-px`(1px)·`opacity-40`(hover 시에만 보이던 수준)에서 `w-1.5`(6px)·`opacity-70`+`shadow-sm`으로 키워 hover 없이도 컬럼 경계가 또렷이 보이게 함(hover 시 `w-2`·완전 불투명으로 한 번 더 강조). `TableWidget`(TaskCreate)/`RedisTableWidget` 양쪽 동일 적용
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — 핸들이 평상시에도 잘 보이는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskCreate.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 수정 — 컬럼 리사이즈 시 다른 컬럼도 같이 바뀌는 문제, 표 위쪽 빈 공간, border 색이 사실상 안 보이던 문제
+- 사용자 보고 3건: ①"B를 바꾸면 A,C까지 전부 바뀐다"(원하는 동작: B만/그 옆만) ②컬럼 수와 무관하게 위젯 위쪽에 공간이 너무 많이 남음 ③행 구분선 border를 켜고 두께를 올려도 적용이 안 되는 것처럼 보임
+- **① 컬럼 리사이즈 — 드래그 대상 외 전부 동결**: 원인 — 너비를 지정 안 한 컬럼들은 `table-layout:fixed`에서 남은 공간을 자기들끼리 동적으로 균등분할하므로, B 하나만 width%를 줘도 너비 미지정인 A·C가 같이 재계산되며 따라 움직였음. `handleColumnResizePointerDown`(`TableColumnGapContext.ts`)을 재작성 — 드래그 시작 시점에 그 행의 **모든** 컬럼의 현재 렌더 너비(%)를 읽어 전부 명시값으로 고정(동결)한 뒤, 드래그 중에는 **드래그한 컬럼과 바로 다음 컬럼 두 개만** 합이 일정하게 유지되도록 주고받음(B 늘어난 만큼 C만 줄어듦, A는 동결값 그대로 안 바뀜). 이 매칭을 위해 각 `<th>`에 `data-col-key={col.key}` 추가(컬럼 키를 DOM에서 다시 찾기 위함, `TableWidget`/`RedisTableWidget` 양쪽)
+- **② 표 위쪽 빈 공간 — border-spacing의 부작용 제거**: 원인 — 행 간격(rowGap)을 `border-collapse:separate`+`border-spacing` 세로값으로 구현했었는데, CSS 스펙상 border-spacing은 행 사이뿐 아니라 **표 테두리~첫 행 사이/마지막 행~표 테두리 사이에도 똑같이 적용**돼서, rowGap을 조금만 키워도 헤더 위에 똑같은 만큼의 빈 공간이 생겼던 것(컬럼 수와는 무관 — 그래서 컬럼을 지우든 말든 똑같이 남아 있었음). `border-spacing` 방식을 버리고 각 행 `<th>`/`<td>`(`AnimatedTableCell`)의 `paddingBottom: 1 + rowGap`으로 교체 — 헤더 위쪽엔 패딩을 안 줘서 그 부작용이 사라지고, 행 사이 간격은 그대로 유지됨. `borderCollapse`도 `separate`→`collapse`로 단순화(더 이상 border-spacing이 필요 없으므로)
+- **③ border 색상이 사실상 안 보이던 문제**: `showBorder`/`borderWidth`는 정상 적용되고 있었지만 색상이 `rgba(255,255,255,0.08)`(흰색 8% 불투명도)로 고정돼 있어서 두께를 올려도 거의 안 보였음(밝은 배경에서는 더 안 보임) — 헤더 줄이 쓰던 `${widget.style.color}40`(위젯 글자색 기준 약 25% 불투명도) 방식으로 통일해 두께를 올리면 실제로 또렷해지게 함
+- `AnimatedTableCell`에 `paddingBottom?: number`(기본 1) prop 추가, 4곳(`TableWidget`/`ViewTableWidget`/`RollingTableWidget`/`RedisTableWidget`) 모두 `rowPaddingBottom = 1 + (cfg.rowGap ?? 0)`을 계산해 `<th>`와 `AnimatedTableCell` 양쪽에 전달하도록 통일
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — B만 드래그했을 때 A가 안 바뀌는지(C만 줄어드는지), 표 위쪽 빈 공간이 사라졌는지, border 두께를 올렸을 때 실제로 진해지는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/components/TableColumnGapContext.ts`, `features/board/components/AnimatedTableCell.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 수정 — 차트 전환 안 됨, 컬럼명 숨겨도 공간 남음, 세로 정렬 옵션 부재, 폰트 미적용
+- 사용자 보고 4건
+- **① 차트 기능 안 됨**: 원인 — `TaskCreate.tsx`/`TaskView.tsx`/`RollingDisplay.tsx` 세 곳 모두 위젯 렌더 분기에서 `isRedisTableWidget(widget)` 체크가 `displayType==='chart'` 체크보다 먼저였음. `table-redis` 위젯은 id 기준으로 항상 `RedisTableWidget`(표만 그림)으로 빠져버려서, 우측 패널 "표시 방식"을 차트로 바꿔도 절대 차트가 안 그려지는 구조적 버그였음(기능을 추가하다 빠진 게 아니라 표시 방식 토글 기능 자체가 처음부터 redis 테이블에는 안 통하게 돼 있었음). 세 파일 모두 차트 분기를 redis 체크보다 앞으로 옮겨서 해결
+- **② 컬럼명 전체 숨겨도 헤더 자리 공간이 남음**: `hideColumnLabels`가 켜져도 `<th>`에 `rowGap` 기반 `paddingBottom`과 기본 `padding`이 그대로 남아 있어서 빈 헤더 행이 자리를 차지했음(rowGap이 크면 그만큼 더) → `hideColumnLabels`일 때 `<th>` padding 전부 0 + 라벨 `<span>`에 `fontSize:0, lineHeight:0` 추가로 헤더 행을 실질적으로 0높이까지 접어서 첫 데이터 행이 맨 위로 올라오게 함(4곳 모두 적용)
+- **③ 세로 정렬(위/중간/아래) 옵션 신규**: 기존엔 가로 정렬(좌/중/우)만 있었음 — `TableColumn.verticalAlign?: 'top'|'middle'|'bottom'`(기본 'middle') 신규, 컬럼 ⚙ 패널에 "가로"/"세로" 두 줄로 분리해 추가. `AnimatedTableCell`/4곳 `<th>` 모두 `verticalAlign` 적용 — 행 간격이 커서 행이 높아졌을 때 내용을 어디에 둘지 컬럼별로 선택 가능
+- **④ 폰트(서체/굵기) 미적용**: `<table>` 태그에는 `fontFamily`가 있었지만 자손 `<td>`/`<th>`/내부 `<span>`에는 명시값이 전혀 없어 상속에만 의존하고 있었고, **`fontWeight`는 테이블 어디에도 전달되는 경로 자체가 없어 위젯의 "폰트 굵기" 설정이 항상 무시되고 있었음**(서체가 안 먹는 것처럼 보인 것도 이 누락과 겹쳐서 체감됐을 가능성) — `AnimatedTableCell`의 `<td>`와 4곳의 `<th>`에 `fontFamily`/`fontWeight`(헤더는 `fontWeight:600` 고정 유지, `fontFamily`만 추가)를 명시값으로 직접 지정해 상속 체인에 의존하지 않게 함
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — table-redis 위젯을 차트로 전환했을 때 실제로 그려지는지(데이터 없이 빈 차트일 수 있음 — 별도 이슈), 컬럼명 숨김 시 데이터가 맨 위로 붙는지, 세로 정렬 3종, 폰트 굵기/서체 변경이 테이블에 실제로 반영되는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/components/AnimatedTableCell.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 수정 — TaskCreate에서 차트 여전히 안 나옴 + 세로 정렬 무동작 근본 원인 해결
+- 사용자가 "task-create에서: ①차트 여전히 안 나옴 ②위/가운데/아래 안 먹음 ③폰트 여전히 안 먹음"이라고 재보고
+- **① 차트 — table-redis는 정적 sampleData가 항상 빈 배열이라 dispatcher 순서를 고쳐도 빈 차트만 보였던 것**: `table-redis`는 `tableConfig: { columns: [], sampleRows: [] }`로 항상 비어 있어(실시간 Redis fetch로만 채워짐) `buildChartSampleData`가 절대 데이터를 못 만듦 — 직전 수정(dispatcher 순서)은 필요했지만 충분하지 않았음. `ChartWidget`을 `features/board/components/ChartWidget.tsx`로 분리하고 `dataOverride` prop을 추가, `RedisTableWidget`이 이미 계산해둔 실시간 `rows`(정렬·limit·그룹합계까지 반영됨)를 `buildChartDataFromRows()`로 `{name,value}`로 변환해 직접 넘겨주도록 변경. dispatcher는 다시 `isRedisTableWidget`을 먼저 체크하도록 되돌리고(3개 파일 모두), `RedisTableWidget` 내부에서 `displayType==='chart'`일 때 표 대신 `<ChartWidget dataOverride=.../>`를 렌더하도록 분기 추가 — table-queue/group/agent는 기존 경로(`buildLiveChartData`) 그대로 유지, 영향 없음
+- **② 세로 정렬(위/중간/아래) 진짜 원인**: 행 간격(rowGap)을 셀의 `paddingBottom`으로 구현했던 게 문제 — padding은 콘텐츠 박스 **바깥**의 고정 여백이라 `vertical-align`이 분배할 수 있는 "여유 공간" 자체가 없었음(여백이 항상 아래쪽에 박혀 있어 위/중간/아래를 바꿔도 시각적으로 차이가 안 났음). `padding` 대신 `height`(테이블 셀에서는 콘텐츠가 더 작을 때 명세상 "최소 높이"로 동작)를 셀에 직접 줘서, 그 안에서 `vertical-align`이 실제로 콘텐츠 위치를 위/중간/아래로 옮길 수 있게 함. `AnimatedTableCell`의 `paddingBottom` prop을 `rowHeight`로 교체(`height: rowHeight || undefined`), 4곳의 `<th>`도 동일하게 `paddingBottom`→`height`로 교체(헤더 라벨 숨김 시 0 처리 로직은 그대로 유지)
+- **③ 폰트**: 코드 재검토 결과 직전 수정(`AnimatedTableCell`/`<th>`에 `fontFamily`/`fontWeight` 명시)은 정상이고 별도 누락은 못 찾음 — 위 ②번 수정과 같은 파일을 또 손보는 김에 회귀가 없는지 다시 확인함(있음). 이번에도 안 보이면 폰트 패밀리/굵기 변경 시 어떤 컬럼·어느 화면(편집기 미리보기 vs 실제 실행화면)에서 안 보이는지 더 구체적인 재현 정보 필요
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — table-redis를 차트로 전환 시 실제 Redis 데이터로 그려지는지, rowGap을 키운 뒤 세로 정렬 위/중간/아래가 실제로 다르게 보이는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/components/ChartWidget.tsx`(신규), `features/board/components/AnimatedTableCell.tsx`, `features/board/components/RedisTableWidget.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`
+
+### 수정 — 빌드 에러(CHART_COLORS_LIST 미정의)
+- 직전 작업에서 `ChartWidget`을 분리하면서 `TaskCreate.tsx`가 `CHART_COLORS_LIST`를 더 이상 로컬에 갖고 있지 않게 됐는데, 차트 색상 패널(개별 컬러 피커 기본값 계산 2곳)이 여전히 그 이름을 직접 참조하고 있어 빌드 실패(`TS2304`) — import에 `CHART_COLORS_LIST` 추가로 해결
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0)
+- 관련 파일: `pages/board/TaskCreate.tsx`
+
+### 기능 — Redis 키 패턴(필드형/키형) 자동탐지 + table-redis 다중 키 조회
+- 배경(대화로 설계): CTI Redis 데이터가 ①시스템ID:미디어타입 ②미디어타입:시스템ID 등 위치가 제각각이고, 시스템ID가 해시 "필드"인 경우(예: `IC:CTIQ:0` 안에 큐ID들이 필드)와 "키 세그먼트"인 경우(예: `IC:GROUP:REASON:{groupId}:{mediaType}`처럼 시스템ID별로 키가 따로 존재)가 섞여 있어 하드코딩 없이 처리하는 방법을 논의 — 결론: 미디어타입은 값 집합(0/10/20/40)이 고정이라 하드코딩, 시스템ID 위치(필드/키)는 설정 화면에서 1회 자동탐지 후 위젯에 저장, 실행 화면(전광판)은 저장값만 읽어 분기(런타임 재탐지·하드코딩 없음)
+- `features/board/utils/redisKeyPattern.ts` 신규: `parseTrailingMediaType()`(미디어타입은 위치 무관하게 "있으면 항상 마지막 세그먼트"라는 값 기반 규칙으로 탐지), `findSiblingKeys()`(미디어타입을 뗀 나머지가 세그먼트 1개만 다른 "형제 키" 탐색 — 새 SCAN 없이 BE가 이미 캐싱해 내려준 전체 해시키 목록만 사용), `detectRedisKeyPattern()`(형제가 있으면 keyed, 없는데 그 키 자체가 존재하면 fields, 둘 다 아니면 unknown), `extractSystemIdSegment()`(형제 키에서 baseKey 대비 다른 세그먼트=시스템ID 값 추출)
+- `taskboard.types.ts`: `CallDataItem.redisKeyPattern?: 'fields' | 'keyed'` 신규(설정 화면 탐지 결과 저장용, 미지정 시 'fields')
+- `useTaskboardQueries.ts`: `useGetRedisHashEntriesMulti(hashKeys, refetchInterval?)` 신규 — `useQueries`로 키 개수가 매 렌더마다 달라져도(Rules of Hooks 제약 없이) 여러 해시키를 한 번에 조회. 결과는 입력 순서와 동일한 배열
+- TaskCreate.tsx: table-redis의 "Redis 해시키" 입력 아래에 "시스템ID 위치" 자동탐지 패널 신규 — 입력한 키 기준으로 형제 키 개수까지 보여주고, "탐지 결과로 저장" 버튼으로 `redisKeyPattern`을 위젯에 저장
+- `RedisTableWidget.tsx` 전면 수정: 기존 단일 `useGetRedisHashEntries(hashKey)` 호출을 제거하고, `redisKeyPattern==='keyed'`면 `[hashKey, ...형제키들]`을 `useGetRedisHashEntriesMulti`로 한 번에 조회 → 키마다 행을 따로 뽑아(`buildRowsForEntries`로 기존 행 생성 로직 그대로 재사용) 합치고, 각 행에 `SYSTEM_ID_COLUMN_KEY`('__systemId') 컬럼으로 어느 시스템ID에서 왔는지 태그. `redisKeyPattern==='fields'`(기본값, 기존 동작)는 `categoryKeys=[hashKey]` 하나뿐이라 동일하게 동작(회귀 없음)
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음 — 비-null 단언 2건은 로컬 변수로 추출해서 제거). **브라우저 실측 미실시** — table-redis에서 keyed로 저장한 위젯이 형제 키들을 실제로 다 가져와서 합치는지, `__systemId` 컬럼을 추가하면 값이 제대로 나오는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/utils/redisKeyPattern.ts`(신규), `features/board/types/taskboard.types.ts`, `features/board/hooks/useTaskboardQueries.ts`, `pages/board/TaskCreate.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 기능 — 테두리에 컬럼별 세로선 추가 + table-redis 실시간 통신 방식 확인
+- 사용자 요청 2건: ①border를 켜면 가로선(행 구분선)만 생기는데 컬럼별 세로선도 추가 ②table-redis 실행 화면 데이터가 소켓이 아니라 REST API로 도는 것 같은데 확인
+- **① 세로선**: `AnimatedTableCell`에 `borderRight` prop 신규(기본 'none'). `showBorder`/`borderWidth` 설정값을 그대로 재사용해 `cellBorderRight = cellBorderBottom`로 가로선과 동일한 두께·색으로 통일. 마지막 컬럼은 'none'으로 넘겨 표 바깥쪽에 선이 남지 않게 함. 4곳(`TableWidget`/`ViewTableWidget`/`RollingTableWidget`/`RedisTableWidget`) `<th>`/`AnimatedTableCell` 호출부 모두에 `colIdx` 기준으로 동일 적용
+- **② 확인 결과**: 사용자 의심이 맞음 — `RedisTableWidget.tsx`(table-redis 위젯, TaskCreate/TaskView/RollingDisplay 어디서 쓰든 동일 컴포넌트)는 `useGetRedisHashEntriesMulti`(`REDIS_TABLE_REFETCH_MS = 5000`)로 **5초 간격 REST 폴링**을 하고 있음 — table-queue/group/agent와 단일값 Redis 위젯은 이미 `useCtiqWebSocket`으로 통합됐는데 table-redis만 처음부터 REST 폴링으로 남아있던 것. WS 핸들러는 이미 임의 hashKey를 지원하도록 일반화돼 있어 기술적으로 전환 가능 — 사용자에게 전환 여부 확인 후 진행하기로 함(이번엔 코드 변경 없음, 확인만)
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — border를 켰을 때 컬럼 사이 세로선이 실제로 보이는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/components/AnimatedTableCell.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/components/RedisTableWidget.tsx`
+
+### 기능 — table-redis REST 폴링 → WebSocket 전환 ("필요한 컬럼만" 구독)
+- 배경: 사용자가 "전광판→BE 데이터 통신은 전부 WebSocket으로"라고 요구. table-redis는 field(행) 목록을 미리 모른다는 점이 걸림돌이라(WS 프로토콜이 `ids` 명시를 요구) BE에 와일드카드 구독을 먼저 추가(`BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참고: `CtiRedisPoller.getAllFieldIds()`, `CtiqWebSocketHandler` `ids:["*"]` 지원)
+- `RedisTableWidget.tsx` 전면 수정: `useGetRedisHashEntriesMulti`(REST, 직전 작업에서 추가했던 것) 호출 제거하고 `useCtiqWebSocket`으로 교체. `categoryKeys`(fields면 1개, keyed면 형제 키까지) 각각을 `{hashKey, ids:['*'], columns: neededColumns}` 구독으로 변환
+- **"필요한 컬럼만"**: 신규 `collectNeededColumns(columns, groupBy)` — 표시 컬럼의 key를 그대로 모으되, calc 컬럼은 자기 key가 아니라 `calc.operands[].field`(수식이 실제로 참조하는 JSON 필드)를, groupBy(그룹별 합계) 모드면 표시 컬럼과 무관하게 byKey/aggKey 두 개만 모아서 WS 구독의 `columns` 필터로 전달 — BE가 전체 JSON 대신 이 필드들만 추려서 보냄
+- WS는 이미 파싱된 객체(`CtiqRecord`)로 데이터를 내려주므로(REST의 raw JSON 문자열과 다름) `buildRowsForEntries`에서 `JSON.parse` 단계를 제거. `groupSumRedisHashEntries`(`redisValue.ts`)가 REST(raw 문자열)/WS(파싱된 객체) 양쪽을 다 받을 수 있게 시그니처를 `Record<string, string | Record<string, unknown>>`로 일반화(내부에서 타입 분기)
+- 직전 작업에서 추가했던 `useGetRedisHashEntriesMulti`(REST, `useQueries` 기반)는 더 이상 호출하는 곳이 없어져 죽은 코드가 되므로 같이 제거(`useTaskboardQueries.ts`, `useQueries` import도 함께 정리)
+- **예외 — 형제 키 탐색용 해시키 "목록" 조회(`useGetRedisHashKeys`)는 REST로 유지**: 이건 실시간 데이터가 아니라 BE가 캐싱해둔 스키마 메타 정보(TaskCreate 좌측 탐색기와 동일 캐시) 조회라 사용자가 말한 "데이터 전송"의 범위에 안 들어간다고 판단 — 다르게 생각하면 알려달라고 안내함
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — table-redis가 실제로 WS로 실시간 갱신되는지(특히 fields/keyed 양쪽, groupBy 모드 포함) 사용자가 직접 확인 필요
+- 관련 파일: `features/board/components/RedisTableWidget.tsx`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/utils/redisValue.ts`. BE 짝 파일: `BT-ADMIN-SERVICE-TASKBOARD/web/service/CtiRedisPoller.java`, `web/controller/CtiqWebSocketHandler.java`
+
+### 수정 — TaskCreate 컬럼 등록 시 실제 필드명 자동완성 추가
+- 사용자 보고 2건: ①"테이블 등록할 때 필요한 컬럼 키값을 등록해서 써야 될 거 같다" ②"데이터 조회할 때 테이블형식이 다시 안 나온다"
+- **② 원인**: WS `columns` 필터가 BE에서 서버사이드로 적용되므로, BE 재시작 안 됐거나(가장 가능성 높음 — BT-ADMIN-SERVICE-TASKBOARD 쪽 기록 참고) 등록한 필드명이 실제 Redis 데이터 키와 다르면 데이터가 안 보일 수 있음. BE에 안전장치(컬럼 매칭 실패 시 전체 반환) 추가는 BE 쪽에서 처리
+- **① 대응**: table-redis의 "테이블 컬럼" 필드명 입력에 **실제 그 해시키에 존재하는 필드명 자동완성**(`<datalist>`)을 추가 — 이미 좌측 탐색기 검색에 쓰던 `useGetRedisHashColumns()` 캐시를 재사용(새 조회 없음). 임의로 타이핑해서 키가 어긋나는 일을 줄이기 위함. 입력란 위에 "실제 존재하는 필드명만 골라 써야 데이터가 보입니다" 안내문 추가(해당 해시키에 캐싱된 필드명이 있을 때만 노출)
+- `npx tsc --noEmit`/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). **브라우저 실측 미실시** — BE 재시작 후 table-redis 데이터가 다시 보이는지, 자동완성이 실제 필드명을 제안하는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskCreate.tsx`. BE 짝 파일: `BT-ADMIN-SERVICE-TASKBOARD/web/controller/CtiqWebSocketHandler.java`
+
+## 2026-06-26
+
+### 버그 수정 — table-group-reason 위젯에서 이석사유(REASON_CODE)가 테이블에 표시되지 않는 문제
+- **근본 원인**: `IC:GROUP:REASON:{groupId}:{mediaType}` 해시는 hash **field key 자체**가 사유코드(예: `"001"`, `"002"`)이고 JSON 값에는 `AGENT_CNT` 등만 있다. 그런데 `table-group-reason` 프리셋이 `groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT' }`를 설정해서 Redis JSON *값 안에서* REASON_CODE를 찾으려 했음 → JSON에 REASON_CODE 키가 없어 전체 항목이 빈 key(`''`)로 묶임 → 테이블 REASON_CODE 컬럼이 항상 빈 값
+- **수정**: `TABLE_GROUP_REASON_WIDGET_ITEMS` 프리셋에서 `groupBy` 제거, `{ key: 'REASON_CODE' }` 컬럼을 `{ key: ROW_ID_COLUMN_KEY }` (`__id` — field key 예약어)로 교체. 기존 `__systemId` 컬럼(그룹ID)은 유지 — `extractSystemIdSegment`가 Redis 키 세그먼트 차이로 그룹ID를 추출해 채워줌
+- **부가 개선**: `collectNeededColumns`에서 `__id`(`ROW_ID_COLUMN_KEY`)뿐 아니라 `__systemId`(`SYSTEM_ID_COLUMN_KEY`)와 `__rowNum`(`ROW_NUMBER_COLUMN_KEY`)도 WS 구독 columns 필터에서 제외 — 이 3개는 FE가 내부적으로 계산하는 가상 컬럼으로 Redis JSON 필드가 아니므로 BE에 보내도 의미가 없음. 이제 `table-group-reason`의 WS 구독 columns는 `['AGENT_CNT']`만 전달되어 더 효율적
+- `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 에러 0, `npx eslint --fix` 경고만(기존 파일 기존 경고, 신규 없음)
+- **BE 변경 없음** — BE(`CtiRedisPoller`/`CtiqWebSocketHandler`)는 임의 hashKey를 이미 완전히 지원, 이번 변경은 FE 프리셋 설정만
+- 관련 파일: `pages/board/TaskCreate.tsx` (GROUP_REASON_WIDGET_ITEMS), `features/board/components/RedisTableWidget.tsx` (collectNeededColumns)
+
+### IC 데이터 트리 고도화 — task-create 좌측 패널에서 가변 세그먼트(GROUP_ID 등) 숨기기
+- **문제**: `IC:AGENT:{GROUP_ID}:{MEDIA_TYPE}`, `IC:GROUP:REASON:{GROUP_ID}:{MEDIA_TYPE}` 계열 키가 트리에 그대로 나열되어 GROUP_ID가 중간 노드로 노출됨 — 사용자는 "미디어타입과 값 컬럼만 보이게" 요청
+- **구현 방식**: IC 섹션에만 적용, 다른 데이터(IC:CTIQ, IC:GROUP 등)에는 무영향
+  - `collapseIcGroupSegment(key)`: `IC:AGENT:{G}:{M}` → `IC:AGENT:{M}`, `IC:GROUP:REASON:{G}:{M}` → `IC:GROUP:REASON:{M}` 축약 함수 신규 추가 (MEDIA_TYPE이 마지막 세그먼트임을 `MEDIA_TYPE_LABELS` 키로 검증)
+  - `IcActualKeyContext`: 축약된 트리 키(예: `IC:AGENT:0`) → 실제 Redis 키 목록(`IC:AGENT:G1:0`, `IC:AGENT:G2:0`, ...) 매핑 Context 신규
+  - `RedisHashSection`: `useMemo`로 `icActualKeyMap`, `treeHashKeys`, `collapsedFieldIndex` 계산 후 `groupRedisKeys`에 축약 키 목록만 전달. JSX를 `IcActualKeyContext.Provider`로 감쌈
+  - `RedisHashFieldItems`: `useContext(IcActualKeyContext)`로 실제 키 조회 → `actualHashKey`(대표 키)로 데이터 fetch, `resolvedSiblingKeys`를 `callItem.hashSiblingKeys`에 전달해 WS 구독에 모든 그룹의 동일 미디어타입 키가 집계됨
+  - `fieldIndex`도 축약 키 기준으로 재매핑(`collapsedFieldIndex`)하여 검색(필드명 매칭)이 IC:AGENT:0 축약 노드에서도 정상 동작
+- `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 에러 0, `npx eslint --fix` 경고만(신규 없음)
+- **BE 변경 없음**
+- 관련 파일: `pages/board/TaskCreate.tsx` (collapseIcGroupSegment, IcActualKeyContext, RedisHashFieldItems, RedisHashSection)
+
+### 수정 — table-redis 위젯이 화면당 자기 WS 소켓을 따로 여는 문제(F12 Network에 ctiq 소켓 2개) + 소켓 경로명 변경
+- 사용자가 F12 Network 탭에서 "ctiq" 소켓이 2개 뜨는 걸 확인하고 지적. 원인: `RedisTableWidget`이 자기 내부에서 직접 `useCtiqWebSocket`을 호출하고 있었음 — TaskView/RollingDisplay/TaskCreate는 이미 화면당 단일 `useCtiqWebSocket` 연결로 큐/그룹/상담사/단일값 Redis 위젯을 구독하는데, table-redis 위젯만 이 공유 연결에 안 끼고 자기 혼자 별도 연결을 또 여는 구조였음(위젯 개수만큼 소켓이 늘어나는 구조이기도 했음)
+- `RedisTableWidget.tsx`: 컴포넌트가 더 이상 `useCtiqWebSocket`을 직접 호출하지 않음 — `dataByHashKey`를 필수 prop으로 받도록 변경. 대신 신규 `collectRedisTableWsSubscriptions(widgets, allHashKeys)`를 export — 캔버스/화면에 있는 모든 table-redis 위젯의 구독을 한 번에 모아 반환(병합은 기존 `mergeWsSubscriptions` 재사용)
+- `TaskCreate.tsx`/`TaskView.tsx`/`RollingDisplay.tsx` 3곳 모두: 자기 화면의 기존 단일 WS 구독 목록에 `collectRedisTableWsSubscriptions(...)`의 결과를 합쳐서 같은 소켓으로 받고, 받은 `dataByHashKey`를 `RedisTableWidget`에 prop으로 내려줌. TaskCreate는 `WidgetContent`가 별도 컴포넌트라 `CanvasWidgetFree`/`CanvasWidgetGrid` → `WidgetContent` → `RedisTableWidget`까지 prop을 그대로 통과시켜야 했음(TaskView/RollingDisplay는 `renderWidget`이 메인 컴포넌트의 클로저라 prop 전달 없이 바로 참조 가능)
+- 결과: 화면이 무슨 위젯을 몇 개 갖고 있든 화면당 WS 소켓은 항상 1개
+- **추가로 같이 요청받음 — 소켓 경로명 변경**: "ctiq"라는 이름이 Network 탭에 그대로 보이는데, 이 소켓이 이제 큐/그룹/상담사뿐 아니라 table-redis(임의 Redis 해시) 데이터까지 전부 나르므로 이름이 안 맞는다는 지적 → 경로를 `/ws/ctiq` → **`/ws/taskboard-rt`**로 변경(URL 경로만 — `CtiqWebSocketHandler`/`useCtiqWebSocket` 등 내부 클래스·함수명은 리네임 범위가 커서 이번엔 유지, 주석에 사유 기록). BFF `/ws/proxy/**`는 경로를 그대로 릴레이하는 범용 프록시라 BFF 쪽 수정은 불필요
+- `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json`(주의: 루트 `tsconfig.json`은 `files:[]`/`include:[]`라 `--noEmit`이 사실상 아무것도 검사 안 함 — 이번에 발견. **앞으로는 `tsconfig.app.json`을 직접 지정해야 함**)/`npx eslint --fix` 통과(에러 0, 경고 추가 없음). BE `compileJava` BUILD SUCCESSFUL
+- **재시작 필요(BE) + 브라우저 실측 미실시** — BE 재기동 후 F12 Network에 소켓이 1개(이름 `taskboard-rt`)로 보이는지, table-redis 데이터가 정상 갱신되는지 사용자가 직접 확인 필요
+
+### IC:GROUP:REASON 테이블 PIVOT 렌더링 — 이석사유코드를 동적 컬럼으로 변환
+- **배경**: IC:GROUP:REASON 해시 데이터가 기존에는 "노드+사유코드 조합 1개 = 행 1개"로 여러 행으로 나열됐으나 사용자가 "사유코드별로 PIVOT해서 행=노드, 열=사유코드" 형태를 요구
+- **핵심 설계 결정**: 사유코드 목록은 프로젝트마다 가변(4개/10개/30개 등), DB나 별도 설정 없이 실시간 WS 수신 데이터에서 REASON_CDE 유니크 값을 추출해 컬럼 자동 생성
+- **구현** (`RedisTableWidget.tsx`):
+  - `groupReason !== null`(hashKey가 `IC:GROUP:REASON:` 패밀리)이면 PIVOT 렌더링으로 조기 return
+  - PIVOT 키: `rowKey='NODE_ID'`, `colKey='REASON_CDE'`, `valueKey='AGENT_CNT'` — `tableConfig.pivot` 설정으로 재지정 가능(기본값)
+  - `categoryKeys`(실제 그룹별 Redis 해시 키 목록) 전체의 entries를 flat하게 모아 유니크 REASON_CDE 추출 → 숫자 오름차순 정렬 → 동적 컬럼 헤더 생성
+  - `pivotMap: Map<NODE_ID, Map<REASON_CDE, AGENT_CNT>>` 구성 → NODE_ID 오름차순으로 행 렌더
+  - `tableConfig.columns`에 `key===REASON_CDE값`인 항목이 있으면 그 label/width/align을 해당 동적 컬럼에 재사용(선택적 스타일 오버라이드), 없으면 REASON_CDE 코드 그대로 헤더로 표시
+  - `AnimatedTableCell` 재사용 — 기존 단일값 애니메이션·임계치 색상이 PIVOT 셀에도 동일하게 적용
+- **타입 추가** (`taskboard.types.ts`): `tableConfig.pivot?: { rowKey?: string; colKey?: string; valueKey?: string }` — PIVOT 대상 필드 재지정 가능
+- **BE 변경 없음** — BE가 이미 raw 데이터를 올바르게 전송 중, FE 렌더링 레이어만 변경
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/components/RedisTableWidget.tsx`
+- **브라우저 실측 미실시** — IC:GROUP:REASON 해시 데이터가 있을 때 PIVOT 테이블이 맞게 그려지는지 사용자가 직접 확인 필요. 확인 포인트: ①사유코드 열 수가 실제 데이터의 REASON_CDE 종류 수와 일치하는지 ②행이 NODE_ID별로 하나씩 나오는지 ③셀 값이 AGENT_CNT인지
+- 관련 파일: `features/board/components/RedisTableWidget.tsx`, `features/board/hooks/useCtiqWebSocket.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`. BE 짝 파일: `BT-ADMIN-SERVICE-TASKBOARD/web/config/TaskboardWebSocketConfig.java`, `web/config/TaskBoardSecurityConfig.java`
+
+### 버그 수정 — IC:GROUP:REASON PIVOT 렌더링 3종 버그(탐지/데이터/빈 테이블)
+- **버그1 — PIVOT 트리거 안 됨**: `parseGroupReasonHashKey('IC:GROUP:REASON:0')`이 `null` 반환 — 함수가 `IC:GROUP:REASON:{groupId}:{mediaType}` (세그먼트 2개) 형식만 허용하고, 사용자가 입력하는 와일드카드 형식 `IC:GROUP:REASON:{mediaType}` (세그먼트 1개)를 거부했음. 수정: 세그먼트 1개일 때도 `{ mediaType: rest[0] }` 반환하도록 허용
+- **버그2 — 실제 그룹 키를 못 찾음**: `resolveCategoryKeys`가 `findSiblingKeys`로 `IC:GROUP:REASON:G1:0`를 찾으려 했으나, 기존 형제 탐색 로직은 "미디어타입 제거 후 세그먼트 수가 같아야 형제"라는 조건이 있어 세그먼트가 1개 더 많은 실제 그룹 키를 형제로 인식하지 못했음. 수정: `findGroupReasonKeys(mediaType, allHashKeys)` 신규 함수 — `IC:GROUP:REASON:{x}:{mediaType}` 패턴과 일치하는 키를 `allHashKeys`에서 직접 수집. `resolveCategoryKeys`가 GROUP_REASON 패밀리일 때 이 함수를 우선 사용
+- **버그3 — PIVOT 데이터 추출 방식 불일치**: 기존 구현이 JSON 값에서 `NODE_ID`(행 키)와 `REASON_CDE`(컬럼 키)를 읽으려 했으나, 실제 Redis 구조는 **hash field key 자체가 사유코드**, JSON 값은 `{AGENT_CNT:N}` 뿐. 결과적으로 유니크 컬럼 목록이 항상 비어서 테이블이 빈 상태로 렌더됐음. 수정: 행 = `extractGroupIdFromGroupReasonKey(categoryKey)` (해시 키에서 그룹ID 추출, 신규 함수), 컬럼 = `Object.keys(dataByHashKey[key])` (hash field key = 사유코드), 셀 = `entry[pivotValueKey]`(`AGENT_CNT`)
+- **부가 수정 — WS columns 필터**: `collectRedisTableWsSubscriptions`에서 컬럼 설정 없을 때 `columns:[]`를 보내던 것을 `columns:undefined`로 변경(빈 배열을 BE에 보내면 "컬럼 없음"으로 해석될 수 있는 방어적 처리)
+- **신규 함수** (`redisValue.ts`): `findGroupReasonKeys(mediaType, allKeys)`, `extractGroupIdFromGroupReasonKey(key)`
+- **BE 변경 없음**
+- 관련 파일: `features/board/utils/redisValue.ts`, `features/board/components/RedisTableWidget.tsx`
+- **브라우저 실측 미실시** — `IC:GROUP:REASON:0` 입력 시 ①PIVOT 테이블이 나오는지 ②각 행이 그룹ID인지 ③컬럼이 사유코드(001/002/…)로 자동 생성되는지 ④셀 값이 AGENT_CNT인지 사용자가 직접 확인 필요. 추가 확인: task-view에서 `targetGroupIds`가 있을 때 해당 그룹만 행으로 나오는지
+
+## 2026-06-29
+
+### DbQuery 전용 위젯 신규 + [object Object] 버그 수정
+
+**DbQuery 위젯 신규 (category: 'DbQuery')**
+- `taskboard.types.ts`: `CallDataItem`의 `category` union에 `'DbQuery'` 추가, `dbQueryKey`/`dbQueryColumn`/`dbQueryIntervalSec` 필드 신규
+- `TaskCreate.tsx`:
+  - `DB_QUERY_KEYS` 상수 (`custom1`~`custom10`) + `extractDbQueryResult()` 헬퍼 함수 추가
+  - `DbQuerySection` 컴포넌트 신규 — 좌측 팔레트 "DB Query" 섹션 (키 드롭다운 → 테스트 → 컬럼 선택 → 추가)
+  - `DbQueryWidgetProps` 컴포넌트 신규 — 우측 속성 패널 (키/컬럼/주기 편집 + 재테스트)
+  - `updateWidgetDbQuery()` 함수 신규
+  - `FixedItemsSection`에 `<DbQuerySection />` 등록
+  - 우측 패널 dispatch에 `DbQuery` 분기 추가
+  - `getWidgetDataSourcePath()`에 DbQuery 케이스 추가
+- `TaskView.tsx`:
+  - `extractDbResult()` 헬퍼 함수 신규 — 배열/단일행 유연 처리, 컬럼명 대소문자 자동 변환
+  - `ViewValueWidget`: `isDbQuery` 상태 + useEffect(폴링) + `dbQueryValue` state 추가
+  - `displayValue` 계산에 `isDbQuery` 분기 추가
+
+**[object Object] 버그 수정 (ExternalApi `db:` 프리픽스)**
+- `TaskView.tsx` `ViewValueWidget`의 `fetchValue`: `db:` 프리픽스 URL인 경우 기존 dot-path reduce 대신 `extractDbResult()` 사용 → DB 쿼리가 배열을 반환할 때 `[object Object]` 로 표시되던 버그 수정
+- 기존 HTTP API는 기존 로직 유지(하위 호환)
+
+- 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`
+- ESLint 0 errors / TypeScript 0 errors 확인 완료
+- **브라우저 실측 미실시** — ① DbQuery 위젯을 팔레트에서 테스트·추가·드래그·캔버스 배치하는 흐름 ② 실행화면에서 주기적 폴링으로 값이 갱신되는지 ③ `db:custom1` ExternalApi 위젯에서 값이 올바르게 표시되는지 사용자가 직접 확인 필요
