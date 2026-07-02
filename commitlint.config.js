@@ -1,4 +1,15 @@
 // commitlint.config.js
+const fs = require('fs');
+const path = require('path');
+
+// scope 후보 = apps/ 하위 remote 앱명 (custom 제외 — 오버라이드 운반체라 커밋 scope 대상 아님).
+// apps/ 디렉토리가 SoT. scope-enum(검증)과 prompt.scopes(대화형 선택지)가 이 목록을 공유한다.
+const SCOPES = fs
+  .readdirSync(path.join(__dirname, 'apps'), { withFileTypes: true })
+  .filter((d) => d.isDirectory() && d.name !== 'custom')
+  .map((d) => d.name)
+  .sort();
+
 module.exports = {
   extends: ['@commitlint/config-conventional'],
   parserPreset: {
@@ -16,6 +27,7 @@ module.exports = {
     'body-leading-blank': [2, 'always'],
     'footer-leading-blank': [2, 'always'],
     'scope-empty': [0],
+    'scope-enum': [2, 'always', SCOPES],
     'scope-case': [2, 'always', 'lower-case'],
   },
   ignores: [
@@ -47,8 +59,8 @@ module.exports = {
       { value: '🔥remove', name: '🔥 Remove: 코드/파일 삭제' },
     ],
     useEmoji: true,
-    scopes: [],
-    allowCustomScopes: true,
+    scopes: SCOPES,
+    allowCustomScopes: false,
     allowEmptyScopes: true,
     enableMultipleScopes: false,
     breaklineChar: '|',
