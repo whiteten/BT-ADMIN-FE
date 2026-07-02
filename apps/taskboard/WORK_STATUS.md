@@ -39,6 +39,7 @@
 
 ## 마지막 업데이트
 
+- 2026-07-02 세션2: 사용자가 "task-display에서 뷰그룹 등록 시 TASK-DB-QUERY에서 추가등록한 데이터가 보여야 한다"고 요청 → `TaskDisplayManage.tsx`(task-display)의 뷰그룹 등록/수정 폼에 저장된 `DbQueryDef`(TASK-DB-QUERY)를 큐/상담그룹과 나란히 멀티선택 드롭다운으로 노출하고 선택값을 `selectionJson.dbQuerySelections`로 저장하도록 연결 완료(`taskboard.types.ts`/`useTaskboardQueries.ts`의 `useGetDbQueryDefOptionsMulti` 신규 포함, 카드/목록 요약 칩도 동일 반영) → CHANGELOG.md 기록. eslint/tsc(`-p apps/taskboard/tsconfig.app.json`) 통과. **브라우저 실측 미실시** — 사용자가 직접 확인 필요. 범위 밖으로 남긴 것: 전광판 실행화면(TaskView 등)에서 이 선택값을 실제 위젯 데이터로 반영하는 런타임 연동은 별도 작업. 진행 중인 작업 없음.
 - 2026-06-30 세션6: ①빈 행 숨기기 테이블 위젯 전용으로 수정, ②섹션 배정 UI를 톱니바퀴 메뉴로 이동(구역 칩 토글+새 구역명 추가, 우측 패널 드롭다운 제거). eslint 에러 0 → CHANGELOG.md 기록.
 - 2026-06-30 세션5: 섹션(Section) 기능 구현 완료 — `taskboard.types.ts`(sectionKey 필드·parseLayoutSections), `TaskCreate.tsx`(섹션 관리 UI + 위젯 섹션 드롭다운), `TaskList.tsx`(섹션 모드 팝오버), `TaskView.tsx`(SectionSelections 파싱·effectiveSelection), `routes.tsx`(task-view/:layoutId 라우트 추가). eslint 에러 0 → CHANGELOG.md 기록. BE 변경 없음.
 - 2026-06-29 (6): ExternalApi 중복 호출 제거(모듈 레벨 pub-sub 캐시) + 테이블 행 번호 토글 추가 → CHANGELOG.md 기록. eslint 에러 0.

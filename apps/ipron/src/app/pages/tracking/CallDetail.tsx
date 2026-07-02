@@ -607,9 +607,19 @@ export default function CallDetail() {
       const dur = hop.durationSec ?? 0;
       const endIso = hop.startTime && dur > 0 ? new Date(new Date(hop.startTime).getTime() + dur * 1000).toISOString() : null;
       // 백엔드 nexthop=null 호출로 모든 hop 라우팅이 한 응답에 옴 → parentHop(=IE.HOP) 으로 그 hop 만 필터.
-      // 매칭 없으면 빈 표시 (다른 hop 데이터 섞임 방지)
+      // 단, 백엔드 2차 보정으로 (라우팅+착신) 페어가 착신(AGENT) hop 으로 매핑되면 그 hop 은 AGENT 카드라
+      // CTI 라우팅을 렌더하지 않아 라우팅 정보가 통째로 사라진다(→"CTI 라우팅 정보가 없습니다").
+      // 그래서 '어느 CTI/큐 카드에도 매칭되지 않는 고아 라우팅' 은 첫 CTI 카드에 함께 표시한다.
+      // CtiRoutingTimeline 을 실제로 렌더하는 카드는 _hopType==='IC' 인 hop (아래 IC 조건과 일치).
+      // 주의: h.kind 는 hop3(상담사 착신)처럼 IC_AGENT 세그먼트가 있으면 'CTI' 로 잡혀 잘못 포함되므로
+      //       반드시 _hopType 로 판정한다. (안 그러면 parentHop=착신hop 가 고아로 인식 안 되어 fix 무력화)
       const allCti = ctiQ.data ?? [];
-      const hopCti = allCti.filter((c) => Number(c.meta?._parentHop) === hopNo);
+      const ctiCardHopNos = new Set(
+        hopNodes.filter((h) => h.meta?._hopType === 'IC' || h.meta?._firstHopType === 'CTI' || h.meta?._firstHopType === 'QUEUE_IN').map((h) => Number(h.meta?._hopNo)),
+      );
+      const firstCtiHopNo = ctiCardHopNos.size > 0 ? Math.min(...ctiCardHopNos) : null;
+      const orphanCti = hopNo === firstCtiHopNo ? allCti.filter((c) => !ctiCardHopNos.has(Number(c.meta?._parentHop))) : [];
+      const hopCti = [...allCti.filter((c) => Number(c.meta?._parentHop) === hopNo), ...orphanCti];
       const ctiHopSystemId = resolveIeSystemId();
       const ctiYyyymmdd = (detailQ.data?.header?.startTime ?? hop.startTime ?? '').slice(0, 10).replace(/-/g, '');
       const ctiContent = renderSplit(

@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
-import type { RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
+import type { DbQueryDef, DbQueryParam, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
@@ -12,6 +12,8 @@ export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getRollingGroupList: () => [{}],
   getNoticeList: () => [{}],
   getNoticeListByKey: (noticeKey: string) => [{ noticeKey }],
+  getDbQueryDefList: () => [{}],
+  getDbQueryDefOptions: (id: number) => [{ id }],
 });
 
 /**
@@ -106,6 +108,61 @@ export const useDeleteTaskboardDisplay = ({ mutationOptions }: MutationHookOptio
   return useMutation({
     mutationFn: taskboardApi.deleteDisplay,
     ...mutationOptions,
+  });
+};
+
+// ── 저장된 DB 쿼리 정의 훅 (뷰그룹 체크박스 옵션 소스) ──────────────────────────
+
+export const useGetDbQueryDefList = ({ queryOptions }: QueryHookWithParamsOptions<DbQueryDef[]> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getDbQueryDefList().queryKey,
+    queryFn: () => taskboardApi.listDbQueryDefs(),
+    ...queryOptions,
+  });
+};
+
+export const useCreateDbQueryDef = ({
+  mutationOptions,
+}: MutationHookOptions<any, { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.createDbQueryDef,
+    ...mutationOptions,
+  });
+};
+
+export const useUpdateDbQueryDef = ({
+  mutationOptions,
+}: MutationHookOptions<any, { dbQueryId: number; tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.updateDbQueryDef,
+    ...mutationOptions,
+  });
+};
+
+export const useDeleteDbQueryDef = ({ mutationOptions }: MutationHookOptions<any, number> = {}) => {
+  return useMutation({
+    mutationFn: taskboardApi.deleteDbQueryDef,
+    ...mutationOptions,
+  });
+};
+
+export const useGetDbQueryDefOptions = (id: number, { queryOptions }: QueryHookWithParamsOptions<Record<string, unknown>[]> = {}) => {
+  return useQuery({
+    queryKey: taskboardQueryKeys.getDbQueryDefOptions(id).queryKey,
+    queryFn: () => taskboardApi.getDbQueryDefOptions(id),
+    enabled: !!id,
+    ...queryOptions,
+  });
+};
+
+/** 저장된 DbQueryDef 여러 건의 옵션(VALUE/NAME)을 한번에 조회 — 뷰그룹 등록 화면에서 저장된 쿼리 개수만큼 동적으로 필요 */
+export const useGetDbQueryDefOptionsMulti = (ids: number[]) => {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: taskboardQueryKeys.getDbQueryDefOptions(id).queryKey,
+      queryFn: () => taskboardApi.getDbQueryDefOptions(id),
+      enabled: !!id,
+    })),
   });
 };
 

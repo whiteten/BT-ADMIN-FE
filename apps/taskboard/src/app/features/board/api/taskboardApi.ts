@@ -1,6 +1,14 @@
 import ApiClient, { type ApiRequestConfig, type ApiResponse } from '@/shared-util';
 import { publicAuthHeaders } from './publicAuth';
-import { type RollingGroup, type TaskboardBg, type TaskboardDisplay, type TaskboardLayout, type TaskboardNotice } from '../types/taskboard.types';
+import {
+  type DbQueryDef,
+  type DbQueryParam,
+  type RollingGroup,
+  type TaskboardBg,
+  type TaskboardDisplay,
+  type TaskboardLayout,
+  type TaskboardNotice,
+} from '../types/taskboard.types';
 
 /**
  * BFF Aggregation Flow를 통한 taskboard API 클라이언트.
@@ -14,6 +22,16 @@ const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
   if (!auth) return config;
   return { ...config, headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } };
 };
+
+/** BFF single-step 집계는 컨트롤러가 List를 그대로 반환한 응답을 { value: [...] }로 감싸므로 배열을 꺼낸다. */
+function unwrapListResponse<T>(data: unknown): T[] {
+  if (Array.isArray(data)) return data as T[];
+  if (data && typeof data === 'object') {
+    const rec = data as Record<string, unknown>;
+    if (Array.isArray(rec.value)) return rec.value as T[];
+  }
+  return [];
+}
 
 export const taskboardApi = {
   // ── 배경 API ─────────────────────────────────────────────────────────────
@@ -145,14 +163,50 @@ export const taskboardApi = {
   },
 
   // ── yml 기반 커스텀 DB 쿼리 실행 (custom1~custom10) ────────────────────────
-  executeDbQuery: async (key: string): Promise<unknown> => {
+  executeDbQuery: async (key: string): Promise<unknown[]> => {
     const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-db-query', { params: { key } });
-    const data = response.data?.data;
-    // BFF single-step은 List 응답을 { value: [...] }로 감싸므로 배열을 꺼내 반환
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
-      const rec = data as Record<string, unknown>;
-      if (Array.isArray(rec.value)) return rec.value;
-    }
-    return data;
+    return unwrapListResponse(response.data?.data);
+  },
+
+  // ── DB 쿼리 즉석 실행 (저장 없음 — SQL + named parameter 값으로 바로 실행) ──
+  runDbQuery: async ({ sql, params }: { sql: string; params: DbQueryParam[] }): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.post<ApiResponse<unknown>>('/taskboard-db-query-run', { sql, params });
+    return unwrapListResponse(response.data?.data);
+  },
+
+  // ── 저장된 DB 쿼리 정의 (뷰그룹 체크박스 옵션 소스) ────────────────────────
+  listDbQueryDefs: async (): Promise<DbQueryDef[]> => {
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-list');
+    return unwrapListResponse(response.data?.data);
+  },
+
+  createDbQueryDef: async (payload: { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }): Promise<number> => {
+    const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-create', payload);
+    return response.data?.data ?? 0;
+  },
+
+  updateDbQueryDef: async ({
+    dbQueryId,
+    ...payload
+  }: {
+    dbQueryId: number;
+    tenantId: string;
+    queryName: string;
+    description?: string;
+    sqlText: string;
+    params?: DbQueryParam[];
+  }): Promise<number> => {
+    const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-update', payload, { params: { id: dbQueryId } });
+    return response.data?.data ?? 0;
+  },
+
+  deleteDbQueryDef: async (id: number) => {
+    const response = await apiClient.delete('/taskboard-dbquerydef-delete', { params: { id } });
+    return response;
+  },
+
+  getDbQueryDefOptions: async (id: number): Promise<Record<string, unknown>[]> => {
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-options', { params: { id } });
+    return unwrapListResponse(response.data?.data);
   },
 };

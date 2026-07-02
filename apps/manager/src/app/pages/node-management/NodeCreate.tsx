@@ -61,7 +61,10 @@ export default function NodeCreate() {
           <div className="flex gap-2 items-center text-[var(--color-bt-primary)] mb-6">
             <span className="text-[20px] font-bold">기본정보</span>
           </div>
-          <Form form={form} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+          {/* name 지정 필수: 필드 id 를 'nodeCreateForm_*' 로 prefix 하여 DOM clobbering 방지.
+              (Form.Item name="nodeName" → input id="nodeName" 이 <form>.nodeName 빌트인 프로퍼티를
+               가려 React ChangeEventPlugin 의 form.nodeName.toLowerCase() 가 TypeError 발생) */}
+          <Form form={form} name="nodeCreateForm" onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
             <Row gutter={20}>
               <Col span={3}>
                 <Form.Item

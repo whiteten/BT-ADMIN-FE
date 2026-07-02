@@ -1915,6 +1915,12 @@ const ALL_SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 // 구역 배정을 지원하는 위젯 item.id 목록 — Redis/테이블/그룹별이석사유 계열만
 const SECTION_CAPABLE_IDS = new Set(['table-redis', 'table-queue', 'table-agent', 'table-group', 'table-join', 'table-group-reason', 'value-group-reason']);
 
+// 구역 배정 가능 여부 — 프리셋 item.id(큐/그룹/상담사 테이블 등)뿐 아니라, category==='Redis'인
+// 위젯은 전부 포함한다(Redis 트리에서 낱개로 드래그한 단일값 위젯도 예외 없이).
+function isSectionCapableWidget(widget: DroppedWidget): boolean {
+  return SECTION_CAPABLE_IDS.has(widget.item.id) || widget.item.category === 'Redis';
+}
+
 // ─── 위젯 옵션 메뉴 — 마우스온 시 팝오버로 복사/삭제/계산식 변수 드래그를 모아 보여줌 ──────────
 // 위젯 자체가 backdrop-blur(필터)+overflow:hidden이라 absolute로 띄우면 위젯 박스 밖으로 못 나가
 // 작은 위젯에서 팝오버가 잘리는 문제가 있었음 — document.body에 포탈로 띄워 완전히 빠져나가게 한다.
@@ -2246,7 +2252,7 @@ function CanvasWidgetFree({
           widgetId={widget.id}
           label={widget.customTitle ?? widget.item.label}
           isCalc={widget.item.category === 'Calc'}
-          showSection={SECTION_CAPABLE_IDS.has(widget.item.id)}
+          showSection={isSectionCapableWidget(widget)}
           onDuplicate={onDuplicate}
           onRemove={onRemove}
           sections={sections}
@@ -2395,7 +2401,7 @@ function CanvasWidgetGrid({
           widgetId={widget.id}
           label={widget.customTitle ?? widget.item.label}
           isCalc={widget.item.category === 'Calc'}
-          showSection={SECTION_CAPABLE_IDS.has(widget.item.id)}
+          showSection={isSectionCapableWidget(widget)}
           onDuplicate={onDuplicate}
           onRemove={onRemove}
           sections={sections}

@@ -738,9 +738,6 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
     (w.item.tableConfig!.columns as TableColumn[]).filter((c) => !['name', 'agents', 'talk'].includes(c.key)).map((c) => c.key.toUpperCase()),
   );
   const groupCompositeKeys = [...new Set(liveGroups.filter((g) => !selection.groupIds?.length || selection.groupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))];
-  // IC:GROUP:REASON 패밀리 전용 — 이 슬라이드 자신의 선택값 기준(선택 없음=전체 그룹). 뷰그룹에 없는
-  // 그룹은 절대 나오지 않아야 하므로 다른 슬라이드의 선택값과 섞지 않는다.
-  const groupReasonTargetGroupIds = selection.groupIds?.length ? selection.groupIds : liveGroups.map((g) => g.groupId);
   const groupHashRtsFallback =
     configuredRtsCols.length === 0 && tableGroupWidgets.length > 0
       ? [...new Set(groupMediaTypes.flatMap((mt) => Object.keys(dataByHashKey?.[`IC:GROUP:${mt}`]?.[groupCompositeKeys[0] ?? ''] ?? {}).filter((k) => k.startsWith('RTS_'))))]
@@ -759,9 +756,11 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc fallback, 그것도 없으면 기본 selection
     const effectiveSel = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
+    // IC:GROUP:REASON 패밀리용 targetGroupIds도 이 위젯의 sectionKey 기준 selection을 따라야 한다(레이아웃 전체 기준 X)
+    const effectiveTargetGroupIds = effectiveSel.groupIds?.length ? effectiveSel.groupIds : liveGroups.map((g) => g.groupId);
     const dt = widget.item.displayType;
     // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetGroupIds={groupReasonTargetGroupIds} />;
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetGroupIds={effectiveTargetGroupIds} />;
     if (dt === 'chart') {
       const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, effectiveSel.queueIds ?? []);
       return <RollingChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
@@ -789,7 +788,7 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
         widgets={widgets}
         redisData={dataByHashKey}
         selectionIdsByHashKey={selectionIdsByHashKey}
-        targetGroupIds={groupReasonTargetGroupIds}
+        targetGroupIds={effectiveTargetGroupIds}
         fontScale={fontScale}
       />
     );
