@@ -146,6 +146,12 @@ export default function KeywordBoosting() {
       filter: true,
     },
     {
+      headerName: '엔진',
+      field: 'engineCode',
+      flex: 2,
+      filter: true,
+    },
+    {
       headerName: '등록자',
       field: 'workUserName',
       flex: 2,
