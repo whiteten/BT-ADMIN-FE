@@ -21,6 +21,8 @@ export const AOE_PERM = {
   A2A_WRITE: 'aoe:aoe-mgmt-a2a:write',
   MCP_READ: 'aoe:aoe-mgmt-mcp:read',
   MCP_WRITE: 'aoe:aoe-mgmt-mcp:write',
+  DATA_PROVIDER_READ: 'aoe:aoe-dataprovider-db:read',
+  DATA_PROVIDER_WRITE: 'aoe:aoe-dataprovider-db:write',
 } as const;
 
 export type AoePermission = (typeof AOE_PERM)[keyof typeof AOE_PERM];
