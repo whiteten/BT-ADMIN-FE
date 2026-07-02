@@ -1957,3 +1957,42 @@ overflow-clip 수정과 `imageRatio` onLoad 갱신은 패딩/경계선과 무관
 - 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`
 - ESLint 0 errors / TypeScript 0 errors 확인 완료
 - **브라우저 실측 미실시** — ① DbQuery 위젯을 팔레트에서 테스트·추가·드래그·캔버스 배치하는 흐름 ② 실행화면에서 주기적 폴링으로 값이 갱신되는지 ③ `db:custom1` ExternalApi 위젯에서 값이 올바르게 표시되는지 사용자가 직접 확인 필요
+
+## 2026-07-02
+
+### TaskDbQueryRun.tsx (TASK-DB-QUERY 화면) 3건 개선
+- **파라미터 있어도 뷰그룹용 저장 가능**: `isSavable`에서 `params.length === 0` 조건 제거(컬럼이 VALUE/NAME인지만 검사). 저장 시 params 값이 비어있으면 차단(고정값으로 얼려 저장되므로). `handleSave`가 `params`를 함께 전송(BE `TaskboardDbQueryDefRequest.params` 신규 필드)
+- **결과 스크롤 점진 표시**: `visibleRows` state(초기 30, `VISIBLE_ROWS_STEP=30`) 도입. 결과 패널 `onScroll`에서 스크롤이 바닥 80px 이내로 오면 `visibleRows` 증가 → 전체 결과(최대 2000건, BE도 함께 상향)를 한번에 DOM에 그리지 않고 스크롤에 따라 점진 렌더. 새 쿼리 실행 시 `visibleRows` 30으로 리셋
+- **레이아웃 스크롤 고정**: 최상위 컨테이너 `h-screen flex flex-col overflow-hidden`으로 변경, 헤더 `flex-shrink-0`, 좌/우 패널 `overflow-y-auto min-h-0`(좌측), 결과 패널은 라벨 고정 + 내부 `div`만 `overflow-auto`로 분리(테이블 헤더 `sticky top-0`) → 결과가 많아져도 페이지 전체가 아니라 결과 영역 안에서만 스크롤됨
+- ESLint --fix 0 errors (기존 코드 스타일의 `any` 경고 다수는 사전 존재)
+- `npx nx typecheck taskboard` 태스크가 이 워크스페이스에 등록되어 있지 않아 미실행 — **정식 경로(`C:\Users\user\git\BT-ADMIN-FE`)에서 typecheck 확인 필요**
+- **브라우저 실측 미실시** — 저장 버튼 활성화 흐름, 스크롤 점진 로딩, 레이아웃 고정 여부 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskDbQueryRun.tsx`, `features/board/api/taskboardApi.ts`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/types/taskboard.types.ts`
+- BE 쌍(`ROWNUM` → JDBC `setMaxRows` 전환 포함)은 `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 2026-07-02 항목 참고
+
+### TaskDbQueryRun.tsx — 저장된 뷰그룹 체크박스 쿼리 수정(편집) 기능 추가
+- 저장된 쿼리 목록 각 항목에 연필(수정) 아이콘 버튼 추가(`Pencil`, lucide) — 클릭 시 `handleEdit`이 sql/params/queryName/description을 편집기에 복원하고 `editingId` 세팅, 결과는 초기화(재실행 필요)
+- 편집 중에는 SQL 에디터 상단에 amber 배너("저장된 쿼리를 편집 중입니다 — 실행 후 저장하면 덮어씁니다.") + 취소 버튼(`handleCancelEdit`) 표시, 저장된 목록에서도 해당 항목 amber 하이라이트
+- 저장 버튼: `editingId` 유무에 따라 `useCreateDbQueryDef`/`useUpdateDbQueryDef` 분기(`saveMutation`), 라벨도 "저장"/"수정"으로 분기
+- `useUpdateDbQueryDef` 훅 신규(`useTaskboardQueries.ts`), `taskboardApi.updateDbQueryDef` 신규(기존 update 계열 컨벤션대로 `apiClient.post` + `params: { id }` 사용, PUT 아님)
+- `DbQueryDef` 타입에 `params?: DbQueryParam[]` 추가(BE `TaskboardDbQueryDefDto`가 저장된 파라미터를 함께 내려줌)
+- ESLint --fix 0 errors
+- **브라우저 실측 미실시** — 수정 버튼 클릭 → 편집기 복원 → 재실행 → 저장(덮어쓰기) 흐름 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskDbQueryRun.tsx`, `features/board/api/taskboardApi.ts`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/types/taskboard.types.ts`
+- BE 쌍(PUT 엔드포인트, `paramsJson` 응답 포함)은 `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 2026-07-02 항목 참고
+
+### TaskDisplayManage.tsx(task-display) — 뷰그룹 등록 시 TASK-DB-QUERY 등록 데이터 선택 가능하도록 연결
+- **배경**: `DbQueryDef`(TASK-DB-QUERY에서 VALUE/NAME 두 컬럼으로 저장한 쿼리)는 애초에 "뷰그룹 체크박스 옵션 소스"로 설계돼 있었으나(타입 주석·BE 컨트롤러 주석 참고), 정작 `TaskDisplayManage.tsx`의 뷰 그룹 등록 폼은 큐/상담그룹(CTI 실시간 리스트)만 선택 가능했고 저장된 `DbQueryDef`는 어디서도 쓰이지 않던 미완결 상태였음 — 이번에 그 연결 고리를 완성
+- `taskboard.types.ts`: `TaskboardDisplaySelection`에 `dbQuerySelections?: Record<number, string[]>` 필드 추가(dbQueryId → 선택된 VALUE 배열)
+- `useTaskboardQueries.ts`: `useGetDbQueryDefOptionsMulti(ids)` 신규 — `useQueries`로 저장된 `DbQueryDef` 개수만큼 동적으로 옵션(VALUE/NAME) 조회
+- `TaskDisplayManage.tsx`:
+  - `extractNameValueItems()` 신규 — 쿼리 실행 결과 rows에서 VALUE/NAME 컬럼을 대소문자 무시로 찾아 `MultiSelectDropdown` items(`{id,name}`)로 변환
+  - `DisplayForm`: `useGetDbQueryDefList()` + `useGetDbQueryDefOptionsMulti()`로 저장된 쿼리 목록을 가져와, 큐/상담그룹 드롭다운 아래에 쿼리별 `MultiSelectDropdown` 행을 동적으로 렌더링(드롭다운 열림상태는 `openDbQueryId` 단일 state + `dbQueryDropdownRefs`(Map) 관리). 선택값은 `dbQuerySelections` state에 저장 후 `handleSubmit`에서 `selectionJson`에 포함(빈 배열은 필터링)
+  - 저장된 쿼리가 없을 때 "TASK-DB-QUERY 화면에서 VALUE/NAME 쿼리를 등록하면 여기 선택 항목으로 추가됩니다" 안내문 표시
+  - `SelectionSummary`: `dbQueryDefs`/`dbQueryNameMaps` prop 추가해 카드/목록 요약 칩에도 쿼리별 선택값 노출(색상 `#b45309`, 큐=cyan·상담그룹=violet과 구분)
+  - 메인 `TaskDisplayManage` 컴포넌트에서도 동일하게 `useGetDbQueryDefList`/`useGetDbQueryDefOptionsMulti`로 이름 매핑을 만들어 두 `SelectionSummary` 호출부(카드형/목록형)에 전달
+- **범위 밖(미착수)**: 이번 작업은 등록 화면(선택지 노출·저장)까지만 — 전광판 실행화면(`TaskView.tsx`/`RollingDisplay.tsx`)에서 이 `dbQuerySelections`를 실제 위젯 데이터에 반영(필터링/조회)하는 런타임 연동은 별도 작업 범위. 필요 시 후속 요청으로 진행
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors (정식 경로 `C:\Users\user\git\BT-ADMIN-FE`가 없는 환경이라 이 F: 사본에서 검증함 — 정식 경로에서 한 번 더 확인 필요)
+- **브라우저 실측 미실시** — 뷰그룹 등록 폼에서 TASK-DB-QUERY 저장 쿼리가 드롭다운으로 뜨는지, 선택 후 저장·재편집 시 값이 복원되는지, 카드/목록 요약 칩에 정상 표시되는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskDisplayManage.tsx`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/types/taskboard.types.ts`
+- BE 변경 없음(기존 `TaskboardDbQueryDefController`의 `/db-query-def`, `/db-query-def/{id}/options` 엔드포인트 그대로 재사용)

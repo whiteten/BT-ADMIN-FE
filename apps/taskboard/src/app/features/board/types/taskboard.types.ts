@@ -351,6 +351,8 @@ export interface TaskboardDisplaySelection {
   queueIds?: string[];
   groupIds?: string[];
   agentIds?: string[];
+  /** TASK-DB-QUERY(TaskDbQueryRun)에서 등록한 DbQueryDef별 선택값 — dbQueryId → 선택된 VALUE 배열 */
+  dbQuerySelections?: Record<number, string[]>;
 }
 
 /** 뷰 그룹 — 전광판(레이아웃)과 매핑되지 않는 독립된 순수 선택값 묶음. 어떤 레이아웃에든 자유롭게 입혀 쓴다 (DB: TB_TK_TASKBOARD_DISPLAY) */
@@ -380,4 +382,22 @@ export interface LayoutTemplate {
   name: string;
   description: string;
   zones: LayoutZone[];
+}
+
+/** DB 쿼리 테스트 화면 — SQL의 :name named parameter 하나에 대응하는 선언 */
+export interface DbQueryParam {
+  name: string;
+  type: 'STRING' | 'NUMBER' | 'DATE';
+  value: string;
+}
+
+/** 저장된 DB 쿼리 정의 — 뷰그룹 체크박스 옵션 소스(SELECT 결과가 VALUE/NAME 두 컬럼이어야 함).
+ *  SQL에 :name 파라미터가 있으면 저장 시점에 입력한 값이 고정값으로 얼려져서(freeze) 함께 저장된다. */
+export interface DbQueryDef {
+  dbQueryId: number;
+  queryName: string;
+  description?: string;
+  sqlText: string;
+  params?: DbQueryParam[];
+  regDt: string;
 }

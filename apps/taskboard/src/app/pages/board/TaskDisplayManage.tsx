@@ -6,13 +6,14 @@ import { MultiSelectDropdown } from '../../features/board/components/MultiSelect
 import {
   useCreateTaskboardDisplay,
   useDeleteTaskboardDisplay,
-  useGetCtiAgentList,
   useGetCtiGroupList,
   useGetCtiQueueList,
+  useGetDbQueryDefList,
+  useGetDbQueryDefOptionsMulti,
   useGetTaskboardDisplayList,
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
-import type { TaskboardDisplay, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
+import type { DbQueryDef, TaskboardDisplay, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -23,6 +24,17 @@ function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
   } catch {
     return {};
   }
+}
+
+// TASK-DB-QUERY(TaskDbQueryRun)에 저장된 쿼리 실행 결과(VALUE/NAME 두 컬럼)를 멀티선택 items로 변환.
+// Oracle은 별칭을 대문자로 돌려주는 경우가 많아 컬럼명을 대소문자 무시로 찾는다.
+function extractNameValueItems(rows: Record<string, unknown>[]): { id: string; name: string }[] {
+  if (!rows || rows.length === 0) return [];
+  const keys = Object.keys(rows[0]);
+  const valueKey = keys.find((k) => k.toUpperCase() === 'VALUE');
+  const nameKey = keys.find((k) => k.toUpperCase() === 'NAME');
+  if (!valueKey || !nameKey) return [];
+  return rows.map((r) => ({ id: String(r[valueKey] ?? ''), name: String(r[nameKey] ?? '') }));
 }
 
 // ─── 선택값 요약 칩 — 큐/상담그룹/상담사 각각 일부 이름 + 나머지 개수만 간략히 보여준다 ──
@@ -36,14 +48,23 @@ interface SelectionCategory {
 function SelectionSummary({
   selection,
   nameMaps,
+  dbQueryDefs,
+  dbQueryNameMaps,
 }: {
   selection: TaskboardDisplaySelection;
-  nameMaps: { queue: Map<string, string>; group: Map<string, string>; agent: Map<string, string> };
+  nameMaps: { queue: Map<string, string>; group: Map<string, string> };
+  dbQueryDefs: DbQueryDef[];
+  dbQueryNameMaps: Map<number, Map<string, string>>;
 }) {
   const categories: SelectionCategory[] = [
     { label: '큐', color: '#0891b2', ids: selection.queueIds ?? [], nameMap: nameMaps.queue },
     { label: '상담그룹', color: '#7c3aed', ids: selection.groupIds ?? [], nameMap: nameMaps.group },
-    { label: '상담사', color: '#059669', ids: selection.agentIds ?? [], nameMap: nameMaps.agent },
+    ...dbQueryDefs.map((def) => ({
+      label: def.queryName,
+      color: '#b45309',
+      ids: selection.dbQuerySelections?.[def.dbQueryId] ?? [],
+      nameMap: dbQueryNameMaps.get(def.dbQueryId) ?? new Map<string, string>(),
+    })),
   ];
   const active = categories.filter((c) => c.ids.length > 0);
 
@@ -85,40 +106,46 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   const userInfo = useAuthStore((s) => s.userInfo);
 
   const [displayName, setDisplayName] = useState(initial?.displayName ?? '새 뷰 그룹');
-  const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>(initialSelection.queueIds ?? []);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(initialSelection.groupIds ?? []);
-  const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(initialSelection.agentIds ?? []);
+  const [dbQuerySelections, setDbQuerySelections] = useState<Record<number, string[]>>(initialSelection.dbQuerySelections ?? {});
   const [isSaving, setIsSaving] = useState(false);
 
-  const [queueDropdownOpen, setQueueDropdownOpen] = useState(false);
-  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
-  const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
-  const queueDropdownRef = useRef<HTMLDivElement>(null);
-  const groupDropdownRef = useRef<HTMLDivElement>(null);
-  const agentDropdownRef = useRef<HTMLDivElement>(null);
+  const [openDbQueryId, setOpenDbQueryId] = useState<number | null>(null);
+  const dbQueryDropdownRefs = useRef<Map<number, React.RefObject<HTMLDivElement | null>>>(new Map());
 
-  const { data: queueRows = [], isFetching: queueFetching } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const { data: groupRows = [], isFetching: groupFetching } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
-  const { data: agentRows = [], isFetching: agentFetching } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
+  function getDbQueryDropdownRef(id: number) {
+    if (!dbQueryDropdownRefs.current.has(id)) {
+      dbQueryDropdownRefs.current.set(id, { current: null });
+    }
+    return dbQueryDropdownRefs.current.get(id)!;
+  }
+
+  // TASK-DB-QUERY(TaskDbQueryRun)에서 등록한 뷰그룹 체크박스 옵션 소스 — 저장된 쿼리 개수만큼 옵션(VALUE/NAME) 조회
+  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (queueDropdownRef.current && !queueDropdownRef.current.contains(e.target as Node)) setQueueDropdownOpen(false);
-      if (groupDropdownRef.current && !groupDropdownRef.current.contains(e.target as Node)) setGroupDropdownOpen(false);
-      if (agentDropdownRef.current && !agentDropdownRef.current.contains(e.target as Node)) setAgentDropdownOpen(false);
+      if (openDbQueryId !== null) {
+        const ref = dbQueryDropdownRefs.current.get(openDbQueryId);
+        if (ref?.current && !ref.current.contains(e.target as Node)) setOpenDbQueryId(null);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [openDbQueryId]);
 
-  const toggleQueue = (id: string) => setSelectedQueueIds((prev) => (prev.includes(id) ? prev.filter((q) => q !== id) : [...prev, id]));
-  const toggleAllQueues = () => setSelectedQueueIds((prev) => (prev.length === queueRows.length && queueRows.length > 0 ? [] : queueRows.map((q) => q.ctiqId)));
-
-  const toggleGroup = (id: string) => setSelectedGroupIds((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
-  const toggleAllGroups = () => setSelectedGroupIds((prev) => (prev.length === groupRows.length && groupRows.length > 0 ? [] : groupRows.map((g) => g.groupId)));
-
-  const toggleAgent = (id: string) => setSelectedAgentIds((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
-  const toggleAllAgents = () => setSelectedAgentIds((prev) => (prev.length === agentRows.length && agentRows.length > 0 ? [] : agentRows.map((a) => a.agentId)));
+  const toggleDbQueryValue = (dbQueryId: number, value: string) =>
+    setDbQuerySelections((prev) => {
+      const current = prev[dbQueryId] ?? [];
+      const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+      return { ...prev, [dbQueryId]: next };
+    });
+  const toggleAllDbQueryValues = (dbQueryId: number, allValues: string[]) =>
+    setDbQuerySelections((prev) => {
+      const current = prev[dbQueryId] ?? [];
+      const next = current.length === allValues.length && allValues.length > 0 ? [] : allValues;
+      return { ...prev, [dbQueryId]: next };
+    });
 
   const createDisplay = useCreateTaskboardDisplay({});
   const updateDisplay = useUpdateTaskboardDisplay({});
@@ -129,9 +156,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
       return;
     }
     const selectionJson = JSON.stringify({
-      queueIds: selectedQueueIds,
-      groupIds: selectedGroupIds,
-      agentIds: selectedAgentIds,
+      dbQuerySelections: Object.fromEntries(Object.entries(dbQuerySelections).filter(([, v]) => v.length > 0)),
     });
     setIsSaving(true);
     try {
@@ -172,58 +197,42 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 뷰 그룹에서 보여줄 데이터</label>
-            <div className="flex flex-col gap-2.5 p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-semibold text-cyan-800 whitespace-nowrap w-14 flex-shrink-0">큐</span>
-                <MultiSelectDropdown
-                  label="큐"
-                  color="#0891b2"
-                  isFetching={queueFetching}
-                  items={queueRows.map((q) => ({ id: q.ctiqId, name: q.ctiqName }))}
-                  selectedIds={selectedQueueIds}
-                  isOpen={queueDropdownOpen}
-                  dropdownRef={queueDropdownRef}
-                  onToggleOpen={() => setQueueDropdownOpen((v) => !v)}
-                  onToggleItem={toggleQueue}
-                  onToggleAll={toggleAllQueues}
-                  emptyText="큐 데이터 없음"
-                />
-              </div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 뷰 그룹에서 보여줄 데이터 (TASK-DB-QUERY 등록 데이터)</label>
+            <div className="flex flex-col gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              {dbQueryDefs.map((def, idx) => {
+                const optionsQuery = dbQueryOptionsResults[idx];
+                const items = extractNameValueItems(optionsQuery?.data ?? []);
+                const selected = dbQuerySelections[def.dbQueryId] ?? [];
+                return (
+                  <div key={def.dbQueryId} className="flex items-center gap-4">
+                    <span className="text-[11px] font-semibold text-amber-700 w-40 flex-shrink-0 truncate" title={def.queryName}>
+                      {def.queryName}
+                    </span>
+                    <MultiSelectDropdown
+                      label={def.queryName}
+                      color="#b45309"
+                      isFetching={optionsQuery?.isFetching ?? false}
+                      items={items}
+                      selectedIds={selected}
+                      isOpen={openDbQueryId === def.dbQueryId}
+                      dropdownRef={getDbQueryDropdownRef(def.dbQueryId)}
+                      onToggleOpen={() => setOpenDbQueryId((v) => (v === def.dbQueryId ? null : def.dbQueryId))}
+                      onToggleItem={(id) => toggleDbQueryValue(def.dbQueryId, id)}
+                      onToggleAll={() =>
+                        toggleAllDbQueryValues(
+                          def.dbQueryId,
+                          items.map((i) => i.id),
+                        )
+                      }
+                      emptyText="옵션 없음"
+                    />
+                  </div>
+                );
+              })}
 
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-semibold text-violet-700 whitespace-nowrap w-14 flex-shrink-0">상담그룹</span>
-                <MultiSelectDropdown
-                  label="상담그룹"
-                  color="#7c3aed"
-                  isFetching={groupFetching}
-                  items={groupRows.map((g) => ({ id: g.groupId, name: g.groupName }))}
-                  selectedIds={selectedGroupIds}
-                  isOpen={groupDropdownOpen}
-                  dropdownRef={groupDropdownRef}
-                  onToggleOpen={() => setGroupDropdownOpen((v) => !v)}
-                  onToggleItem={toggleGroup}
-                  onToggleAll={toggleAllGroups}
-                  emptyText="그룹 데이터 없음"
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-semibold text-emerald-700 whitespace-nowrap w-14 flex-shrink-0">상담사</span>
-                <MultiSelectDropdown
-                  label="상담사"
-                  color="#059669"
-                  isFetching={agentFetching}
-                  items={agentRows.map((a) => ({ id: a.agentId, name: a.agentName }))}
-                  selectedIds={selectedAgentIds}
-                  isOpen={agentDropdownOpen}
-                  dropdownRef={agentDropdownRef}
-                  onToggleOpen={() => setAgentDropdownOpen((v) => !v)}
-                  onToggleItem={toggleAgent}
-                  onToggleAll={toggleAllAgents}
-                  emptyText="상담사 데이터 없음"
-                />
-              </div>
+              {dbQueryDefs.length === 0 && (
+                <p className="text-[10px] text-slate-400 italic px-1">TASK-DB-QUERY 화면에서 VALUE/NAME 쿼리를 등록하면 여기 선택 항목으로 추가됩니다.</p>
+              )}
             </div>
           </div>
         </div>
@@ -258,12 +267,17 @@ export default function TaskDisplayManage() {
 
   const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
   const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
-  const { data: agentRows = [] } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
   const nameMaps = {
     queue: new Map(queueRows.map((q) => [q.ctiqId, q.ctiqName])),
     group: new Map(groupRows.map((g) => [g.groupId, g.groupName])),
-    agent: new Map(agentRows.map((a) => [a.agentId, a.agentName])),
   };
+
+  // 카드/목록 요약에 TASK-DB-QUERY 선택값도 함께 보여주기 위한 이름 매핑
+  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
+  const dbQueryNameMaps = new Map<number, Map<string, string>>(
+    dbQueryDefs.map((def, idx) => [def.dbQueryId, new Map(extractNameValueItems(dbQueryOptionsResults[idx]?.data ?? []).map((i) => [i.id, i.name]))]),
+  );
 
   const deleteDisplay = useDeleteTaskboardDisplay({});
   const modal = useModal();
@@ -356,7 +370,7 @@ export default function TaskDisplayManage() {
                 </div>
               </div>
               <div className="pt-2 border-t border-slate-100">
-                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} />
+                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
               </div>
             </div>
           ))}
@@ -370,7 +384,7 @@ export default function TaskDisplayManage() {
                 <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
               </div>
               <div className="flex-1 min-w-0">
-                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} />
+                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
               </div>
               <div className="flex gap-1 flex-shrink-0">
                 <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
