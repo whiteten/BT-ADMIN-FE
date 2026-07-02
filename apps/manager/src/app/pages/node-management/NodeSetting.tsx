@@ -386,7 +386,8 @@ export default function NodeSetting() {
 
             {/* 폼 영역 */}
             <div className="flex-1 min-h-0 overflow-y-auto p-7 pb-0">
-              <Form form={form} initialValues={{}} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
+              {/* name 지정 필수: 필드 id prefix 로 DOM clobbering 방지 (nodeName 필드 → form.nodeName 클로버링) */}
+              <Form form={form} name="nodeSettingForm" initialValues={{}} onFinish={onFinish} onFinishFailed={onFinishFailed} layout="vertical">
                 <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>{renderStep1()}</div>
                 <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>{renderStep2()}</div>
                 <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>{renderStep3()}</div>
