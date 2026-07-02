@@ -1,5 +1,6 @@
-import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
-import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
+import type { Favorite } from '@/shared-api';
+import type { MenuConfig, MenuItem } from '@/shared-store';
+import { splitPath } from './pathUtils';
 
 export interface MenuLookup {
   icon?: React.ElementType;
@@ -35,10 +36,7 @@ const findMenuLabelByPathRecursive = (item: MenuItem, relPath: string, search: s
   // 메뉴 path는 쿼리스트링 분기 메뉴면 `path?key=value`로 저장된다(같은 pathname을 공유하는 분기들).
   // pathname은 일치 필수, query는 분기 메뉴(itemSearch 있음)일 때만 정확히 일치해야 분기끼리 라벨이 안 섞인다.
   // 비분기 메뉴(itemSearch 없음)는 url의 부수적 query를 무시하고 pathname만으로 매칭(기존 동작 보존).
-  const p = item.path ?? '';
-  const qIdx = p.indexOf('?');
-  const itemPath = qIdx < 0 ? p : p.slice(0, qIdx);
-  const itemSearch = qIdx < 0 ? '' : p.slice(qIdx);
+  const { pathname: itemPath, search: itemSearch } = splitPath(item.path ?? '');
   if (itemPath === relPath && (itemSearch === '' || itemSearch === search)) return item.label;
   if (item.children) {
     for (const child of item.children) {

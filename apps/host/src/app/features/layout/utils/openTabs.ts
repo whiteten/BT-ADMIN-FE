@@ -1,37 +1,36 @@
 import type { BreadcrumbProps } from 'antd';
-import type { RemoteRouteEntry, TabMeta } from '@/shared-store';
+import type { MenuConfig, RemoteRouteEntry, TabMeta } from '@/shared-store';
 import { findMenuByPath } from './findMenuInfo';
-import type { MenuConfig } from '@/libs/shared-store/src/types/menu.types';
+import { getAppId, getRelPath } from './pathUtils';
 
-/** URL 첫 세그먼트(remote appId). */
-export function getAppId(pathname: string): string {
-  return pathname.split('/').filter(Boolean)[0] ?? '';
-}
-
-/** 전체 경로 문자열을 pathname과 search(쿼리스트링)로 분리. queryString 분기 메뉴 path 대응. */
-export function splitPath(fullPath: string): { pathname: string; search: string } {
-  const qIdx = fullPath.indexOf('?');
-  if (qIdx < 0) return { pathname: fullPath, search: '' };
-  return { pathname: fullPath.slice(0, qIdx), search: fullPath.slice(qIdx) };
+export interface TabTarget {
+  /** 탭 메타(appId·url·label·isDynamic) — 새 탭 생성·활성 탭 url 갱신·부트스트랩 공용. */
+  meta: TabMeta;
+  /** relPath에 매칭된 leaf 라우트 엔트리. redirect 전용 그룹·미로드 레지스트리면 undefined. */
+  entry: RemoteRouteEntry | undefined;
+  /** appId의 라우트 레지스트리 로드 여부 — false면 leaf 판정 불가(호출부는 기존 동작으로 폴백). */
+  registryLoaded: boolean;
 }
 
 /**
- * pathname+search에서 탭 메타(appId·url·label·isDynamic)를 도출한다. 메뉴 클릭(새 탭 생성)·탭 내 이동
- * (활성 탭 url 갱신)·부트스트랩(딥링크)에서 공통 사용. appId가 없으면(비-remote url) null.
+ * pathname+search에서 탭 대상(메타 + leaf 엔트리 판정)을 한 번에 도출한다. appId가 없으면(비-remote url) null.
+ * appId·relPath·leaf 매칭을 1회만 계산해 호출부(useTabSync)의 중복 계산을 없앤다.
  * - 라벨: 메뉴 라벨 우선 → 비파라미터는 세그먼트 humanize/appName, 파라미터 상세는 '…'(breadcrumb로 정밀화).
  * - isDynamic: leaf 라우트가 파라미터(`:id`)를 가지면 true → 이탤릭(데이터발 라벨) 스타일.
  */
-export function deriveTabMeta(menuConfigs: MenuConfig[], routesMap: Record<string, RemoteRouteEntry[]>, pathname: string, search: string): TabMeta | null {
+export function resolveTabTarget(menuConfigs: MenuConfig[], routesMap: Record<string, RemoteRouteEntry[]>, pathname: string, search: string): TabTarget | null {
   const appId = getAppId(pathname);
   if (!appId) return null;
-  const relPath = pathname.replace(new RegExp(`^/${appId}/?`), '').replace(/\/+$/, '');
-  const entry = findLeafEntry(routesMap[appId], relPath);
+  const relPath = getRelPath(pathname, appId);
+  const entries = routesMap[appId];
+  const registryLoaded = !!entries && entries.length > 0;
+  const entry = findLeafEntry(entries, relPath);
   const { label: menuLabel, appName } = findMenuByPath(menuConfigs, appId, relPath, search);
   const lastSeg = relPath.split('/').filter(Boolean).pop() ?? '';
   const isDynamic = !!entry?.paramKeys?.length;
   // 파라미터 상세는 id 세그먼트 대신 '…'(breadcrumb 해석 후 실제 이름으로 교체), 비파라미터는 기존 우선순위.
   const label = isDynamic ? ([menuLabel, '…'].find(Boolean) ?? '…') : ([menuLabel, humanizeSegment(lastSeg), appName].find(Boolean) ?? appId);
-  return { appId, url: pathname + search, label, isDynamic };
+  return { meta: { appId, url: pathname + search, label, isDynamic }, entry, registryLoaded };
 }
 
 /** 한 leaf 엔트리 경로(`bot-config/bot/:serviceId`)가 실제 상대경로(`bot-config/bot/123`)와 매칭되는지. `:seg`는 와일드카드. */
@@ -47,7 +46,7 @@ function matchEntryPath(entryPath: string, relPath: string): boolean {
  * redirect 전용 그룹(`<Navigate>`)·Outlet 그룹 path는 레지스트리에 없으므로 undefined.
  * 레지스트리 미로드(빈 배열)면 undefined → 호출부에서 기존 동작으로 폴백한다.
  */
-export function findLeafEntry(entries: RemoteRouteEntry[] | undefined, relPath: string): RemoteRouteEntry | undefined {
+function findLeafEntry(entries: RemoteRouteEntry[] | undefined, relPath: string): RemoteRouteEntry | undefined {
   if (!entries || entries.length === 0) return undefined;
   return entries.find((en) => matchEntryPath(en.path, relPath));
 }

@@ -1,9 +1,9 @@
 import { type MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Dropdown, type MenuProps } from 'antd';
 import { ChevronDown, X } from 'lucide-react';
-import { type OpenTab, useOpenTabsStore } from '@/shared-store';
+import type { OpenTab } from '@/shared-store';
 import TabContextMenuContent from './TabContextMenuContent';
+import { useTabActions } from '../hooks/useTabActions';
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { cn } from '@/lib/utils';
 
@@ -13,16 +13,13 @@ interface TabOverflowMenuProps {
 }
 
 export default function TabOverflowMenu({ tabs, activeId }: TabOverflowMenuProps) {
-  const navigate = useNavigate();
-  const activateTab = useOpenTabsStore((s) => s.activateTab);
-  const closeTab = useOpenTabsStore((s) => s.closeTab);
+  const { activate, close } = useTabActions();
 
   if (tabs.length === 0) return null;
 
   const handleClose = (e: MouseEvent, id: string) => {
     e.stopPropagation();
-    const { nextPath } = closeTab(id);
-    if (nextPath) navigate(nextPath);
+    close(id);
   };
 
   const items: MenuProps['items'] = tabs.map((tab) => ({
@@ -46,10 +43,7 @@ export default function TabOverflowMenu({ tabs, activeId }: TabOverflowMenuProps
         <TabContextMenuContent tabId={tab.id} />
       </ContextMenu>
     ),
-    onClick: () => {
-      activateTab(tab.id);
-      navigate(tab.url);
-    },
+    onClick: () => activate(tab),
   }));
 
   // 활성 탭이 오버플로(숨김) 목록에 있으면 +N 버튼을 활성 탭처럼 표시(현재 화면이 여기 있음을 표시).

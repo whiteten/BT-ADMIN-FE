@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { useBreadcrumbStore, useLayoutStore, useMenuStore, useOpenTabsStore, useRemoteRoutesStore } from '@/shared-store';
-import { deriveTabMeta, findLeafEntry, getAppId, resolveBreadcrumbTail } from '../utils/openTabs';
+import { resolveBreadcrumbTail, resolveTabTarget } from '../utils/openTabs';
 
 /** 탭으로 추적하지 않는 경로 prefix(인증/오류 화면). host index('/')는 별도 처리. */
 const SKIP_PREFIXES = ['/login', '/forbidden'];
@@ -94,19 +94,17 @@ export function useTabSync() {
     }
     if (SKIP_PREFIXES.some((p) => pathname.startsWith(p))) return;
 
-    const appId = getAppId(pathname);
-    if (!appId) return;
+    // appId·relPath·leaf 판정·meta를 1회에 도출. appId 없으면(비-remote url) 종료.
+    const target = resolveTabTarget(menuConfigs, routesMap, pathname, search);
+    if (!target) return;
 
-    const relPath = pathname.replace(new RegExp(`^/${appId}/?`), '').replace(/\/+$/, '');
     // redirect 전용 그룹 path(예: /fca/dashboard → index <Navigate replace> → /fca/dashboard/call-bot)에는
     // 탭을 건드리지 않는다(중간 그룹 url로 잠깐 갱신되는 깜빡임 방지). leaf 라우트 레지스트리에 없으면 = 머물지 않는 url.
-    // 레지스트리 미로드(빈 배열)면 판정 불가 → 기존 동작으로 폴백(아래 동기화/부트스트랩 진행).
-    const entries = routesMap[appId];
-    const registryLoaded = !!entries && entries.length > 0;
-    if (registryLoaded && !findLeafEntry(entries, relPath)) return;
+    // 레지스트리 미로드면 판정 불가 → 기존 동작으로 폴백(아래 동기화/부트스트랩 진행).
+    if (target.registryLoaded && !target.entry) return;
 
     const { tabs, activeId } = useOpenTabsStore.getState();
-    const meta = deriveTabMeta(menuConfigs, routesMap, pathname, search);
+    const meta = target.meta;
 
     // POP(뒤로/앞으로): 도착 key의 소속 탭이 살아 있고 활성이 아니면 그 탭으로 전환 + url 동기화 후 종료.
     // (소속 탭이 이미 활성이면 그 탭 내부 뒤로가기이므로 아래 일반 동기화가 처리한다.)
@@ -115,7 +113,7 @@ export function useTabSync() {
       const owner = ownerId ? tabs.find((t) => t.id === ownerId) : undefined;
       if (owner && owner.id !== activeId) {
         activateTab(owner.id);
-        if (owner.url !== id && meta) setTabMeta(owner.id, meta);
+        if (owner.url !== id) setTabMeta(owner.id, meta);
         return;
       }
     }
@@ -125,13 +123,13 @@ export function useTabSync() {
     if (active) {
       // 탭 내 페이지 이동 — 활성 탭의 url(+라벨/isDynamic)을 현재 위치로 갱신. 메뉴 클릭으로 새 탭이 열린
       // 경우엔 openTab이 이미 url을 맞춰 둬서 여기선 no-op이 된다(중복 갱신 없음).
-      if (active.url !== id && meta) setTabMeta(active.id, meta);
+      if (active.url !== id) setTabMeta(active.id, meta);
     } else {
       // 활성 탭 없음(딥링크/새로고침/홈 복귀 후 진입) — 같은 url 탭이 있으면 그걸 활성화(중복 생성 방지),
       // 없으면 부트스트랩으로 새 탭 생성. (메뉴 클릭 경로는 openTab이 먼저 active를 세팅하므로 여기 안 옴.)
       const matched = tabs.find((t) => t.url === id);
       if (matched) activateTab(matched.id);
-      else if (meta) openTab(meta);
+      else openTab(meta);
     }
 
     // 이 히스토리 칸을 최종 활성 탭에 연결(다음 POP이 소속을 되찾을 수 있게). 위 동기화/부트스트랩으로

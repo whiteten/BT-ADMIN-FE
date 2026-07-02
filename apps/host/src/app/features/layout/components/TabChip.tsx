@@ -1,8 +1,8 @@
 import { type MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { type OpenTab, useMenuStore, useOpenTabsStore } from '@/shared-store';
 import TabContextMenuContent from './TabContextMenuContent';
+import { useTabActions } from '../hooks/useTabActions';
 import { resolveBreadcrumbTitles } from '../utils/openTabs';
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -16,21 +16,15 @@ interface TabChipProps {
 }
 
 export default function TabChip({ tab, isActive, disableTooltip }: TabChipProps) {
-  const navigate = useNavigate();
-  const activateTab = useOpenTabsStore((s) => s.activateTab);
-  const closeTab = useOpenTabsStore((s) => s.closeTab);
+  const { activate, close } = useTabActions();
   const snapshot = useOpenTabsStore((s) => s.breadcrumbsById[tab.id]);
   const appName = useMenuStore((s) => s.menuConfigs.find((c) => c.appId === tab.appId)?.appName);
 
-  const handleActivate = () => {
-    activateTab(tab.id);
-    navigate(tab.url);
-  };
+  const handleActivate = () => activate(tab);
 
   const handleClose = (e: MouseEvent) => {
     e.stopPropagation();
-    const { nextPath } = closeTab(tab.id);
-    if (nextPath) navigate(nextPath);
+    close(tab.id);
   };
 
   // 즐겨찾기와 동일하게 `appName › 카테고리 › leaf` 경로를 툴팁으로 표시. breadcrumb 스냅샷이 있으면 그 경로,

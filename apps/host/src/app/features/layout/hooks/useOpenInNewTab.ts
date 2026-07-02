@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useMenuStore, useOpenTabsStore, useRemoteRoutesStore } from '@/shared-store';
-import { deriveTabMeta, getAppId, humanizeSegment, splitPath } from '../utils/openTabs';
+import { resolveTabTarget } from '../utils/openTabs';
+import { splitPath } from '../utils/pathUtils';
 
 /**
  * 메뉴 클릭마다 "새 탭"을 열고 그 경로로 이동하는 핸들러를 돌려준다(메뉴/즐겨찾기/검색 결과 공용).
@@ -19,19 +20,13 @@ export function useOpenInNewTab() {
 
   return (fullPath: string) => {
     const { pathname, search } = splitPath(fullPath);
-    // 라우트 레지스트리 미로드 등으로 메타 도출이 비면 최소 메타로 폴백(appId만이라도 채워 탭은 생성).
-    const meta = deriveTabMeta(menuConfigs, routesMap, pathname, search) ?? {
-      appId: getAppId(pathname),
-      url: pathname + search,
-      label: humanizeSegment(pathname.split('/').filter(Boolean).pop() ?? '') || getAppId(pathname),
-      isDynamic: false,
-    };
-    if (!meta.appId) {
-      // 비-remote 경로(있을 리 없지만 안전망) — 탭 없이 이동만.
+    // target이 null인 유일한 조건은 appId 없음(비-remote 경로) — 탭 없이 이동만(있을 리 없지만 안전망).
+    const target = resolveTabTarget(menuConfigs, routesMap, pathname, search);
+    if (!target) {
       navigate(fullPath);
       return;
     }
-    openTab(meta);
+    openTab(target.meta);
     navigate(fullPath);
   };
 }

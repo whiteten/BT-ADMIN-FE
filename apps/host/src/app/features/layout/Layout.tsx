@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
@@ -14,6 +14,8 @@ import { useMenuPanelStore } from './hooks/useMenuPanelStore';
 import { useTabSync } from './hooks/useTabSync';
 import MenuPanel from './panel/MenuPanel';
 import PanelAppBadgeStrip from './panel/PanelAppBadgeStrip';
+import { getAppId } from './utils/pathUtils';
+import { usePruneCacheNodes } from '@/libs/shared-ui/src/hooks/usePruneCacheNodes';
 
 const TOTAL_HEADER_HEIGHT = TOP_HEADER_HEIGHT + SUB_HEADER_HEIGHT;
 
@@ -43,21 +45,13 @@ export function Layout() {
   const hostAliveRef = useKeepAliveRef();
   const location = useLocation();
   const outlet = useOutlet();
-  const remoteKey = location.pathname.split('/')[1] || 'root';
+  const remoteKey = getAppId(location.pathname) || 'root';
   const tabs = useOpenTabsStore((s) => s.tabs);
 
   // 열린 탭이 하나도 없는 remote의 host 캐시(모듈)를 폐기 — 마지막 탭을 닫으면 그 remote는 꺼진다(메모리 회수).
   // 현재 활성 remote는 보존.
-  useEffect(() => {
-    const api = hostAliveRef.current;
-    if (!api?.getCacheNodes) return;
-    const openAppIds = new Set(tabs.map((t) => t.appId));
-    for (const node of api.getCacheNodes()) {
-      if (node.cacheKey !== remoteKey && !openAppIds.has(node.cacheKey)) {
-        void api.destroy(node.cacheKey);
-      }
-    }
-  }, [tabs, remoteKey, hostAliveRef]);
+  const openAppIds = new Set(tabs.map((t) => t.appId));
+  usePruneCacheNodes(hostAliveRef, remoteKey, openAppIds);
 
   // chromeless 화면(녹취 재생 팝업·워크플로우 편집기 등) — 헤더/사이드바/패널/펼치기 버튼을 제거하고
   // 본문만 full-bleed 로 렌더. antd 컨텍스트(useModal·toast)는 ConfigProvider+App 래핑으로 유지.

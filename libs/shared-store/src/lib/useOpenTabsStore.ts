@@ -87,6 +87,17 @@ function serializableBreadcrumbs(map: Record<string, BreadcrumbSnapshot>): Recor
   return out;
 }
 
+/** id 탭의 lastActiveAt를 지금으로 갱신(LRU 신선도) — 활성 승계·재활성화 시 공용. */
+function touchTab(tabs: OpenTab[], id: string): OpenTab[] {
+  const now = Date.now();
+  return tabs.map((t) => (t.id === id ? { ...t, lastActiveAt: now } : t));
+}
+
+/** keepIds 밖 탭의 breadcrumb 스냅샷 제거 — 닫기 계열·LRU evict 시 공용. */
+function pruneBreadcrumbs(map: Record<string, BreadcrumbSnapshot>, keepIds: ReadonlySet<string>): Record<string, BreadcrumbSnapshot> {
+  return Object.fromEntries(Object.entries(map).filter(([id]) => keepIds.has(id)));
+}
+
 export const useOpenTabsStore = create<OpenTabsStore>()(
   devtools(
     persist(
@@ -104,8 +115,7 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
                 const evictable = tabs.filter((t) => t.id !== id);
                 const victim = evictable.reduce((min, t) => (t.lastActiveAt < min.lastActiveAt ? t : min), evictable[0]);
                 tabs = tabs.filter((t) => t.id !== victim.id);
-                const { [victim.id]: _removed, ...rest } = breadcrumbsById;
-                breadcrumbsById = rest;
+                breadcrumbsById = pruneBreadcrumbs(breadcrumbsById, new Set(tabs.map((t) => t.id)));
               }
               return { tabs, activeId: id, breadcrumbsById, nextSeq: state.nextSeq + 1 };
             },
@@ -120,9 +130,9 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
               const target = state.tabs.find((t) => t.id === id);
               if (!target) return state;
               // 라벨은 메뉴/세그먼트발 부트스트랩 — 이후 breadcrumb 마지막 값(renameLabel)이 권위값이라
-              // 여기선 url·appId·isDynamic만 확정 갱신하고 라벨은 새 도출값으로 재설정(상세 진입 시 '…' 등).
+              // meta 4필드(appId·url·label·isDynamic)를 새 도출값으로 통째 갱신(상세 진입 시 라벨 '…' 등).
               return {
-                tabs: state.tabs.map((t) => (t.id === id ? { ...t, appId: meta.appId, url: meta.url, label: meta.label, isDynamic: meta.isDynamic } : t)),
+                tabs: state.tabs.map((t) => (t.id === id ? { ...t, ...meta } : t)),
               };
             },
             false,
@@ -136,7 +146,7 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
               if (idx < 0) return state;
               const wasActive = state.activeId === id;
               let tabs = state.tabs.filter((t) => t.id !== id);
-              const { [id]: _removed, ...breadcrumbsById } = state.breadcrumbsById;
+              const breadcrumbsById = pruneBreadcrumbs(state.breadcrumbsById, new Set(tabs.map((t) => t.id)));
               let activeId = state.activeId;
               if (wasActive) {
                 if (tabs.length === 0) {
@@ -148,8 +158,7 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
                   const neighbor = tabs[Math.min(idx, tabs.length - 1)];
                   activeId = neighbor.id;
                   nextPath = neighbor.url;
-                  const now = Date.now();
-                  tabs = tabs.map((t) => (t.id === neighbor.id ? { ...t, lastActiveAt: now } : t));
+                  tabs = touchTab(tabs, neighbor.id);
                 }
               }
               return { tabs, activeId, breadcrumbsById };
@@ -165,10 +174,10 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
             (state) => {
               const target = state.tabs.find((t) => t.id === id);
               if (!target) return state;
-              const breadcrumbsById = state.breadcrumbsById[id] ? { [id]: state.breadcrumbsById[id] } : {};
+              const breadcrumbsById = pruneBreadcrumbs(state.breadcrumbsById, new Set([id]));
               if (state.activeId !== id) nextPath = target.url;
               // 남는 단일 탭이 활성이 되므로 lastActiveAt 갱신(LRU 신선도 유지).
-              return { tabs: [{ ...target, lastActiveAt: Date.now() }], activeId: id, breadcrumbsById };
+              return { tabs: touchTab([target], id), activeId: id, breadcrumbsById };
             },
             false,
             'closeOthers',
@@ -183,14 +192,13 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
               if (idx < 0) return state;
               let tabs = state.tabs.slice(0, idx + 1);
               const keepIds = new Set(tabs.map((t) => t.id));
-              const breadcrumbsById = Object.fromEntries(Object.entries(state.breadcrumbsById).filter(([k]) => keepIds.has(k)));
+              const breadcrumbsById = pruneBreadcrumbs(state.breadcrumbsById, keepIds);
               let activeId = state.activeId;
               // 활성 탭이 잘려나가면 기준 탭(id)을 활성화하고 lastActiveAt 갱신(LRU 신선도 유지).
               if (activeId && !keepIds.has(activeId)) {
                 activeId = id;
                 nextPath = tabs[idx].url;
-                const now = Date.now();
-                tabs = tabs.map((t) => (t.id === id ? { ...t, lastActiveAt: now } : t));
+                tabs = touchTab(tabs, id);
               }
               return { tabs, activeId, breadcrumbsById };
             },
@@ -207,7 +215,7 @@ export const useOpenTabsStore = create<OpenTabsStore>()(
         activateTab: (id) =>
           set(
             (state) => ({
-              tabs: state.tabs.map((t) => (t.id === id ? { ...t, lastActiveAt: Date.now() } : t)),
+              tabs: touchTab(state.tabs, id),
               activeId: id,
             }),
             false,

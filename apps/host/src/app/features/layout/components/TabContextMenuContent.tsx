@@ -1,33 +1,19 @@
-import { useNavigate } from 'react-router-dom';
 import { ArrowRightFromLine, CopyPlus, ListX, Trash2, X } from 'lucide-react';
 import { useOpenTabsStore } from '@/shared-store';
+import { useTabActions } from '../hooks/useTabActions';
 import { ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu';
 
 /**
- * 탭 우클릭 컨텍스트 메뉴 본문(닫기 액션 묶음). TabChip(스트립)·TabOverflowMenu(+N) 양쪽에서 동일하게 사용.
- * 반드시 <ContextMenu> 루트의 자식으로 렌더한다. 닫은 뒤 활성 탭이 바뀌면 그 path로 이동.
+ * 탭 우클릭 컨텍스트 메뉴 본문(복제·닫기 액션 묶음). TabChip(스트립)·TabOverflowMenu(+N) 양쪽에서 동일하게 사용.
+ * 반드시 <ContextMenu> 루트의 자식으로 렌더한다. 액션 후 이동은 useTabActions가 담당.
  */
 export default function TabContextMenuContent({ tabId }: { tabId: string }) {
-  const navigate = useNavigate();
   const tabs = useOpenTabsStore((s) => s.tabs);
-  const openTab = useOpenTabsStore((s) => s.openTab);
-  const closeTab = useOpenTabsStore((s) => s.closeTab);
-  const closeOthers = useOpenTabsStore((s) => s.closeOthers);
-  const closeToRight = useOpenTabsStore((s) => s.closeToRight);
-  const closeAll = useOpenTabsStore((s) => s.closeAll);
+  const { duplicate, close, closeOthers, closeToRight, closeAll } = useTabActions();
 
-  const go = (result: { nextPath: string | null }) => {
-    if (result.nextPath) navigate(result.nextPath);
-  };
-
-  // 탭 복제 — 대상 탭의 meta(url·라벨·isDynamic)로 새 탭을 열어 활성화하고 그 url로 이동한다.
-  // openTab이 중복 탭 생성을 지원하므로(같은 url 별개 id) 브라우저 '탭 복제'와 동일: 내용은 별개
-  // keepAlive 노드라 새로 로드되고 입력·스크롤 등 상태는 원본과 공유하지 않는다.
   const handleDuplicate = () => {
     const tab = tabs.find((t) => t.id === tabId);
-    if (!tab) return;
-    openTab({ appId: tab.appId, url: tab.url, label: tab.label, isDynamic: tab.isDynamic });
-    navigate(tab.url);
+    if (tab) duplicate(tab);
   };
 
   const idx = tabs.findIndex((t) => t.id === tabId);
@@ -45,19 +31,19 @@ export default function TabContextMenuContent({ tabId }: { tabId: string }) {
         <CopyPlus />탭 복제
       </ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuItem onClick={() => go(closeTab(tabId))}>
+      <ContextMenuItem onClick={() => close(tabId)}>
         <X />탭 닫기
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => go(closeOthers(tabId))} disabled={!hasOthers}>
+      <ContextMenuItem onClick={() => closeOthers(tabId)} disabled={!hasOthers}>
         <ListX />
         다른 탭 닫기
       </ContextMenuItem>
-      <ContextMenuItem onClick={() => go(closeToRight(tabId))} disabled={!hasRight}>
+      <ContextMenuItem onClick={() => closeToRight(tabId)} disabled={!hasRight}>
         <ArrowRightFromLine />
         우측 탭 닫기
       </ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuItem onClick={() => go(closeAll())}>
+      <ContextMenuItem onClick={() => closeAll()}>
         <Trash2 />
         모두 닫기
       </ContextMenuItem>

@@ -1,7 +1,8 @@
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { KeepAlive, useKeepAliveRef } from 'keepalive-for-react';
 import { MAX_TABS, useOpenTabsStore } from '@/shared-store';
+import { usePruneCacheNodes } from '../../hooks/usePruneCacheNodes';
 
 interface KeepAliveBoundaryProps {
   /** remote app의 `useRoutes(routes)` 결과(현재 매칭 페이지 element). */
@@ -46,10 +47,13 @@ export default function KeepAliveBoundary({ children }: KeepAliveBoundaryProps) 
   const tabs = useOpenTabsStore((s) => s.tabs);
   const aliveRef = useKeepAliveRef();
 
+  // 현재 location의 첫 세그먼트(appId). 아래 두 용도로 공용 — ① 자기 remote appId 첫 마운트 캡처, ② onOwnRemote 판정.
+  const hereAppId = location.pathname.split('/').filter(Boolean)[0] ?? null;
+
   // 자기 remote의 appId를 첫 마운트 시점 location에서 1회 캡처(이후 백그라운드로 얼어 host location이 다른
   // remote로 바뀌어도 캡처값을 쓴다 — useLocation은 그 변화를 반영하므로 라이브로 읽으면 오판한다).
   const ownAppIdRef = useRef<string | null>(null);
-  ownAppIdRef.current ??= location.pathname.split('/').filter(Boolean)[0] ?? null;
+  ownAppIdRef.current ??= hereAppId;
   const ownAppId = ownAppIdRef.current;
 
   // cacheKey(활성 캐시 노드)는 keepalive의 children(= useRoutes(location))과 반드시 정합해야 한다. 어긋나면
@@ -62,7 +66,7 @@ export default function KeepAliveBoundary({ children }: KeepAliveBoundaryProps) 
   // 그래서 "활성 탭 id"는 그 탭 url이 현재 location과 일치할 때만 채택하고, 어긋나는 lag엔 location이 그리는
   // 화면에 맞는 노드에 머문다.
   const currentUrl = location.pathname + location.search;
-  const onOwnRemote = (location.pathname.split('/').filter(Boolean)[0] ?? null) === ownAppId;
+  const onOwnRemote = hereAppId === ownAppId;
   const activeTab = activeId ? tabs.find((t) => t.id === activeId) : undefined;
   const activeOwn = activeTab && activeTab.appId === ownAppId ? activeTab : undefined;
   let cacheKey: string;
@@ -80,16 +84,8 @@ export default function KeepAliveBoundary({ children }: KeepAliveBoundaryProps) 
   }
 
   // 이 remote 소속 열린 탭 id만 보존 대상. 닫히거나 LRU로 밀려난(=목록에 없는) 노드, foreign 키 노드는 폐기.
-  useEffect(() => {
-    const api = aliveRef.current;
-    if (!api?.getCacheNodes) return;
-    const openIds = new Set(tabs.filter((t) => t.appId === ownAppId).map((t) => t.id));
-    for (const node of api.getCacheNodes()) {
-      if (node.cacheKey !== cacheKey && !openIds.has(node.cacheKey)) {
-        void api.destroy(node.cacheKey);
-      }
-    }
-  }, [tabs, cacheKey, aliveRef, ownAppId]);
+  const openIds = new Set(tabs.filter((t) => t.appId === ownAppId).map((t) => t.id));
+  usePruneCacheNodes(aliveRef, cacheKey, openIds);
 
   return (
     <KeepAlive aliveRef={aliveRef} activeCacheKey={cacheKey} max={MAX_TABS} containerClassName="w-full h-full" cacheNodeClassName="w-full h-full">
