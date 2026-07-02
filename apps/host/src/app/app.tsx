@@ -95,7 +95,7 @@ export function App() {
     return {
       position: 'top-center' as ToastPosition,
       autoClose: 5000,
-      theme: 'colored' as Theme,
+      theme: 'light' as Theme,
       pauseOnHover: true,
       pauseOnFocusLoss: false,
     };
