@@ -93,7 +93,7 @@ export function App() {
   }, []);
   const toastOptions = React.useMemo(() => {
     return {
-      position: 'bottom-right' as ToastPosition,
+      position: 'top-center' as ToastPosition,
       autoClose: 5000,
       theme: 'colored' as Theme,
       pauseOnHover: true,
