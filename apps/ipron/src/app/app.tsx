@@ -5,6 +5,7 @@ import koKR from 'antd/locale/ko_KR';
 import { routes } from './routes';
 import '../styles.css';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import KeepAliveBoundary from '@/components/custom/KeepAliveBoundary';
 
 export function App() {
   const element = useRoutes(routes);
@@ -22,7 +23,9 @@ export function App() {
         },
       }}
     >
-      <React.Suspense fallback={<FallbackSpinner />}>{element}</React.Suspense>
+      <React.Suspense fallback={<FallbackSpinner />}>
+        <KeepAliveBoundary>{element}</KeepAliveBoundary>
+      </React.Suspense>
     </ConfigProvider>
   );
 }

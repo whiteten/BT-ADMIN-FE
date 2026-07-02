@@ -1,17 +1,21 @@
 import { Suspense, lazy } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useLocation, useOutlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
 import 'dayjs/locale/ko';
+import { KeepAlive, useKeepAliveRef } from 'keepalive-for-react';
 import { Minimize2 } from 'lucide-react';
-import { useAgentChatStore, useLayoutStore } from '@/shared-store';
+import { useAgentChatStore, useLayoutStore, useOpenTabsStore } from '@/shared-store';
 import SubHeader, { SUB_HEADER_HEIGHT } from './SubHeader';
 import TopHeader, { TOP_HEADER_HEIGHT } from './TopHeader';
 import { antdTheme } from './config/antdTheme';
 import { useCanUseAgentChat } from './hooks/useCanUseAgentChat';
 import { useMenuPanelStore } from './hooks/useMenuPanelStore';
+import { useTabSync } from './hooks/useTabSync';
 import MenuPanel from './panel/MenuPanel';
 import PanelAppBadgeStrip from './panel/PanelAppBadgeStrip';
+import { getAppId } from './utils/pathUtils';
+import { usePruneCacheNodes } from '@/libs/shared-ui/src/hooks/usePruneCacheNodes';
 
 const TOTAL_HEADER_HEIGHT = TOP_HEADER_HEIGHT + SUB_HEADER_HEIGHT;
 
@@ -29,6 +33,25 @@ export function Layout() {
   const chatOpen = useAgentChatStore((s) => s.open);
   const chatMounted = useAgentChatStore((s) => s.mounted);
   const setChatOpen = useAgentChatStore((s) => s.setOpen);
+
+  // 현재 location을 SubHeader 탭 스트립과 동기화(헤더 접힘 상태에서도 추적되도록 항상 마운트되는 Layout에서 호출).
+  useTabSync();
+
+  // host 레벨 keep-alive — 방문한 remote "모듈"을 appId 단위로 캐시한다.
+  // 캐시 수명은 인위적 상한 없이 "열린 탭 유무"로만 제어한다(아래 폐기 effect) — 탭이 있는 동안 유지, 마지막 탭을 닫으면 폐기.
+  // 단일 공유 Layout(app.tsx) 덕에 remote 전환에도 Layout이 안 죽어 이 캐시가 유지되고,
+  // 각 remote 내부의 KeepAliveBoundary(페이지 단위 캐시)와 합쳐져 cross-remote 페이지 상태가 보존된다.
+  // 페이지별 보존은 host가 아니라 remote의 useRoutes 결과 위(KeepAliveBoundary)에서 처리한다.
+  const hostAliveRef = useKeepAliveRef();
+  const location = useLocation();
+  const outlet = useOutlet();
+  const remoteKey = getAppId(location.pathname) || 'root';
+  const tabs = useOpenTabsStore((s) => s.tabs);
+
+  // 열린 탭이 하나도 없는 remote의 host 캐시(모듈)를 폐기 — 마지막 탭을 닫으면 그 remote는 꺼진다(메모리 회수).
+  // 현재 활성 remote는 보존.
+  const openAppIds = new Set(tabs.map((t) => t.appId));
+  usePruneCacheNodes(hostAliveRef, remoteKey, openAppIds);
 
   // chromeless 화면(녹취 재생 팝업·워크플로우 편집기 등) — 헤더/사이드바/패널/펼치기 버튼을 제거하고
   // 본문만 full-bleed 로 렌더. antd 컨텍스트(useModal·toast)는 ConfigProvider+App 래핑으로 유지.
@@ -55,7 +78,10 @@ export function Layout() {
               className={chromeless ? 'flex-1 min-w-0 h-full overflow-hidden' : 'flex-1 min-w-0 h-full p-4 overflow-y-auto bg-[#f3f3f9]'}
               style={chromeless ? undefined : { scrollbarGutter: 'stable' }}
             >
-              <Outlet />
+              {/* remote 모듈을 appId 단위로 keep-alive. 컨테이너/노드 w-full h-full로 높이 체인 유지. */}
+              <KeepAlive aliveRef={hostAliveRef} activeCacheKey={remoteKey} max={100} containerClassName="w-full h-full" cacheNodeClassName="w-full h-full">
+                {outlet}
+              </KeepAlive>
             </main>
           </div>
         </App>

@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Loader2, Search, X } from 'lucide-react';
 import { useMenuStore } from '@/shared-store';
 import SearchAutocomplete from './SearchAutocomplete';
 import SearchRecentList from './SearchRecentList';
 import SearchResults from './SearchResults';
+import { useOpenInNewTab } from '../../layout/hooks/useOpenInNewTab';
 import { DOC_FETCH_LIMIT, type SearchTabKey } from '../constants/searchConstants';
 import { useRecentSearchStore } from '../hooks/useRecentSearchStore';
 import { useSearchDocs } from '../hooks/useSearchQueries';
@@ -26,7 +26,7 @@ export default function GlobalSearch() {
   const [activeTab, setActiveTab] = useState<SearchTabKey>('all');
   const anchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
+  const openInNewTab = useOpenInNewTab();
 
   const { menuConfigs } = useMenuStore();
   const recents = useRecentSearchStore((s) => s.recents);
@@ -108,7 +108,8 @@ export default function GlobalSearch() {
 
   const handleSelectMenu = (result: MenuSearchResult) => {
     const path = result.path ?? findPathByMenuKey(menuConfigs, result.appId, result.menuKey);
-    if (path) navigate(`/${result.appId}/${path}`);
+    // 검색 결과(메뉴) 클릭도 메뉴 클릭과 동일하게 새 탭으로 연다.
+    if (path) openInNewTab(`/${result.appId}/${path}`);
     setOpen(false);
     resetSearch();
   };

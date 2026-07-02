@@ -11,7 +11,9 @@ interface NewWindowButtonProps {
 
 export const NewWindowButton = React.memo(({ path, appId, labeled = false }: NewWindowButtonProps) => {
   const handleNewWindow = useCallback(() => {
-    window.open(`/${appId}/${path}`, '_blank');
+    // noopener — 새 브라우저 탭이 부모의 sessionStorage를 복사받아 탭 스트립(open-tabs)을 통째로
+    // 상속하는 것을 막는다(noopener면 새 컨텍스트가 빈 sessionStorage로 시작 → 그 페이지 하나로 시작).
+    window.open(`/${appId}/${path}`, '_blank', 'noopener,noreferrer');
   }, [appId, path]);
 
   if (labeled) {
