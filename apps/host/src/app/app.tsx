@@ -7,10 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
 import CsrfGuard from './features/router/CsrfGuard';
 import GuestGuard from './features/router/GuestGuard';
-import RouteGuard from './features/router/RouteGuard';
-import SessionGuard from './features/router/SessionGuard';
-import SharedInfoProvider from './features/router/SharedInfoProvider';
-import WsSessionEventHandler from './features/router/WsSessionEventHandler';
+import RouteShell from './features/router/RouteShell';
 import { useApiErrorHandler } from './hooks/useApiErrorHandler';
 import Login from './pages/Login';
 import Main from './pages/Main';
@@ -49,17 +46,9 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<CsrfGuard />}>
-        <Route
-          element={
-            <SessionGuard>
-              <SharedInfoProvider>
-                <RouteGuard>
-                  <WsSessionEventHandler />
-                </RouteGuard>
-              </SharedInfoProvider>
-            </SessionGuard>
-          }
-        >
+        {/* RouteShell — 진입 pathname의 공개(handle.public) 여부를 판정해
+            private(기존 4단 가드 조립: PrivateRouteGate) / public(최소 트리: PublicRouteGate)을 택1. */}
+        <Route element={<RouteShell />}>
           {/* 단일 공유 Layout — remote 그룹마다 Layout을 따로 두지 않고 하나로 묶는다.
               그래야 remote 전환 시 Layout(과 그 안의 host 레벨 keep-alive)이 언마운트되지 않아
               cross-remote 페이지 보존이 가능하다(Layout이 방문한 remote 모듈을 keep-alive로 유지). */}

@@ -17,6 +17,7 @@ description: 인증은 필요하나 Layout(헤더/사이드바/패널)이 없는
 | --- | --- |
 | 인증 필요 + host 헤더/사이드바/패널 불필요(새창·standalone 편집기·재생 팝업) | ✅ 이 스킬 |
 | 사용자가 버튼으로 잠깐 헤더만 접고 펴는 일반 화면 | ❌ `chromeCollapsed`(`toggleChrome`) — 이 스킬 아님 |
+| **세션 없이 접근하는 공개 화면**(공개 전광판 등) | ❌ 공개 라우트 `handle: { public: true }` 선언 — host `PublicRouteGate`가 Chromeless를 **강제**하므로 래퍼 불필요 (AGENTS.md "라우팅 컨벤션" 핵심 규칙 14 참조) |
 | 로그인 등 **비인증** 단독 화면 | ❌ host `/login`처럼 가드 밖 별도 라우트 |
 | 일반 화면 위에 띄우는 모달·드로어 | ❌ Layout 안 페이지에서 antd `Modal`/`Drawer` 직접 사용 |
 
@@ -48,6 +49,7 @@ const WorkflowEdit = React.lazy(() => import('./pages/workflow/WorkflowEdit'));
 
 - **host에 별도 prefix 라우트(`/aoe-workflow` 등)를 만들지 말 것.** 그 방식을 없애려고 이 메커니즘이 있다.
 - pv 소켓을 쓰지 않는 leaf라면 `<Chromeless><Page /></Chromeless>`로 감싼다.
+- **공개 라우트(`handle: { public: true }`) leaf는 감싸지 않는다** — host `PublicRouteGate`가 Chromeless를 강제하므로 중복.
 - 페이지 컴포넌트 안에서 `useChromeless`를 직접 호출하지 않는다(래퍼가 담당 — 함정 참조).
 
 ## Step 2. 진입 경로 작성
