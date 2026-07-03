@@ -14,10 +14,22 @@ export interface QueryParamSpec {
   [extra: string]: unknown;
 }
 
+/**
+ * remote routes.tsx의 RouteObject.handle 표준 형태.
+ * - queryParams: 메뉴 등록 폼의 query 입력 명세
+ * - public: true면 세션 인증 없이 접근 가능한 공개 라우트 (leaf에만 유효 — host RouteShell이 판정에 사용)
+ */
+export interface RouteHandle {
+  queryParams?: QueryParamSpec[];
+  public?: boolean;
+}
+
 export interface RemoteRouteEntry {
   path: string;
   paramKeys?: string[];
   queryParams?: QueryParamSpec[];
+  /** 공개 라우트 여부 — handle.public === true인 leaf만 true로 세팅 */
+  public?: true;
 }
 
 export type RemoteRoutesMap = Record<string, RemoteRouteEntry[]>;
