@@ -65,6 +65,12 @@ CLAUDE.local.md
 .claude/settings.local.json
 tmpclaude-*
 
+# taskboard 담당자 개인 작업 문서 — 로컬 전용(저장소 추적 제외)
+apps/taskboard/CHANGELOG.md
+apps/taskboard/CLAUDE.md
+apps/taskboard/PROMPT_LOG.md
+apps/taskboard/WORK_STATUS.md
+
 # Cursor — agents.mdc(공유 포인터 룰)만 추적하고 나머지는 무시
 .cursor/*
 !.cursor/rules/
