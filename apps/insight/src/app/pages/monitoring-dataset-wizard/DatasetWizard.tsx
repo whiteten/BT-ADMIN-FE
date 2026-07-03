@@ -9,8 +9,8 @@ import { CSS } from '@dnd-kit/utilities';
 import CodeMirror, { type Extension } from '@uiw/react-codemirror';
 import type { CellStyle, ColDef, ICellRendererParams, IHeaderParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { AutoComplete, type BreadcrumbProps, Button, Checkbox, Col, Divider, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
-import { CheckCircle2, Edit2, Play, Plus, Trash2, Wand2 } from 'lucide-react';
+import { type BreadcrumbProps, Button, Checkbox, Col, Divider, Form, type FormInstance, type FormProps, Input, Row, Select, Steps, Tag, Tooltip } from 'antd';
+import { AlertTriangle, CheckCircle2, Edit2, Info, Play, Plus, Trash2, Wand2 } from 'lucide-react';
 import { format as formatSql } from 'sql-formatter';
 import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -58,17 +58,20 @@ interface DatasetWizardForm {
   lookups: DatasetLookup[];
 }
 
-// ────────── REDIS 키 변수 바인딩 (#name → 런타임 검색조건) ──────────
+// ────────── REDIS 키 변수 바인딩 ({name} 명명 변수 ↔ 런타임 옵션) ──────────
 type KeyVarBind = 'FIELD' | 'DATE';
 type KeyVarDateFormat = 'yyyy' | 'yyyymm' | 'yyyymmdd';
 
-/** 키 패턴의 #변수 1개에 대한 바인딩 설정. BE keyVarBindings JSON 스키마와 1:1 (LITERAL 없음). */
+/**
+ * 키 패턴의 '변수 슬롯' 1개(= `:`로 split 했을 때 `*` 또는 `{name}` 인 세그먼트)의 편집 상태.
+ * name 이 비어 있으면 그 자리는 `*`(순수 와일드카드=전체 조회), name 이 있으면 `{name}`(명명 변수=런타임 치환, 필수).
+ * name 은 곧 옵션 키 = (FIELD) 행 필터 필드명. 저장 시 BE keyVarBindings 는 name 을 key 로 하는 객체가 된다.
+ */
 interface KeyVarBinding {
-  name: string; // 키 패턴의 #name 과 동일
+  segmentIndex: number;
+  name: string; // '' = 미매핑(*), 값 있으면 {name}
   bind: KeyVarBind;
-  field?: string; // FIELD — 행 재검증용 value JSON 필드명
-  format?: KeyVarDateFormat; // DATE 필수
-  fallback: string; // Redis glob (미지정 시 BE가 *)
+  format?: KeyVarDateFormat; // DATE 전용
 }
 
 const KEY_VAR_DATE_FORMAT_OPTIONS: { value: KeyVarDateFormat; label: string }[] = [
@@ -77,51 +80,64 @@ const KEY_VAR_DATE_FORMAT_OPTIONS: { value: KeyVarDateFormat; label: string }[] 
   { value: 'yyyymmdd', label: 'yyyymmdd' },
 ];
 
-/** 키 패턴에서 `#name` 변수명을 등장 순서대로(중복 제거) 추출. */
-function parseKeyVarNames(pattern: string): string[] {
-  const re = /#([A-Za-z0-9_]+)/g;
-  const names: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(pattern)) !== null) {
-    if (!names.includes(m[1])) names.push(m[1]);
-  }
-  return names;
+/** 세그먼트가 정확히 `{name}` 인지 판정 + 이름 추출용. */
+const KEY_VAR_TOKEN = /^\{([A-Za-z0-9_]+)\}$/;
+
+/** 키 패턴의 `{...}`(명명 변수·비정상 입력 포함)를 전부 `*` 로 되돌린 스캔 기준 패턴 — 탐색기 스키마 조회·템플릿 하이라이트에 사용. */
+function toScanBasePattern(pattern: string): string {
+  return pattern ? pattern.replace(/\{[^}]*\}/g, '*') : pattern;
 }
 
-/** 편집 진입 시 detail.keyVarBindings(JSON 문자열) → 바인딩 배열. 파싱 실패/빈값은 빈 배열. */
-function parseKeyVarBindings(json?: string): KeyVarBinding[] {
-  if (!json?.trim()) return [];
+/** 키 패턴을 `:`로 split → 변수 슬롯(`*` 또는 `{name}`)의 위치·이름. `*` → name '', `{x}` → name 'x'. */
+function parseKeyVarSlots(pattern: string): { segmentIndex: number; name: string }[] {
+  if (!pattern) return [];
+  return pattern.split(':').reduce<{ segmentIndex: number; name: string }[]>((acc, seg, idx) => {
+    if (seg === '*') acc.push({ segmentIndex: idx, name: '' });
+    else {
+      const m = KEY_VAR_TOKEN.exec(seg);
+      if (m) acc.push({ segmentIndex: idx, name: m[1] });
+    }
+    return acc;
+  }, []);
+}
+
+/** 편집 진입 시 keyVarBindings(JSON 객체 `{ name: { bind, format } }`) → name별 속성 맵. 파싱 실패/빈값은 빈 맵. */
+function parseKeyVarBindingAttrs(json?: string): Record<string, { bind: KeyVarBind; format?: KeyVarDateFormat }> {
+  if (!json?.trim()) return {};
   try {
     const parsed: unknown = JSON.parse(json);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
-      .filter((x) => typeof x.name === 'string' && x.name)
-      .map((x) => {
-        const bind: KeyVarBind = x.bind === 'DATE' ? 'DATE' : 'FIELD';
-        return {
-          name: x.name as string,
-          bind,
-          field: typeof x.field === 'string' ? x.field : undefined,
-          format: x.format === 'yyyy' || x.format === 'yyyymm' || x.format === 'yyyymmdd' ? x.format : undefined,
-          fallback: typeof x.fallback === 'string' && x.fallback ? x.fallback : '*',
-        };
-      });
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, { bind: KeyVarBind; format?: KeyVarDateFormat }> = {};
+    for (const [name, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!name) continue;
+      const attr = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+      const bind: KeyVarBind = attr.bind === 'DATE' ? 'DATE' : 'FIELD';
+      const format = attr.format === 'yyyy' || attr.format === 'yyyymm' || attr.format === 'yyyymmdd' ? (attr.format as KeyVarDateFormat) : undefined;
+      out[name] = { bind, format };
+    }
+    return out;
   } catch {
-    return [];
+    return {};
   }
 }
 
-/** 바인딩 배열 → 저장용 JSON 문자열 (BE 스키마). FIELD는 field(있으면)·fallback, DATE는 format·fallback. */
-function serializeKeyVarBindings(vars: KeyVarBinding[]): string {
-  const out = vars.map((v) => {
-    const fb = v.fallback?.trim() ? v.fallback.trim() : '*';
-    if (v.bind === 'DATE') {
-      return { name: v.name, bind: 'DATE', format: v.format ?? 'yyyymmdd', fallback: fb };
-    }
-    const fieldVal = v.field?.trim();
-    return fieldVal ? { name: v.name, bind: 'FIELD', field: fieldVal, fallback: fb } : { name: v.name, bind: 'FIELD', fallback: fb };
+/** 편집 진입 시 저장된 패턴 + 바인딩 → keyVars 재구성. 슬롯 위치·이름은 패턴에서, bind/format 은 바인딩(name 매칭)에서. */
+function buildKeyVarsFromDetail(pattern: string, bindingsJson?: string): KeyVarBinding[] {
+  const attrs = parseKeyVarBindingAttrs(bindingsJson);
+  return parseKeyVarSlots(pattern).map((s) => {
+    const a = s.name ? attrs[s.name] : undefined;
+    return { segmentIndex: s.segmentIndex, name: s.name, bind: a?.bind ?? 'FIELD', format: a?.format };
   });
+}
+
+/** 매핑한(name 있는) 슬롯만 name-key 객체로 직렬화. 미매핑(`*`)은 제외. DATE는 format(기본 yyyymmdd) 포함. */
+function serializeKeyVarBindings(vars: KeyVarBinding[]): string {
+  const out: Record<string, { bind: KeyVarBind; format?: KeyVarDateFormat }> = {};
+  for (const v of vars) {
+    const name = v.name?.trim();
+    if (!name) continue; // 미매핑 * 는 바인딩에 넣지 않음
+    out[name] = v.bind === 'DATE' ? { bind: 'DATE', format: v.format ?? 'yyyymmdd' } : { bind: 'FIELD' };
+  }
   return JSON.stringify(out);
 }
 
@@ -735,8 +751,10 @@ export default function DatasetWizard() {
   const keyUserPickedRef = useRef(false);
   // 검증 결과 모달 — 실패·경고 시에만 노출 (통과+경고없음은 토스트만)
   const validationModalRef = useRef<SourceValidationResultModalRef>(null);
-  // REDIS 키 변수 바인딩 — 키 패턴의 #변수를 런타임 검색조건에 매핑. 폼이 아닌 로컬 상태로 관리(저장 시 JSON 직렬화)
+  // REDIS 키 변수 — 슬롯(`*`/`{name}`)을 로컬 상태로 관리. 이름 지정 시 {name}(런타임 치환), 비우면 * (전체). 저장 시 name-key JSON 직렬화
   const [keyVars, setKeyVars] = useState<KeyVarBinding[]>([]);
+  // 선택한 Redis 키의 사전 표시명/설명 — 기본 정보 화면 안내용 (스키마 로드 시 반영)
+  const [keyInfo, setKeyInfo] = useState<{ name: string | null; desc: string | null }>({ name: null, desc: null });
 
   // 편집 모드 — 기존 데이터셋 로드
   const { data: detail } = useGetMonitoringDataset({ params: { datasetId }, queryOptions: { enabled: isEdit, retry: false } });
@@ -757,16 +775,16 @@ export default function DatasetWizard() {
         lookups: detail.lookups ?? [],
       });
       setSourceValidated(true);
-      // 키 변수 바인딩 초기값 — 저장된 JSON 파싱 (이후 reconcile 효과가 현재 키 패턴과 정합)
-      setKeyVars(parseKeyVarBindings(detail.keyVarBindings));
+      // 키 변수 초기값 — 저장된 패턴({name} 포함) + 바인딩(name별 속성)으로 재구성 (이후 reconcile 이 패턴과 정합 유지)
+      setKeyVars(buildKeyVarsFromDetail(detail.schemaSnapshot ?? '', detail.keyVarBindings));
     }
   }, [detail, form]);
 
   // 폼 값 실시간 추적 (스텝 렌더링용)
   const formValues = Form.useWatch([], form);
 
-  // 키 변수 reconcile — REDIS 키 패턴의 #변수와 keyVars 정합.
-  // 사라진 변수는 제거, 새 변수는 기본값(FIELD, fallback '*')으로 추가, 기존 설정은 보존. REDIS가 아니면 비움.
+  // 키 변수 reconcile — REDIS 키 패턴의 슬롯(`*`/`{name}`)과 keyVars 정합.
+  // 슬롯 위치·name 은 패턴에서 취하고, bind/format 은 기존 설정을 index로 보존. 사라진 슬롯 제거, 새 슬롯 추가. REDIS가 아니면 비움.
   const schemaSnapshotWatch = (formValues?.schemaSnapshot ?? '') as string;
   const baseTypeWatch = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
   useEffect(() => {
@@ -774,18 +792,42 @@ export default function DatasetWizard() {
       setKeyVars((prev) => (prev.length ? [] : prev));
       return;
     }
-    const names = parseKeyVarNames(schemaSnapshotWatch);
+    const slots = parseKeyVarSlots(schemaSnapshotWatch);
     setKeyVars((prev) => {
-      const byName = new Map(prev.map((v) => [v.name, v]));
-      const next: KeyVarBinding[] = names.map((n) => byName.get(n) ?? { name: n, bind: 'FIELD', fallback: '*' });
-      const same = next.length === prev.length && next.every((v, i) => v === prev[i]);
+      const byIndex = new Map(prev.map((v) => [v.segmentIndex, v]));
+      const next: KeyVarBinding[] = slots.map((s) => {
+        const ex = byIndex.get(s.segmentIndex);
+        return ex ? { ...ex, name: s.name } : { segmentIndex: s.segmentIndex, name: s.name, bind: 'FIELD' };
+      });
+      const same =
+        next.length === prev.length &&
+        next.every((v, idx) => {
+          const p = prev[idx];
+          return p && p.segmentIndex === v.segmentIndex && p.name === v.name && p.bind === v.bind && p.format === v.format;
+        });
       return same ? prev : next;
     });
   }, [schemaSnapshotWatch, baseTypeWatch]);
 
-  const updateKeyVar = useCallback((name: string, patch: Partial<KeyVarBinding>) => {
-    setKeyVars((prev) => prev.map((v) => (v.name === name ? { ...v, ...patch } : v)));
+  const updateKeyVar = useCallback((segmentIndex: number, patch: Partial<KeyVarBinding>) => {
+    setKeyVars((prev) => prev.map((v) => (v.segmentIndex === segmentIndex ? { ...v, ...patch } : v)));
   }, []);
+
+  // 슬롯에 이름(field) 매핑 — keyVars.name 즉시 반영 + 패턴 세그먼트를 `{name}`(빈값이면 `*`)으로 재작성.
+  // 이름을 지우면 그 자리는 `*`(순수 와일드카드=전체 조회)로 되돌아간다.
+  const updateKeyVarName = useCallback(
+    (segmentIndex: number, name: string) => {
+      const trimmed = name.trim();
+      setKeyVars((prev) => prev.map((v) => (v.segmentIndex === segmentIndex ? { ...v, name: trimmed } : v)));
+      const cur = (form.getFieldValue('schemaSnapshot') as string) ?? '';
+      const segs = cur.split(':');
+      if (segmentIndex >= 0 && segmentIndex < segs.length) {
+        segs[segmentIndex] = trimmed ? `{${trimmed}}` : '*';
+        form.setFieldsValue({ schemaSnapshot: segs.join(':') });
+      }
+    },
+    [form],
+  );
 
   // Breadcrumb
   const datasetNameWatch = Form.useWatch('datasetName', form);
@@ -835,14 +877,17 @@ export default function DatasetWizard() {
   // REDIS 키 선택 → 스키마 로드 시 데이터셋 필드/값모드 자동 채움 (검증 버튼 대체).
   // 편집 첫 로드처럼 사용자가 직접 고르지 않은 경우엔 기존 저장 필드를 덮지 않는다.
   const handleRedisSchemaLoaded = (schema: RedisKeySchema) => {
+    // 키 사전 표시명/설명은 항상 반영 (편집 첫 로드 포함) — 기본 정보 안내용
+    setKeyInfo({ name: schema.keyDisplayName ?? null, desc: schema.keyDescription ?? null });
     if (!keyUserPickedRef.current) return;
     if (schema.valueMode) form.setFieldsValue({ valueMode: schema.valueMode });
     if (schema.columns.length > 0) {
       const fields: DatasetField[] = schema.columns.map((c, idx) => ({
         fieldName: c.columnName,
-        displayName: c.columnName,
-        // 데이터타입 기준 — STRING은 차원(DIM), 그 외(NUMBER/DATE 등)는 측정값(MSR)
-        classification: c.dataType === 'STRING' ? 'DIM' : 'MSR',
+        // 필드 사전(comment=한글명)이 있으면 표시명 기본값으로 사용, 없으면 영문 컬럼명
+        displayName: c.comment?.trim() ?? c.columnName,
+        // 필드 사전 분류(DIM/MSR) 우선, 없으면 데이터타입 폴백 — NUMBER는 측정값(MSR), 그 외는 차원(DIM)
+        classification: c.classification ?? (c.dataType === 'NUMBER' ? 'MSR' : 'DIM'),
         dataType: c.dataType as FieldDataType,
         columnFormat: c.columnFormat as ColumnFormat,
         isVisible: true,
@@ -896,8 +941,8 @@ export default function DatasetWizard() {
             const fields: DatasetField[] = result.detectedColumns.map((c, idx) => ({
               fieldName: c.columnName,
               displayName: c.columnName,
-              // 데이터타입 기준 — STRING은 차원(DIM), 그 외(NUMBER/DATE 등)는 측정값(MSR)
-              classification: c.dataType === 'STRING' ? 'DIM' : 'MSR',
+              // 필드 사전 분류(DIM/MSR) 우선, 없으면 데이터타입 폴백 — NUMBER는 측정값(MSR), 그 외는 차원(DIM)
+              classification: c.classification ?? (c.dataType === 'NUMBER' ? 'MSR' : 'DIM'),
               dataType: c.dataType as FieldDataType,
               columnFormat: c.columnFormat as ColumnFormat,
               isVisible: true, // 모니터링 기본 — 모든 컬럼 노출
@@ -1112,8 +1157,113 @@ export default function DatasetWizard() {
     // 기본 정보 + 데이터셋 소스 통합 단계 (통계 WizardStepA 패턴 — 이름·설명·태그 + 소스 선택)
     const text = (formValues?.schemaSnapshot ?? '') as string;
     const baseType = (formValues?.baseType ?? 'REDIS') as DatasetBaseType;
-    // 키 변수 FIELD 자동완성 후보 — 추출된 데이터셋 필드명
+    // 키 변수 FIELD 후보 — 추출된 데이터셋(우측 스키마) 필드명
     const keyVarFieldOptions = ((formValues?.fields as DatasetField[]) ?? []).map((f) => ({ value: f.fieldName, label: f.fieldName }));
+    // 매핑된(=이름 있는 {name}) 슬롯 개수. 나머지는 * (전체 조회).
+    const mappedCount = keyVars.filter((v) => v.name?.trim()).length;
+    const wildcardCount = keyVars.length - mappedCount;
+    // 키 패턴 세그먼트 — 슬롯 위치 라벨 렌더용
+    const keySegments = text.split(':');
+
+    // ── 키 변수 매핑 — 탐색기의 3번째 열. 이름을 지정하면 {name}(필수 치환), 비우면 * (전체 조회) ──
+    const keyVarSlotNode =
+      keyVars.length > 0 ? (
+        <>
+          {/* 헤더 바 — 필드 스키마 열과 동일 톤 */}
+          <div className="flex items-center justify-between gap-2 border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 px-3 py-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
+                <AlertTriangle className="size-3.5 shrink-0 text-[var(--color-bt-primary)]" />키 변수 — 매핑 {mappedCount} / 슬롯 {keyVars.length}
+              </div>
+              <div className="mt-0.5 text-[10.5px] text-gray-400">
+                이름을 지정하면 <span className="font-mono">{'{name}'}</span> 로 런타임 치환(필수), 비우면 <span className="font-mono">*</span> 전체 조회
+              </div>
+            </div>
+            {wildcardCount > 0 && <Tag className="!mr-0 shrink-0 !text-[10px]">전체 * {wildcardCount}</Tag>}
+          </div>
+          {/* 본문 — 카드 세로 스택, 자체 스크롤 */}
+          <div className="min-h-0 flex-1 space-y-2 overflow-auto p-3">
+            {keyVars.map((v) => {
+              const mapped = !!v.name?.trim();
+              return (
+                <div key={v.segmentIndex} className="rounded border border-[var(--color-bt-border)] bg-white px-2.5 py-2">
+                  {/* 위치 라벨 — 현재 슬롯을 강조({name} 또는 *) + 세그먼트 N + 상태 칩 */}
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="font-mono text-[12px] leading-tight">
+                      {keySegments.map((seg, i) => (
+                        <span key={i}>
+                          {i > 0 && <span className="text-gray-400">:</span>}
+                          {i === v.segmentIndex ? (
+                            <span className="rounded bg-[var(--color-bt-primary-soft)] px-1 font-semibold text-[var(--color-bt-primary)]">{mapped ? `{${v.name}}` : '*'}</span>
+                          ) : (
+                            <span className={seg === '*' ? 'text-gray-400' : 'text-gray-700'}>{seg}</span>
+                          )}
+                        </span>
+                      ))}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      <span className="text-[10px] text-[var(--color-bt-fg-muted)]">세그먼트 {v.segmentIndex}</span>
+                      {mapped ? (
+                        <Tag color="blue" className="!mr-0 !text-[10px]">
+                          매핑
+                        </Tag>
+                      ) : (
+                        <Tag className="!mr-0 !text-[10px]">전체 *</Tag>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      size="small"
+                      value={v.bind}
+                      style={{ width: 88 }}
+                      onChange={(b) => updateKeyVar(v.segmentIndex, { bind: b as KeyVarBind })}
+                      options={[
+                        { value: 'FIELD', label: '필드' },
+                        { value: 'DATE', label: '날짜' },
+                      ]}
+                    />
+                    {v.bind === 'FIELD' ? (
+                      // 검색어(타이핑)는 옵션 필터에만 쓰이고 값이 아니다 — 항목을 실제로 고르거나 비울 때만 onChange 발생.
+                      // (AutoComplete는 타이핑마다 onChange가 값으로 반영돼, '*' 검색 입력이 패턴을 {*}로 바꿔 스키마 요청을 유발했음)
+                      <Select
+                        size="small"
+                        style={{ flex: 1, minWidth: 160 }}
+                        value={v.name || undefined}
+                        onChange={(val) => updateKeyVarName(v.segmentIndex, (val as string) ?? '')}
+                        options={keyVarFieldOptions}
+                        showSearch
+                        optionFilterProp="label"
+                        placeholder="필드 선택 → {name} (미선택 시 * 전체)"
+                        allowClear
+                        notFoundContent="추출된 필드 없음"
+                      />
+                    ) : (
+                      <>
+                        <Select
+                          size="small"
+                          style={{ width: 120 }}
+                          value={v.format ?? 'yyyymmdd'}
+                          onChange={(f) => updateKeyVar(v.segmentIndex, { format: f as KeyVarDateFormat })}
+                          options={KEY_VAR_DATE_FORMAT_OPTIONS}
+                        />
+                        <Input
+                          size="small"
+                          style={{ flex: 1, minWidth: 140 }}
+                          value={v.name}
+                          onChange={(e) => updateKeyVarName(v.segmentIndex, e.target.value)}
+                          allowClear
+                          placeholder="파라미터 이름 → {name} (예: baseDate)"
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      ) : null;
 
     // 카드 활성/비활성 시각 분리. 편집 모드에서는 비선택 카드를 클릭 불가(disabled)로 명시
     const cardClass = (selected: boolean) => {
@@ -1264,78 +1414,33 @@ export default function DatasetWizard() {
           <div className="mb-2 flex items-center gap-2">
             <span className="text-[12px] font-semibold text-gray-700">Redis 키</span>
             <span className="rounded bg-[var(--color-bt-primary)] px-1.5 py-0.5 font-mono text-[10px] font-bold text-white">REDIS</span>
-            <span className="text-[11px] text-gray-500">키를 선택하면 필드가 자동으로 채워집니다.</span>
+            <span className="text-[11px] text-gray-500">키 선택 → 우측에서 필드 확인 → 변수가 있으면 맨 우측 열에서 할당합니다.</span>
           </div>
-          {/* QUERY 영역과 동일한 고정 높이 — 키 목록이 영역 안에서 스크롤 */}
-          <div className="h-[380px]">
-            <RedisTreeExplorer value={baseType === 'REDIS' ? text : ''} onChange={handleSchemaChange} onSchemaLoaded={handleRedisSchemaLoaded} />
-          </div>
-
-          {/* ── 키 변수 — 키 패턴의 #변수를 런타임 검색조건에 바인딩 ── */}
-          {keyVars.length > 0 && (
-            <div className="mt-4 rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/30 p-3">
-              <div className="mb-2 flex items-center gap-2">
-                <span className="text-[12px] font-semibold text-gray-700">키 변수</span>
-                <span className="text-[11px] text-gray-500">
-                  키 패턴의 <span className="font-mono">#변수</span>를 런타임 검색조건에 바인딩합니다. (FIELD=value 필드 / DATE=날짜 포맷)
-                </span>
-              </div>
-              <div className="space-y-2">
-                {keyVars.map((v) => (
-                  <div key={v.name} className="flex flex-wrap items-center gap-2">
-                    <span className="w-32 shrink-0 truncate font-mono text-[12px] font-semibold text-[var(--color-bt-primary)]">#{v.name}</span>
-                    <Select
-                      size="small"
-                      value={v.bind}
-                      style={{ width: 96 }}
-                      onChange={(b) => updateKeyVar(v.name, { bind: b as KeyVarBind })}
-                      options={[
-                        { value: 'FIELD', label: '필드' },
-                        { value: 'DATE', label: '날짜' },
-                      ]}
-                    />
-                    {v.bind === 'FIELD' ? (
-                      <AutoComplete
-                        size="small"
-                        style={{ width: 220 }}
-                        value={v.field ?? ''}
-                        onChange={(val) => updateKeyVar(v.name, { field: val })}
-                        options={keyVarFieldOptions}
-                        filterOption={(input, option) =>
-                          String(option?.value ?? '')
-                            .toLowerCase()
-                            .includes(input.toLowerCase())
-                        }
-                        placeholder="value 필드명 (예: MEDIA_TYPE)"
-                        allowClear
-                      />
-                    ) : (
-                      <Select
-                        size="small"
-                        style={{ width: 132 }}
-                        value={v.format ?? 'yyyymmdd'}
-                        onChange={(f) => updateKeyVar(v.name, { format: f as KeyVarDateFormat })}
-                        options={KEY_VAR_DATE_FORMAT_OPTIONS}
-                      />
-                    )}
-                    <Input
-                      size="small"
-                      style={{ width: 200 }}
-                      value={v.fallback}
-                      onChange={(e) => updateKeyVar(v.name, { fallback: e.target.value })}
-                      addonBefore="fallback"
-                      placeholder="* (예: [0-9]*)"
-                    />
-                  </div>
-                ))}
+          {/* 선택한 키의 사전 표시명/설명 — 사전에 등록된 키일 때만 노출 */}
+          {(keyInfo.name || keyInfo.desc) && (
+            <div className="mb-2 flex items-start gap-2 rounded border border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 px-3 py-2">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-[var(--color-bt-primary)]" />
+              <div className="min-w-0 text-[11.5px] leading-snug">
+                {keyInfo.name && <span className="font-semibold text-gray-700">{keyInfo.name}</span>}
+                {keyInfo.name && keyInfo.desc && <span className="mx-1 text-gray-300">·</span>}
+                {keyInfo.desc && <span className="text-gray-500">{keyInfo.desc}</span>}
               </div>
             </div>
           )}
+          {/* 좌→우 3열: 키 목록 | 필드 스키마 | 키 변수(변수 있을 때). QUERY(560)와 동일한 고정 높이 — 넘치면 스텝 본문이 스크롤된다. */}
+          <div className="h-[560px]">
+            <RedisTreeExplorer
+              value={baseType === 'REDIS' ? toScanBasePattern(text) : ''}
+              onChange={handleSchemaChange}
+              onSchemaLoaded={handleRedisSchemaLoaded}
+              keyVarSlot={keyVarSlotNode}
+            />
+          </div>
         </div>
 
         {/* ── QUERY 입력 — 좌: SQL 쿼리 / 우: 필드 스키마(검증 시 표시) ── 스크롤 컨텍스트라 고정 높이 사용 */}
         {baseType === 'QUERY' && (
-          <div className="flex h-[380px] gap-3 overflow-hidden">
+          <div className="flex h-[560px] gap-3 overflow-hidden">
             {/* 좌측: SQL 쿼리 */}
             <div className="flex w-1/2 min-w-0 flex-col">
               <div className="mb-2 flex items-center justify-between gap-2">

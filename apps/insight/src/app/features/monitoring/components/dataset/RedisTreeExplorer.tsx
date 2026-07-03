@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Input, Tag, Tooltip } from 'antd';
 import { Database, RefreshCw, Search } from 'lucide-react';
 import FieldSchemaList from './FieldSchemaList';
@@ -12,6 +12,8 @@ interface RedisTreeExplorerProps {
   onChange: (keyPattern: string) => void;
   /** 선택한 템플릿의 필드 스키마가 로드되면 호출 — 부모가 데이터셋 필드/값모드를 채우는 데 사용. */
   onSchemaLoaded?: (schema: RedisKeySchema) => void;
+  /** 선택한 키에 `*`(변수)가 있을 때 필드 스키마 오른쪽에 3번째 열로 붙일 '키 변수 할당' UI. 없으면 열 자체가 미표시. */
+  keyVarSlot?: ReactNode;
 }
 
 /** 필드 source(JSON/HASH_FIELD/KEY_SEGMENT) → 표시 라벨·색. */
@@ -43,7 +45,7 @@ function renderPattern(pattern: string) {
  * 다룬다. 그래서 트리가 아니라 <b>플랫 키 템플릿 리스트</b>로 보여준다 — 가변 세그먼트는 '*'({변수})로
  * 묶이고, 템플릿을 고르면 그 패턴이 데이터셋 키가 된다. 우측엔 필드 스키마 + '*' 자리(필터 차원)만 표시한다.
  */
-export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded }: RedisTreeExplorerProps) {
+export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded, keyVarSlot }: RedisTreeExplorerProps) {
   const [search, setSearch] = useState('');
   // 새로고침 카운터 — 화면 로드 시 0(1회 조회), 버튼 클릭마다 증가해 강제 재스캔. 탭 이동에는 변하지 않아 재조회 없음.
   const [refreshTick, setRefreshTick] = useState(0);
@@ -69,8 +71,8 @@ export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded }: R
 
   return (
     <div className="flex h-full overflow-hidden rounded border border-[var(--color-bt-border)]">
-      {/* ── 좌측: 플랫 키 템플릿 리스트 ── */}
-      <div className="flex w-2/5 min-w-[240px] flex-col border-r border-[var(--color-bt-border)]">
+      {/* ── 1열: 플랫 키 템플릿 리스트 ── */}
+      <div className="flex min-w-[260px] flex-1 flex-col border-r border-[var(--color-bt-border)]">
         <div className="flex items-center gap-2 border-b border-[var(--color-bt-border)] px-3 py-2">
           <Input
             size="small"
@@ -133,8 +135,8 @@ export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded }: R
         </div>
       </div>
 
-      {/* ── 우측: 선택 템플릿의 필드 스키마 (실제 값은 표시하지 않음) ── */}
-      <div className="flex w-3/5 min-w-0 flex-col">
+      {/* ── 2열: 선택 템플릿의 필드 스키마 (실제 값은 표시하지 않음) ── */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between gap-2 border-b border-[var(--color-bt-border)] bg-[var(--color-bt-bg-muted)]/40 px-3 py-2">
           <div className="min-w-0">
             <div className="text-[11px] font-semibold text-gray-500">필드 스키마</div>
@@ -172,6 +174,9 @@ export default function RedisTreeExplorer({ value, onChange, onSchemaLoaded }: R
           </div>
         )}
       </div>
+
+      {/* ── 3열: 키 변수 할당 — 선택 키에 `*`(변수)가 있을 때만 노출 (부모가 slot으로 주입) ── */}
+      {keyVarSlot ? <div className="flex w-[340px] shrink-0 flex-col border-l border-[var(--color-bt-border)]">{keyVarSlot}</div> : null}
     </div>
   );
 }
