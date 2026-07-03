@@ -5,12 +5,22 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { ieWorktimeApi } from '../api/ieWorktimeApi';
-import type { IeWorktimeMaster, IeWorktimeSlot } from '../types';
+import type { IeWorktimeMaster, IeWorktimeSlot, IeWorktimeTenantStat } from '../types';
 
 export const ieWorktimeQueryKeys = createQueryKeys('ie-worktime', {
   getList: (params?: Record<string, unknown>) => [params],
   getSlots: (id?: number) => [id],
+  getTenantStats: null,
 });
+
+// ─── 테넌트 통계 ─────────────────────────────────────────
+export const useGetIeWorktimeTenantStats = ({ queryOptions }: QueryHookOptions<IeWorktimeTenantStat[]> = {}) => {
+  return useQuery({
+    queryKey: ieWorktimeQueryKeys.getTenantStats.queryKey,
+    queryFn: () => ieWorktimeApi.getTenantStats(),
+    ...queryOptions,
+  });
+};
 
 // ─── 마스터 ──────────────────────────────────────────────
 export const useGetIeWorktimes = ({ params, queryOptions }: QueryHookWithParamsOptions<IeWorktimeMaster[]> = {}) => {

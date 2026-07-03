@@ -6,7 +6,7 @@
  *
  * 레이아웃 (테넌트 구조 화면 표준 — cti-code/agent-master 패턴):
  *   박스 1: 헤더 (타이틀 + 선택 테넌트)
- *   박스 2: 테넌트 카드 슬라이더 (availableTenants 베이스 + 목록 group by 통계, 접기/펼치기)
+ *   박스 2: 테넌트 카드 슬라이더 (BE tenant-stats — TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙, 접기/펼치기)
  *   박스 3: 검색/등록/삭제 액션바 + ag-Grid (균일 행)
  *
  * 테넌트 파라미터: 조회는 BE @Filter(JWT) 자동 격리 → 관리자면 전체 행 수신, FE 에서
@@ -21,7 +21,14 @@ import { toast } from '@/shared-util';
 import WorktimeDrawer from '../../features/worktime/components/IrWorktimeDrawer';
 import WorktimeTable from '../../features/worktime/components/WorktimeTable';
 import WorktimeTenantCard, { type WorktimeTenantCardStats } from '../../features/worktime/components/WorktimeTenantCard';
-import { irWorktimeQueryKeys, useCreateIrWorktime, useDeleteIrWorktime, useGetIrWorktimes, useUpdateIrWorktime } from '../../features/worktime/hooks/useIrWorktimeQueries';
+import {
+  irWorktimeQueryKeys,
+  useCreateIrWorktime,
+  useDeleteIrWorktime,
+  useGetIrWorktimeTenantStats,
+  useGetIrWorktimes,
+  useUpdateIrWorktime,
+} from '../../features/worktime/hooks/useIrWorktimeQueries';
 import type { IrWorktime, IrWorktimeRequest } from '../../features/worktime/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -48,7 +55,6 @@ export default function IrWorktimeList() {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
-  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants) ?? [];
 
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
@@ -66,33 +72,23 @@ export default function IrWorktimeList() {
   }, [ctxTenantId]);
 
   const { data: list = [], isLoading } = useGetIrWorktimes();
+  const { data: tenantStats = [] } = useGetIrWorktimeTenantStats();
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: irWorktimeQueryKeys.getList._def });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: irWorktimeQueryKeys.getList._def });
+    void queryClient.invalidateQueries({ queryKey: irWorktimeQueryKeys.getTenantStats.queryKey });
+  };
 
-  // ─── 테넌트 카드 데이터: availableTenants 베이스 + 목록 group by (별도 통계 API 없음) ───
-  const tenantCards = useMemo(() => {
-    const statMap = new Map<number, WorktimeTenantCardStats & { tenantName: string | null }>();
-    for (const r of list) {
-      if (r.tenantId == null) continue;
-      const s = statMap.get(r.tenantId) ?? { tenantName: r.tenantName, worktimeCnt: 0, useCnt: 0 };
-      s.worktimeCnt += 1;
-      if (r.useYn === 1) s.useCnt += 1;
-      statMap.set(r.tenantId, s);
-    }
-    // availableTenants(0건 포함) + 목록에만 있는 테넌트 병합
-    const cards = availableTenants.map((t) => ({
-      tenantId: t.tenantId,
-      tenantName: t.tenantName,
-      stats: { worktimeCnt: statMap.get(t.tenantId)?.worktimeCnt ?? 0, useCnt: statMap.get(t.tenantId)?.useCnt ?? 0 },
-    }));
-    const known = new Set(cards.map((c) => c.tenantId));
-    for (const [tenantId, s] of statMap) {
-      if (!known.has(tenantId)) {
-        cards.push({ tenantId, tenantName: s.tenantName ?? `#${tenantId}`, stats: { worktimeCnt: s.worktimeCnt, useCnt: s.useCnt } });
-      }
-    }
-    return cards.sort((a, b) => a.tenantId - b.tenantId);
-  }, [list, availableTenants]);
+  // ─── 테넌트 카드: BE tenant-stats (TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙 — ADN 패턴) ───
+  const tenantCards = useMemo(
+    () =>
+      tenantStats.map((t) => ({
+        tenantId: t.tenantId,
+        tenantName: t.tenantName ?? `#${t.tenantId}`,
+        stats: { worktimeCnt: t.worktimeCnt, useCnt: t.useCnt } satisfies WorktimeTenantCardStats,
+      })),
+    [tenantStats],
+  );
 
   const selectedTenantName = selectedTenantId == null ? null : (tenantCards.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
 

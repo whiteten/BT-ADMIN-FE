@@ -47,19 +47,17 @@ export default function PbxWorktimeSlotTable({ rowData, isLoading, focusSeq, onR
 
   const colDefs: ColDef<IeWorktimeSlot>[] = useMemo(
     () => [
-      { field: 'listSeq', headerName: '순번', width: 80, filter: 'agNumberColumnFilter' },
       {
         headerName: '적용요일',
-        flex: 2,
-        minWidth: 160,
+        width: 200,
         valueGetter: (p) => byteToLabels(p.data?.weekdayByte).join('·') || '-',
       },
-      { headerName: '시작시간', width: 110, valueGetter: (p) => displayHHMM(p.data?.startTime) },
-      { headerName: '종료시간', width: 110, valueGetter: (p) => displayHHMM(p.data?.finishTime) },
+      { headerName: '시작시간', width: 100, valueGetter: (p) => displayHHMM(p.data?.startTime) },
+      { headerName: '종료시간', width: 100, valueGetter: (p) => displayHHMM(p.data?.finishTime) },
       {
         field: 'useYn',
         headerName: '사용여부',
-        width: 100,
+        width: 90,
         cellRenderer: (p: { value: number | null }) => (p.value === 1 ? <span className="text-blue-600 font-medium">사용</span> : <span className="text-gray-400">미사용</span>),
       },
     ],

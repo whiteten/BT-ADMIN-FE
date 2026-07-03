@@ -44,6 +44,7 @@ export default function WorktimeTable({ rowData, isLoading, focusId, onRowDouble
 
   const colDefs: ColDef<IrWorktime>[] = useMemo(
     () => [
+      { field: 'tenantName', headerName: '테넌트명', flex: 1, minWidth: 120, valueGetter: (p) => p.data?.tenantName ?? '-', tooltipField: 'tenantName' },
       { field: 'worktimeName', headerName: '업무시간명', flex: 2, minWidth: 160, tooltipField: 'worktimeName' },
       { field: 'groupKey', headerName: '업무시간KEY', flex: 1, minWidth: 130, tooltipField: 'groupKey' },
       {
