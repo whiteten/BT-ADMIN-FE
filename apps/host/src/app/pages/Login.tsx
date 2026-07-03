@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
-import { Lock, TriangleAlert, User, Users } from 'lucide-react';
+import { Lock, TriangleAlert, User } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import styles from './Login.module.scss';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '../components/ChangePasswordDialog';
-import { TenantSelectionDialog, type TenantSelectionDialogRef } from '../components/TenantSelectionDialog';
 import { authApi } from '../features/auth/api/authApi';
 import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
 import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
@@ -19,7 +18,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const changePasswordDialogRef = useRef<ChangePasswordDialogRef>(null);
-  const tenantSelectionDialogRef = useRef<TenantSelectionDialogRef>(null);
   const [pendingLoginResponse, setPendingLoginResponse] = useState<LoginResponse | null>(null);
   const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy | undefined>(undefined);
   const { setPasswordExpiringWarning } = useAuthStore();
@@ -71,7 +69,6 @@ export default function Login() {
         }
         setRememberMeData({
           userAccount: rememberMeData.rememberMe ? form.getFieldValue('userAccount') : '',
-          tenant: rememberMeData.rememberMe ? form.getFieldValue('tenant') : '',
           rememberMe: rememberMeData.rememberMe,
         });
         // Navigate to main page
@@ -142,16 +139,8 @@ export default function Login() {
             toast.warning(errorData.error_description ?? '로그인 시도 횟수를 초과하여 계정이 일시적으로 잠겼습니다.', { autoClose: false });
             break;
 
-          case 'tenant_required': {
-            const candidates = errorData.available_tenants;
-            if (candidates && candidates.length > 0) {
-              tenantSelectionDialogRef.current?.open({ tenants: candidates });
-            } else {
-              // 후보가 비어 있으면 기존 안내로 폴백 (입력란 직접 사용)
-              toast.warning(errorData.error_description ?? '멀티테넌트 계정입니다. 테넌트를 입력해주세요.');
-            }
-            break;
-          }
+          // tenant_required: 멀티테넌트 개편으로 BE가 기본 테넌트 자동 진입 →
+          // 이 에러는 더 이상 발생하지 않음. (강제 선택 다이얼로그 제거)
 
           case 'account_dormant':
             toast.error(errorData.error_description ?? '휴면 계정입니다. 관리자에게 문의하세요.');
@@ -176,34 +165,16 @@ export default function Login() {
     },
   });
 
-  const onFinish: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinish'] = (values) => {
+  const onFinish: FormProps<{ userAccount: string; password: string }>['onFinish'] = (values) => {
+    // 테넌트 미지정 → BE가 기본(IS_DEFAULT) 테넌트로 자동 진입 (멀티테넌트 강제 선택 제거)
     login({
       userAccount: values.userAccount,
       password: values.password,
-      tenant: values.tenant ?? undefined,
     });
   };
 
-  const onFinishFailed: FormProps<{ userAccount: string; password: string; tenant?: string }>['onFinishFailed'] = (errorInfo) => {
+  const onFinishFailed: FormProps<{ userAccount: string; password: string }>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
-  };
-
-  /**
-   * 사용자가 테넌트 선택 모달에서 항목을 고르면 호출.
-   * 폼에 입력된 자격증명과 선택한 테넌트명으로 로그인 재시도.
-   */
-  const handleTenantSelected = (tenant: { id: number; name: string }) => {
-    const userAccount = form.getFieldValue('userAccount');
-    const password = form.getFieldValue('password');
-    if (!userAccount || !password) {
-      toast.error('아이디와 비밀번호를 다시 입력해주세요.');
-      tenantSelectionDialogRef.current?.close();
-      return;
-    }
-    // 선택한 테넌트로 폼 값을 업데이트(다음 시도/메모이제이션 일관성)
-    form.setFieldValue('tenant', tenant.name);
-    login({ userAccount, password, tenant: tenant.name });
-    tenantSelectionDialogRef.current?.close();
   };
 
   /**
@@ -256,7 +227,6 @@ export default function Login() {
                 initialValues={{
                   userAccount: rememberMeData.rememberMe ? rememberMeData.userAccount : '',
                   password: '',
-                  tenant: rememberMeData.rememberMe ? rememberMeData.tenant : '',
                 }}
               >
                 <Form.Item name="userAccount" label="아이디" rules={[{ required: true, message: '아이디를 입력해주세요' }]} className="!mb-4">
@@ -278,10 +248,6 @@ export default function Login() {
                   }
                 >
                   <Input.Password size="large" placeholder="비밀번호" prefix={<Lock className="h-4 w-4 text-gray-400" />} />
-                </Form.Item>
-
-                <Form.Item name="tenant" label="테넌트명" className="!mb-4">
-                  <Input size="large" placeholder="테넌트명 (멀티테넌트 사용자만 입력)" prefix={<Users className="h-4 w-4 text-gray-400" />} />
                 </Form.Item>
 
                 <Checkbox className="!mb-5" checked={rememberMeData.rememberMe} onChange={(e) => setRememberMeData({ rememberMe: e.target.checked })}>
@@ -320,9 +286,6 @@ export default function Login() {
           form.resetFields();
         }}
       />
-
-      {/* Tenant selection dialog (multi-tenant login) */}
-      <TenantSelectionDialog ref={tenantSelectionDialogRef} onSelect={handleTenantSelected} loading={isPending} />
     </div>
   );
 }
