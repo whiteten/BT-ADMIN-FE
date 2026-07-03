@@ -371,6 +371,7 @@ if (isLoading) return <FallbackSpinner />;
 11. **변형·분기**: 정식 variant(2개 이상)를 가진 path만 `pv` 대신 `<DynamicElement variants={...} />`를 직접 사용("화면 커스터마이징(Variants) 패턴" 참조), queryString 분기 path는 `handle.queryParams`를 선언("queryString 기반 메뉴 분기 패턴" 참조 — `pv` 소켓과 공존 가능)
 12. **페이지 컴포넌트 네이밍은 기능명만**: 페이지 `.tsx` 파일명과 lazy 변수명은 `<기능명>` 또는 `<기능명><역할>`(역할 = `List`·`Create`·`Detail` 등) 형태로 **기능명만** 사용하고, `Page`처럼 "페이지임"을 나타내는 군더더기 접미사를 붙이지 않음. fca를 기준으로 통일 — ❌ `RoleCreatePage`, `NodeListPage`, `AccountPolicyPage` → ✅ `RoleCreate`, `NodeList`, `AccountPolicy`
 13. **탭은 "메뉴 클릭"으로만 열리고 "X"로만 닫힌다 — `navigate`에 탭 전용 옵션 불필요**: 화면 이동은 host가 탭으로 추적한다(host `useTabSync`). 사이드바·즐겨찾기·통합검색 등 **메뉴를 누르면 새 탭**이 열리고(같은 화면도 중복 탭 허용), 페이지 안에서의 `navigate`(목록→상세, 삭제·생성·수정·취소 후 목록 복귀 등)는 **현재 활성 탭의 내용(url)만 바꿀 뿐 새 탭을 만들지 않는다**. 탭은 사용자가 X 버튼으로만 닫으므로, 이동하면서 탭을 닫으려고 `{ replace: true }`를 지정할 필요가 없다(예: 삭제 후 `navigate('../list')`만으로 그 탭이 목록으로 바뀜 — 죽은 탭이 남지 않음). `{ replace: true }`는 순수 브라우저 히스토리 목적(예: 삭제된 상세로 뒤로가기 방지)일 때만 판단해서 사용한다. 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "탭 모델(메뉴 기준 탭 스트립)" 참조
+14. **공개 라우트는 `handle: { public: true }` 선언**: 세션(로그인) 없이 접근 가능해야 하는 화면(공개 전광판 등)은 leaf에 `handle: { public: true } satisfies RouteHandle`(`@/shared-store`)을 선언. host의 `RouteShell`이 문서 로드 시 진입 pathname으로 1회 판정해(SPA 내부 이동은 재판정 없음) 세션 체크·개인화 쿼리·WS 없는 public 트리로 분기한다. **leaf에만 유효** — 그룹(Outlet)에 선언하면 경고 후 무시(과대 공개 방지). 판정 실패(import 실패·타임아웃·매칭 실패 등)는 전부 private 처리(fail-closed). public 화면은 host `PublicRouteGate`가 `Chromeless`를 강제하므로 leaf에 `<Chromeless>` 래퍼를 두지 않으며, 데이터 API 인증은 remote가 스스로 책임진다(host는 화면 접근만 개방). 상세는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "라우팅(routes.tsx) 가이드 → 공개 라우트" 참조
 
 상세 골격·중첩 상세 페이지·공통 라우트 추출 예시는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "라우팅(routes.tsx) 가이드" 섹션 참조.
 
@@ -455,7 +456,7 @@ if (isLoading) return <FallbackSpinner />;
 
 #### 핵심 규칙 (요약)
 
-1. **routes.tsx leaf를 `Chromeless` 래퍼로 감쌈**: `element: <Chromeless>{pv('<key>', Page)}</Chromeless>`(`@/components/custom/Chromeless`). pv 소켓은 유지(변형·custom 키 보존). 페이지는 host `/<remote>` 아래라 Layout을 거친다.
+1. **routes.tsx leaf를 `Chromeless` 래퍼로 감쌈**: `element: <Chromeless>{pv('<key>', Page)}</Chromeless>`(`@/components/custom/Chromeless`). pv 소켓은 유지(변형·custom 키 보존). 페이지는 host `/<remote>` 아래라 Layout을 거친다. **예외 — 공개 라우트(`handle: { public: true }`) leaf는 래퍼를 두지 않음**: host `PublicRouteGate`가 Chromeless를 강제하므로 중복("라우팅 컨벤션" 핵심 규칙 14 참조).
 2. **host에 전용 prefix 라우트 만들지 말 것**: `/aoe-workflow`·`/vel-player` 같은 별도 host 라우트 추가 금지. 그 방식을 없애려고 이 메커니즘이 있다.
 3. **새창은 Layout 통과 경로로**: `window.open('/<remote>/...')`. 창 크기·named window 옵션은 그대로 유지.
 4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal`·`toast` 그대로 동작).

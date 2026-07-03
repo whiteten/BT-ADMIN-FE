@@ -3076,6 +3076,38 @@ const { mutate: deleteBot } = useDeleteBot({
 >
 > ⚠️ **알려진 한계 — cross-remote 상태 보존**: 다른 remote로 갔다가 돌아오면 직전 remote 페이지가 재마운트되어 입력 상태가 유실될 수 있습니다(host 레벨 remote 모듈 keepAlive와 remote 내부 `KeepAliveBoundary` 중첩 이슈). 같은 remote 안의 탭 전환에서는 정상 보존됩니다.
 
+### 10. 공개 라우트(handle.public) — 세션 없이 접근 가능한 화면
+
+세션(로그인) 없이 접근해야 하는 화면(공개 전광판·롤링 등)은 **remote가 routes.tsx leaf에 스스로 선언**합니다. host의 경로 prefix 하드코딩(과거 SessionGuard `PUBLIC_PATH_PREFIXES`)을 대체한 메커니즘입니다.
+
+```tsx
+import type { RouteHandle } from '@/shared-store';
+
+// 공개 leaf — handle.public 선언. <Chromeless> 래퍼는 두지 않는다(host가 강제).
+{
+  path: 'task-view-public/:layoutId/:displayId',
+  handle: { public: true } satisfies RouteHandle,
+  element: <TaskViewPublic />,
+},
+```
+
+#### 동작 방식
+
+- host의 `RouteShell`(`apps/host/src/app/features/router/RouteShell.tsx`)이 **문서 로드 시 진입 pathname으로 1회 판정**합니다. 첫 세그먼트가 remote id면 해당 remote의 `Routes`만 import해 public leaf와 매칭(`publicRoutes.ts`).
+- `public` 판정 → `PublicRouteGate`: 세션 체크·개인화 쿼리(userInfo/navigation/WS ticket)·WS 세션 이벤트가 **트리에 아예 없는** 최소 트리. `Chromeless`를 강제해 chrome(헤더·사이드바·패널)이 노출되지 않습니다(chrome은 private 전용 데이터 의존이라 public에선 성립 불가).
+- `private` 판정 → `PrivateRouteGate`: 기존 4단 가드(SessionGuard → SharedInfoProvider → RouteGuard → WsSessionEventHandler) 조립.
+
+#### 핵심 규칙
+
+- **leaf에만 유효**: 그룹(Outlet) route에 선언하면 host가 경고 로그 후 무시합니다(하위 전파 없음 — 과대 공개 방지).
+- **fail-closed**: 판정 실패는 전부 private 처리 — pathname 이상(연속 슬래시 등), remote import 실패, 10s 타임아웃, 빈 routes(미기동 remote), 매칭 실패. 잘못돼도 "잠긴 화면이 더 잠기는" 방향으로만 틀립니다.
+- **판정은 문서 로드당 1회, SPA 내부 이동은 재판정 없음**: public 화면 진입은 `window.open`(새 문서 로드)이 정상 경로입니다. 재판정하면 판정 대기 중 private 가드가 언마운트되어 Layout keep-alive가 파괴되므로 의도적으로 고정합니다.
+- **`<Chromeless>` 래퍼 금지**: host `PublicRouteGate`가 강제하므로 중복. private+chromeless 화면(녹취 재생·워크플로우 편집기 등)은 여전히 자기 래퍼 필수(chromeless 화면 가이드 참조).
+- **데이터 API 인증은 remote 책임**: host는 화면 접근만 개방합니다. 공개 화면이 호출하는 API의 인증(공개 토큰 등)은 remote가 스스로 처리해야 합니다.
+- **세션이 있어도 public 트리**: 로그인 상태로 public 경로에 진입해도 public 트리로 렌더됩니다(세션 쿠키는 API 요청에 평소처럼 동봉 — "익명도 허용"이지 "익명 강제"가 아님).
+
+레퍼런스: `apps/taskboard/src/app/routes.tsx`의 `task-rolling`·`task-view-public/:layoutId/:displayId` leaf.
+
 ### 정규화 체크리스트 (`/update-remote` 기준)
 
 - [ ] 모든 페이지가 `React.lazy(() => import('./pages/...'))`로 선언되어 있다 (직접 import 없음)
@@ -3468,6 +3500,8 @@ const WorkflowEdit = React.lazy(() => import('./pages/workflow/WorkflowEdit'));
 ```
 
 pv 소켓을 쓰지 않는 leaf면 `<Chromeless><Page /></Chromeless>`로 감쌉니다. **host에 별도 prefix 라우트를 만들지 않습니다.**
+
+> **예외 — 공개 라우트(`handle: { public: true }`) leaf는 래퍼를 두지 않습니다.** host `PublicRouteGate`가 public 트리 전체에 Chromeless를 강제하므로 중복입니다. 이 가이드의 래퍼 규칙은 **인증이 필요한(private) chromeless 화면**에 적용됩니다. 공개 라우트는 "라우팅(routes.tsx) 가이드 → 공개 라우트(handle.public)" 참조.
 
 #### Step 2: 진입 경로 작성
 
