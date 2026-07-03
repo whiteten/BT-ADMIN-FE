@@ -27,6 +27,7 @@ const McpDetail = React.lazy(() => import('./pages/agent-config/McpDetail'));
 const MonitoringDashboard = React.lazy(() => import('./pages/monitoring/MonitoringDashboard'));
 const Chat = React.lazy(() => import('./pages/analysis/Chat'));
 const WorkflowEdit = React.lazy(() => import('./pages/workflow/WorkflowEdit'));
+const DataProviderDb = React.lazy(() => import('./pages/data-provider/DataProviderDb'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('aoe');
@@ -36,10 +37,7 @@ export const routes = [
     path: '/',
     element: <Outlet />,
     children: [
-      {
-        index: true,
-        element: <Navigate to="/" replace />,
-      },
+      // 루트 index redirect는 host(app.tsx)가 담당 — 비활성 remote에서 발동하던 <Navigate to="/"> 제거.
       {
         path: 'agent-config',
         element: <Outlet />,
@@ -123,6 +121,14 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="chat" replace /> },
           { path: 'chat', element: pv('analysis/chat', Chat) },
+        ],
+      },
+      {
+        path: 'data-provider',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="db" replace /> },
+          { path: 'db', element: pv('data-provider/db', DataProviderDb) },
         ],
       },
       // 워크플로우 편집기 — 새창 chromeless 팝업. Layout 통과(antd 컨텍스트 확보) + Chromeless 래퍼가 chrome 제거.

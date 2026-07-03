@@ -4,10 +4,15 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { routes } from './routes';
 import '../styles.css';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import KeepAliveBoundary from '@/components/custom/KeepAliveBoundary';
 
 export function App() {
   const element = useRoutes(routes);
-  return <React.Suspense fallback={<FallbackSpinner />}>{element}</React.Suspense>;
+  return (
+    <React.Suspense fallback={<FallbackSpinner />}>
+      <KeepAliveBoundary>{element}</KeepAliveBoundary>
+    </React.Suspense>
+  );
 }
 
 export default App;

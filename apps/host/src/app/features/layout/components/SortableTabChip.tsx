@@ -1,19 +1,20 @@
 import { useDndContext } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { ChevronsLeft, ChevronsRight } from 'lucide-react';
-import FavoriteChip from './FavoriteChip';
-import type { Favorite } from '@/libs/shared-api/src/lib/types/navi.types';
+import type { OpenTab } from '@/shared-store';
+import TabChip from './TabChip';
 
-interface SortableFavoriteChipProps {
-  favorite: Favorite;
+interface SortableTabChipProps {
+  tab: OpenTab;
+  isActive: boolean;
   /** 가시 목록의 첫 항목 — 왼쪽으로 옮길 수 없으므로 « 숨김 */
   isFirst: boolean;
   /** 가시 목록의 마지막 항목 — 오른쪽으로 옮길 수 없으므로 » 숨김 */
   isLast: boolean;
 }
 
-export default function SortableFavoriteChip({ favorite, isFirst, isLast }: SortableFavoriteChipProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: favorite.menuKey });
+export default function SortableTabChip({ tab, isActive, isFirst, isLast }: SortableTabChipProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tab.id });
   const { active } = useDndContext();
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
@@ -41,7 +42,7 @@ export default function SortableFavoriteChip({ favorite, isFirst, isLast }: Sort
           className="pointer-events-none absolute right-0 top-1/2 size-3.5 -translate-y-1/2 text-white/70 opacity-0 transition-all duration-200 group-hover:translate-x-2.5 group-hover:opacity-100"
         />
       )}
-      <FavoriteChip favorite={favorite} disableTooltip={active !== null} />
+      <TabChip tab={tab} isActive={isActive} disableTooltip={active !== null} />
     </div>
   );
 }

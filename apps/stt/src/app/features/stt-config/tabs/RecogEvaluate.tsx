@@ -265,11 +265,10 @@ export default function RecogEvaluate({ groupCode, groupName, engineCode }: Reco
                   </div>
                 ) : (
                   <div className="flex gap-4 flex-1 min-h-0">
-                    {/* 좌측 50%: 제목 + 범례 + diff */}
                     <div className="flex-1 flex flex-col gap-2 min-h-0">
-                      <div className="shrink-0">
+                      <div className="flex items-center justify-between shrink-0">
                         <p className="text-sm font-semibold text-[#212529]">인식률 측정 결과 비교</p>
-                        <div className="flex items-center gap-4 mt-1">
+                        <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1.5 text-xs text-red-500">
                             <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
                             정답지 내용(삭제)
@@ -284,7 +283,6 @@ export default function RecogEvaluate({ groupCode, groupName, engineCode }: Reco
                         <InlineDiff oldStr={selectedRow.orgResult} newStr={selectedRow.sttResult} />
                       </div>
                     </div>
-                    {/* 우측 50%: 정답지 내용(상) + STT 결과(하) */}
                     <div className="flex-1 flex flex-col gap-2 min-h-0">
                       <div className="flex-1 flex flex-col gap-1 min-h-0">
                         <p className="text-sm font-semibold text-[#212529] shrink-0">정답지 내용</p>

@@ -42,7 +42,7 @@ export const datasetApi = {
     ok: boolean;
     errors: string[];
     warnings: string[];
-    detectedColumns: { columnName: string; dataType: string; columnFormat: string; source?: string; comment?: string | null }[];
+    detectedColumns: { columnName: string; dataType: string; columnFormat: string; source?: string; comment?: string | null; classification?: 'DIM' | 'MSR' | null }[];
     valueMode?: 'JSON_PER_FIELD' | 'HASH_AS_ROW';
   }> => {
     const response = await apiClient.post<
@@ -50,7 +50,7 @@ export const datasetApi = {
         ok: boolean;
         errors: string[];
         warnings: string[];
-        detectedColumns: { columnName: string; dataType: string; columnFormat: string; source?: string; comment?: string | null }[];
+        detectedColumns: { columnName: string; dataType: string; columnFormat: string; source?: string; comment?: string | null; classification?: 'DIM' | 'MSR' | null }[];
         valueMode?: 'JSON_PER_FIELD' | 'HASH_AS_ROW';
       }>
     >('/insight-monitoring-dataset-validate-source', data);

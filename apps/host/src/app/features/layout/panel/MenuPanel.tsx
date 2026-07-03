@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useMenuStore } from '@/shared-store';
 import PanelAppBadgeStrip from './PanelAppBadgeStrip';
 import PanelDetail from './PanelDetail';
@@ -9,6 +9,7 @@ import PanelSidebar from './PanelSidebar';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { PANEL_WIDTH } from '../constants/layoutConstants';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
+import { useOpenInNewTab } from '../hooks/useOpenInNewTab';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 interface MenuPanelProps {
@@ -17,7 +18,7 @@ interface MenuPanelProps {
 }
 
 const MenuPanel = ({ topOffset }: MenuPanelProps) => {
-  const navigate = useNavigate();
+  const openInNewTab = useOpenInNewTab();
   const location = useLocation();
   const selectedRemote = useCurrentRemote();
   const { menuConfigs } = useMenuStore();
@@ -87,11 +88,11 @@ const MenuPanel = ({ topOffset }: MenuPanelProps) => {
 
   const handleNavigate = useCallback(
     (path: string) => {
-      navigate(path);
-      // useEffect[location]가 close하지만, 같은 path로 재이동 시에도 닫히게 명시 호출
+      // 메뉴 클릭 = 항상 새 탭(중복 허용). 같은 path로 재이동(=같은 url 새 탭)이어도 동작하도록 명시 close.
+      openInNewTab(path);
       setOpen(false);
     },
-    [navigate, setOpen],
+    [openInNewTab, setOpen],
   );
 
   const isMega = mode === 'mega';
