@@ -6,15 +6,17 @@ import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget 
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
-import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
+import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetDbQueryDefList, useGetDbQueryDefOptionsMulti, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
 import { useValueChangeKey } from '../hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../utils/clockFormat';
 import {
+  buildDataSourceKeySelectionIds,
   buildGroupReasonHashKeys,
   buildSelectionIdsByHashKey,
   collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
+  extractNameValueItems,
   getCalcDisplayValue,
   getRedisDisplayValue,
   groupSumAcrossHashKeys,
@@ -707,25 +709,38 @@ interface LayoutScreenProps {
 }
 
 export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGroups = [], dataByHashKey = {}, agentHashKeys = [] }: LayoutScreenProps) {
-  const widgets = parseLayoutWidgets(layout.layoutJson);
+  const rawWidgets = parseLayoutWidgets(layout.layoutJson);
   const selection = parseSelection(layout.selectionJson);
   const { sectionSelections } = layout;
   const [imgRatio, setImgRatio] = useState(16 / 9);
   const fontScale = useResponsiveFontScale(imgRatio);
+
+  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 —
+  // 이 슬라이드 자신의 선택값 기준.
+  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  const widgets = rawWidgets;
+  const placeholderDefs = dbQueryDefs.filter((d) => !!d.placeholderName);
+  const placeholderOptionsResults = useGetDbQueryDefOptionsMulti(placeholderDefs.map((d) => d.dbQueryId));
+  const placeholderOptionValues = Object.fromEntries(
+    placeholderDefs.map((d, idx) => [d.dbQueryId, extractNameValueItems(placeholderOptionsResults[idx]?.data ?? []).map((i) => i.id)]),
+  );
 
   // 미디어타입은 이 레이아웃 자신의 위젯(item.mediaType)에서 가져온다 — 디스플레이 선택값이 아님.
   const { queueMediaTypes, groupMediaTypes } = collectTableColumns(widgets);
 
   // GROUP/CTIQ/AGENT(미디어타입 해시) 단일값 위젯이 보여줄 id들은 이 슬라이드 자신의 선택값 기준으로 결정.
   // (RollingPlayer가 모든 슬라이드를 합산해 구독은 이미 끝냈으므로, 여기서는 받은 데이터 중 이 슬라이드 몫만 골라 읽는다)
-  const selectionIdsByHashKey = buildSelectionIdsByHashKey(widgets, {
-    queueRows: liveQueues,
-    selectedQueueIds: selection.queueIds ?? [],
-    groupRows: liveGroups,
-    selectedGroupIds: selection.groupIds ?? [],
-    agentRows: liveAgents,
-    selectedAgentIds: selection.agentIds ?? [],
-  });
+  const selectionIdsByHashKey = {
+    ...buildSelectionIdsByHashKey(widgets, {
+      queueRows: liveQueues,
+      selectedQueueIds: selection.queueIds ?? [],
+      groupRows: liveGroups,
+      selectedGroupIds: selection.groupIds ?? [],
+      agentRows: liveAgents,
+      selectedAgentIds: selection.agentIds ?? [],
+    }),
+    ...buildDataSourceKeySelectionIds(dbQueryDefs, selection.dbQuerySelections, placeholderOptionValues),
+  };
 
   const ctiqWsData = mergeByHashKeys(
     dataByHashKey,
@@ -852,6 +867,16 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   // 미디어타입은 디스플레이 선택값이 아니라 위젯 등록 시점에 고정된 값(item.mediaType).
   const allSelections = layouts.map((l) => parseSelection(l.selectionJson));
 
+  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 — 로테이션
+  // 내 모든 슬라이드의 선택값을 합산해 구독 자원을 넉넉히 만들어 둔다.
+  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  const mergedDbQuerySelections = Object.assign({}, ...allSelections.map((s) => s.dbQuerySelections ?? {}));
+  const allPlaceholderDefs = dbQueryDefs.filter((d) => !!d.placeholderName);
+  const allPlaceholderOptionsResults = useGetDbQueryDefOptionsMulti(allPlaceholderDefs.map((d) => d.dbQueryId));
+  const allPlaceholderOptionValues = Object.fromEntries(
+    allPlaceholderDefs.map((d, idx) => [d.dbQueryId, extractNameValueItems(allPlaceholderOptionsResults[idx]?.data ?? []).map((i) => i.id)]),
+  );
+
   // 로테이션 전체 레이아웃 중 그 데이터를 실제로 쓰는 위젯이 하나라도 있을 때만 해당 종류를 구독(불필요한 대량 조회 방지)
   const allWidgets = layouts.flatMap((l) => parseLayoutWidgets(l.layoutJson));
   const { groupColumns, queueColumns, agentColumns, groupMediaTypes, queueMediaTypes, agentMediaTypes } = collectTableColumns(allWidgets);
@@ -880,9 +905,8 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 로테이션 내 모든 레이아웃 합산해 같은 WS 소켓으로 구독.
   // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 슬라이드마다 선택값이 다를 수 있으므로, 구독은 전체 슬라이드 선택값의
   // 합집합으로 넉넉히 받아두고 실제 화면 표시는 LayoutScreen에서 그 슬라이드 자신의 선택값으로 다시 골라 읽는다.
-  const widgetRedisSubscriptions = collectRedisWsSubscriptions(
-    allWidgets,
-    buildSelectionIdsByHashKey(allWidgets, {
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(allWidgets, {
+    ...buildSelectionIdsByHashKey(allWidgets, {
       queueRows,
       selectedQueueIds: allSelectedQueueIds,
       groupRows,
@@ -890,7 +914,8 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
       agentRows,
       selectedAgentIds: allSelectedAgentIds,
     }),
-  );
+    ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues),
+  });
 
   // IC:GROUP:REASON 패밀리 전용 — 로테이션 내 모든 슬라이드 선택값의 합집합(없으면 전체 그룹). 화면별
   // 실제 표시는 LayoutScreen이 그 슬라이드 자신의 선택값으로 다시 걸러서 보여준다.

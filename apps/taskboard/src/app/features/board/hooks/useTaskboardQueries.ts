@@ -3,7 +3,7 @@ import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
-import type { DbQueryDef, DbQueryParam, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
+import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
@@ -123,7 +123,10 @@ export const useGetDbQueryDefList = ({ queryOptions }: QueryHookWithParamsOption
 
 export const useCreateDbQueryDef = ({
   mutationOptions,
-}: MutationHookOptions<any, { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }> = {}) => {
+}: MutationHookOptions<
+  any,
+  { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[]; redisKeys?: DbQueryRedisKeyEntry[]; placeholderName?: string }
+> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.createDbQueryDef,
     ...mutationOptions,
@@ -132,7 +135,19 @@ export const useCreateDbQueryDef = ({
 
 export const useUpdateDbQueryDef = ({
   mutationOptions,
-}: MutationHookOptions<any, { dbQueryId: number; tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }> = {}) => {
+}: MutationHookOptions<
+  any,
+  {
+    dbQueryId: number;
+    tenantId: string;
+    queryName: string;
+    description?: string;
+    sqlText: string;
+    params?: DbQueryParam[];
+    redisKeys?: DbQueryRedisKeyEntry[];
+    placeholderName?: string;
+  }
+> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.updateDbQueryDef,
     ...mutationOptions,

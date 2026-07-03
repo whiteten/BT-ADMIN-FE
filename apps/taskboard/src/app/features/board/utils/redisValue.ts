@@ -1,5 +1,5 @@
 import type { CtiWsDataByHashKey, CtiWsSubscription } from '../hooks/useCtiqWebSocket';
-import type { CalcOperand, CallDataItem, DroppedWidget } from '../types/taskboard.types';
+import type { CalcOperand, CallDataItem, DbQueryDef, DroppedWidget } from '../types/taskboard.types';
 
 /** getRedisDisplayValue가 필요로 하는 최소 형태 — DroppedWidget 또는 계산식 operand의 source를 함께 받기 위함 */
 type RedisValueHost = Pick<DroppedWidget, 'item' | 'aggregation'>;
@@ -163,8 +163,10 @@ export interface SelectionListContext {
 
 /**
  * GROUP/CTIQ/AGENT(미디어타입 해시) 위젯이 보여줄 id(field) 목록을 디스플레이 선택값으로 계산한다.
- * 선택값이 비어있으면(테이블 위젯과 동일 규칙) 마스터 리스트 전체를 대상으로 한다.
- * 디자인 시점에 고정된 redisField(id 1개)는 더 이상 쓰지 않고, 여기서 계산된 id들의 값을 합산해서 보여준다.
+ * 뷰그룹에 그 카테고리 선택값이 없으면(큐/상담그룹 선택 UI가 더는 없어 사실상 항상 없거나, 관리자가 그
+ * 카테고리를 아예 안 씀) 이 hashKey는 빈 배열로 채워진다 — getRedisDisplayValue가 "선택값 있음, 개수 0"을
+ * 보고 0을 보여준다(뷰그룹에 매핑 안 된 카테고리는 위젯이 자기 마음대로 예전 값을 보여주지 않게).
+ * 선택값이 있으면 그 id들의 값을 합산해서 보여준다.
  */
 export function buildSelectionIdsByHashKey(widgets: DroppedWidget[], ctx: SelectionListContext): Record<string, string[]> {
   const hashKeysInUse = new Set<string>();
@@ -187,18 +189,15 @@ export function buildSelectionIdsByHashKey(widgets: DroppedWidget[], ctx: Select
     const groupRest = hashKey.startsWith(GROUP_HASH_PREFIX) ? hashKey.slice(GROUP_HASH_PREFIX.length) : null;
     const queueRest = hashKey.startsWith(QUEUE_HASH_PREFIX) ? hashKey.slice(QUEUE_HASH_PREFIX.length) : null;
     if (groupRest !== null && !groupRest.includes(':')) {
-      result[hashKey] = [
-        ...new Set(ctx.groupRows.filter((g) => ctx.selectedGroupIds.length === 0 || ctx.selectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? [])),
-      ];
+      result[hashKey] = [...new Set(ctx.groupRows.filter((g) => ctx.selectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))];
     } else if (queueRest !== null && !queueRest.includes(':')) {
-      result[hashKey] = ctx.selectedQueueIds.length > 0 ? ctx.selectedQueueIds : ctx.queueRows.map((q) => q.ctiqId);
+      result[hashKey] = ctx.selectedQueueIds;
     } else if (hashKey.startsWith(AGENT_HASH_PREFIX)) {
       // IC:AGENT:{groupId}:{mediaType} — 접두사 뒤에 정확히 "groupId:mediaType" 2조각일 때만 매칭.
       const agentRest = hashKey.slice(AGENT_HASH_PREFIX.length).split(':');
       if (agentRest.length !== 2) return;
       const agentsInGroup = ctx.agentRows.filter((a) => a.groupId === agentRest[0]);
-      result[hashKey] =
-        ctx.selectedAgentIds.length > 0 ? agentsInGroup.filter((a) => ctx.selectedAgentIds.includes(a.agentId)).map((a) => a.agentId) : agentsInGroup.map((a) => a.agentId);
+      result[hashKey] = ctx.selectedAgentIds.length > 0 ? agentsInGroup.filter((a) => ctx.selectedAgentIds.includes(a.agentId)).map((a) => a.agentId) : [];
     }
   });
   return result;
@@ -298,11 +297,13 @@ export function collectRedisWsSubscriptions(widgets: DroppedWidget[], selectionI
       if (operand.source) addItem(operand.source);
     }
   }
-  return [...byHashKey.entries()].map(([hashKey, { ids, columns }]) => ({
-    hashKey,
-    ids: [...ids],
-    columns: columns.size > 0 ? [...columns] : undefined,
-  }));
+  return [...byHashKey.entries()]
+    .filter(([, { ids }]) => ids.size > 0)
+    .map(([hashKey, { ids, columns }]) => ({
+      hashKey,
+      ids: [...ids],
+      columns: columns.size > 0 ? [...columns] : undefined,
+    }));
 }
 
 /**
@@ -440,6 +441,136 @@ export function validateFormula(formula: string, declaredVars: string[]): { ok: 
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : '수식 검증 중 오류가 발생했습니다.' };
   }
+}
+
+/** DataSourceQueryTab/DisplayForm 등에서 쿼리 실행 결과(VALUE/NAME 두 컬럼)를 옵션 목록으로 변환.
+ * Oracle은 별칭을 대문자로 돌려주는 경우가 많아 컬럼명을 대소문자 무시로 찾는다. */
+export function extractNameValueItems(rows: Record<string, unknown>[]): { id: string; name: string }[] {
+  if (!rows || rows.length === 0) return [];
+  const keys = Object.keys(rows[0]);
+  const valueKey = keys.find((k) => k.toUpperCase() === 'VALUE');
+  const nameKey = keys.find((k) => k.toUpperCase() === 'NAME');
+  if (!valueKey || !nameKey) return [];
+  return rows.map((r) => ({ id: String(r[valueKey] ?? ''), name: String(r[nameKey] ?? '') }));
+}
+
+/** "{이름}" 또는 "{이름:자릿수}"(자릿수 지정 시 값을 0으로 왼쪽 채움) 토큰 패턴 — 해시키/필드키 조합식 공용 */
+const PLACEHOLDER_TOKEN_PATTERN = /\{(\w+)(?::(\d+))?\}/g;
+
+interface PlaceholderToken {
+  /** 원본 토큰 문자열 그대로(예: "{groupId}", "{nodeId:6}") — 치환 시 이 문자열을 찾아 바꾼다 */
+  raw: string;
+  name: string;
+  /** 지정 시 값을 이 자릿수만큼 앞을 0으로 채운다(LPAD) */
+  width?: number;
+}
+
+/** key 안의 "{이름}"/"{이름:자릿수}" 토큰들을 뽑는다 (같은 토큰 문자열 중복 제거) */
+function extractPlaceholderTokens(key: string): PlaceholderToken[] {
+  const seen = new Set<string>();
+  const tokens: PlaceholderToken[] = [];
+  for (const m of key.matchAll(PLACEHOLDER_TOKEN_PATTERN)) {
+    if (seen.has(m[0])) continue;
+    seen.add(m[0]);
+    tokens.push({ raw: m[0], name: m[1], width: m[2] ? Number(m[2]) : undefined });
+  }
+  return tokens;
+}
+
+/** width가 있으면 0으로 왼쪽 채움(LPAD), 없으면 그대로 */
+function padPlaceholderValue(value: string, width: number | undefined): string {
+  return width ? value.padStart(width, '0') : value;
+}
+
+/**
+ * key에 "{groupId}" 같은 플레이스홀더가 있으면, placeholderValuesByName에서 그 이름의 실제 값 목록을 찾아
+ * 조합(플레이스홀더가 여러 개면 카티션 곱)해서 나올 수 있는 모든 구체 해시키를 만든다.
+ * 플레이스홀더가 없으면(일반 키) 원래 key 그대로 1개짜리 배열을 반환한다.
+ * 값 목록을 못 찾은 플레이스홀더(해당 이름으로 등록된 데이터소스가 없음)가 있으면 확장 불가 — 빈 배열 반환.
+ */
+function expandTemplateKey(key: string, placeholderValuesByName: Record<string, string[]>): string[] {
+  const tokens = extractPlaceholderTokens(key);
+  if (tokens.length === 0) return [key];
+  let candidates = [key];
+  for (const { raw, name, width } of tokens) {
+    const values = placeholderValuesByName[name];
+    if (!values || values.length === 0) return [];
+    candidates = candidates.flatMap((c) => values.map((v) => c.split(raw).join(padPlaceholderValue(v, width))));
+  }
+  return candidates;
+}
+
+/**
+ * 해시 필드(키) 조합식을 실제 필드키 목록으로 펼친다 — 예: "{nodeId:6}||{value}".
+ * "||"는 SQL concat처럼 보이라고 쓰는 구분 표기일 뿐 실제 필드키엔 안 들어가므로 먼저 제거한다.
+ * "{value}"는 이 데이터소스 자신의 VALUE(ownValueIds의 각 항목)를 가리키는 예약 토큰이고,
+ * 그 외 "{이름}" 토큰은 다른 데이터소스의 placeholderName을 참조해 카티션 곱으로 펼친다.
+ * ownValueIds가 비어있으면(뷰그룹에 이 데이터소스 선택값 없음) 빈 배열 반환 — 0 표시 정책 유지.
+ */
+function expandKeyFieldTemplate(template: string, ownValueIds: string[], placeholderValuesByName: Record<string, string[]>): string[] {
+  const cleaned = template.split('||').join('');
+  const tokens = extractPlaceholderTokens(cleaned);
+  const results: string[] = [];
+  for (const ownValue of ownValueIds) {
+    let candidates = [cleaned];
+    for (const { raw, name, width } of tokens) {
+      const values = name === 'value' ? [ownValue] : placeholderValuesByName[name];
+      if (!values || values.length === 0) {
+        candidates = [];
+        break;
+      }
+      candidates = candidates.flatMap((c) => values.map((v) => c.split(raw).join(padPlaceholderValue(v, width))));
+    }
+    results.push(...candidates);
+  }
+  return results;
+}
+
+/**
+ * 데이터소스관리 탭에 등록된 데이터소스 키 매칭 — 태그 같은 별도 식별자 없이, 위젯의 redisHashKey가
+ * 어느 데이터소스의 등록 키(DbQueryDef.redisKeys[].key)와 문자열이 정확히 일치하면, 그 위젯은 원래
+ * 드래그한 필드 대신 뷰그룹이 선택한 값 목록으로 자동 필터링된다. 이 키를 등록한 데이터소스가 있는데도
+ * 현재 뷰그룹에서 값이 선택돼 있지 않으면(카테고리 자체를 안 씀) 빈 배열을 채운다 — getRedisDisplayValue가
+ * "선택값 있음, 개수 0"으로 보고 0을 보여준다(뷰그룹에 매핑 안 된 카테고리가 엉뚱한 값을 보여주지 않게).
+ * 매칭 안 되는 위젯(어느 데이터소스에도 등록 안 된 키를 쓰는 일반 Redis 위젯)은 이 맵에 안 걸리고
+ * 원래 동작(드래그한 필드 그대로) 그대로 유지된다.
+ *
+ * key에 "{nodeId}"/"{groupId}" 같은 플레이스홀더가 있으면(예: IC:GROUP:{groupId}:0), placeholderName이
+ * 그 이름으로 등록된 다른 데이터소스의 VALUE 목록으로 치환해 여러 개의 구체 해시키로 펼친다 — 그 플레이스홀더
+ * 데이터소스가 현재 뷰그룹에서 선택된 값이 있으면 그것만, 없으면(예: 노드ID처럼 뷰그룹마다 고를 필요가 없는
+ * 경우) 쿼리 실행 결과 전체를 사용한다(placeholderOptionValues로 전달).
+ *
+ * rk.keyTemplate이 있으면(예: "{nodeId:6}||{value}") 해시 필드(id)도 그대로 쓰지 않고 조합해서 펼친다 —
+ * 노드ID+사유코드처럼 해시 필드 자체가 복합값인 경우(IC:GROUP:REASON 등) SQL로 미리 조립할 필요 없이
+ * 이미 등록된 다른 플레이스홀더(nodeId)와 이 쿼리 자신의 VALUE({value})를 조합해 자동으로 만든다.
+ */
+export function buildDataSourceKeySelectionIds(
+  dbQueryDefs: DbQueryDef[],
+  dbQuerySelections: Record<number, string[]> | undefined,
+  placeholderOptionValues?: Record<number, string[]>,
+): Record<string, string[]> {
+  const placeholderValuesByName: Record<string, string[]> = {};
+  for (const def of dbQueryDefs) {
+    if (!def.placeholderName) continue;
+    const selected = dbQuerySelections?.[def.dbQueryId];
+    placeholderValuesByName[def.placeholderName] = selected && selected.length > 0 ? selected : (placeholderOptionValues?.[def.dbQueryId] ?? []);
+  }
+
+  const result: Record<string, string[]> = {};
+  for (const def of dbQueryDefs) {
+    const valueIds = dbQuerySelections?.[def.dbQueryId] ?? [];
+    for (const rk of def.redisKeys ?? []) {
+      if (!rk.key) continue;
+      const expandedHashKeys = expandTemplateKey(rk.key, placeholderValuesByName);
+      const keyTemplate = rk.keyTemplate?.trim();
+      const useKeyTemplate = !!keyTemplate && keyTemplate.toUpperCase() !== 'DEFAULT';
+      const fieldIds = useKeyTemplate ? expandKeyFieldTemplate(keyTemplate, valueIds, placeholderValuesByName) : valueIds;
+      expandedHashKeys.forEach((k) => {
+        result[k] = fieldIds;
+      });
+    }
+  }
+  return result;
 }
 
 /**

@@ -1,3 +1,5 @@
+import { fuzzyScore } from '@/shared-util';
+
 /**
  * CTI 경로를 거치는 Redis 데이터에만 붙는 고정 미디어타입 값. 0/10/20/40 외 값이 추가될 일은 없다고
  * 확인됨(사용자 합의) — 위치(키의 몇 번째 세그먼트인지)는 데이터마다 다르지만, "있으면 항상 키의
@@ -74,4 +76,107 @@ export function extractSystemIdSegment(siblingKey: string, hashKey: string): str
     if (siblingSegs[i] !== targetSegs[i]) return siblingSegs[i];
   }
   return siblingKey;
+}
+
+// ─── Redis 키 트리 — TaskCreate의 "Redis 탐색기"와 DataSourceQueryTab의 키 피커가 공용으로 쓴다 ──
+
+export interface RedisKeyNode {
+  label: string;
+  fullKey?: string; // 실제 Redis Hash 키 (리프 노드)
+  children: RedisKeyNode[];
+  leafCount: number;
+}
+
+export const REDIS_TREE_MAX_DEPTH = 3;
+
+/** 콜론(:)으로 구분된 Redis 키 목록을 세그먼트 기준 트리로 그룹화한다. */
+export function groupRedisKeys(keys: string[], prefix: string, depth: number): RedisKeyNode[] {
+  // 최대 깊이 도달 시 나머지를 플랫 리프로 처리
+  if (depth >= REDIS_TREE_MAX_DEPTH) {
+    return keys
+      .slice()
+      .sort()
+      .map((key) => ({
+        label: key,
+        fullKey: prefix ? `${prefix}:${key}` : key,
+        children: [],
+        leafCount: 1,
+      }));
+  }
+
+  const segMap = new Map<string, { isLeaf: boolean; childKeys: string[] }>();
+  for (const key of keys) {
+    const idx = key.indexOf(':');
+    if (idx === -1) {
+      const e = segMap.get(key) ?? { isLeaf: false, childKeys: [] };
+      e.isLeaf = true;
+      segMap.set(key, e);
+    } else {
+      const seg = key.slice(0, idx);
+      const rest = key.slice(idx + 1);
+      const e = segMap.get(seg) ?? { isLeaf: false, childKeys: [] };
+      e.childKeys.push(rest);
+      segMap.set(seg, e);
+    }
+  }
+
+  return Array.from(segMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([seg, { isLeaf, childKeys }]) => {
+      const fullKey = prefix ? `${prefix}:${seg}` : seg;
+      const children = childKeys.length > 0 ? groupRedisKeys(childKeys, fullKey, depth + 1) : [];
+      return {
+        label: seg,
+        fullKey: isLeaf || children.length === 0 ? fullKey : undefined,
+        children,
+        leafCount: (isLeaf ? 1 : 0) + children.reduce((s, c) => s + c.leafCount, 0),
+      };
+    });
+}
+
+/**
+ * Redis 해시키 트리를 검색어로 필터링 — 키 경로(fullKey)뿐 아니라, fieldIndex(미리 색인해 둔 해시키별
+ * 필드명 목록)가 있으면 필드명(예: SUM_CONN_CNT)으로도 매치한다. 리프가 매치하면 그 조상 노드들은
+ * children을 매치된 것만으로 추려서 그대로 남긴다(검색 결과로 가는 경로를 보여주기 위해).
+ */
+export function filterRedisTree(nodes: RedisKeyNode[], query: string, fieldIndex: Record<string, string[]> | null): RedisKeyNode[] {
+  const q = query.trim();
+  if (!q) return nodes;
+
+  const leafMatches = (node: RedisKeyNode): boolean => {
+    if (!node.fullKey) return false;
+    if (fuzzyScore(q, node.fullKey) >= 0) return true;
+    const fields = fieldIndex?.[node.fullKey];
+    return fields?.some((f) => fuzzyScore(q, f) >= 0) ?? false;
+  };
+
+  const walk = (node: RedisKeyNode): RedisKeyNode | null => {
+    if (node.children.length === 0) {
+      return leafMatches(node) ? node : null;
+    }
+    const filteredChildren = node.children.map(walk).filter((n): n is RedisKeyNode => n !== null);
+    if (filteredChildren.length === 0) return null;
+    return { ...node, children: filteredChildren, leafCount: filteredChildren.reduce((s, c) => s + c.leafCount, 0) };
+  };
+
+  return nodes.map(walk).filter((n): n is RedisKeyNode => n !== null);
+}
+
+/**
+ * IC 계열 Redis 키의 가변 그룹ID 세그먼트를 트리에서 숨기고 미디어타입 레벨까지만 표시한다.
+ * IC 섹션에만 적용 — 다른 데이터(BT, FC 등)는 null 반환으로 원본 키 그대로 사용.
+ *
+ * IC:AGENT:{GROUP_ID}:{MEDIA_TYPE}       → IC:AGENT:{MEDIA_TYPE}
+ * IC:GROUP:REASON:{GROUP_ID}:{MEDIA_TYPE} → IC:GROUP:REASON:{MEDIA_TYPE}
+ */
+export function collapseIcGroupSegment(key: string): string | null {
+  const segs = key.split(':');
+  if (segs[0] !== 'IC') return null;
+  if (segs.length === 4 && segs[1] === 'AGENT' && segs[3] in MEDIA_TYPE_LABELS) {
+    return `IC:AGENT:${segs[3]}`;
+  }
+  if (segs.length === 5 && segs[1] === 'GROUP' && segs[2] === 'REASON' && segs[4] in MEDIA_TYPE_LABELS) {
+    return `IC:GROUP:REASON:${segs[4]}`;
+  }
+  return null;
 }

@@ -13,8 +13,12 @@ import {
   useGetTaskboardDisplayList,
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
+import DataSourceQueryTab from '../../features/board/tabs/DataSourceQueryTab';
+import PlaceholderQueryTab from '../../features/board/tabs/PlaceholderQueryTab';
 import type { DbQueryDef, TaskboardDisplay, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
+import { extractNameValueItems } from '../../features/board/utils/redisValue';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
@@ -24,17 +28,6 @@ function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
   } catch {
     return {};
   }
-}
-
-// TASK-DB-QUERY(TaskDbQueryRun)에 저장된 쿼리 실행 결과(VALUE/NAME 두 컬럼)를 멀티선택 items로 변환.
-// Oracle은 별칭을 대문자로 돌려주는 경우가 많아 컬럼명을 대소문자 무시로 찾는다.
-function extractNameValueItems(rows: Record<string, unknown>[]): { id: string; name: string }[] {
-  if (!rows || rows.length === 0) return [];
-  const keys = Object.keys(rows[0]);
-  const valueKey = keys.find((k) => k.toUpperCase() === 'VALUE');
-  const nameKey = keys.find((k) => k.toUpperCase() === 'NAME');
-  if (!valueKey || !nameKey) return [];
-  return rows.map((r) => ({ id: String(r[valueKey] ?? ''), name: String(r[nameKey] ?? '') }));
 }
 
 // ─── 선택값 요약 칩 — 큐/상담그룹/상담사 각각 일부 이름 + 나머지 개수만 간략히 보여준다 ──
@@ -107,6 +100,14 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
 
   const [displayName, setDisplayName] = useState(initial?.displayName ?? '새 뷰 그룹');
   const [dbQuerySelections, setDbQuerySelections] = useState<Record<number, string[]>>(initialSelection.dbQuerySelections ?? {});
+  // 쿼리(데이터 소스)별 사용 여부 체크박스 — 초기값은 기존 선택값이 있던 쿼리를 사용 중으로 간주
+  const [enabledDbQueryIds, setEnabledDbQueryIds] = useState<Set<number>>(
+    new Set(
+      Object.entries(initialSelection.dbQuerySelections ?? {})
+        .filter(([, v]) => v.length > 0)
+        .map(([id]) => Number(id)),
+    ),
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const [openDbQueryId, setOpenDbQueryId] = useState<number | null>(null);
@@ -119,7 +120,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
     return dbQueryDropdownRefs.current.get(id)!;
   }
 
-  // TASK-DB-QUERY(TaskDbQueryRun)에서 등록한 뷰그룹 체크박스 옵션 소스 — 저장된 쿼리 개수만큼 옵션(VALUE/NAME) 조회
+  // 데이터 소스 관리 탭(DataSourceQueryTab)에서 등록한 뷰그룹 체크박스 옵션 소스 — 저장된 쿼리 개수만큼 옵션(VALUE/NAME) 조회
   const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
   const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
 
@@ -133,6 +134,14 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openDbQueryId]);
+
+  const toggleDbQueryEnabled = (dbQueryId: number) =>
+    setEnabledDbQueryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(dbQueryId)) next.delete(dbQueryId);
+      else next.add(dbQueryId);
+      return next;
+    });
 
   const toggleDbQueryValue = (dbQueryId: number, value: string) =>
     setDbQuerySelections((prev) => {
@@ -156,7 +165,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
       return;
     }
     const selectionJson = JSON.stringify({
-      dbQuerySelections: Object.fromEntries(Object.entries(dbQuerySelections).filter(([, v]) => v.length > 0)),
+      dbQuerySelections: Object.fromEntries(Object.entries(dbQuerySelections).filter(([id, v]) => v.length > 0 && enabledDbQueryIds.has(Number(id)))),
     });
     setIsSaving(true);
     try {
@@ -197,41 +206,52 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 뷰 그룹에서 보여줄 데이터 (TASK-DB-QUERY 등록 데이터)</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 뷰 그룹에서 보여줄 데이터 (데이터 소스 관리 등록 데이터)</label>
             <div className="flex flex-col gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
               {dbQueryDefs.map((def, idx) => {
                 const optionsQuery = dbQueryOptionsResults[idx];
                 const items = extractNameValueItems(optionsQuery?.data ?? []);
                 const selected = dbQuerySelections[def.dbQueryId] ?? [];
+                const enabled = enabledDbQueryIds.has(def.dbQueryId);
                 return (
-                  <div key={def.dbQueryId} className="flex items-center gap-4">
-                    <span className="text-[11px] font-semibold text-amber-700 w-40 flex-shrink-0 truncate" title={def.queryName}>
-                      {def.queryName}
-                    </span>
-                    <MultiSelectDropdown
-                      label={def.queryName}
-                      color="#b45309"
-                      isFetching={optionsQuery?.isFetching ?? false}
-                      items={items}
-                      selectedIds={selected}
-                      isOpen={openDbQueryId === def.dbQueryId}
-                      dropdownRef={getDbQueryDropdownRef(def.dbQueryId)}
-                      onToggleOpen={() => setOpenDbQueryId((v) => (v === def.dbQueryId ? null : def.dbQueryId))}
-                      onToggleItem={(id) => toggleDbQueryValue(def.dbQueryId, id)}
-                      onToggleAll={() =>
-                        toggleAllDbQueryValues(
-                          def.dbQueryId,
-                          items.map((i) => i.id),
-                        )
-                      }
-                      emptyText="옵션 없음"
-                    />
+                  <div key={def.dbQueryId} className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={enabled}
+                        onCheckedChange={() => toggleDbQueryEnabled(def.dbQueryId)}
+                        className="flex-shrink-0 border-slate-300 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                        title="이 뷰 그룹에서 이 데이터 소스 사용 여부"
+                      />
+                      <span className="text-[11px] font-semibold text-amber-700 w-40 flex-shrink-0 truncate" title={def.queryName}>
+                        {def.queryName}
+                      </span>
+                      <div className={enabled ? '' : 'opacity-50 pointer-events-none'}>
+                        <MultiSelectDropdown
+                          label={def.queryName}
+                          color="#b45309"
+                          isFetching={optionsQuery?.isFetching ?? false}
+                          items={items}
+                          selectedIds={selected}
+                          isOpen={openDbQueryId === def.dbQueryId}
+                          dropdownRef={getDbQueryDropdownRef(def.dbQueryId)}
+                          onToggleOpen={() => setOpenDbQueryId((v) => (v === def.dbQueryId ? null : def.dbQueryId))}
+                          onToggleItem={(id) => toggleDbQueryValue(def.dbQueryId, id)}
+                          onToggleAll={() =>
+                            toggleAllDbQueryValues(
+                              def.dbQueryId,
+                              items.map((i) => i.id),
+                            )
+                          }
+                          emptyText="옵션 없음"
+                        />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
 
               {dbQueryDefs.length === 0 && (
-                <p className="text-[10px] text-slate-400 italic px-1">TASK-DB-QUERY 화면에서 VALUE/NAME 쿼리를 등록하면 여기 선택 항목으로 추가됩니다.</p>
+                <p className="text-[10px] text-slate-400 italic px-1">데이터 소스 관리 탭에서 VALUE/NAME 쿼리를 등록하면 여기 선택 항목으로 추가됩니다.</p>
               )}
             </div>
           </div>
@@ -258,12 +278,14 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
 // 뷰 그룹(큐/그룹/상담사 선택값)은 전광판(레이아웃)과 매핑되지 않는 독립된 풀이다.
 // 어떤 전광판에든 자유롭게 입혀 쓸 수 있으므로 여기서는 전광판 연결 관리를 하지 않는다.
 type ViewMode = 'grid' | 'list';
+type MainTab = 'displays' | 'dataSource' | 'placeholder';
 
 export default function TaskDisplayManage() {
   const { data: displays = [], isLoading, refetch } = useGetTaskboardDisplayList();
   const [formOpen, setFormOpen] = useState(false);
   const [editingDisplay, setEditingDisplay] = useState<TaskboardDisplay | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [activeTab, setActiveTab] = useState<MainTab>('displays');
 
   const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
   const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
@@ -312,53 +334,129 @@ export default function TaskDisplayManage() {
   };
 
   return (
-    <div className="p-6 bg-slate-50 min-h-screen font-sans">
-      <div className="flex justify-between items-center mb-6 border-b pb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 tracking-tight">뷰 그룹 관리</h1>
-          <p className="text-sm text-slate-500 mt-1">큐/그룹/상담사 선택값(뷰 그룹)을 만들고, 어떤 전광판(레이아웃)에든 그대로 입혀 재사용할 수 있습니다.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center border border-slate-200 rounded-md overflow-hidden flex-shrink-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              title="카드형으로 보기"
-              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              title="목록형으로 보기"
-              className={`p-2 transition-colors border-l border-slate-200 ${viewMode === 'list' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-          <button
-            onClick={handleAdd}
-            className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82] transition-colors shadow-sm flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" />뷰 그룹 등록
-          </button>
-        </div>
+    <div className="p-6 bg-slate-50 h-full flex flex-col overflow-hidden font-sans">
+      <div className="mb-4 border-b pb-4 flex-shrink-0">
+        {activeTab === 'displays' ? (
+          <>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">뷰 그룹 관리</h1>
+            <p className="text-sm text-slate-500 mt-1">전광판에 표시할 데이터를 묶어 뷰 그룹으로 만들고, 어떤 전광판(레이아웃)에든 그대로 입혀 재사용할 수 있습니다.</p>
+          </>
+        ) : activeTab === 'dataSource' ? (
+          <>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">데이터 소스 관리</h1>
+            <p className="text-sm text-slate-500 mt-1">직접 등록한 데이터를 뷰 그룹에서 선택할 수 있도록 SELECT 쿼리로 만들어 저장합니다.</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">플레이스홀더</h1>
+            <p className="text-sm text-slate-500 mt-1">해시키 자체에 값이 박혀있는 Redis 키(예: 그룹ID별 해시)를 다른 데이터소스가 참조할 수 있는 값 목록으로 등록합니다.</p>
+          </>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="py-24 text-center text-slate-400">불러오는 중...</div>
-      ) : displays.length === 0 ? (
-        <div className="py-24 text-center text-slate-400 border-2 border-dashed border-slate-300 rounded-xl bg-white">
-          <p className="text-lg font-medium">등록된 뷰 그룹이 없습니다.</p>
-          <p className="text-sm mt-1">오른쪽 상단의 &quot;뷰 그룹 등록&quot; 버튼을 눌러 추가하세요.</p>
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
+        <div className="flex items-center border border-slate-200 rounded-md overflow-hidden bg-white flex-shrink-0">
+          <button
+            onClick={() => setActiveTab('displays')}
+            className={`px-4 py-2 text-sm font-semibold transition-colors ${activeTab === 'displays' ? 'bg-[#0f5b9e] text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+          >
+            뷰 그룹
+          </button>
+          <button
+            onClick={() => setActiveTab('dataSource')}
+            className={`px-4 py-2 text-sm font-semibold border-l border-slate-200 transition-colors ${
+              activeTab === 'dataSource' ? 'bg-[#0f5b9e] text-white' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            데이터 소스 관리
+          </button>
+          <button
+            onClick={() => setActiveTab('placeholder')}
+            className={`px-4 py-2 text-sm font-semibold border-l border-slate-200 transition-colors ${
+              activeTab === 'placeholder' ? 'bg-[#0f5b9e] text-white' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            플레이스홀더
+          </button>
         </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {displays.map((d) => (
-            <div key={d.displayId} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+
+        {activeTab === 'displays' && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center border border-slate-200 rounded-md overflow-hidden flex-shrink-0">
+              <button
+                onClick={() => setViewMode('grid')}
+                title="카드형으로 보기"
+                className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                title="목록형으로 보기"
+                className={`p-2 transition-colors border-l border-slate-200 ${viewMode === 'list' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+            <button
+              onClick={handleAdd}
+              className="px-4 py-2 bg-[#0f5b9e] text-white rounded-md text-sm font-semibold hover:bg-[#0c4a82] transition-colors shadow-sm flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />뷰 그룹 등록
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className={`flex-1 min-h-0 ${activeTab === 'dataSource' || activeTab === 'placeholder' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        {activeTab === 'dataSource' ? (
+          <DataSourceQueryTab />
+        ) : activeTab === 'placeholder' ? (
+          <PlaceholderQueryTab />
+        ) : isLoading ? (
+          <div className="py-24 text-center text-slate-400">불러오는 중...</div>
+        ) : displays.length === 0 ? (
+          <div className="py-24 text-center text-slate-400 border-2 border-dashed border-slate-300 rounded-xl bg-white">
+            <p className="text-lg font-medium">등록된 뷰 그룹이 없습니다.</p>
+            <p className="text-sm mt-1">오른쪽 상단의 &quot;뷰 그룹 등록&quot; 버튼을 눌러 추가하세요.</p>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displays.map((d) => (
+              <div key={d.displayId} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
+                    <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
+                      <IconEdit className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(d)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" title="삭제">
+                      <IconTrash className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100">
+                  <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {displays.map((d) => (
+              <div
+                key={d.displayId}
+                className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="min-w-0 w-44 flex-shrink-0">
                   <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
                   <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
@@ -369,35 +467,10 @@ export default function TaskDisplayManage() {
                   </button>
                 </div>
               </div>
-              <div className="pt-2 border-t border-slate-100">
-                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {displays.map((d) => (
-            <div key={d.displayId} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="min-w-0 w-44 flex-shrink-0">
-                <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
-                <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
-              </div>
-              <div className="flex gap-1 flex-shrink-0">
-                <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
-                  <IconEdit className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => handleDelete(d)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors" title="삭제">
-                  <IconTrash className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {formOpen && <DisplayForm initial={editingDisplay} onSave={handleFormSave} onCancel={() => setFormOpen(false)} />}
     </div>
