@@ -9,7 +9,6 @@ const TaskList = React.lazy(() => import('./pages/board/TaskList'));
 const TaskMgmt = React.lazy(() => import('./pages/board/TaskMgmt'));
 const TaskCreate = React.lazy(() => import('./pages/board/TaskCreate'));
 const TaskDisplayManage = React.lazy(() => import('./pages/board/TaskDisplayManage'));
-const TaskDbQueryRun = React.lazy(() => import('./pages/board/TaskDbQueryRun'));
 const TaskView = React.lazy(() => import('./pages/board/TaskView'));
 const TaskNotice = React.lazy(() => import('./pages/board/TaskNotice'));
 const TaskRolling = React.lazy(() => import('./pages/board/TaskRolling'));
@@ -34,7 +33,6 @@ export const routes = [
           { path: 'task-mgmt', element: pv('board/task-mgmt', TaskMgmt) },
           { path: 'task-create', element: pv('board/task-create', TaskCreate) },
           { path: 'task-display', element: pv('board/task-display', TaskDisplayManage) },
-          { path: 'task-db-query', element: pv2('board/task-db-query', TaskDbQueryRun) },
           { path: 'task-view/:layoutId/:displayId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },
           // 섹션 모드: displayId 없이 ?s=A:1,B:2,C:3 쿼리로 섹션별 뷰 그룹 지정
           { path: 'task-view/:layoutId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },

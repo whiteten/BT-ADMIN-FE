@@ -14,6 +14,8 @@ import {
   useGetCtiAgentList,
   useGetCtiGroupList,
   useGetCtiQueueList,
+  useGetDbQueryDefList,
+  useGetDbQueryDefOptionsMulti,
   useGetRedisHashKeys,
   useGetTaskboardDisplayList,
   useGetTaskboardLayoutList,
@@ -23,10 +25,12 @@ import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnim
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
 import {
+  buildDataSourceKeySelectionIds,
   buildGroupReasonHashKeys,
   buildSelectionIdsByHashKey,
   collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
+  extractNameValueItems,
   getCalcDisplayValue,
   getRedisDisplayValue,
   groupSumAcrossHashKeys,
@@ -756,7 +760,7 @@ function SingleLayoutView({
   const canvasWPx = Math.min(window.innerWidth, imgRatio * window.innerHeight);
   const canvasHPx = Math.min(window.innerHeight, window.innerWidth / imgRatio);
 
-  const widgets = parseLayoutWidgets(layout.layoutJson);
+  const rawWidgets = parseLayoutWidgets(layout.layoutJson);
 
   // layoutJson에서 그리드 모드 메타(layoutMode, gridMargin, containerPadding) 파싱
   const layoutMeta = (() => {
@@ -810,6 +814,20 @@ function SingleLayoutView({
   const selectedGroupIds = [...new Set(allSelections.flatMap((s) => s.groupIds ?? []))];
   const selectedAgentIds = [...new Set(allSelections.flatMap((s) => s.agentIds ?? []))];
 
+  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 — 태그
+  // 같은 별도 식별자 없이, 섹션이 여러 개면 선택값을 합산(union)해 전역으로 미리 만들어 둔다.
+  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  const mergedDbQuerySelections = Object.assign({}, ...allSelections.map((s) => s.dbQuerySelections ?? {}));
+  const widgets = rawWidgets;
+
+  // 플레이스홀더 데이터소스(예: {nodeId})의 전체 VALUE 목록 — 뷰그룹에서 선택값이 없을 때 폴백으로 쓰인다.
+  // 노드ID처럼 뷰그룹마다 고를 필요 없는 값은 여기서 항상 최신 전체 목록을 받는다(쿼리 결과라 캐시됨).
+  const placeholderDefs = dbQueryDefs.filter((d) => !!d.placeholderName);
+  const placeholderOptionsResults = useGetDbQueryDefOptionsMulti(placeholderDefs.map((d) => d.dbQueryId));
+  const placeholderOptionValues = Object.fromEntries(
+    placeholderDefs.map((d, idx) => [d.dbQueryId, extractNameValueItems(placeholderOptionsResults[idx]?.data ?? []).map((i) => i.id)]),
+  );
+
   // 큐/상담사/그룹 전체 목록 — 이름 표시 및 id↔groupId 매핑용(정적 마스터성 데이터, KPI 값 아님).
   // 실시간 KPI는 WS로 받으므로 5초 자동폴링 끄고 마운트 시 1회만 조회.
   const { data: queueRows = [], isLoading: queueLoading } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
@@ -820,14 +838,17 @@ function SingleLayoutView({
 
   // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 큐/그룹/상담사 실시간 KPI와 동일한 WS 소켓으로 구독.
   // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 디자인 시점에 고정된 id 대신, 디스플레이 선택값으로 어떤 id들을 볼지 결정한다.
-  const selectionIdsByHashKey = buildSelectionIdsByHashKey(widgets, {
-    queueRows,
-    selectedQueueIds,
-    groupRows,
-    selectedGroupIds,
-    agentRows,
-    selectedAgentIds,
-  });
+  const selectionIdsByHashKey = {
+    ...buildSelectionIdsByHashKey(widgets, {
+      queueRows,
+      selectedQueueIds,
+      groupRows,
+      selectedGroupIds,
+      agentRows,
+      selectedAgentIds,
+    }),
+    ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, placeholderOptionValues),
+  };
   const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey);
   // IC:GROUP:REASON 패밀리(table-redis/단일값 Redis 위젯 공용) — "선택 없음=전체"는 GROUP과 동일 규칙.
   // 뷰그룹(디스플레이 선택 그룹)에 없는 그룹은 절대 나오지 않아야 하므로, 선택값이 있으면 그 그룹들만 쓴다.

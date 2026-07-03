@@ -1996,3 +1996,150 @@ overflow-clip 수정과 `imageRatio` onLoad 갱신은 패딩/경계선과 무관
 - **브라우저 실측 미실시** — 뷰그룹 등록 폼에서 TASK-DB-QUERY 저장 쿼리가 드롭다운으로 뜨는지, 선택 후 저장·재편집 시 값이 복원되는지, 카드/목록 요약 칩에 정상 표시되는지 사용자가 직접 확인 필요
 - 관련 파일: `pages/board/TaskDisplayManage.tsx`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/types/taskboard.types.ts`
 - BE 변경 없음(기존 `TaskboardDbQueryDefController`의 `/db-query-def`, `/db-query-def/{id}/options` 엔드포인트 그대로 재사용)
+
+### task-display 뷰그룹 등록 팝업 — 큐/상담그룹 기본 선택 제거 + UI 간격 수정
+- 사용자 요청: "직접 DB로 등록한 값만 넣을거야" → `DisplayForm`에서 큐/상담그룹(CTI 실시간) `MultiSelectDropdown` 2개, 관련 state(`selectedQueueIds`/`selectedGroupIds`)·훅(`useGetCtiQueueList`/`useGetCtiGroupList`)·토글 핸들러·드롭다운 ref 전부 제거. `handleSubmit`의 `selectionJson`도 `dbQuerySelections`만 저장(큐/그룹 필드 제거)
+- 라벨 정렬 문제("GROUP...으로 잘려 보임, 좌측 쏠림") 수정: 라벨 폭 `w-14`(56px, truncate)→`w-40`(160px), 라벨-드롭다운 간격 `gap-3`→`gap-4`
+- 메인 목록 화면(카드/목록형)의 `SelectionSummary`는 과거 저장된 큐/상담그룹 선택값이 있는 기존 데이터 하위호환을 위해 그대로 유지(신규 등록만 DB쿼리 전용으로 제한)
+
+### task-display 화면에 "데이터 소스 관리" 탭 통합 — task-db-query 별도 메뉴 제거
+- 사용자 요청: "task-db-query가 자극적이다" → 별도 라우트/메뉴로 노출하지 말고 task-display 안에 포함
+- `pages/board/TaskDbQueryRun.tsx` 삭제, 내용을 `features/board/tabs/DataSourceQueryTab.tsx`로 이전(파일 구조 컨벤션상 탭 컴포넌트는 `features/<feature>/tabs/`에 위치). 페이지 전용 `h-screen` 래퍼를 탭에 맞게 `h-[75vh]`로 조정, 헤더 문구를 "DB 쿼리 실행" → "데이터 소스 관리"로 순화(기능/로직은 100% 동일)
+- `routes.tsx`: `task-db-query` 라우트 및 `TaskDbQueryRun` lazy import 제거
+- `TaskDisplayManage.tsx`: 상단에 "뷰 그룹"/"데이터 소스 관리" 탭 버튼 추가(`activeTab` state), `dataSource` 탭 선택 시 `<DataSourceQueryTab />` 렌더 + 뷰그룹 목록용 그리드/리스트 토글·등록 버튼은 `displays` 탭에서만 노출
+- **확인 필요**: Manager 메뉴 관리 화면에 `task-db-query` 경로를 가리키는 메뉴 항목이 등록돼 있었다면(DB 기반이라 FE에서 확인 불가) 404 발생 — 있다면 사용자가 직접 메뉴에서 삭제하거나 `task-display`로 재지정 필요
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors
+- **브라우저 실측 미실시** — 탭 전환, 데이터 소스 관리 탭에서 쿼리 실행/저장, 뷰그룹 등록 폼에서 큐/상담그룹 없이 DB쿼리만 나오는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskDisplayManage.tsx`, `pages/board/TaskDbQueryRun.tsx`(삭제), `features/board/tabs/DataSourceQueryTab.tsx`(신규), `routes.tsx`
+- BE 변경 없음
+
+### task-display 상단 타이틀 탭별 분기
+- 뷰 그룹/데이터 소스 관리 탭 전환 시 상단 `h1`/설명 문구도 같이 바뀌도록 수정(`activeTab` 분기), `DataSourceQueryTab.tsx` 내부의 중복 헤딩(같은 문구가 탭 안에서도 한 번 더 보이던 문제) 제거
+- 관련 파일: `pages/board/TaskDisplayManage.tsx`, `features/board/tabs/DataSourceQueryTab.tsx`
+
+### 뷰 그룹 등록 팝업 데이터 선택 UI 수정(1차: 체크박스 오적용 → 2차: 정정)
+- 1차 시도: "체크박스 사용하기" 요청을 각 데이터 값(VALUE/NAME) 단위 체크박스 목록으로 오해해 구현 → 사용자가 "각각의 체크박스가 아니라 기존 selectbox는 맞고, 뷰그룹을 쓸지말지의 앞에 체크박스였다"고 정정
+- 2차(정정):가운데 selectbox(`MultiSelectDropdown`, 값 멀티선택)는 원래대로 복원. 그 앞에 **쿼리(데이터 소스) 단위 사용여부 체크박스**를 새로 추가(`enabledDbQueryIds: Set<number>` state) — 체크 해제 시 해당 데이터 소스의 selectbox는 `opacity-50 pointer-events-none`으로 비활성화되고, 저장 시 `dbQuerySelections`에서 제외됨
+- 초기값: 편집 진입 시 기존에 선택값이 있던(`v.length > 0`) 쿼리를 사용 중(체크됨)으로 간주해 `enabledDbQueryIds` 초기화
+- ESLint --fix 0 errors, tsc(`-p apps/taskboard/tsconfig.app.json`) 0 errors
+- **브라우저 실측 미실시** — 체크 해제 시 selectbox 비활성화되는지, 저장 후 재편집 시 체크 상태가 복원되는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskDisplayManage.tsx`
+
+### task-display 페이지 자체 스크롤 제거 (데이터 소스 관리 탭)
+- 증상: 데이터 소스 관리 탭에서 좌측 쿼리 입력/우측 결과 패널은 각자 내부 스크롤이 정상인데, 페이지 자체에도 스크롤이 추가로 생김
+- 원인: 루트 컨테이너가 `min-h-screen`(최소 100vh, 실제 내용은 이를 초과 가능)이었고 탭 컴포넌트는 `h-[75vh]` 고정값을 써서, 헤더+탭바+`75vh` 합이 뷰포트 높이를 넘는 경우(특히 낮은 해상도) 상위(host `<main>`, 이미 `h-full overflow-y-auto`)에서 이중 스크롤 발생. `TaskCreate.tsx`에서 동일 문제를 `h-screen`→`h-full` 전환으로 해결한 전례(2026-06-22 세션4) 재적용
+- 조치: 루트 컨테이너 `min-h-screen` → `h-full flex flex-col overflow-hidden`. 헤더/탭바 블록에 `flex-shrink-0` 추가. 본문(뷰그룹 목록 또는 데이터 소스 탭)을 `flex-1 min-h-0` 래퍼로 감싸고, 뷰 그룹 탭은 `overflow-y-auto`(카드 목록 스크롤), 데이터 소스 탭은 `overflow-hidden`(내부 두 패널이 각자 스크롤 담당)으로 분기
+- `DataSourceQueryTab.tsx` 루트를 `h-[75vh]` → `h-full`로 변경해 부모가 내려주는 실제 남은 높이를 그대로 채우도록 수정
+- ESLint --fix 0 errors, tsc 0 errors
+- **브라우저 실측 미실시** — 특히 낮은 해상도(노트북 등)에서 페이지 자체 스크롤바가 더 이상 안 생기는지, 뷰 그룹 탭 카드 목록도 정상적으로 내부 스크롤되는지 사용자가 직접 확인 필요
+- 관련 파일: `pages/board/TaskDisplayManage.tsx`, `features/board/tabs/DataSourceQueryTab.tsx`
+- BE 변경 없음
+
+### "데이터소스 태그" 매칭 아키텍처 신규 구현 — 뷰그룹 선택값 ↔ 실제 Redis 데이터 연동
+- **배경**: 사용자 요청 — "뷰그룹에 선택된 값과 실제 레디스 해시키 값을 매칭해야 하는데, 임의 테이블까지 가는 구조라 어떤 Redis 해시키가 또 생길지 모른다" → 위젯을 특정 DbQueryDef에 직접 고정하지 않고 "태그"로 간접 참조, 뷰그룹이 태그→데이터소스 매핑을 실행 시점에 결정하는 구조로 설계·구현. 기존 큐/상담그룹/상담사 위젯이 "카테고리(고정 태그) + 뷰그룹 선택값"으로 동작하던 패턴을 사용자 정의 태그로 일반화한 것과 동일한 결
+- **DbQueryDef.redisKey**(BE `TB_BT_TK_DBQUERY_DEF.REDIS_KEY` 컬럼, V101 마이그레이션): 이 쿼리의 VALUE들을 필드로 갖는 실시간 Redis 해시키(예: `IC:CTIQ:0`). 데이터 소스 관리 탭에서 쿼리 저장 시 함께 입력, 저장된 목록에 `↔ 해시키`로 표시
+- **TaskboardDisplaySelection.dbQueryTags**(`Record<dbQueryId, tag>`): 뷰그룹 등록 폼에서 체크한 데이터소스마다 태그 텍스트 입력 추가(datalist로 다른 뷰그룹에서 쓴 태그 제안, 오타 방지)
+- **CallDataItem.dataSourceTag**: task-create에 신규 팔레트 섹션 "데이터소스 (태그)" 추가(값/테이블 두 타입) — 태그만 정하고 드롭, 실제 필드명(값)/컬럼(테이블)은 우측 속성 패널(`DataSourceTagWidgetProps`)에서 설정. 테이블 컬럼 추가/삭제는 기존 `addWidgetTableColumn`/`removeWidgetTableColumn`(table-queue 등과 공용) 재사용
+- **`redisValue.ts` 해석 유틸 신규**: `resolveDataSourceTags`(dbQueryTags+dbQuerySelections → tag→{hashKey,valueIds} 맵), `resolveDataSourceTagWidgets`(위젯의 dataSourceTag를 실제 redisHashKey로 채운 복사본 생성 — 이후 기존 `getRedisDisplayValue`/`collectRedisWsSubscriptions` 파이프라인을 그대로 재사용해 추가 분기 없이 동작), `buildDataSourceTagSelectionIds`(selectionIdsByHashKey에 병합), `isDataSourceTagTableWidget`/`collectDataSourceTagTableWsSubscriptions`/`buildDataSourceTagTableRows`(테이블 위젯 전용 — RedisTableWidget의 pivot/join/keyed 등 복잡도 없이 "선택된 VALUE 목록 = 행" 단순 매핑만 v1 지원)
+- **TaskView.tsx/RollingDisplay.tsx 런타임 연결**: `useGetDbQueryDefList()`로 정의 목록 조회 → 값 위젯은 전역(섹션 합산) 해석을 그대로 사용(기존 CTIQ/GROUP/AGENT 단일값 위젯과 동일하게 섹션별 미세 필터링 없음), 테이블 위젯(`isDataSourceTagTableWidget`)만 `renderWidget`에서 그 위젯의 `effectiveSelection`(섹션별)으로 다시 해석해 정확히 필터링 — 기존 table-group/queue/agent가 "구독은 전체 합산, 표시는 섹션별 재필터"하는 패턴과 동일
+- **범위 밖(v1 미지원)**: 테이블 컬럼 계산식/그룹합계/PIVOT, task-create 에디터 내 라이브 미리보기(뷰그룹 컨텍스트가 없어 태그 해석 불가 — sampleValue/빈 테이블로 표시됨은 기존 위젯들과 동일)
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors (전체 변경 파일 기준)
+- **브라우저 실측 미실시** — ①데이터 소스 관리 탭에서 Redis 키 입력 후 저장 ②뷰그룹에서 태그 지정 ③task-create에서 같은 태그로 값/테이블 위젯 각각 추가 후 필드명/컬럼 설정 ④task-view/RollingDisplay 실행 화면에서 실제 값이 뜨는지 전체 흐름을 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/api/taskboardApi.ts`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/tabs/DataSourceQueryTab.tsx`, `pages/board/TaskDisplayManage.tsx`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`, `features/board/utils/redisValue.ts`
+- BE 쌍(엔티티/DTO/컨트롤러 `redisKey` 필드 + V101 마이그레이션)은 `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 2026-07-02 항목 참고
+
+### 버그 수정 — 데이터소스 태그 위젯이 뷰그룹 선택값 대신 전체 큐/그룹 마스터 목록을 가져오던 문제
+- **증상**: task-view 실행 화면에서 태그로 연결한 위젯이 뷰그룹에서 체크한 VALUE만 보여줘야 하는데 실제로는 전체 데이터를 가져옴
+- **원인**: `buildSelectionIdsByHashKey`(큐/그룹/상담사 전용 "미디어타입 해시" 판별 로직)가 위젯의 `redisHashKey`를 스캔할 때 dataSourceTag 위젯도 함께 스캔했음 — 데이터소스의 Redis 키가 우연히 `IC:CTIQ:0`/`IC:GROUP:0` 같은 큐/그룹 예약 패턴과 겹치면 "미디어타입 해시"로 오인해서 이 위젯 선택값 대신 전체 큐/그룹 마스터 목록(`queueRows.map(...)`, "선택 없음=전체" 규칙)을 `selectionIdsByHashKey`에 끼워넣음 — 이후 `buildDataSourceTagSelectionIds`가 같은 hashKey를 올바른 값으로 덮어써야 하는데 겹치는 케이스에서 신뢰할 수 없었음
+- **조치**: `buildSelectionIdsByHashKey`의 `collect()`에서 `item.dataSourceTag === undefined`인 위젯만 스캔하도록 제외 — dataSourceTag 위젯은 큐/그룹/상담사 스캔 대상에서 구조적으로 배제되어 어떤 Redis 키 이름을 쓰든 겹칠 수 없음
+- 관련 파일: `features/board/utils/redisValue.ts`
+
+### 데이터소스 태그 아키텍처 v2 — Redis 키를 라벨 붙은 리스트로(N:1), 클릭형 트리 피커로 등록
+- **배경**: 사용자 피드백 — 그룹 하나가 IC:GROUP(요약)/IC:AGENT(상담사별)/IC:GROUP:REASON(이석사유)처럼 여러 Redis 해시에 걸쳐 있는 N:1 구조가 흔함(v1은 데이터소스당 Redis 키 1개만 지원) + Redis 키를 손으로 타이핑하지 않고 task-create의 "Redis 탐색기"처럼 실제 키를 보고 고르고 싶다는 요청
+- **DbQueryDef.redisKeys**: `redisKey: string` 단일 필드 → `redisKeys: { label, key }[]` 리스트로 전면 교체(BE `REDIS_KEYS_JSON` CLOB, V102 마이그레이션이 V101의 `REDIS_KEY` 컬럼을 DROP하고 재생성 — V101이 이번 세션에 막 추가돼 실제 저장된 값이 없어 안전)
+- **`redisKeyPattern.ts`에 트리 유틸 추출**: `groupRedisKeys`/`filterRedisTree`/`collapseIcGroupSegment`/`RedisKeyNode`/`REDIS_TREE_MAX_DEPTH`를 TaskCreate.tsx 로컬 함수에서 공용 유틸로 이동(TaskCreate는 그대로 import해서 사용, 순수 함수라 동작 변화 없음)
+- **DataSourceQueryTab.tsx 키 입력 UI 전면 교체**: 단일 텍스트 입력 → 라벨+키 목록 관리(추가/삭제) + `RedisKeyTreePicker`(신규, 클릭형) — task-create의 드래그 기반 탐색기와 같은 트리 알고리즘을 재사용하되, 이 탭엔 DnD 캔버스 컨텍스트가 없어 클릭으로 값을 채우는 방식으로 구현. 저장된 목록에 라벨들을 `↔ 그룹요약, 이석사유`처럼 요약 표시
+- **CallDataItem.dataSourceKeyLabel 신규**: 위젯이 매칭된 데이터소스의 여러 redisKeys 중 어느 라벨을 쓸지 지정. task-create 우측 패널(`DataSourceTagWidgetProps`)에 "라벨" 텍스트 입력 추가(태그 입력 바로 아래, 값/테이블 위젯 공통)
+- **redisValue.ts 해석 로직 라벨 기반 재작성**: `DataSourceTagResolution`이 `{hashKey}` 단일 → `{valueIds, keysByLabel: Map<label,key>}`로 변경. 내부 헬퍼 `resolveDataSourceTagHashKey(resolved, keyLabel)`로 라벨 매칭 지점을 한 곳에 모음. `resolveDataSourceTagWidgets`/`buildDataSourceTagSelectionIds`/`collectDataSourceTagTableWsSubscriptions`가 전부 이 헬퍼를 거치도록 수정. TaskView/RollingDisplay의 테이블 위젯 렌더 분기(섹션별 재해석)에서 쓰던 `resolved.hashKey` 직접 접근을 신규 `resolveDataSourceTagTable(widget, tagResolution)` 조합 헬퍼 호출로 교체
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors (전체), BE `compileJava` BUILD SUCCESSFUL
+- **브라우저 실측 미실시** — ①데이터 소스 관리 탭에서 라벨+키 여러 개 등록(트리에서 찾기 버튼으로 실제 키 클릭) ②task-create에서 태그+라벨 지정한 값/테이블 위젯 각각 추가 ③task-view/RollingDisplay에서 라벨별로 올바른 해시의 값이 뜨는지, 뷰그룹 선택값만 필터링되는지(버그 수정분 포함) 전체 흐름을 사용자가 직접 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/api/taskboardApi.ts`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/tabs/DataSourceQueryTab.tsx`, `features/board/utils/redisKeyPattern.ts`, `features/board/utils/redisValue.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`
+- BE 쌍(`REDIS_KEYS_JSON` 컬럼 + V102 마이그레이션)은 `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 2026-07-02 항목 참고
+
+### 사용자 피드백 4건 — 실제 드래그&드롭, 태그/라벨 오타방지, 값 위젯 표시값 버그 수정
+- **①실제 드래그&드롭 요청**: "task-create처럼 트리구조로 마우스 drag&drop 아니었어?"라는 지적 → 클릭형 피커였던 것을 HTML5 Drag and Drop API로 실제 드래그 지원 추가. `RedisKeyTreePicker`의 리프 버튼에 `draggable`+`onDragStart`(커스텀 MIME 타입 `application/x-taskboard-redis-key`로 키 전달), 라벨+키 입력 행을 드롭존으로 만들어 `onDragOver`/`onDrop`에 드래그 중 하이라이트(`isKeyDropTarget`) 추가. 클릭도 계속 지원(대안)
+- **②N:1 리스트**: 이미 v2에서 구현 완료 확인(추가 작업 없음) — ①의 드래그 개선으로 여러 개 등록이 실제로 편해짐
+- **③태그 삭제 여부 문의 → 유지, 오타방지 강화로 결정**: 뷰그룹의 "태그" 필드는 위젯↔데이터소스 간접 연결의 핵심이라 유지. 대신 오타로 인한 미스매칭을 줄이기 위해 task-create 쪽에 datalist 자동완성 추가 — `TaskCreate()`에서 `useGetTaskboardDisplayList()`(다른 뷰그룹이 이미 쓴 태그 전부)와 `useGetDbQueryDefList()`(등록된 모든 라벨)를 조회해 `existingDataSourceTags`/`existingDataSourceLabels`를 계산하고, 팔레트(`DataSourceTagSection`)와 우측 패널(`DataSourceTagWidgetProps`) 양쪽의 태그·라벨 입력에 `<datalist>`로 제안(자유입력은 유지, 강제 선택 아님)
+- **④버그 수정 — 값(단일) 위젯 표시값이 이상하던 원인 확정**: `getRedisDisplayValue`의 `selectionIdsByHashKey` 분기(`buildDataSourceTagSelectionIds`가 채우는, 뷰그룹 선택값 기반 분기)는 선택된 각 VALUE를 **해시 필드 키** 그 자체로 쓰고, 필드값이 JSON이면 `redisJsonField`로 지정한 서브키만 뽑아 합산하도록 이미 설계돼 있었음(`toNumericField(hashData, id, redisJsonField)` — 두 번째 인자 자리에 `id`가 들어가고 `widget.item.redisField`는 이 분기에서 아예 안 쓰임, 기존 트리-드래그 위젯의 `redisField`/`redisJsonField` 페어 규칙과 동일). 그런데 `DataSourceTagWidgetProps`의 "필드명" 입력이 `widget.item.redisField`를 채우도록 잘못 연결돼 있어 실제로는 항상 무시되고, `redisJsonField`가 비어있어 JSON 필드값을 그대로 숫자 변환 시도(NaN→0) 하거나 엉뚱한 값이 나오고 있었음
+- **조치**: 입력 라벨을 "메트릭 키(선택된 값들의 JSON 안에서 뽑을 필드)"로 변경하고 `onUpdateRedisField`가 `widget.item.redisJsonField`를 채우도록 수정(`updateWidgetRedisField` 내부에서 `redisJsonField` 세팅, 함수명은 호출부 다수라 유지). `getWidgetDataSourcePath`도 `dataSourceKeyLabel`/`redisJsonField` 기준으로 경로 표시하도록 갱신
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors
+- **브라우저 실측 미실시** — ①트리에서 실제 드래그해서 키 필드에 채워지는지 ②태그/라벨 입력 시 자동완성 뜨는지 ③값 위젯에 "메트릭 키" 채운 뒤 실행화면에서 올바른 숫자가 뜨는지 사용자가 직접 확인 필요
+- 관련 파일: `features/board/tabs/DataSourceQueryTab.tsx`, `pages/board/TaskCreate.tsx`
+
+### DataSourceQueryTab UI 미세조정 — 트리 상시노출 + 문구 압축 + SQL textarea 축소
+- 배경: 사용자가 "찾기 버튼 안에 Redis 트리가 숨어있어서 못 봤다"고 피드백 → 클릭해야 나오던 `RedisKeyTreePicker`를 항상 보이도록 변경("찾기" 토글 버튼 및 `keyPickerOpen` state 제거)
+- 안내 문구를 5줄짜리 장문에서 2줄로 압축("아래 트리에서 키를 드래그하거나 클릭 → 라벨 입력 → 추가...")
+- SQL `textarea` 기본 높이 `rows={8}` → `rows={4}`로 축소
+- ESLint --fix 0 errors, tsc 0 errors
+- **브라우저 실측 미실시** — 사용자가 직접 확인 필요
+- 관련 파일: `features/board/tabs/DataSourceQueryTab.tsx`
+
+### 아키텍처 v3 — "데이터소스 태그" 완전 제거, 실제 Redis 키 문자열 일치로 매칭 (승인·구현 완료)
+- 사용자가 실측 중 겪은 문제(①"task-create처럼 트리 드래그&드롭 아니었나" ②"태그 삭제해야 하지 않냐" ③"뷰그룹에서 큐 1개만 선택했는데 전체가 내려온다" — 실측 결과 개별 값 위젯 표시값 자체가 이상함)를 함께 짚다가, 사용자가 최종적으로 "데이터소스(태그)는 지워줘, 위젯을 등록하고 위젯 안에 있는 해시키값이랑 뷰그룹에 있는 해시키값이랑 맞춰서 하면 될 것 같은데?"라고 확정 지시 → v2까지의 `dataSourceTag`/`dataSourceKeyLabel` 태그 간접참조 아키텍처를 전면 폐기하고 **"위젯의 redisHashKey가 데이터소스관리에 등록된 키와 문자열이 정확히 같으면 자동 매칭"** 방식으로 교체
+- **근본 원인도 함께 확정됨**: 사용자가 task-create에서 순수 드래그(`IC:CTIQ:0 > 2024001021 > SUM_CONN_CNT` 등, dataSourceTag 아님)로 만든 개별 값 위젯 3개가 "전체 데이터"를 보여주던 원인은, 몇 세션 전 사용자 요청으로 TaskDisplayManage에서 큐/상담그룹 선택 UI(queueIds/groupIds)를 삭제한 부작용이었음 — `buildSelectionIdsByHashKey`가 여전히 "선택 없음=전체"(레거시 규칙, 원래는 선택 UI가 있다는 전제)로 동작해, 선택 UI가 영영 사라진 지금은 IC:CTIQ:*/IC:GROUP:*/IC:AGENT:* 해시를 참조하는 모든 개별 위젯이 항상 마스터 전체로 강제 override되고 있었음
+- **types**: `CallDataItem.dataSourceTag`/`dataSourceKeyLabel`, `TaskboardDisplaySelection.dbQueryTags` 필드 삭제
+- **redisValue.ts**: `resolveDataSourceTags`/`resolveDataSourceTagWidgets`/`buildDataSourceTagSelectionIds`/`isDataSourceTagTableWidget`/`isDataSourceTagValueWidget`/`collectDataSourceTagTableWsSubscriptions`/`resolveDataSourceTagTable`/`buildDataSourceTagTableRows`/`DataSourceTagResolution` 전부 삭제 → `buildDataSourceKeySelectionIds(dbQueryDefs, dbQuerySelections)` 신규(활성화된 데이터소스의 등록 키 → 선택된 VALUE 목록 맵, 태그 없이 키 자체로 매칭). `buildSelectionIdsByHashKey`는 선택값이 비어있으면 그 hashKey를 결과에서 아예 제외하도록 수정(과거엔 "선택 없음=전체"로 덮어썼음) — 매칭 안 되면 `getRedisDisplayValue`가 원래 드래그된 `redisField`/`redisJsonField`를 그대로 읽는 폴백으로 자연스럽게 떨어짐
+- **TaskCreate.tsx**: `DataSourceTagSection`(팔레트) · `DataSourceTagWidgetProps`(우측 패널) 컴포넌트 전부 삭제. 연쇄적으로 `updateWidgetDataSourceTag`/`updateWidgetDataSourceKeyLabel`/`updateWidgetRedisField`, 태그/라벨 datalist 자동완성 fetch(`existingDataSourceTags`/`existingDataSourceLabels`, `useGetTaskboardDisplayList`/`useGetDbQueryDefList` 관련부), `getWidgetDataSourcePath`의 태그 분기 삭제 — task-create는 이 기능 이전 상태로 완전히 복귀(새 위젯 타입 없음, 순수 Redis 트리 드래그만 사용)
+- **TaskDisplayManage.tsx**: DisplayForm에서 "태그 (위젯 연결용)" 입력 행 + `dbQueryTags` state/`setDbQueryTag`/datalist(`dbquery-tag-suggestions`)/`existingTags` prop 전부 삭제 — 체크박스(사용 여부) + MultiSelectDropdown(값 선택)만 남음
+- **TaskView.tsx / RollingDisplay.tsx**: `resolveDataSourceTag*` 계열 호출을 `buildDataSourceKeySelectionIds`로 교체, `isDataSourceTagTableWidget` 렌더 분기 삭제(더 이상 별도 "데이터소스 태그 테이블" 위젯 타입이 없음 — 일반 위젯이 키 일치로 자동 필터링됨)
+- **알려진 제한(의도적 축소 범위)**: 이번 라운드는 **값(단일) 위젯만** 키 매칭 대상. table-redis(임의 해시 통째로 보여주는 테이블 위젯)에 대한 "매칭되면 선택된 값만 행으로 필터링" 기능은 이번엔 구현 안 함(RedisTableWidget.tsx가 여러 위젯 타입에 걸쳐 공유되는 복잡한 컴포넌트라 별도 검토 필요) — 필요해지면 후속 작업으로.
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors (전체)
+- BE 변경 없음(TaskboardDisplaySelection.dbQueryTags는 BE 입장에서 그냥 selectionJson 안의 불투명 JSON 필드라 스키마 변경 불필요)
+- **브라우저 실측 미실시** — 데이터소스관리에서 키 등록(예: IC:CTIQ:0) → 뷰그룹에서 해당 데이터소스 체크+값 선택 → task-create에서 그 정확히 같은 해시/필드를 드래그한 위젯 → 실행화면에서 선택한 값만 반영되는지, 매칭 안 되는 다른 위젯은 원래 값 그대로인지 확인 필요
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/utils/redisValue.ts`, `pages/board/TaskCreate.tsx`, `pages/board/TaskDisplayManage.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`
+
+### v3 후속 — 카테고리 미등록 시 "원래 값 유지" 대신 "0" 표시로 변경
+- 사용자가 v3 실측 중 WS 구독 로그를 직접 캡처해 지적: 뷰그룹에 CTIQ만 등록하고 GROUP은 등록 안 했는데도 `IC:GROUP:0` 구독이 나가고 있었음. 원인은 v3의 "매칭 안 되면 위젯이 원래 드래그한 필드값 그대로 보여준다" 폴백 — 캔버스에 `IC:GROUP:0` 미디어타입 해시를 직접 드래그해 만든 개별 위젯(데이터소스 시스템과 무관)이 자기 자신의 고정 필드를 그대로 구독한 것으로, v3 설계상 "의도된 동작"이었지만 사용자는 "뷰그룹에 없는 카테고리는 0으로 표시"를 원함
+- **정책 변경**: IC:CTIQ:*/IC:GROUP:*/IC:AGENT:*(미디어타입 해시, 큐/그룹/상담사 예약 패턴) 또는 데이터소스관리에 등록된 키를 쓰는 위젯은, 뷰그룹에 해당 카테고리/데이터소스 선택값이 하나도 없으면 위젯 자신의 필드값 대신 **0**을 보여준다(과거처럼 "원래 드래그한 값 그대로"로 폴백하지 않음). 완전히 관리되지 않는(어느 데이터소스에도 등록 안 되고 예약 패턴도 아닌) 임의 Redis 위젯만 원래 동작 유지
+- **구현**: `buildSelectionIdsByHashKey`가 큐/그룹/상담사 선택값이 비어도 `result[hashKey] = []`(빈 배열)로 채우도록 변경(과거엔 아예 키를 안 넣어 폴백을 유도했음) — `getRedisDisplayValue`에 이미 있던 `selectedIds.length === 0 → '0'` 분기가 자연히 발동. `buildDataSourceKeySelectionIds`도 동일하게 선택값 없는 등록된 키를 빈 배열로 채우도록 변경(과거엔 선택값 없으면 그 키를 아예 건너뛰었음). `collectRedisWsSubscriptions`는 ids가 빈 hashKey는 구독 자체를 안 보내도록(불필요한 WS 트래픽 방지) 필터 추가
+- **범위 제한**: table-queue/table-group/table-agent 등 테이블 위젯 쪽의 "선택 없음=전체" 로직(`TaskView.tsx`의 `needsQueue`/`queueIdsForSub` 등, `buildSelectionIdsByHashKey`와 별개 코드 경로)은 이번엔 안 건드림 — 사용자가 보고한 건 값(단일) 위젯 사례뿐이라 증거 없는 변경 지양
+- ESLint --fix 0 errors, tsc 0 errors
+- **브라우저 실측 미실시**
+- 관련 파일: `features/board/utils/redisValue.ts`
+
+### 플레이스홀더 데이터소스 — 해시키 안에 그룹ID/노드ID가 박힌 경우 자동 확장
+- 배경: 사용자가 `IC:GROUP:0`(필드=GROUPID+LPAD(NODEID,6))와 `IC:GROUP:{GROUPID}:0`(해시키 자체에 GROUPID, 필드=NODEID+REASONCODE) 두 가지 실제 Redis 스키마를 제시 — 후자처럼 해시키 자체에 동적 세그먼트가 박힌 경우, 그룹이 수십~수백 개면 라벨 하나씩 수동 등록이 불가능. 논의 끝에 "데이터소스를 플레이스홀더로 등록해서 재사용" 방식으로 결정(NODEID는 `SELECT NODE_ID AS VALUE, NODE_ID AS NAME FROM TB_CC_NODEMASTER`처럼 기존 쿼리 실행 인프라 그대로 사용 — 새 BE 엔드포인트 불필요)
+- `DbQueryDef.placeholderName?: string` 신규(타입) — 이 값이 있으면 다른 데이터소스의 `redisKeys[].key`에서 `"{이 이름}"` 토큰으로 참조 가능
+- **`redisValue.ts`**: `extractNameValueItems`(TaskDisplayManage에 있던 로컬 함수를 공용으로 승격 — VALUE/NAME 컬럼 대소문자 무시 추출) 신규 export. `expandTemplateKey(key, placeholderValuesByName)` 신규 — key 안의 `{name}` 토큰들을 뽑아(`extractPlaceholderNames`) 카티션 곱으로 실제 키 목록을 만듦(플레이스홀더 값 목록을 못 찾으면 확장 불가로 빈 배열). `buildDataSourceKeySelectionIds`에 `placeholderOptionValues?: Record<dbQueryId, string[]>` 파라미터 추가 — 각 `placeholderName` 등록 데이터소스에 대해 "뷰그룹에서 선택된 값이 있으면 그것만, 없으면 placeholderOptionValues(쿼리 전체 결과)"로 치환 테이블을 만든 뒤, 모든 데이터소스의 `redisKeys[].key`를 이 테이블로 확장해서 결과에 채움(일반 키는 토큰이 없어 그대로 1개로 처리 — 기존 동작 완전 호환)
+- **`DataSourceQueryTab.tsx`**: 저장 폼에 "플레이스홀더 이름 (선택)" 입력 추가(설명 텍스트에 사용 예시 포함), `handleSave`/`handleEdit`/`handleCancelEdit`에 `placeholderName` 상태 연결, 저장된 목록에 `{이름} 플레이스홀더` 뱃지 표시
+- **`TaskDisplayManage.tsx`**: 로컬 `extractNameValueItems` 삭제, `redisValue.ts`의 공용 버전 import로 교체(중복 제거, 동작 변화 없음)
+- **`TaskView.tsx`/`RollingDisplay.tsx`(2곳: LayoutScreen, RollingPlayer)**: `placeholderName`이 있는 데이터소스만 골라 `useGetDbQueryDefOptionsMulti`로 전체 옵션(VALUE) 조회 → `placeholderOptionValues: Record<dbQueryId, string[]>`로 변환해 `buildDataSourceKeySelectionIds`에 전달
+- BE 쌍(`PLACEHOLDER_NAME` 컬럼 + V103 마이그레이션)은 `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참고
+- ESLint --fix 0 errors, `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors, BE `compileJava` BUILD SUCCESSFUL
+- **재시작 + V103 마이그레이션 적용 필요**
+- **브라우저 실측 미실시** — 예시 시나리오: ①NODEMASTER를 `nodeId` 플레이스홀더로 등록 ②그룹목록 쿼리를 `groupId` 플레이스홀더로 등록(또는 이석사유 쪽에서 직접 그룹 VALUE 데이터소스를 groupId로 등록) ③이석사유 데이터소스의 redisKeys에 `IC:GROUP:{groupId}:0` 같은 템플릿 키 등록 ④뷰그룹에서 값 선택 후 실행화면에서 그룹별로 올바르게 펼쳐지는지 확인
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/api/taskboardApi.ts`, `features/board/hooks/useTaskboardQueries.ts`, `features/board/tabs/DataSourceQueryTab.tsx`, `features/board/utils/redisValue.ts`, `pages/board/TaskDisplayManage.tsx`, `pages/board/TaskView.tsx`, `features/board/components/RollingDisplay.tsx`
+
+### 플레이스홀더 전용 탭 분리 — "데이터 소스 관리"와 완전히 독립
+- 배경: 사용자가 실사용 Redis 데이터 덤프를 공유하며 확인한 결과, `IC:GROUP:REASON:{groupId}:0`(그룹별 이석사유)처럼 뷰그룹마다 다른 그룹 조합(A,B,C / D,E,F / A,E,F 등)을 직접 골라 써야 하는 케이스가 확정됨 — 이건 SQL이 한 번 고정된 목록을 만드는 방식(REDIS_KEY 컬럼 직접 조립 등, 검토했다가 폐기)으로는 안 되고, 뷰그룹별 선택값을 반영하는 플레이스홀더 방식이 맞다고 재확인. 다만 "데이터 소스 관리" 탭 하나에 일반 등록+플레이스홀더 등록이 섞여 있으면 헷갈린다는 피드백 → 완전히 분리된 탭으로 재구성
+- **`PlaceholderQueryTab.tsx`** 신규 (`features/board/tabs/`) — `DataSourceQueryTab.tsx`에서 SQL 실행기/파라미터/결과 테이블 골격을 재사용하되, "연동 Redis 키"(redisKeys) 섹션은 없고 "플레이스홀더 이름"만 **필수 입력**으로 받는 단순화된 등록 폼. 저장 리스트는 `placeholderName`이 있는 `DbQueryDef`만 필터링해서 보여줌
+- **`DataSourceQueryTab.tsx`**: "플레이스홀더 이름" 입력 UI 및 관련 상태(`placeholderName`) 전부 제거(플레이스홀더 탭으로 이동). 저장 리스트를 `!d.placeholderName`으로 필터링해 플레이스홀더 항목은 여기 안 보이게 함
+- **`TaskDisplayManage.tsx`**: `MainTab`에 `'placeholder'` 추가, 3번째 탭 버튼 + 헤더 문구 + `<PlaceholderQueryTab />` 렌더 분기 추가. 뷰그룹 등록 폼(`DisplayForm`)의 체크박스 목록은 `useGetDbQueryDefList()`를 필터링 없이 그대로 쓰므로 플레이스홀더 데이터소스도 거기선 정상적으로 선택 가능(의도된 동작 — 그룹 목록 플레이스홀더도 뷰그룹마다 값 선택이 필요하므로)
+- BE 쪽 변경 없음(이미 있는 `placeholderName` 컬럼/API 그대로 재사용, UI만 분리)
+- ESLint --fix 0 errors, tsc 0 errors
+- **브라우저 실측 미실시**
+- 관련 파일: `features/board/tabs/PlaceholderQueryTab.tsx`(신규), `features/board/tabs/DataSourceQueryTab.tsx`, `pages/board/TaskDisplayManage.tsx`
+
+### 필드키(해시 필드) 조합식 — 노드ID+사유코드처럼 복합 필드 자동 조합
+- 배경: `IC:GROUP:REASON:{groupId}:0` 해시의 필드는 NODE_ID(6자리 0패딩)+REASON_CODE 복합값. 지금까지는 이석사유 데이터소스의 SQL 안에서 `LPAD(NODE_ID,6,'0')||REASON_CODE`처럼 직접 조립해야 해서 NODEMASTER를 매번 재조인해야 했음(이미 `nodeId` 플레이스홀더로 등록해둔 값 재사용 불가). 실사용 Redis 데이터(사용자가 공유한 JSON 덤프)로 필드 포맷을 재확인하는 과정에서, "해시 이름은 플레이스홀더로 조합하면서 필드(키)는 왜 안 되냐"는 질문을 계기로 필드에도 같은 조합 메커니즘을 확장
+- `DbQueryRedisKeyEntry`에 `keyTemplate?: string` 추가 — `"{placeholder}"`/`"{placeholder:자릿수}"`(다른 데이터소스의 placeholderName 참조, 자릿수 지정 시 0 왼쪽 채움) + `"{value}"`(이 쿼리 자신의 VALUE, 예: REASON_CODE) 토큰을 `"||"`(SQL concat처럼 보이는 구분 표기, 실제 필드키엔 안 들어감)로 이어붙이는 조합식. 미지정/`"DEFAULT"`면 기존처럼 VALUE를 필드 그대로 사용(대부분의 데이터소스가 여기 해당, 변경 없음)
+- `redisValue.ts`:
+  - `PLACEHOLDER_TOKEN_PATTERN`을 `/\{(\w+)\}/g` → `/\{(\w+)(?::(\d+))?\}/g`로 확장(자릿수 캡처), `extractPlaceholderNames` → `extractPlaceholderTokens`(raw/name/width 반환)로 교체, `padPlaceholderValue`(LPAD) 신규
+  - `expandTemplateKey`(해시 이름 조합, 기존)가 자릿수 문법도 지원하도록 갱신 — 동작은 그대로, 문법만 확장
+  - `expandKeyFieldTemplate` 신규 — `"||"` 제거 후 own VALUE(`{value}`) × 외부 플레이스홀더 카티션 곱으로 필드키 목록 생성. own VALUE가 비어있으면(뷰그룹 미선택) 빈 배열 반환해 기존 "0 표시" 정책 그대로 유지
+  - `buildDataSourceKeySelectionIds`: `rk.keyTemplate`이 있고 `"DEFAULT"`가 아니면 `expandKeyFieldTemplate`로 필드키를 계산, 없으면 기존처럼 VALUE 그대로 사용
+- `DataSourceQueryTab.tsx`: "연동 Redis 키" 추가 폼에 "필드키 조합식(선택)" 입력 한 줄 추가, 저장된 목록에 `keyTemplate`이 있으면 `=조합식`으로 같이 표시
+- BE: `RedisKeyEntry`에 `keyTemplate` 필드만 추가(DB 컬럼 추가 없음 — JSON 블롭이라 마이그레이션 불필요), 상세는 `BT-ADMIN-SERVICE-TASKBOARD/CHANGELOG.md` 참고
+- ESLint --fix 0 errors(새로 추가된 non-null-assertion 없음, 기존 5건 그대로), `npx tsc --noEmit -p apps/taskboard/tsconfig.app.json` 0 errors, BE `compileJava` BUILD SUCCESSFUL
+- **브라우저 실측 미실시** — 예시: 그룹 목록을 `groupId` 플레이스홀더로, 노드 목록을 `nodeId` 플레이스홀더로 등록 → 이석사유 데이터소스는 `SELECT REASON_CODE AS VALUE, REASON_NAME AS NAME FROM ...`(NODE 조인 불필요)로 등록하고 연동 키 `IC:GROUP:REASON:{groupId}:0`에 필드키 조합식 `{nodeId:6}||{value}` 지정 → 뷰그룹에서 그룹/사유 선택 후 실행화면에서 값이 맞게 뜨는지 확인
+- 관련 파일: `features/board/types/taskboard.types.ts`, `features/board/utils/redisValue.ts`, `features/board/tabs/DataSourceQueryTab.tsx`
