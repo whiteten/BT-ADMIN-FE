@@ -38,7 +38,15 @@ export type ValidateSourceResult = {
   ok: boolean;
   errors: string[];
   warnings: string[];
-  detectedColumns: { columnName: string; dataType: string; columnFormat: string; source?: string }[];
+  detectedColumns: {
+    columnName: string;
+    dataType: string;
+    columnFormat: string;
+    source?: string;
+    comment?: string | null;
+    /** DIM(차원) | MSR(측정값) — 필드 사전 지정값(REDIS). 없으면 null(타입으로 폴백) */
+    classification?: 'DIM' | 'MSR' | null;
+  }[];
   /** REDIS 검증 시 BE가 자동 추정한 값 모드. */
   valueMode?: 'JSON_PER_FIELD' | 'HASH_AS_ROW';
 };
