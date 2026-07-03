@@ -25,6 +25,8 @@ export interface RedisKeyColumn {
   source: string | null;
   /** 컬럼 코멘트/설명 (REDIS는 추후 제공, 없으면 null) */
   comment?: string | null;
+  /** DIM(차원) | MSR(측정값) — 필드 사전 지정값. 없으면 null(타입으로 폴백) */
+  classification?: 'DIM' | 'MSR' | null;
 }
 
 /** 키 템플릿의 필드 스키마 — 실제 데이터 값은 포함하지 않는다. */
@@ -33,6 +35,10 @@ export interface RedisKeySchema {
   sampleKey: string | null;
   /** JSON_PER_FIELD(value=JSON) | HASH_AS_ROW(value=스칼라) | null */
   valueMode: 'JSON_PER_FIELD' | 'HASH_AS_ROW' | null;
+  /** 키 사전(TB_BT_IS_MON_REDIS_KEY)의 한글 표시명 (없으면 null) */
+  keyDisplayName?: string | null;
+  /** 키 사전의 설명 — 기본 정보 화면 노출 (없으면 null) */
+  keyDescription?: string | null;
   columns: RedisKeyColumn[];
 }
 

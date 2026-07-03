@@ -72,6 +72,9 @@ const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/Skil
 // agent-schedule (상담사/상담그룹 스케줄 관리 — SWAT IPR20S4010/IPR20S4020 스케줄 탭 통합)
 const AgentScheduleList = React.lazy(() => import('./pages/agent-schedule/AgentScheduleList'));
 
+// worktime (교환기 업무시간관리 — SWAT IPR30S4022 의 IE 분리분. IVR 분리분은 apps/ivr)
+const IeWorktimeList = React.lazy(() => import('./pages/pbx-worktime/IeWorktimeList'));
+
 // device (단말기관리 — SWAT IPR20S2110 + IPR20S2130, 단말모델관리 — IPR20S2120)
 const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
 const DeviceHistoryList = React.lazy(() => import('./pages/device/DeviceHistoryList'));
@@ -96,7 +99,7 @@ export const routes = [
     path: '/',
     element: <Outlet />,
     children: [
-      { index: true, element: <Navigate to="/" replace /> },
+      // 루트 index redirect는 host(app.tsx)가 담당 — 비활성 remote에서 발동하던 <Navigate to="/"> 제거.
       {
         path: 'profile',
         element: <Outlet />,
@@ -255,6 +258,10 @@ export const routes = [
       {
         path: 'agent-schedule',
         element: pv('agent-schedule', AgentScheduleList),
+      },
+      {
+        path: 'pbx-worktime',
+        element: pv('pbx-worktime', IeWorktimeList),
       },
       {
         path: 'device',
