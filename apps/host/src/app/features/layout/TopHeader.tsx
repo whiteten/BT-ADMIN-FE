@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Maximize2 } from 'lucide-react';
 import { useAgentChatStore, useLayoutStore } from '@/shared-store';
 import { useCanUseAgentChat } from './hooks/useCanUseAgentChat';
+import TenantChip from '../../components/TenantChip';
 import UserMenuSelector from '../../components/UserMenuSelector';
 import GlobalSearch from '../search/components/GlobalSearch';
 import { IconRemoteAoe } from '@/components/custom/Icons';
@@ -56,6 +57,7 @@ export default function TopHeader() {
             <span aria-hidden className="h-5 w-px bg-white/20 ml-1.5" />
           </>
         )}
+        <TenantChip />
         <UserMenuSelector />
         <span aria-hidden className="h-5 w-px bg-white/20" />
         <button
