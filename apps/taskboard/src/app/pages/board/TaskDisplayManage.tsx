@@ -6,7 +6,6 @@ import { MultiSelectDropdown } from '../../features/board/components/MultiSelect
 import {
   useCreateTaskboardDisplay,
   useDeleteTaskboardDisplay,
-  useGetCtiGroupList,
   useGetCtiQueueList,
   useGetDbQueryDefList,
   useGetDbQueryDefOptionsMulti,
@@ -14,7 +13,6 @@ import {
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
 import DataSourceQueryTab from '../../features/board/tabs/DataSourceQueryTab';
-import PlaceholderQueryTab from '../../features/board/tabs/PlaceholderQueryTab';
 import type { DbQueryDef, TaskboardDisplay, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
 import { extractNameValueItems } from '../../features/board/utils/redisValue';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
@@ -45,13 +43,12 @@ function SelectionSummary({
   dbQueryNameMaps,
 }: {
   selection: TaskboardDisplaySelection;
-  nameMaps: { queue: Map<string, string>; group: Map<string, string> };
+  nameMaps: { queue: Map<string, string> };
   dbQueryDefs: DbQueryDef[];
   dbQueryNameMaps: Map<number, Map<string, string>>;
 }) {
   const categories: SelectionCategory[] = [
     { label: '큐', color: '#0891b2', ids: selection.queueIds ?? [], nameMap: nameMaps.queue },
-    { label: '상담그룹', color: '#7c3aed', ids: selection.groupIds ?? [], nameMap: nameMaps.group },
     ...dbQueryDefs.map((def) => ({
       label: def.queryName,
       color: '#b45309',
@@ -99,6 +96,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   const userInfo = useAuthStore((s) => s.userInfo);
 
   const [displayName, setDisplayName] = useState(initial?.displayName ?? '새 뷰 그룹');
+
   const [dbQuerySelections, setDbQuerySelections] = useState<Record<number, string[]>>(initialSelection.dbQuerySelections ?? {});
   // 쿼리(데이터 소스)별 사용 여부 체크박스 — 초기값은 기존 선택값이 있던 쿼리를 사용 중으로 간주
   const [enabledDbQueryIds, setEnabledDbQueryIds] = useState<Set<number>>(
@@ -120,8 +118,11 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
     return dbQueryDropdownRefs.current.get(id)!;
   }
 
-  // 데이터 소스 관리 탭(DataSourceQueryTab)에서 등록한 뷰그룹 체크박스 옵션 소스 — 저장된 쿼리 개수만큼 옵션(VALUE/NAME) 조회
-  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  // 데이터 소스 관리 탭(DataSourceQueryTab)에서 등록한 뷰그룹 체크박스 옵션 소스 — 저장된 쿼리 개수만큼 옵션(VALUE/NAME) 조회.
+  // 플레이스홀더로 등록된 것(placeholderName 있음, 예: nodeId)은 뷰그룹마다 고를 필요 없는 값이라 여기서 제외한다.
+  // 상담그룹도 별도 직접선택 필드 없이 여기 체크박스(IC:GROUP:{mediaType} 등록 데이터소스)로 처리한다.
+  const { data: allDbQueryDefs = [] } = useGetDbQueryDefList();
+  const dbQueryDefs = allDbQueryDefs.filter((d) => !d.placeholderName);
   const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
 
   useEffect(() => {
@@ -278,7 +279,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
 // 뷰 그룹(큐/그룹/상담사 선택값)은 전광판(레이아웃)과 매핑되지 않는 독립된 풀이다.
 // 어떤 전광판에든 자유롭게 입혀 쓸 수 있으므로 여기서는 전광판 연결 관리를 하지 않는다.
 type ViewMode = 'grid' | 'list';
-type MainTab = 'displays' | 'dataSource' | 'placeholder';
+type MainTab = 'displays' | 'dataSource';
 
 export default function TaskDisplayManage() {
   const { data: displays = [], isLoading, refetch } = useGetTaskboardDisplayList();
@@ -288,14 +289,13 @@ export default function TaskDisplayManage() {
   const [activeTab, setActiveTab] = useState<MainTab>('displays');
 
   const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const { data: groupRows = [] } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
   const nameMaps = {
     queue: new Map(queueRows.map((q) => [q.ctiqId, q.ctiqName])),
-    group: new Map(groupRows.map((g) => [g.groupId, g.groupName])),
   };
 
-  // 카드/목록 요약에 TASK-DB-QUERY 선택값도 함께 보여주기 위한 이름 매핑
-  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  // 카드/목록 요약에 TASK-DB-QUERY 선택값도 함께 보여주기 위한 이름 매핑 (플레이스홀더 등록분은 뷰그룹 선택 대상이 아니라 제외)
+  const { data: allDbQueryDefsForSummary = [] } = useGetDbQueryDefList();
+  const dbQueryDefs = allDbQueryDefsForSummary.filter((d) => !d.placeholderName);
   const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
   const dbQueryNameMaps = new Map<number, Map<string, string>>(
     dbQueryDefs.map((def, idx) => [def.dbQueryId, new Map(extractNameValueItems(dbQueryOptionsResults[idx]?.data ?? []).map((i) => [i.id, i.name]))]),
@@ -341,15 +341,10 @@ export default function TaskDisplayManage() {
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">뷰 그룹 관리</h1>
             <p className="text-sm text-slate-500 mt-1">전광판에 표시할 데이터를 묶어 뷰 그룹으로 만들고, 어떤 전광판(레이아웃)에든 그대로 입혀 재사용할 수 있습니다.</p>
           </>
-        ) : activeTab === 'dataSource' ? (
+        ) : (
           <>
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">데이터 소스 관리</h1>
             <p className="text-sm text-slate-500 mt-1">직접 등록한 데이터를 뷰 그룹에서 선택할 수 있도록 SELECT 쿼리로 만들어 저장합니다.</p>
-          </>
-        ) : (
-          <>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">플레이스홀더</h1>
-            <p className="text-sm text-slate-500 mt-1">해시키 자체에 값이 박혀있는 Redis 키(예: 그룹ID별 해시)를 다른 데이터소스가 참조할 수 있는 값 목록으로 등록합니다.</p>
           </>
         )}
       </div>
@@ -369,14 +364,6 @@ export default function TaskDisplayManage() {
             }`}
           >
             데이터 소스 관리
-          </button>
-          <button
-            onClick={() => setActiveTab('placeholder')}
-            className={`px-4 py-2 text-sm font-semibold border-l border-slate-200 transition-colors ${
-              activeTab === 'placeholder' ? 'bg-[#0f5b9e] text-white' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            플레이스홀더
           </button>
         </div>
 
@@ -408,11 +395,9 @@ export default function TaskDisplayManage() {
         )}
       </div>
 
-      <div className={`flex-1 min-h-0 ${activeTab === 'dataSource' || activeTab === 'placeholder' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+      <div className={`flex-1 min-h-0 ${activeTab === 'dataSource' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
         {activeTab === 'dataSource' ? (
           <DataSourceQueryTab />
-        ) : activeTab === 'placeholder' ? (
-          <PlaceholderQueryTab />
         ) : isLoading ? (
           <div className="py-24 text-center text-slate-400">불러오는 중...</div>
         ) : displays.length === 0 ? (

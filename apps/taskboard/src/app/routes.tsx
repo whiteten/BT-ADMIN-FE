@@ -16,7 +16,6 @@ const TaskViewPublic = React.lazy(() => import('./pages/board/TaskViewPublic'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('taskboard');
-const pv2 = createPageVariantSocket('taskboard-control');
 
 export const routes = [
   {
@@ -28,16 +27,14 @@ export const routes = [
         path: 'board',
         element: <Outlet />,
         children: [
-          { path: 'task-bg', element: pv2('board/task-bg', TaskBg) },
+          { path: 'task-bg', element: pv('board/task-bg', TaskBg) },
           { path: 'task-list', element: pv('board/task-list', TaskList) },
           { path: 'task-mgmt', element: pv('board/task-mgmt', TaskMgmt) },
           { path: 'task-create', element: pv('board/task-create', TaskCreate) },
           { path: 'task-display', element: pv('board/task-display', TaskDisplayManage) },
           { path: 'task-view/:layoutId/:displayId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },
-          // 섹션 모드: displayId 없이 ?s=A:1,B:2,C:3 쿼리로 섹션별 뷰 그룹 지정
           { path: 'task-view/:layoutId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },
-          { path: 'task-notice', element: pv2('board/task-notice', TaskNotice) },
-          // 새창 롤링: SessionGuard 통과 후 Chromeless 래퍼로 호스트 UI 숨김
+          { path: 'task-notice', element: pv('board/task-notice', TaskNotice) },
           {
             path: 'task-rolling',
             element: (
@@ -46,7 +43,6 @@ export const routes = [
               </Chromeless>
             ),
           },
-          // 공개 뷰: SessionGuard가 이 경로를 우회(apps/host SessionGuard.tsx 참조)
           {
             path: 'task-view-public/:layoutId/:displayId',
             element: (

@@ -62,6 +62,11 @@ export interface TableColumn {
   calc?: TableColumnCalc;
   /** false면 표/실행화면에서 이 컬럼 자체를 사용하지 않음(데이터·헤더 모두 제외, 설정값 자체는 유지) — 기본 true(사용) */
   hidden?: boolean;
+  /**
+   * 설정되면 이 컬럼의 원본 값(코드)을 그대로 보여주지 않고, 이 dbQueryId로 등록된 데이터소스의 VALUE→NAME
+   * 매핑으로 치환해서 보여준다(예: 이석사유 코드 → 사유명). 매핑에 없는 값은 원본 그대로 표시.
+   */
+  nameLookupDbQueryId?: number;
 }
 
 /** 차트형 위젯 설정 */
@@ -355,7 +360,6 @@ export interface RollingGroup {
  */
 export interface TaskboardDisplaySelection {
   queueIds?: string[];
-  groupIds?: string[];
   agentIds?: string[];
   /** 데이터 소스 관리 탭(DataSourceQueryTab)에서 등록한 DbQueryDef별 선택값 — dbQueryId → 선택된 VALUE 배열 */
   dbQuerySelections?: Record<number, string[]>;

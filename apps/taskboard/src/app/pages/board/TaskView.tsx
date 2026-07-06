@@ -27,6 +27,7 @@ import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/b
 import {
   buildDataSourceKeySelectionIds,
   buildGroupReasonHashKeys,
+  buildReasonFamilyTargetIdsByPrefix,
   buildSelectionIdsByHashKey,
   collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
@@ -35,8 +36,10 @@ import {
   getRedisDisplayValue,
   groupSumAcrossHashKeys,
   groupSumRedisHashEntries,
+  mergeDbQuerySelections,
   mergeWsSubscriptions,
   parseGroupReasonHashKey,
+  resolveGroupIdsFromSelection,
 } from '../../features/board/utils/redisValue';
 import {
   VALUE_CHANGE_ANIMATION_CSS,
@@ -101,6 +104,9 @@ function buildLiveTableRows(
   dataByHashKey: CtiWsDataByHashKey,
   agentHashKeys: string[],
   sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number },
+  // 상담그룹은 selection 자체에 필드가 없다 — "데이터소스 관리 등록 데이터"(IC:GROUP:{mediaType} 등록 소스)
+  // 선택값에서 해석한 그룹ID 목록을 호출부가 별도로 넘긴다(resolveGroupIdsFromSelection 결과).
+  selectedGroupIds: string[] = [],
 ): Record<string, string | number>[] {
   if (widgetId === 'table-queue') {
     const selectedQueueIds = selection.queueIds ?? [];
@@ -158,7 +164,6 @@ function buildLiveTableRows(
     return applySortAndLimit(result, sortConfig);
   }
   if (widgetId === 'table-group') {
-    const selectedGroupIds = selection.groupIds ?? [];
     const filtered = selectedGroupIds.length > 0 ? groupRows.filter((g) => selectedGroupIds.includes(g.groupId)) : groupRows;
     const result = filtered.map((group) => {
       const row: Record<string, string | number> = {};
@@ -462,15 +467,15 @@ function ViewValueWidget({
   widgets,
   redisData,
   selectionIdsByHashKey,
-  targetGroupIds = [],
+  targetIdsByPrefix = {},
   fontScale = 1,
 }: {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   redisData?: CtiWsDataByHashKey;
   selectionIdsByHashKey?: Record<string, string[]>;
-  /** IC:GROUP:REASON 패밀리 단일값 위젯 전용 — 디스플레이가 선택한 그룹ID 목록(없으면 전체 그룹). */
-  targetGroupIds?: string[];
+  /** REASON 패밀리(그룹/스킬 등) 단일값 위젯 전용 — basePrefix별 디스플레이 선택 엔티티 ID 목록(없으면 전체). */
+  targetIdsByPrefix?: Record<string, string[]>;
   fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && VIEW_ETC_CLOCK_IDS.has(widget.item.id);
@@ -535,7 +540,12 @@ function ViewValueWidget({
   const groupReason = isRedis ? parseGroupReasonHashKey(widget.item.redisHashKey!) : null;
   const groupBySum = groupBy
     ? groupReason
-      ? (groupSumAcrossHashKeys(redisData ?? {}, buildGroupReasonHashKeys(groupReason.mediaType, targetGroupIds), groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
+      ? (groupSumAcrossHashKeys(
+          redisData ?? {},
+          buildGroupReasonHashKeys(groupReason.prefix, groupReason.mediaType, targetIdsByPrefix[groupReason.basePrefix] ?? []),
+          groupBy.byKey,
+          groupBy.aggKey,
+        ).get(groupBy.matchValue) ?? 0)
       : (groupSumRedisHashEntries(redisData?.[widget.item.redisHashKey!] ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
     : undefined;
   const displayValue = isEtcClock
@@ -545,8 +555,8 @@ function ViewValueWidget({
       : isExternalApi
         ? externalApiValue
         : isCalc
-          ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
-          : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
+          ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey, targetIdsByPrefix)
+          : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey, targetIdsByPrefix) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const animKey = useValueChangeKey(displayValue);
@@ -600,25 +610,20 @@ function ViewValueWidget({
 // ── 디스플레이 설정 패널(톱니바퀴) ──────────────────────────────────────────
 function DisplaySettingsPanel({ displayId, selection, onClose, onSaved }: { displayId: number; selection: TaskboardDisplaySelection; onClose: () => void; onSaved: () => void }) {
   const [selectedQueueIds, setSelectedQueueIds] = useState<string[]>(selection.queueIds ?? []);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>(selection.groupIds ?? []);
   const [selectedAgentIds, setSelectedAgentIds] = useState<string[]>(selection.agentIds ?? []);
   const [isSaving, setIsSaving] = useState(false);
 
   const [queueDropdownOpen, setQueueDropdownOpen] = useState(false);
-  const [groupDropdownOpen, setGroupDropdownOpen] = useState(false);
   const [agentDropdownOpen, setAgentDropdownOpen] = useState(false);
   const queueDropdownRef = useRef<HTMLDivElement>(null);
-  const groupDropdownRef = useRef<HTMLDivElement>(null);
   const agentDropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: queueRows = [], isFetching: queueFetching } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const { data: groupRows = [], isFetching: groupFetching } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
   const { data: agentRows = [], isFetching: agentFetching } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (queueDropdownRef.current && !queueDropdownRef.current.contains(e.target as Node)) setQueueDropdownOpen(false);
-      if (groupDropdownRef.current && !groupDropdownRef.current.contains(e.target as Node)) setGroupDropdownOpen(false);
       if (agentDropdownRef.current && !agentDropdownRef.current.contains(e.target as Node)) setAgentDropdownOpen(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -627,8 +632,6 @@ function DisplaySettingsPanel({ displayId, selection, onClose, onSaved }: { disp
 
   const toggleQueue = (id: string) => setSelectedQueueIds((prev) => (prev.includes(id) ? prev.filter((q) => q !== id) : [...prev, id]));
   const toggleAllQueues = () => setSelectedQueueIds((prev) => (prev.length === queueRows.length && queueRows.length > 0 ? [] : queueRows.map((q) => q.ctiqId)));
-  const toggleGroup = (id: string) => setSelectedGroupIds((prev) => (prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]));
-  const toggleAllGroups = () => setSelectedGroupIds((prev) => (prev.length === groupRows.length && groupRows.length > 0 ? [] : groupRows.map((g) => g.groupId)));
   const toggleAgent = (id: string) => setSelectedAgentIds((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
   const toggleAllAgents = () => setSelectedAgentIds((prev) => (prev.length === agentRows.length && agentRows.length > 0 ? [] : agentRows.map((a) => a.agentId)));
 
@@ -637,9 +640,11 @@ function DisplaySettingsPanel({ displayId, selection, onClose, onSaved }: { disp
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      // 기존 selection의 dbQuerySelections(데이터 소스 관리 탭 선택값 — 상담그룹도 여기 포함)를 보존 —
+      // 여기서 통째로 새로 만들면 날아간다.
       const selectionJson = JSON.stringify({
+        ...selection,
         queueIds: selectedQueueIds,
-        groupIds: selectedGroupIds,
         agentIds: selectedAgentIds,
       });
       await updateDisplay.mutateAsync({ displayId, selectionJson });
@@ -677,22 +682,6 @@ function DisplaySettingsPanel({ displayId, selection, onClose, onSaved }: { disp
                 onToggleItem={toggleQueue}
                 onToggleAll={toggleAllQueues}
                 emptyText="큐 데이터 없음"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-semibold text-violet-700 whitespace-nowrap w-14 flex-shrink-0">상담그룹</span>
-              <MultiSelectDropdown
-                label="상담그룹"
-                color="#7c3aed"
-                isFetching={groupFetching}
-                items={groupRows.map((g) => ({ id: g.groupId, name: g.groupName }))}
-                selectedIds={selectedGroupIds}
-                isOpen={groupDropdownOpen}
-                dropdownRef={groupDropdownRef}
-                onToggleOpen={() => setGroupDropdownOpen((v) => !v)}
-                onToggleItem={toggleGroup}
-                onToggleAll={toggleAllGroups}
-                emptyText="그룹 데이터 없음"
               />
             </div>
             <div className="flex items-center gap-3">
@@ -808,16 +797,17 @@ function SingleLayoutView({
     };
   };
 
+  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 — 태그
+  // 같은 별도 식별자 없이, 섹션이 여러 개면 선택값을 합산(union)해 전역으로 미리 만들어 둔다.
+  const { data: dbQueryDefs = [], isLoading: dbQueryDefsLoading } = useGetDbQueryDefList();
+
   // 섹션 모드 시 모든 섹션의 selection을 합산해 WS 구독에 사용한다.
   const allSelections = sectionSelections ? Object.values(sectionSelections) : [selection];
   const selectedQueueIds = [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))];
-  const selectedGroupIds = [...new Set(allSelections.flatMap((s) => s.groupIds ?? []))];
+  const selectedGroupIds = [...new Set(allSelections.flatMap((s) => resolveGroupIdsFromSelection(s, dbQueryDefs)))];
   const selectedAgentIds = [...new Set(allSelections.flatMap((s) => s.agentIds ?? []))];
 
-  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 — 태그
-  // 같은 별도 식별자 없이, 섹션이 여러 개면 선택값을 합산(union)해 전역으로 미리 만들어 둔다.
-  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
-  const mergedDbQuerySelections = Object.assign({}, ...allSelections.map((s) => s.dbQuerySelections ?? {}));
+  const mergedDbQuerySelections = mergeDbQuerySelections(allSelections.map((s) => s.dbQuerySelections));
   const widgets = rawWidgets;
 
   // 플레이스홀더 데이터소스(예: {nodeId})의 전체 VALUE 목록 — 뷰그룹에서 선택값이 없을 때 폴백으로 쓰인다.
@@ -834,7 +824,15 @@ function SingleLayoutView({
   const { data: agentRows = [], isLoading: agentLoading } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
   const { data: groupRows = [], isLoading: groupLoading } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
   // 마스터 데이터가 모두 로드될 때까지 WS 연결을 미뤄 데이터 로드 순서에 따른 재연결을 방지한다.
-  const isMasterLoading = queueLoading || agentLoading || groupLoading;
+  const isMasterLoading = queueLoading || agentLoading || groupLoading || dbQueryDefsLoading || placeholderOptionsResults.some((r) => r.isLoading);
+
+  // IC:GROUP:REASON 패밀리(table-redis/단일값 Redis 위젯 공용) — "선택 없음=전체"는 GROUP과 동일 규칙.
+  // 뷰그룹(디스플레이 선택 그룹)에 없는 그룹은 절대 나오지 않아야 하므로, 선택값이 있으면 그 그룹들만 쓴다.
+  const groupReasonTargetGroupIds = selectedGroupIds.length > 0 ? selectedGroupIds : groupRows.map((g) => g.groupId);
+  // REASON 패밀리(그룹/스킬 등) 전체 화면 단위 — basePrefix별 선택 엔티티 목록. 그룹은 위 "선택 없음=전체"
+  // 폴백을 그대로 유지하고, 그 외 엔티티는 등록된 데이터소스 선택값을 그대로 쓴다.
+  const targetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, mergedDbQuerySelections);
+  targetIdsByPrefix['IC:GROUP:'] = groupReasonTargetGroupIds;
 
   // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 큐/그룹/상담사 실시간 KPI와 동일한 WS 소켓으로 구독.
   // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 디자인 시점에 고정된 id 대신, 디스플레이 선택값으로 어떤 id들을 볼지 결정한다.
@@ -847,16 +845,15 @@ function SingleLayoutView({
       agentRows,
       selectedAgentIds,
     }),
-    ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, placeholderOptionValues),
+    // REASON 패밀리 등록 키(IC:GROUP:REASON:*, IC:SKILL:REASON:* 등)는 이제 buildDataSourceKeySelectionIds가
+    // 각 패밀리의 basePrefix에 대응하는 엔티티 목록 데이터소스의 선택값을 자체적으로 찾아 스코핑한다.
+    ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, placeholderOptionValues, { groupId: groupReasonTargetGroupIds }),
   };
-  const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey);
-  // IC:GROUP:REASON 패밀리(table-redis/단일값 Redis 위젯 공용) — "선택 없음=전체"는 GROUP과 동일 규칙.
-  // 뷰그룹(디스플레이 선택 그룹)에 없는 그룹은 절대 나오지 않아야 하므로, 선택값이 있으면 그 그룹들만 쓴다.
-  const groupReasonTargetGroupIds = selectedGroupIds.length > 0 ? selectedGroupIds : groupRows.map((g) => g.groupId);
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey, targetIdsByPrefix);
   // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다 — 따로 소켓을
   // 열면 위젯이 있는 화면마다 ctiq 소켓이 2개로 보임(RedisTableWidget.tsx의 collectRedisTableWsSubscriptions 참고)
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, groupReasonTargetGroupIds);
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix);
 
   // 큐/그룹/상담사 실시간 KPI — WS 구독. "캔버스에 그 데이터를 실제로 쓰는 위젯이 있을 때만" 구독해서
   // 디스플레이에 선택만 돼 있고 화면에 안 보여주는 큐/그룹/상담사까지 불필요하게 통째로 받아오는 걸 막는다.
@@ -986,13 +983,18 @@ function SingleLayoutView({
     // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. sectionKey가 없으면 합산 selection(전체 공통).
     const effectiveSelection = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
     const effectiveQueueIds = effectiveSelection.queueIds ?? [];
-    const effectiveGroupIds = effectiveSelection.groupIds ?? [];
+    const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSelection, dbQueryDefs);
     const effectiveTargetGroupIds = effectiveGroupIds.length > 0 ? effectiveGroupIds : groupRows.map((g) => g.groupId);
+    // REASON 패밀리(그룹/스킬 등) 위젯 전용 — basePrefix별로 이 위젯(section)의 유효 selection에서 선택된
+    // 엔티티 목록을 계산한다. 그룹은 기존 "선택 없음=전체 CTI 그룹" 폴백(effectiveTargetGroupIds)을 그대로
+    // 유지하고, 그 외 엔티티(스킬 등)는 등록된 데이터소스의 선택값을 그대로 쓴다(선택 없으면 0 표시).
+    const effectiveTargetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, effectiveSelection.dbQuerySelections);
+    effectiveTargetIdsByPrefix['IC:GROUP:'] = effectiveTargetGroupIds;
 
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     const dt = widget.item.displayType;
     // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetGroupIds={effectiveTargetGroupIds} />;
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
     if (dt === 'chart') {
       const liveChartData = buildLiveChartData(widget.item.id, queueRows, agentRows, groupRows, ctiqWsData, effectiveQueueIds);
       return <ViewChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
@@ -1006,11 +1008,23 @@ function SingleLayoutView({
         tableColumns = [...tableColumns, ...extraCols];
       }
       const liveRows = cfg
-        ? buildLiveTableRows(widget.item.id, queueRows, agentRows, groupRows, tableColumns, effectiveSelection, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys, {
-            key: cfg.sortKey,
-            order: cfg.sortOrder,
-            limit: cfg.limit,
-          })
+        ? buildLiveTableRows(
+            widget.item.id,
+            queueRows,
+            agentRows,
+            groupRows,
+            tableColumns,
+            effectiveSelection,
+            [widget.item.mediaType ?? '0'],
+            dataByHashKey,
+            agentHashKeys,
+            {
+              key: cfg.sortKey,
+              order: cfg.sortOrder,
+              limit: cfg.limit,
+            },
+            effectiveGroupIds,
+          )
         : [];
       return <ViewTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
     }
@@ -1020,7 +1034,7 @@ function SingleLayoutView({
         widgets={widgets}
         redisData={dataByHashKey}
         selectionIdsByHashKey={selectionIdsByHashKey}
-        targetGroupIds={effectiveTargetGroupIds}
+        targetIdsByPrefix={effectiveTargetIdsByPrefix}
         fontScale={fontScale}
       />
     );
