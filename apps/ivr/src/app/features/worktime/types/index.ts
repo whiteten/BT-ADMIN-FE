@@ -35,3 +35,11 @@ export interface IrWorktimeRequest {
   finishTime: string; // "HHMM"
   useYn: number; // 1/0
 }
+
+/** 테넌트별 통계 (카드 슬라이더 — TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙) */
+export interface IrWorktimeTenantStat {
+  tenantId: number;
+  tenantName: string | null;
+  worktimeCnt: number;
+  useCnt: number;
+}

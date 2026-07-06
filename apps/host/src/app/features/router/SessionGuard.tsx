@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { LOG } from '@/log';
 
@@ -8,16 +8,10 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 const Log = new LOG('SessionGuard');
 
-/**
- * 세션 인증 없이 접근 가능한 공개 경로 프리픽스.
- * 이 경로에서는 useGetSession 결과가 에러여도 /login으로 리다이렉트하지 않는다.
- * 현재 예외: taskboard 새창 롤링, taskboard 공개 전광판 뷰
- * (apps/taskboard/CHANGELOG.md에 변경 이유 기록됨)
- */
-const PUBLIC_PATH_PREFIXES = ['/taskboard/board/task-rolling', '/taskboard/board/task-view-public/'];
+// 공개 경로 예외는 이 가드가 아니라 RouteShell이 담당한다 — 공개(handle.public) 판정 시
+// 이 가드 자체가 트리에 없다(PublicRouteGate). 여기는 순수 세션 게이트만 유지할 것.
 
 export default function SessionGuard({ children }: { children?: React.ReactNode }) {
-  const { pathname } = useLocation();
   const { data: response, isLoading, isError, error } = useGetSession({ params: { t: dayjs().format('YYYYMMDDHHmmss') } });
 
   useEffect(() => {
@@ -25,11 +19,6 @@ export default function SessionGuard({ children }: { children?: React.ReactNode 
       Log.debug('Session check successfully.');
     }
   }, [response]);
-
-  // 공개 경로는 세션 오류가 있어도 통과 — hook은 항상 호출(Hook Rules 준수)
-  if (PUBLIC_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return children ?? <Outlet />;
-  }
 
   if (isLoading) {
     return <FallbackSpinner useFullScreen />;

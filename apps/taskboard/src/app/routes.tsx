@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import Chromeless from '@/components/custom/Chromeless';
+import type { RouteHandle } from '@/shared-store';
 import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
@@ -35,21 +35,15 @@ export const routes = [
           { path: 'task-view/:layoutId/:displayId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },
           { path: 'task-view/:layoutId', element: pv('board/task-view/:layoutId/:displayId', TaskView) },
           { path: 'task-notice', element: pv('board/task-notice', TaskNotice) },
-          {
-            path: 'task-rolling',
-            element: (
-              <Chromeless>
-                <TaskRolling />
-              </Chromeless>
-            ),
-          },
+          // 새창 롤링: 공개 라우트(handle.public) — host RouteShell이 세션 체크 없이 통과시킴.
+          // 로그인 창에서 window.open으로 열리는 세션 쿠키 공유 새창.
+          // chromeless는 host PublicRouteGate가 강제하므로 별도 <Chromeless> 래퍼 불필요.
+          { path: 'task-rolling', handle: { public: true } satisfies RouteHandle, element: <TaskRolling /> },
+          // 공개 뷰: 공개 라우트(handle.public) — 익명 접근 허용, 데이터 인증은 자체 publicAuth가 담당.
           {
             path: 'task-view-public/:layoutId/:displayId',
-            element: (
-              <Chromeless>
-                <TaskViewPublic />
-              </Chromeless>
-            ),
+            handle: { public: true } satisfies RouteHandle,
+            element: <TaskViewPublic />,
           },
         ],
       },

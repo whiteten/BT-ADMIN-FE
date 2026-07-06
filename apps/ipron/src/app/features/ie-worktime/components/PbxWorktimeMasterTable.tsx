@@ -44,9 +44,9 @@ export default function PbxWorktimeMasterTable({ rowData, isLoading, focusId, on
 
   const colDefs: ColDef<IeWorktimeMaster>[] = useMemo(
     () => [
+      { field: 'tenantName', headerName: '테넌트명', flex: 1, minWidth: 120, valueGetter: (p) => p.data?.tenantName ?? '-', tooltipField: 'tenantName' },
       { field: 'worktimeName', headerName: '업무시간명', flex: 2, minWidth: 160, tooltipField: 'worktimeName' },
       { field: 'groupKey', headerName: '업무시간KEY', flex: 1, minWidth: 130, tooltipField: 'groupKey' },
-      { field: 'slotCount', headerName: '시간대 수', width: 100, filter: 'agNumberColumnFilter' },
       { field: 'worktimeDesc', headerName: '설명', flex: 3, minWidth: 180, tooltipField: 'worktimeDesc' },
     ],
     [],

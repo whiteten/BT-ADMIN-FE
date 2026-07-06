@@ -3,14 +3,24 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { irWorktimeApi } from '../api/irWorktimeApi';
-import type { IrWorktime } from '../types';
+import type { IrWorktime, IrWorktimeTenantStat } from '../types';
 
 export const irWorktimeQueryKeys = createQueryKeys('ir-worktime', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
+  getTenantStats: null,
 });
+
+/** 테넌트별 통계 (카드 슬라이더) */
+export const useGetIrWorktimeTenantStats = ({ queryOptions }: QueryHookOptions<IrWorktimeTenantStat[]> = {}) => {
+  return useQuery({
+    queryKey: irWorktimeQueryKeys.getTenantStats.queryKey,
+    queryFn: () => irWorktimeApi.getTenantStats(),
+    ...queryOptions,
+  });
+};
 
 /** IR 업무시간 목록 */
 export const useGetIrWorktimes = ({ params, queryOptions }: QueryHookWithParamsOptions<IrWorktime[]> = {}) => {

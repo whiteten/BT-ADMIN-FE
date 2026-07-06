@@ -1,15 +1,16 @@
 import { useCallback } from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router-dom';
 import { LOG } from '@/log';
-import { type QueryParamSpec, type RemoteRouteEntry, type RemoteRoutesMap, useRemoteAvailabilityStore, useRemoteRoutesStore } from '@/shared-store';
+import { type RemoteRouteEntry, type RemoteRoutesMap, type RouteHandle, useRemoteAvailabilityStore, useRemoteRoutesStore } from '@/shared-store';
 
 const Log = new LOG('useRemoteRoutesLoader');
 
-type RoutesModule = { routes: RouteObject[] };
+export type RoutesModule = { routes: RouteObject[] };
 
 // catch 를 두지 않음 — import 실패(remote 미기동/Routes expose 실패)를 reject 로 흘려
 // loadRemoteRoutes 에서 remote 별 가용성(성공/실패)을 판정하기 위함.
-const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
+// 공개 라우트 판정 모듈(lib/publicRoutes.ts)이 공유하므로 키·타입 표기를 바꾸지 말 것.
+export const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
   manager: () => import('manager/Routes') as unknown as Promise<RoutesModule>,
   fca: () => import('fca/Routes') as unknown as Promise<RoutesModule>,
   ipron: () => import('ipron/Routes') as unknown as Promise<RoutesModule>,
@@ -23,7 +24,8 @@ const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
 
 const PARAM_KEY_PATTERN = /:([A-Za-z_][A-Za-z0-9_]*)/g;
 
-const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry[] => {
+// 공개 라우트 판정 모듈(lib/publicRoutes.ts)도 재사용 — leaf 판정·public 전파 규칙의 SoT.
+export const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry[] => {
   const entries: RemoteRouteEntry[] = [];
   for (const route of routes) {
     if (route.path === '*') continue;
@@ -37,15 +39,20 @@ const flattenRoutes = (routes: RouteObject[], parentPath = ''): RemoteRouteEntry
 
     if (route.element && !isSkippableElement && !children) {
       const paramKeys = fullSegment.match(PARAM_KEY_PATTERN)?.map((m) => m.slice(1));
-      const handle = route.handle as { queryParams?: QueryParamSpec[] } | undefined;
+      const handle = route.handle as RouteHandle | undefined;
       entries.push({
         path: fullSegment,
         ...(paramKeys && paramKeys.length > 0 ? { paramKeys } : {}),
         ...(handle?.queryParams && handle.queryParams.length > 0 ? { queryParams: handle.queryParams } : {}),
+        ...(handle?.public === true ? { public: true as const } : {}),
       });
     }
 
     if (children) {
+      // public은 leaf 전용 — 그룹(Outlet)에 선언해도 하위로 전파하지 않는다(과대 공개 방지).
+      if ((route.handle as RouteHandle | undefined)?.public === true) {
+        Log.warn(`handle.public은 leaf에만 유효 — 무시됨: ${fullSegment}`);
+      }
       entries.push(...flattenRoutes(children, fullSegment));
     }
   }

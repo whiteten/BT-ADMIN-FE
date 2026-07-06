@@ -1,19 +1,26 @@
 /**
  * IVR 업무시간관리 API 클라이언트 (BFF Aggregation Flow 기반).
  *
- * 등록된 flow (DB: TB_BT_CM_AGG_FLOW_MST, 마이그레이션 V101):
- * - ipron-ivr-worktime-list    GET    IR 업무시간 목록 (worktimeName 필터)
- * - ipron-ivr-worktime-detail  GET    단건 조회
- * - ipron-ivr-worktime-create  POST   등록 (마스터+슬롯1 원자)
- * - ipron-ivr-worktime-update  PUT    수정
- * - ipron-ivr-worktime-delete  DELETE 삭제
+ * 등록된 flow (DB: TB_BT_CM_AGG_FLOW_MST, 마이그레이션 V101/V103):
+ * - ipron-ivr-worktime-list         GET    IR 업무시간 목록 (worktimeName 필터)
+ * - ipron-ivr-worktime-detail       GET    단건 조회
+ * - ipron-ivr-worktime-create       POST   등록 (마스터+슬롯1 원자)
+ * - ipron-ivr-worktime-update       PUT    수정
+ * - ipron-ivr-worktime-delete       DELETE 삭제
+ * - ipron-ivr-worktime-tenants      GET    테넌트 카드 (TB_CC_TENANTMASTER 드라이빙)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { IrWorktime, IrWorktimeRequest } from '../types';
+import type { IrWorktime, IrWorktimeRequest, IrWorktimeTenantStat } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const irWorktimeApi = {
+  /** 테넌트별 통계 (카드 슬라이더 — TB_CC_TENANTMASTER 드라이빙) */
+  getTenantStats: async (): Promise<IrWorktimeTenantStat[]> => {
+    const res = await apiClient.get<ApiResponse<{ value: IrWorktimeTenantStat[] }>>('/ipron-ivr-worktime-tenants');
+    return res.data?.data?.value ?? [];
+  },
+
   /** IR 업무시간 목록 (List → BFF data.value) */
   getList: async (params?: Record<string, unknown>): Promise<IrWorktime[]> => {
     const res = await apiClient.get<ApiResponse<{ value: IrWorktime[] }>>('/ipron-ivr-worktime-list', { params });

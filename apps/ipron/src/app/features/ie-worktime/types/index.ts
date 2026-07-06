@@ -44,3 +44,11 @@ export interface IeWorktimeSlotRequest {
   finishTime: string; // "HHMM"
   useYn: number;
 }
+
+/** 테넌트별 통계 (카드 슬라이더 — TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙) */
+export interface IeWorktimeTenantStat {
+  tenantId: number;
+  tenantName: string | null;
+  worktimeCnt: number;
+  slotCnt: number;
+}

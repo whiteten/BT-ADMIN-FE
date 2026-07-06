@@ -6,7 +6,7 @@
  *
  * 레이아웃 (테넌트 구조 화면 표준 — cti-code/agent-master 패턴):
  *   박스 1: 헤더 (타이틀 + 선택 테넌트)
- *   박스 2: 테넌트 카드 슬라이더 (availableTenants 베이스 + 목록 group by 통계, 접기/펼치기)
+ *   박스 2: 테넌트 카드 슬라이더 (BE tenant-stats — TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙, 접기/펼치기)
  *   박스 3: [상단] 마스터 ag-Grid (검색/등록/삭제, 행 선택 → 하단 로드)
  *   박스 4: [하단] 시간대 ag-Grid (선택 마스터 기준, 추가/삭제)
  *
@@ -31,6 +31,7 @@ import {
   useDeleteIeWorktime,
   useDeleteIeWorktimeSlot,
   useGetIeWorktimeSlots,
+  useGetIeWorktimeTenantStats,
   useGetIeWorktimes,
   useUpdateIeWorktime,
   useUpdateIeWorktimeSlot,
@@ -61,7 +62,6 @@ export default function IeWorktimeList() {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
-  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants) ?? [];
 
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
@@ -82,33 +82,24 @@ export default function IeWorktimeList() {
 
   const { data: list = [], isLoading } = useGetIeWorktimes();
   const { data: slots = [], isLoading: slotsLoading } = useGetIeWorktimeSlots(selectedMaster?.worktimeId);
+  const { data: tenantStats = [] } = useGetIeWorktimeTenantStats();
 
-  const invalidateList = () => queryClient.invalidateQueries({ queryKey: ieWorktimeQueryKeys.getList._def });
+  const invalidateList = () => {
+    void queryClient.invalidateQueries({ queryKey: ieWorktimeQueryKeys.getList._def });
+    void queryClient.invalidateQueries({ queryKey: ieWorktimeQueryKeys.getTenantStats.queryKey });
+  };
   const invalidateSlots = (id: number) => queryClient.invalidateQueries({ queryKey: ieWorktimeQueryKeys.getSlots(id).queryKey });
 
-  // ─── 테넌트 카드 데이터: availableTenants 베이스 + 목록 group by (별도 통계 API 없음) ───
-  const tenantCards = useMemo(() => {
-    const statMap = new Map<number, PbxWorktimeTenantCardStats & { tenantName: string | null }>();
-    for (const r of list) {
-      if (r.tenantId == null) continue;
-      const s = statMap.get(r.tenantId) ?? { tenantName: r.tenantName, worktimeCnt: 0, slotCnt: 0 };
-      s.worktimeCnt += 1;
-      s.slotCnt += r.slotCount ?? 0;
-      statMap.set(r.tenantId, s);
-    }
-    const cards = availableTenants.map((t) => ({
-      tenantId: t.tenantId,
-      tenantName: t.tenantName,
-      stats: { worktimeCnt: statMap.get(t.tenantId)?.worktimeCnt ?? 0, slotCnt: statMap.get(t.tenantId)?.slotCnt ?? 0 },
-    }));
-    const known = new Set(cards.map((c) => c.tenantId));
-    for (const [tenantId, s] of statMap) {
-      if (!known.has(tenantId)) {
-        cards.push({ tenantId, tenantName: s.tenantName ?? `#${tenantId}`, stats: { worktimeCnt: s.worktimeCnt, slotCnt: s.slotCnt } });
-      }
-    }
-    return cards.sort((a, b) => a.tenantId - b.tenantId);
-  }, [list, availableTenants]);
+  // ─── 테넌트 카드: BE tenant-stats (TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙 — ADN 패턴) ───
+  const tenantCards = useMemo(
+    () =>
+      tenantStats.map((t) => ({
+        tenantId: t.tenantId,
+        tenantName: t.tenantName ?? `#${t.tenantId}`,
+        stats: { worktimeCnt: t.worktimeCnt, slotCnt: t.slotCnt } satisfies PbxWorktimeTenantCardStats,
+      })),
+    [tenantStats],
+  );
 
   const selectedTenantName = selectedTenantId == null ? null : (tenantCards.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
 
