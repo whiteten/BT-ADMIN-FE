@@ -6,21 +6,26 @@ import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget 
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
-import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
+import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetDbQueryDefList, useGetDbQueryDefOptionsMulti, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
 import { useValueChangeKey } from '../hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../utils/clockFormat';
 import {
+  buildDataSourceKeySelectionIds,
   buildGroupReasonHashKeys,
+  buildReasonFamilyTargetIdsByPrefix,
   buildSelectionIdsByHashKey,
   collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
+  extractNameValueItems,
   getCalcDisplayValue,
   getRedisDisplayValue,
   groupSumAcrossHashKeys,
   groupSumRedisHashEntries,
+  mergeDbQuerySelections,
   mergeWsSubscriptions,
   parseGroupReasonHashKey,
+  resolveGroupIdsFromSelection,
 } from '../utils/redisValue';
 import {
   VALUE_CHANGE_ANIMATION_CSS,
@@ -285,6 +290,9 @@ function buildLiveTableRows(
   dataByHashKey: Record<string, Record<string, CtiqRecord>>,
   agentHashKeys: string[],
   sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number },
+  // 상담그룹은 selection 자체에 필드가 없다 — "데이터소스 관리 등록 데이터"(IC:GROUP:{mediaType} 등록 소스)
+  // 선택값에서 해석한 그룹ID 목록을 호출부가 별도로 넘긴다(resolveGroupIdsFromSelection 결과).
+  selectedGroupIds: string[] = [],
 ): Record<string, string | number>[] {
   if (widgetId === 'table-queue') {
     const selectedQueueIds = selection.queueIds ?? [];
@@ -342,7 +350,6 @@ function buildLiveTableRows(
     return applySortAndLimit(result, sortConfig);
   }
   if (widgetId === 'table-group') {
-    const selectedGroupIds = selection.groupIds ?? [];
     const filtered = selectedGroupIds.length > 0 ? groupRows.filter((g) => selectedGroupIds.includes(g.groupId)) : groupRows;
     const result = filtered.map((group) => {
       const row: Record<string, string | number> = {};
@@ -583,15 +590,15 @@ function RollingValueWidget({
   widgets,
   redisData,
   selectionIdsByHashKey,
-  targetGroupIds = [],
+  targetIdsByPrefix = {},
   fontScale = 1,
 }: {
   widget: DroppedWidget;
   widgets: DroppedWidget[];
   redisData?: CtiWsDataByHashKey;
   selectionIdsByHashKey?: Record<string, string[]>;
-  /** IC:GROUP:REASON 패밀리 단일값 위젯 전용 — 이 슬라이드의 디스플레이 선택 그룹ID 목록(없으면 전체 그룹). */
-  targetGroupIds?: string[];
+  /** REASON 패밀리(그룹/스킬 등) 단일값 위젯 전용 — 이 슬라이드의 basePrefix별 디스플레이 선택 엔티티 ID 목록. */
+  targetIdsByPrefix?: Record<string, string[]>;
   fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && ROLLING_ETC_CLOCK_IDS.has(widget.item.id);
@@ -636,7 +643,12 @@ function RollingValueWidget({
   const groupReason = isRedis ? parseGroupReasonHashKey(widget.item.redisHashKey!) : null;
   const groupBySum = groupBy
     ? groupReason
-      ? (groupSumAcrossHashKeys(redisData ?? {}, buildGroupReasonHashKeys(groupReason.mediaType, targetGroupIds), groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
+      ? (groupSumAcrossHashKeys(
+          redisData ?? {},
+          buildGroupReasonHashKeys(groupReason.prefix, groupReason.mediaType, targetIdsByPrefix[groupReason.basePrefix] ?? []),
+          groupBy.byKey,
+          groupBy.aggKey,
+        ).get(groupBy.matchValue) ?? 0)
       : (groupSumRedisHashEntries(redisData?.[widget.item.redisHashKey!] ?? {}, groupBy.byKey, groupBy.aggKey).get(groupBy.matchValue) ?? 0)
     : undefined;
   const displayValue = isEtcClock
@@ -644,8 +656,8 @@ function RollingValueWidget({
     : isDbQuery
       ? dbQueryValue
       : isCalc
-        ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey)
-        : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey) : widget.item.sampleValue));
+        ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey, targetIdsByPrefix)
+        : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey, targetIdsByPrefix) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const animKey = useValueChangeKey(displayValue);
@@ -707,25 +719,43 @@ interface LayoutScreenProps {
 }
 
 export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGroups = [], dataByHashKey = {}, agentHashKeys = [] }: LayoutScreenProps) {
-  const widgets = parseLayoutWidgets(layout.layoutJson);
+  const rawWidgets = parseLayoutWidgets(layout.layoutJson);
   const selection = parseSelection(layout.selectionJson);
   const { sectionSelections } = layout;
   const [imgRatio, setImgRatio] = useState(16 / 9);
   const fontScale = useResponsiveFontScale(imgRatio);
 
+  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 —
+  // 이 슬라이드 자신의 선택값 기준.
+  const { data: dbQueryDefs = [] } = useGetDbQueryDefList();
+  const widgets = rawWidgets;
+  const placeholderDefs = dbQueryDefs.filter((d) => !!d.placeholderName);
+  const placeholderOptionsResults = useGetDbQueryDefOptionsMulti(placeholderDefs.map((d) => d.dbQueryId));
+  const placeholderOptionValues = Object.fromEntries(
+    placeholderDefs.map((d, idx) => [d.dbQueryId, extractNameValueItems(placeholderOptionsResults[idx]?.data ?? []).map((i) => i.id)]),
+  );
+
   // 미디어타입은 이 레이아웃 자신의 위젯(item.mediaType)에서 가져온다 — 디스플레이 선택값이 아님.
   const { queueMediaTypes, groupMediaTypes } = collectTableColumns(widgets);
 
+  const layoutTargetGroupIds = resolveGroupIdsFromSelection(selection, dbQueryDefs);
+  const layoutGroupReasonTargetGroupIds = layoutTargetGroupIds.length > 0 ? layoutTargetGroupIds : liveGroups.map((g) => g.groupId);
+
   // GROUP/CTIQ/AGENT(미디어타입 해시) 단일값 위젯이 보여줄 id들은 이 슬라이드 자신의 선택값 기준으로 결정.
   // (RollingPlayer가 모든 슬라이드를 합산해 구독은 이미 끝냈으므로, 여기서는 받은 데이터 중 이 슬라이드 몫만 골라 읽는다)
-  const selectionIdsByHashKey = buildSelectionIdsByHashKey(widgets, {
-    queueRows: liveQueues,
-    selectedQueueIds: selection.queueIds ?? [],
-    groupRows: liveGroups,
-    selectedGroupIds: selection.groupIds ?? [],
-    agentRows: liveAgents,
-    selectedAgentIds: selection.agentIds ?? [],
-  });
+  const selectionIdsByHashKey = {
+    ...buildSelectionIdsByHashKey(widgets, {
+      queueRows: liveQueues,
+      selectedQueueIds: selection.queueIds ?? [],
+      groupRows: liveGroups,
+      selectedGroupIds: layoutTargetGroupIds,
+      agentRows: liveAgents,
+      selectedAgentIds: selection.agentIds ?? [],
+    }),
+    // REASON 패밀리 등록 키(IC:GROUP:REASON:*, IC:SKILL:REASON:* 등)는 이제 buildDataSourceKeySelectionIds가
+    // 각 패밀리의 basePrefix에 대응하는 엔티티 목록 데이터소스의 선택값을 자체적으로 찾아 스코핑한다.
+    ...buildDataSourceKeySelectionIds(dbQueryDefs, selection.dbQuerySelections, placeholderOptionValues, { groupId: layoutGroupReasonTargetGroupIds }),
+  };
 
   const ctiqWsData = mergeByHashKeys(
     dataByHashKey,
@@ -737,7 +767,9 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
   const configuredRtsCols = tableGroupWidgets.flatMap((w) =>
     (w.item.tableConfig!.columns as TableColumn[]).filter((c) => !['name', 'agents', 'talk'].includes(c.key)).map((c) => c.key.toUpperCase()),
   );
-  const groupCompositeKeys = [...new Set(liveGroups.filter((g) => !selection.groupIds?.length || selection.groupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))];
+  const groupCompositeKeys = [
+    ...new Set(liveGroups.filter((g) => layoutTargetGroupIds.length === 0 || layoutTargetGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? [])),
+  ];
   const groupHashRtsFallback =
     configuredRtsCols.length === 0 && tableGroupWidgets.length > 0
       ? [...new Set(groupMediaTypes.flatMap((mt) => Object.keys(dataByHashKey?.[`IC:GROUP:${mt}`]?.[groupCompositeKeys[0] ?? ''] ?? {}).filter((k) => k.startsWith('RTS_'))))]
@@ -756,11 +788,14 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc fallback, 그것도 없으면 기본 selection
     const effectiveSel = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
-    // IC:GROUP:REASON 패밀리용 targetGroupIds도 이 위젯의 sectionKey 기준 selection을 따라야 한다(레이아웃 전체 기준 X)
-    const effectiveTargetGroupIds = effectiveSel.groupIds?.length ? effectiveSel.groupIds : liveGroups.map((g) => g.groupId);
+    // REASON 패밀리(그룹/스킬 등)용 targetIdsByPrefix도 이 위젯의 sectionKey 기준 selection을 따라야 한다(레이아웃 전체 기준 X)
+    const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSel, dbQueryDefs);
+    const effectiveTargetGroupIds = effectiveGroupIds.length > 0 ? effectiveGroupIds : liveGroups.map((g) => g.groupId);
+    const effectiveTargetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, effectiveSel.dbQuerySelections);
+    effectiveTargetIdsByPrefix['IC:GROUP:'] = effectiveTargetGroupIds;
     const dt = widget.item.displayType;
     // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetGroupIds={effectiveTargetGroupIds} />;
+    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
     if (dt === 'chart') {
       const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, effectiveSel.queueIds ?? []);
       return <RollingChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
@@ -774,11 +809,23 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
         tableColumns = [...tableColumns, ...extraCols];
       }
       const liveRows = cfg
-        ? buildLiveTableRows(widget.item.id, liveQueues, liveAgents, liveGroups, tableColumns, effectiveSel, [widget.item.mediaType ?? '0'], dataByHashKey, agentHashKeys, {
-            key: cfg.sortKey,
-            order: cfg.sortOrder,
-            limit: cfg.limit,
-          })
+        ? buildLiveTableRows(
+            widget.item.id,
+            liveQueues,
+            liveAgents,
+            liveGroups,
+            tableColumns,
+            effectiveSel,
+            [widget.item.mediaType ?? '0'],
+            dataByHashKey,
+            agentHashKeys,
+            {
+              key: cfg.sortKey,
+              order: cfg.sortOrder,
+              limit: cfg.limit,
+            },
+            effectiveGroupIds,
+          )
         : [];
       return <RollingTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
     }
@@ -788,7 +835,7 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
         widgets={widgets}
         redisData={dataByHashKey}
         selectionIdsByHashKey={selectionIdsByHashKey}
-        targetGroupIds={effectiveTargetGroupIds}
+        targetIdsByPrefix={effectiveTargetIdsByPrefix}
         fontScale={fontScale}
       />
     );
@@ -845,12 +892,22 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const { data: queueRows = [], isLoading: queueLoading } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
   const { data: agentRows = [], isLoading: agentLoading } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
   const { data: groupRows = [], isLoading: groupLoading } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
-  // 마스터 데이터가 모두 로드될 때까지 WS 연결을 미뤄 데이터 로드 순서에 따른 재연결을 방지한다.
-  const isMasterLoading = queueLoading || agentLoading || groupLoading;
-
   // 로테이션에 포함된 모든 레이아웃의 디스플레이 선택값(큐/그룹/상담사) + 위젯 컬럼/미디어타입을 합산해 WS 구독 하나로 커버.
   // 미디어타입은 디스플레이 선택값이 아니라 위젯 등록 시점에 고정된 값(item.mediaType).
   const allSelections = layouts.map((l) => parseSelection(l.selectionJson));
+
+  // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 — 로테이션
+  // 내 모든 슬라이드의 선택값을 합산해 구독 자원을 넉넉히 만들어 둔다.
+  const { data: dbQueryDefs = [], isLoading: dbQueryDefsLoading } = useGetDbQueryDefList();
+  const mergedDbQuerySelections = mergeDbQuerySelections(allSelections.map((s) => s.dbQuerySelections));
+  const allPlaceholderDefs = dbQueryDefs.filter((d) => !!d.placeholderName);
+  const allPlaceholderOptionsResults = useGetDbQueryDefOptionsMulti(allPlaceholderDefs.map((d) => d.dbQueryId));
+  const allPlaceholderOptionValues = Object.fromEntries(
+    allPlaceholderDefs.map((d, idx) => [d.dbQueryId, extractNameValueItems(allPlaceholderOptionsResults[idx]?.data ?? []).map((i) => i.id)]),
+  );
+
+  // 마스터 데이터가 모두 로드될 때까지 WS 연결을 미뤄 데이터 로드 순서에 따른 재연결을 방지한다.
+  const isMasterLoading = queueLoading || agentLoading || groupLoading || dbQueryDefsLoading || allPlaceholderOptionsResults.some((r) => r.isLoading);
 
   // 로테이션 전체 레이아웃 중 그 데이터를 실제로 쓰는 위젯이 하나라도 있을 때만 해당 종류를 구독(불필요한 대량 조회 방지)
   const allWidgets = layouts.flatMap((l) => parseLayoutWidgets(l.layoutJson));
@@ -862,7 +919,13 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   // GROUP과 동일한 "선택 없음 = 전체" 규칙 — 합집합이 비어있으면(슬라이드 전부 미선택) 마스터 큐 전체를 구독한다.
   const allSelectedQueueIds = [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))];
   const allQueueIds = needsQueue ? (allSelectedQueueIds.length > 0 ? allSelectedQueueIds : queueRows.map((q) => q.ctiqId)) : [];
-  const allSelectedGroupIds = [...new Set(allSelections.flatMap((s) => s.groupIds ?? []))];
+  const allSelectedGroupIds = [...new Set(allSelections.flatMap((s) => resolveGroupIdsFromSelection(s, dbQueryDefs)))];
+  // IC:GROUP:REASON 패밀리 전용 — 로테이션 내 모든 슬라이드 선택값의 합집합(없으면 전체 그룹)
+  const allGroupReasonTargetGroupIds = allSelectedGroupIds.length > 0 ? allSelectedGroupIds : groupRows.map((g) => g.groupId);
+  // REASON 패밀리(그룹/스킬 등) 전체 — basePrefix별 로테이션 내 모든 슬라이드 선택값의 합집합. 그룹은 위
+  // "선택 없음=전체" 폴백을 유지하고, 그 외 엔티티는 등록된 데이터소스 선택값을 그대로 쓴다.
+  const allTargetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, mergedDbQuerySelections);
+  allTargetIdsByPrefix['IC:GROUP:'] = allGroupReasonTargetGroupIds;
   const groupCompositeKeys = needsGroup
     ? [...new Set(groupRows.filter((g) => allSelectedGroupIds.length === 0 || allSelectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))]
     : [];
@@ -882,23 +945,27 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   // 합집합으로 넉넉히 받아두고 실제 화면 표시는 LayoutScreen에서 그 슬라이드 자신의 선택값으로 다시 골라 읽는다.
   const widgetRedisSubscriptions = collectRedisWsSubscriptions(
     allWidgets,
-    buildSelectionIdsByHashKey(allWidgets, {
-      queueRows,
-      selectedQueueIds: allSelectedQueueIds,
-      groupRows,
-      selectedGroupIds: allSelectedGroupIds,
-      agentRows,
-      selectedAgentIds: allSelectedAgentIds,
-    }),
+    {
+      ...buildSelectionIdsByHashKey(allWidgets, {
+        queueRows,
+        selectedQueueIds: allSelectedQueueIds,
+        groupRows,
+        selectedGroupIds: allSelectedGroupIds,
+        agentRows,
+        selectedAgentIds: allSelectedAgentIds,
+      }),
+      // REASON 패밀리 등록 키(IC:GROUP:REASON:*, IC:SKILL:REASON:* 등)는 이제 buildDataSourceKeySelectionIds가
+      // 각 패밀리의 basePrefix에 대응하는 엔티티 목록 데이터소스의 선택값을 자체적으로 찾아 스코핑한다.
+      ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues, { groupId: allGroupReasonTargetGroupIds }),
+    },
+    allTargetIdsByPrefix,
   );
 
-  // IC:GROUP:REASON 패밀리 전용 — 로테이션 내 모든 슬라이드 선택값의 합집합(없으면 전체 그룹). 화면별
-  // 실제 표시는 LayoutScreen이 그 슬라이드 자신의 선택값으로 다시 걸러서 보여준다.
-  const allGroupReasonTargetGroupIds = allSelectedGroupIds.length > 0 ? allSelectedGroupIds : groupRows.map((g) => g.groupId);
+  // 화면별 실제 표시는 LayoutScreen이 그 슬라이드 자신의 선택값으로 다시 걸러서 보여준다.
   // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다 — 따로 소켓을
   // 열면 위젯이 있는 화면마다 ctiq 소켓이 2개로 보임(RedisTableWidget.tsx의 collectRedisTableWsSubscriptions 참고)
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allGroupReasonTargetGroupIds);
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix);
 
   // WebSocket — 전체 레이아웃 큐/그룹/상담사 KPI + 단일값 Redis + DbQuery 위젯 실시간 수신
   // 마스터 데이터 로딩 중에는 빈 구독 → WS 연결 미룸(로드 순서에 따른 재연결 방지)

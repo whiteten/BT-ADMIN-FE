@@ -3,6 +3,7 @@ import { publicAuthHeaders } from './publicAuth';
 import {
   type DbQueryDef,
   type DbQueryParam,
+  type DbQueryRedisKeyEntry,
   type RollingGroup,
   type TaskboardBg,
   type TaskboardDisplay,
@@ -180,7 +181,15 @@ export const taskboardApi = {
     return unwrapListResponse(response.data?.data);
   },
 
-  createDbQueryDef: async (payload: { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }): Promise<number> => {
+  createDbQueryDef: async (payload: {
+    tenantId: string;
+    queryName: string;
+    description?: string;
+    sqlText: string;
+    params?: DbQueryParam[];
+    redisKeys?: DbQueryRedisKeyEntry[];
+    placeholderName?: string;
+  }): Promise<number> => {
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-create', payload);
     return response.data?.data ?? 0;
   },
@@ -195,6 +204,8 @@ export const taskboardApi = {
     description?: string;
     sqlText: string;
     params?: DbQueryParam[];
+    redisKeys?: DbQueryRedisKeyEntry[];
+    placeholderName?: string;
   }): Promise<number> => {
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-update', payload, { params: { id: dbQueryId } });
     return response.data?.data ?? 0;

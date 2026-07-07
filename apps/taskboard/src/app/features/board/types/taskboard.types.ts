@@ -62,6 +62,11 @@ export interface TableColumn {
   calc?: TableColumnCalc;
   /** false면 표/실행화면에서 이 컬럼 자체를 사용하지 않음(데이터·헤더 모두 제외, 설정값 자체는 유지) — 기본 true(사용) */
   hidden?: boolean;
+  /**
+   * 설정되면 이 컬럼의 원본 값(코드)을 그대로 보여주지 않고, 이 dbQueryId로 등록된 데이터소스의 VALUE→NAME
+   * 매핑으로 치환해서 보여준다(예: 이석사유 코드 → 사유명). 매핑에 없는 값은 원본 그대로 표시.
+   */
+  nameLookupDbQueryId?: number;
 }
 
 /** 차트형 위젯 설정 */
@@ -84,7 +89,13 @@ export interface CallDataItem {
   color: string; // 카테고리 대표 색상
   displayType?: 'value' | 'table' | 'chart';
   isRealtime?: boolean;
-  /** Redis Hash 키 (예: "IC:CTIQ:2025008424") — category=Redis 위젯 전용 */
+  /**
+   * Redis Hash 키 (예: "IC:CTIQ:2025008424") — category=Redis 위젯 전용.
+   * 이 값이 데이터소스관리 탭에 등록된 DbQueryDef.redisKeys의 key와 문자열이 정확히 일치하고,
+   * 현재 뷰그룹에서 그 데이터소스가 값이 선택된 상태면, 위젯은 원래 드래그한 필드 대신
+   * 뷰그룹이 선택한 값 목록으로 자동 필터링된다(buildDataSourceKeySelectionIds). 태그 같은 별도
+   * 식별자 없이 "실제 같은 Redis 키냐"만으로 매칭 — 매칭 안 되면 원래 드래그한 필드 그대로 동작.
+   */
   redisHashKey?: string;
   /** Redis Hash 내 필드명 (예: "CTIQ_NAME") — category=Redis 위젯 전용 */
   redisField?: string;
@@ -349,9 +360,8 @@ export interface RollingGroup {
  */
 export interface TaskboardDisplaySelection {
   queueIds?: string[];
-  groupIds?: string[];
   agentIds?: string[];
-  /** TASK-DB-QUERY(TaskDbQueryRun)에서 등록한 DbQueryDef별 선택값 — dbQueryId → 선택된 VALUE 배열 */
+  /** 데이터 소스 관리 탭(DataSourceQueryTab)에서 등록한 DbQueryDef별 선택값 — dbQueryId → 선택된 VALUE 배열 */
   dbQuerySelections?: Record<number, string[]>;
 }
 
@@ -391,6 +401,21 @@ export interface DbQueryParam {
   value: string;
 }
 
+/** 라벨이 붙은 Redis 해시키 항목 — 이 쿼리의 VALUE를 필드로 갖는 실시간 Redis 해시키(예: "IC:GROUP:0").
+ *  하나의 데이터소스가 그룹요약(IC:GROUP)/이석사유(IC:GROUP:REASON)처럼 여러 해시에 걸쳐 있을 수 있어 리스트로 관리한다.
+ *  key에 "{nodeId}"처럼 다른 데이터소스의 placeholderName을 참조하는 토큰을 쓸 수 있다 — 실행 시점에
+ *  그 데이터소스의 VALUE 목록(뷰그룹 선택값이 있으면 그것만, 없으면 전체)으로 치환되어 해시키가 여러 개로 펼쳐진다. */
+export interface DbQueryRedisKeyEntry {
+  /** 위젯이 이 항목을 고를 때 쓰는 이름(예: "그룹요약", "이석사유") */
+  label: string;
+  key: string;
+  /** 해시 필드(키) 조합식 — 미지정/"DEFAULT"면 이 쿼리의 VALUE를 필드 그대로 사용.
+   *  "{placeholder}"/"{placeholder:자릿수}"(다른 플레이스홀더 참조, 자릿수 지정 시 0으로 왼쪽 채움)와
+   *  "{value}"(이 쿼리 자신의 VALUE) 토큰을 "||"(구분자, 실제 키엔 안 들어감)로 이어붙여 필드를 조합한다.
+   *  예: "{nodeId:6}||{value}" → NODE_ID 6자리(0패딩) + 이 쿼리의 REASON_CODE 값 */
+  keyTemplate?: string;
+}
+
 /** 저장된 DB 쿼리 정의 — 뷰그룹 체크박스 옵션 소스(SELECT 결과가 VALUE/NAME 두 컬럼이어야 함).
  *  SQL에 :name 파라미터가 있으면 저장 시점에 입력한 값이 고정값으로 얼려져서(freeze) 함께 저장된다. */
 export interface DbQueryDef {
@@ -399,5 +424,9 @@ export interface DbQueryDef {
   description?: string;
   sqlText: string;
   params?: DbQueryParam[];
+  /** 위젯 실시간 연동(키 문자열 일치 매칭)에 사용 — 미지정(빈 배열) 가능 */
+  redisKeys?: DbQueryRedisKeyEntry[];
+  /** 이 쿼리를 다른 데이터소스의 redisKeys.key에서 "{이 이름}" 플레이스홀더로 참조할 수 있게 등록하는 이름(예: "nodeId"). 미지정 가능 */
+  placeholderName?: string;
   regDt: string;
 }

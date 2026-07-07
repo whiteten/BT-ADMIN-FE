@@ -33,8 +33,8 @@ export function resolveTabTarget(menuConfigs: MenuConfig[], routesMap: Record<st
   return { meta: { appId, url: pathname + search, label, isDynamic }, entry, registryLoaded };
 }
 
-/** 한 leaf 엔트리 경로(`bot-config/bot/:serviceId`)가 실제 상대경로(`bot-config/bot/123`)와 매칭되는지. `:seg`는 와일드카드. */
-function matchEntryPath(entryPath: string, relPath: string): boolean {
+/** 한 leaf 엔트리 경로(`bot-config/bot/:serviceId`)가 실제 상대경로(`bot-config/bot/123`)와 매칭되는지. `:seg`는 와일드카드. (공개 라우트 판정 publicRoutes.ts도 재사용) */
+export function matchEntryPath(entryPath: string, relPath: string): boolean {
   const e = entryPath.split('/').filter(Boolean);
   const r = relPath.split('/').filter(Boolean);
   if (e.length !== r.length) return false;

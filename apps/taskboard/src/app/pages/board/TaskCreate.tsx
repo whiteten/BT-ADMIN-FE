@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { Lock, Pipette, Search, Unlock } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
-import { fuzzyScore, toast } from '@/shared-util';
+import { toast } from '@/shared-util';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
 import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
@@ -25,6 +25,7 @@ import {
   taskboardQueryKeys,
   useCreateTaskboardLayout,
   useGetCtiMediaTypeList,
+  useGetDbQueryDefList,
   useGetNoticeList,
   useGetRedisHashColumns,
   useGetRedisHashEntries,
@@ -48,8 +49,8 @@ import type {
   WidgetThresholdRule,
 } from '../../features/board/types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
-import { MEDIA_TYPE_LABELS, detectRedisKeyPattern, findSiblingKeys } from '../../features/board/utils/redisKeyPattern';
-import { CALC_WIDGET_ITEM, GROUP_REASON_HASH_PREFIX, getCalcDisplayValue, validateFormula } from '../../features/board/utils/redisValue';
+import { type RedisKeyNode, collapseIcGroupSegment, detectRedisKeyPattern, filterRedisTree, findSiblingKeys, groupRedisKeys } from '../../features/board/utils/redisKeyPattern';
+import { CALC_WIDGET_ITEM, GROUP_REASON_HASH_PREFIX, SKILL_REASON_HASH_PREFIX, getCalcDisplayValue, validateFormula } from '../../features/board/utils/redisValue';
 import {
   DESIGN_WIDTH,
   SHADOW_PRESETS,
@@ -375,106 +376,8 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
 }
 
 // ─── Redis Hash 탐색기 — HashKey별 아이템 (필드를 DraggableSourceItem으로 렌더) ──
-// ─── Redis Hash 탐색기 — 트리 데이터 구조 ──────────────────────────────────────
-interface RedisKeyNode {
-  label: string;
-  fullKey?: string; // 실제 Redis Hash 키 (리프 노드)
-  children: RedisKeyNode[];
-  leafCount: number;
-}
-
-const REDIS_TREE_MAX_DEPTH = 3;
-
-function groupRedisKeys(keys: string[], prefix: string, depth: number): RedisKeyNode[] {
-  // 최대 깊이 도달 시 나머지를 플랫 리프로 처리
-  if (depth >= REDIS_TREE_MAX_DEPTH) {
-    return keys
-      .slice()
-      .sort()
-      .map((key) => ({
-        label: key,
-        fullKey: prefix ? `${prefix}:${key}` : key,
-        children: [],
-        leafCount: 1,
-      }));
-  }
-
-  const segMap = new Map<string, { isLeaf: boolean; childKeys: string[] }>();
-  for (const key of keys) {
-    const idx = key.indexOf(':');
-    if (idx === -1) {
-      const e = segMap.get(key) ?? { isLeaf: false, childKeys: [] };
-      e.isLeaf = true;
-      segMap.set(key, e);
-    } else {
-      const seg = key.slice(0, idx);
-      const rest = key.slice(idx + 1);
-      const e = segMap.get(seg) ?? { isLeaf: false, childKeys: [] };
-      e.childKeys.push(rest);
-      segMap.set(seg, e);
-    }
-  }
-
-  return Array.from(segMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([seg, { isLeaf, childKeys }]) => {
-      const fullKey = prefix ? `${prefix}:${seg}` : seg;
-      const children = childKeys.length > 0 ? groupRedisKeys(childKeys, fullKey, depth + 1) : [];
-      return {
-        label: seg,
-        fullKey: isLeaf || children.length === 0 ? fullKey : undefined,
-        children,
-        leafCount: (isLeaf ? 1 : 0) + children.reduce((s, c) => s + c.leafCount, 0),
-      };
-    });
-}
-
-/**
- * Redis 해시키 트리를 검색어로 필터링 — 키 경로(fullKey)뿐 아니라, fieldIndex(미리 색인해 둔 해시키별
- * 필드명 목록)가 있으면 필드명(예: SUM_CONN_CNT)으로도 매치한다. 리프가 매치하면 그 조상 노드들은
- * children을 매치된 것만으로 추려서 그대로 남긴다(검색 결과로 가는 경로를 보여주기 위해).
- */
-function filterRedisTree(nodes: RedisKeyNode[], query: string, fieldIndex: Record<string, string[]> | null): RedisKeyNode[] {
-  const q = query.trim();
-  if (!q) return nodes;
-
-  const leafMatches = (node: RedisKeyNode): boolean => {
-    if (!node.fullKey) return false;
-    if (fuzzyScore(q, node.fullKey) >= 0) return true;
-    const fields = fieldIndex?.[node.fullKey];
-    return fields?.some((f) => fuzzyScore(q, f) >= 0) ?? false;
-  };
-
-  const walk = (node: RedisKeyNode): RedisKeyNode | null => {
-    if (node.children.length === 0) {
-      return leafMatches(node) ? node : null;
-    }
-    const filteredChildren = node.children.map(walk).filter((n): n is RedisKeyNode => n !== null);
-    if (filteredChildren.length === 0) return null;
-    return { ...node, children: filteredChildren, leafCount: filteredChildren.reduce((s, c) => s + c.leafCount, 0) };
-  };
-
-  return nodes.map(walk).filter((n): n is RedisKeyNode => n !== null);
-}
-
-/**
- * IC 계열 Redis 키의 가변 그룹ID 세그먼트를 트리에서 숨기고 미디어타입 레벨까지만 표시한다.
- * IC 섹션에만 적용 — 다른 데이터(BT, FC 등)는 null 반환으로 원본 키 그대로 사용.
- *
- * IC:AGENT:{GROUP_ID}:{MEDIA_TYPE}       → IC:AGENT:{MEDIA_TYPE}
- * IC:GROUP:REASON:{GROUP_ID}:{MEDIA_TYPE} → IC:GROUP:REASON:{MEDIA_TYPE}
- */
-function collapseIcGroupSegment(key: string): string | null {
-  const segs = key.split(':');
-  if (segs[0] !== 'IC') return null;
-  if (segs.length === 4 && segs[1] === 'AGENT' && segs[3] in MEDIA_TYPE_LABELS) {
-    return `IC:AGENT:${segs[3]}`;
-  }
-  if (segs.length === 5 && segs[1] === 'GROUP' && segs[2] === 'REASON' && segs[4] in MEDIA_TYPE_LABELS) {
-    return `IC:GROUP:REASON:${segs[4]}`;
-  }
-  return null;
-}
+// 트리 데이터 구조(RedisKeyNode)와 groupRedisKeys/filterRedisTree/collapseIcGroupSegment는
+// features/board/utils/redisKeyPattern.ts로 이동(DataSourceQueryTab의 키 피커와 공용).
 
 /** 축약된 IC 트리 키 → 같은 미디어타입의 실제 Redis 키 목록 (그룹ID별). RedisHashFieldItems 에서 실제 키를 참조할 때 사용 */
 const IcActualKeyContext = createContext<Map<string, string[]>>(new Map());
@@ -723,8 +626,10 @@ const GROUP_REASON_TEMPLATE_HASH_KEY = `${GROUP_REASON_HASH_PREFIX}0:0`;
 const GROUP_REASON_WIDGET_ITEMS: CallDataItem[] = [
   {
     // 그룹별 × 사유코드별 인원수를 그룹 단위로 모두 펼쳐 보여주는 테이블.
-    // IC:GROUP:REASON:{groupId}:{mediaType} 해시는 field key 자체가 사유코드(예: "001", "002")이고
-    // JSON 값에는 AGENT_CNT 등만 있다. REASON_CODE는 JSON 안에 없으므로 __id(field key 예약어)로 읽는다.
+    // IC:GROUP:REASON:{groupId}:{mediaType} 해시는 field key 자체가 NODE_ID(6자리)+REASON_CODE 복합값이고,
+    // REASON_CODE/GROUP_ID/AGENT_CNT 등은 JSON 값 안에 그대로 들어있다(field key를 파싱할 필요 없음).
+    // groupBy(REASON_CODE→AGENT_CNT 합계)로 그룹당 노드 여러 개를 사유코드 1행으로 합산해서 보여준다.
+    // 사유코드 이름(REASON_NAME) 표시가 필요하면 컬럼의 "이름 매핑 데이터소스"에서 등록된 쿼리를 고르면 됨.
     id: 'table-group-reason',
     category: 'Redis',
     label: '그룹별 이석사유 현황',
@@ -736,9 +641,10 @@ const GROUP_REASON_WIDGET_ITEMS: CallDataItem[] = [
     tableConfig: {
       columns: [
         { key: SYSTEM_ID_COLUMN_KEY, label: '그룹ID', width: '34%' },
-        { key: ROW_ID_COLUMN_KEY, label: '사유코드', width: '33%' },
+        { key: 'REASON_CODE', label: '사유코드', width: '33%' },
         { key: 'AGENT_CNT', label: '인원수', width: '33%' },
       ],
+      groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT' },
       sampleRows: [],
     },
   },
@@ -753,6 +659,45 @@ const GROUP_REASON_WIDGET_ITEMS: CallDataItem[] = [
     displayType: 'value',
     isRealtime: true,
     redisHashKey: GROUP_REASON_TEMPLATE_HASH_KEY,
+    groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT', matchValue: '' },
+  },
+];
+
+// ─── 스킬별 이석사유 현황(IC:SKILL:REASON) 프리셋 ───────────────────────────
+// 그룹별 이석사유 현황과 같은 규칙(redisHashKey의 엔티티ID 자리는 디자인 시점 placeholder(0)일 뿐이고,
+// 실제 화면에서는 디스플레이가 선택한 그룹들로 치환)이지만, 실제 키 형식은 다르다 — IC:GROUP:REASON은
+// 끝에 미디어타입이 붙지만(:{mediaType}) IC:SKILL:REASON은 미디어타입 세그먼트가 없다(엔티티ID 1세그먼트뿐,
+// redisValue.ts의 REASON_FAMILIES가 이 차이를 구분해서 처리한다). 그룹ID 컬럼도 의미가 없어 테이블에서 뺐다.
+const SKILL_REASON_TEMPLATE_HASH_KEY = `${SKILL_REASON_HASH_PREFIX}0`;
+
+const SKILL_REASON_WIDGET_ITEMS: CallDataItem[] = [
+  {
+    id: 'table-skill-reason',
+    category: 'Redis',
+    label: '스킬별 이석사유 현황',
+    sampleValue: '',
+    color: '#e11d48',
+    displayType: 'table',
+    isRealtime: true,
+    redisHashKey: SKILL_REASON_TEMPLATE_HASH_KEY,
+    tableConfig: {
+      columns: [
+        { key: 'REASON_CODE', label: '사유코드', width: '50%' },
+        { key: 'AGENT_CNT', label: '인원수', width: '50%' },
+      ],
+      groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT' },
+      sampleRows: [],
+    },
+  },
+  {
+    id: 'value-skill-reason',
+    category: 'Redis',
+    label: '이석사유 인원수(낱개)',
+    sampleValue: 0,
+    color: '#e11d48',
+    displayType: 'value',
+    isRealtime: true,
+    redisHashKey: SKILL_REASON_TEMPLATE_HASH_KEY,
     groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT', matchValue: '' },
   },
 ];
@@ -1192,6 +1137,10 @@ function DbQuerySection() {
   );
 }
 
+// ─── 데이터소스(태그) 전용 위젯 섹션 ──────────────────────────────────────────
+// task-display에 등록된 임의의 DbQueryDef(데이터 소스 관리 탭)를 "태그"로 간접 참조하는 위젯.
+// 디자인 시점엔 어느 데이터소스인지 모른다(뷰그룹마다 태그→데이터소스 매핑이 다를 수 있음) — 태그만
+// 정하고 캔버스에 놓은 뒤, 실제 필드명/컬럼은 우측 속성 패널에서 채운다.
 // ─── 오른쪽 패널: 외부 API 위젯 속성 편집 ────────────────────────────────────
 function ExternalApiWidgetProps({
   widget,
@@ -1456,6 +1405,7 @@ function DbQueryWidgetProps({
   );
 }
 
+// ─── 오른쪽 패널: 데이터소스(태그) 위젯 속성 편집 ─────────────────────────────
 function FixedItemsSection() {
   const [isOpen, setIsOpen] = useState(true);
   const { data: notices = [], isLoading: noticesLoading } = useGetNoticeList();
@@ -1515,6 +1465,18 @@ function FixedItemsSection() {
             </div>
             <p className="text-[9px] text-slate-400 px-1 mt-1">
               드롭 후 미디어타입(해시키 끝자리)·낱개는 사유코드(matchValue)를 우측 속성 패널에서 채우세요. 그룹은 디스플레이 선택값이 자동 적용됩니다.
+            </p>
+          </div>
+          {/* 스킬별 이석사유 — IC:SKILL:REASON 프리셋(그룹별 이석사유와 동일 규칙, 디스플레이 선택 그룹 자동 반영) */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">스킬별 이석사유</p>
+            <div className="space-y-1">
+              {SKILL_REASON_WIDGET_ITEMS.map((item) => (
+                <DraggableSourceItem key={item.id} item={item} />
+              ))}
+            </div>
+            <p className="text-[9px] text-slate-400 px-1 mt-1">
+              드롭 후 낱개는 사유코드(matchValue)를 우측 속성 패널에서 채우세요. 그룹은 디스플레이 선택값이 자동 적용됩니다(미디어타입 세그먼트 없음).
             </p>
           </div>
           {/* 공지사항 키 그룹 — 같은 noticeKey의 공지 여러 건을 한 위젯에서 회전(슬라이드)해서 보여줌 */}
@@ -2532,6 +2494,10 @@ export default function TaskCreate() {
   const bg = state?.bg;
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
+  // 데이터 소스 관리 탭에 등록된 전체 데이터소스 목록 — 테이블 컬럼의 "이름 매핑" 드롭다운에서 고를 수 있게 제공.
+  // 플레이스홀더(예: 그룹 목록 {groupId})도 VALUE/NAME 쿼리라서 이름 매핑 소스로 그대로 쓸 수 있다 —
+  // 그룹ID 컬럼을 그룹명으로 바꿔 보여주는 게 정확히 이 케이스라 제외하지 않는다.
+  const { data: nameLookupCandidateDefs = [] } = useGetDbQueryDefList();
 
   const isEditMode = !!layout?.layoutId;
   const fileName = layout?.fileName ?? bg?.fileName ?? '';
@@ -4719,258 +4685,280 @@ export default function TaskCreate() {
                     </div>
                   )}
 
-                  {/* 테이블 컬럼 — table-queue/table-group/table-agent/table-redis/table-join. 여기서 추가한 필드명이 그대로 WS 구독(또는 Redis 테이블) 컬럼으로 쓰인다. */}
-                  {['table-queue', 'table-group', 'table-agent', 'table-redis', 'table-join'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
-                        테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
-                      </label>
-                      <div className="space-y-1 mb-1.5">
-                        {selectedWidget.item.tableConfig.columns.map((col, colIdx) => (
-                          <div key={col.key} className={`bg-white border border-slate-200 rounded ${col.hidden ? 'opacity-50' : ''}`}>
-                            <div className="flex items-center gap-1.5 px-2 py-1">
-                              <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
-                              <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
-                              <button
-                                onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'up')}
-                                disabled={colIdx === 0}
-                                className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
-                                title="위로"
-                              >
-                                ▲
-                              </button>
-                              <button
-                                onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'down')}
-                                disabled={colIdx === (selectedWidget.item.tableConfig?.columns.length ?? 0) - 1}
-                                className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
-                                title="아래로"
-                              >
-                                ▼
-                              </button>
-                              <button
-                                onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { hidden: !col.hidden })}
-                                className={`text-[10px] flex-shrink-0 ${col.hidden ? 'text-slate-300 hover:text-slate-500' : 'text-[#0f5b9e]'}`}
-                                title={col.hidden ? '컬럼 사용 안 함 (클릭하면 사용)' : '컬럼 사용 중 (클릭하면 미사용)'}
-                              >
-                                {col.hidden ? '☐' : '☑'}
-                              </button>
-                              <button
-                                onClick={() => setExpandedColKey((k) => (k === col.key ? null : col.key))}
-                                className={`text-[10px] flex-shrink-0 ${expandedColKey === col.key ? 'text-[#0f5b9e]' : 'text-slate-300 hover:text-slate-500'}`}
-                                title="컬럼 스타일"
-                              >
-                                ⚙
-                              </button>
-                              {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                  {/* 테이블 컬럼 — table-queue/table-group/table-agent/table-redis/table-join/table-group-reason/table-skill-reason. 여기서 추가한 필드명이 그대로 WS 구독(또는 Redis 테이블) 컬럼으로 쓰인다. */}
+                  {['table-queue', 'table-group', 'table-agent', 'table-redis', 'table-join', 'table-group-reason', 'table-skill-reason'].includes(selectedWidget.item.id) &&
+                    selectedWidget.item.tableConfig && (
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                          테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
+                        </label>
+                        <div className="space-y-1 mb-1.5">
+                          {selectedWidget.item.tableConfig.columns.map((col, colIdx) => (
+                            <div key={col.key} className={`bg-white border border-slate-200 rounded ${col.hidden ? 'opacity-50' : ''}`}>
+                              <div className="flex items-center gap-1.5 px-2 py-1">
+                                <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
+                                <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
                                 <button
-                                  onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
-                                  className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
-                                  title="컬럼 삭제"
+                                  onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'up')}
+                                  disabled={colIdx === 0}
+                                  className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
+                                  title="위로"
                                 >
-                                  ×
+                                  ▲
                                 </button>
-                              )}
-                            </div>
-                            {expandedColKey === col.key && (
-                              <div className="px-2 pb-2 pt-1.5 border-t border-slate-100 space-y-1.5">
-                                {/* 가로 정렬 */}
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">가로</span>
-                                  {[
-                                    { value: 'left' as const, label: '좌' },
-                                    { value: 'center' as const, label: '중' },
-                                    { value: 'right' as const, label: '우' },
-                                  ].map((al) => (
-                                    <button
-                                      key={al.value}
-                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { align: al.value })}
-                                      className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
-                                        (col.align ?? 'center') === al.value
-                                          ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                                          : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                                      }`}
-                                    >
-                                      {al.label}
-                                    </button>
-                                  ))}
-                                </div>
-                                {/* 세로 정렬 — 행 간격이 커져서 행이 높아질 때 위/중간/아래 중 어디 둘지 */}
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">세로</span>
-                                  {[
-                                    { value: 'top' as const, label: '위' },
-                                    { value: 'middle' as const, label: '중간' },
-                                    { value: 'bottom' as const, label: '아래' },
-                                  ].map((va) => (
-                                    <button
-                                      key={va.value}
-                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { verticalAlign: va.value })}
-                                      className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
-                                        (col.verticalAlign ?? 'middle') === va.value
-                                          ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                                          : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                                      }`}
-                                    >
-                                      {va.label}
-                                    </button>
-                                  ))}
-                                </div>
-                                {/* 천단위 콤마 */}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] text-slate-400">천단위 콤마</span>
+                                <button
+                                  onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'down')}
+                                  disabled={colIdx === (selectedWidget.item.tableConfig?.columns.length ?? 0) - 1}
+                                  className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
+                                  title="아래로"
+                                >
+                                  ▼
+                                </button>
+                                <button
+                                  onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { hidden: !col.hidden })}
+                                  className={`text-[10px] flex-shrink-0 ${col.hidden ? 'text-slate-300 hover:text-slate-500' : 'text-[#0f5b9e]'}`}
+                                  title={col.hidden ? '컬럼 사용 안 함 (클릭하면 사용)' : '컬럼 사용 중 (클릭하면 미사용)'}
+                                >
+                                  {col.hidden ? '☐' : '☑'}
+                                </button>
+                                <button
+                                  onClick={() => setExpandedColKey((k) => (k === col.key ? null : col.key))}
+                                  className={`text-[10px] flex-shrink-0 ${expandedColKey === col.key ? 'text-[#0f5b9e]' : 'text-slate-300 hover:text-slate-500'}`}
+                                  title="컬럼 스타일"
+                                >
+                                  ⚙
+                                </button>
+                                {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
                                   <button
-                                    onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { useThousandSep: !col.useThousandSep })}
-                                    className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                    onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
+                                    className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
+                                    title="컬럼 삭제"
                                   >
-                                    <span
-                                      className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.useThousandSep ? 'translate-x-3' : 'translate-x-0'}`}
-                                    />
+                                    ×
                                   </button>
-                                </div>
-                                {/* 임계치 색상 */}
-                                <div>
+                                )}
+                              </div>
+                              {expandedColKey === col.key && (
+                                <div className="px-2 pb-2 pt-1.5 border-t border-slate-100 space-y-1.5">
+                                  {/* 가로 정렬 */}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">가로</span>
+                                    {[
+                                      { value: 'left' as const, label: '좌' },
+                                      { value: 'center' as const, label: '중' },
+                                      { value: 'right' as const, label: '우' },
+                                    ].map((al) => (
+                                      <button
+                                        key={al.value}
+                                        onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { align: al.value })}
+                                        className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                          (col.align ?? 'center') === al.value
+                                            ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                        }`}
+                                      >
+                                        {al.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* 세로 정렬 — 행 간격이 커져서 행이 높아질 때 위/중간/아래 중 어디 둘지 */}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">세로</span>
+                                    {[
+                                      { value: 'top' as const, label: '위' },
+                                      { value: 'middle' as const, label: '중간' },
+                                      { value: 'bottom' as const, label: '아래' },
+                                    ].map((va) => (
+                                      <button
+                                        key={va.value}
+                                        onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { verticalAlign: va.value })}
+                                        className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                          (col.verticalAlign ?? 'middle') === va.value
+                                            ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                        }`}
+                                      >
+                                        {va.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* 천단위 콤마 */}
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[9px] text-slate-400">임계치 색상</span>
+                                    <span className="text-[9px] text-slate-400">천단위 콤마</span>
                                     <button
-                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { thresholdEnabled: !col.thresholdEnabled })}
-                                      className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { useThousandSep: !col.useThousandSep })}
+                                      className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
                                     >
                                       <span
-                                        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.thresholdEnabled ? 'translate-x-3' : 'translate-x-0'}`}
+                                        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.useThousandSep ? 'translate-x-3' : 'translate-x-0'}`}
                                       />
                                     </button>
                                   </div>
-                                  {col.thresholdEnabled && (
-                                    <div className="flex flex-col gap-1 mt-1">
-                                      {(col.thresholds ?? []).map((rule, idx) => (
-                                        <div key={idx} className="flex items-center gap-1">
-                                          <span className="text-[9px] text-slate-400 flex-shrink-0">≥</span>
-                                          <input
-                                            type="number"
-                                            value={rule.min}
-                                            onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { min: Number(e.target.value) })}
-                                            className="w-12 text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
-                                          />
-                                          <input
-                                            type="color"
-                                            value={rule.color}
-                                            onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { color: e.target.value })}
-                                            className="w-6 h-6 rounded border border-slate-200 cursor-pointer flex-shrink-0"
-                                          />
-                                          <button
-                                            onClick={() => removeColumnThresholdRule(selectedWidget.id, col.key, idx)}
-                                            className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0 ml-auto"
-                                            title="삭제"
-                                          >
-                                            ×
-                                          </button>
-                                        </div>
-                                      ))}
-                                      <button
-                                        onClick={() => addColumnThresholdRule(selectedWidget.id, col.key)}
-                                        className="text-[9px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-0.5 hover:bg-[#0f5b9e]/5 transition-colors"
-                                      >
-                                        + 기준 추가
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* 계산식 — Redis 테이블 전용. 원본 필드 대신 같은 행의 다른 필드들로 계산한 값을 표시 */}
-                                {(selectedWidget.item.id === 'table-redis' || selectedWidget.item.id === 'table-join') && (
+                                  {/* 임계치 색상 */}
                                   <div>
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[9px] text-slate-400">계산식</span>
+                                      <span className="text-[9px] text-slate-400">임계치 색상</span>
                                       <button
-                                        onClick={() => toggleColumnCalcEnabled(selectedWidget.id, col.key, !col.calc)}
-                                        className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.calc ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                        onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { thresholdEnabled: !col.thresholdEnabled })}
+                                        className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
                                       >
                                         <span
-                                          className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.calc ? 'translate-x-3' : 'translate-x-0'}`}
+                                          className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.thresholdEnabled ? 'translate-x-3' : 'translate-x-0'}`}
                                         />
                                       </button>
                                     </div>
-                                    {col.calc && (
-                                      <div className="flex flex-col gap-1.5 mt-1 p-2 bg-white rounded border border-slate-200">
-                                        <p className="text-[9px] text-slate-400 leading-snug">원본 필드값 대신 같은 행의 다른 필드로 계산한 값을 보여줍니다(예: A / B * 100).</p>
-                                        <input
-                                          type="text"
-                                          value={col.calc.formula}
-                                          onChange={(e) => updateColumnCalc(selectedWidget.id, col.key, { formula: e.target.value })}
-                                          placeholder="예: A + B"
-                                          className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                                        />
-                                        <div className="space-y-1">
-                                          {col.calc.operands.map((op) => (
-                                            <TableColCalcOperandDropZone
-                                              key={op.var}
-                                              widgetId={selectedWidget.id}
-                                              colKey={col.key}
-                                              operand={op}
-                                              onRemove={() => removeColumnCalcOperand(selectedWidget.id, col.key, op.var)}
+                                    {col.thresholdEnabled && (
+                                      <div className="flex flex-col gap-1 mt-1">
+                                        {(col.thresholds ?? []).map((rule, idx) => (
+                                          <div key={idx} className="flex items-center gap-1">
+                                            <span className="text-[9px] text-slate-400 flex-shrink-0">≥</span>
+                                            <input
+                                              type="number"
+                                              value={rule.min}
+                                              onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { min: Number(e.target.value) })}
+                                              className="w-12 text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
                                             />
-                                          ))}
-                                        </div>
+                                            <input
+                                              type="color"
+                                              value={rule.color}
+                                              onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { color: e.target.value })}
+                                              className="w-6 h-6 rounded border border-slate-200 cursor-pointer flex-shrink-0"
+                                            />
+                                            <button
+                                              onClick={() => removeColumnThresholdRule(selectedWidget.id, col.key, idx)}
+                                              className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0 ml-auto"
+                                              title="삭제"
+                                            >
+                                              ×
+                                            </button>
+                                          </div>
+                                        ))}
                                         <button
-                                          onClick={() => addColumnCalcOperand(selectedWidget.id, col.key)}
-                                          disabled={col.calc.operands.length >= 26}
-                                          className="py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                                          onClick={() => addColumnThresholdRule(selectedWidget.id, col.key)}
+                                          className="text-[9px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-0.5 hover:bg-[#0f5b9e]/5 transition-colors"
                                         >
-                                          + 변수 추가
+                                          + 기준 추가
                                         </button>
                                       </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                                  {/* 이름 매핑 — 코드값(예: 이석사유 코드)을 그대로 보여주지 않고 등록된 데이터소스의 VALUE→NAME으로 치환 */}
+                                  <div>
+                                    <span className="text-[9px] text-slate-400 block mb-0.5">이름 매핑 데이터소스 (선택)</span>
+                                    <select
+                                      value={col.nameLookupDbQueryId ?? ''}
+                                      onChange={(e) =>
+                                        updateWidgetTableColumn(selectedWidget.id, col.key, { nameLookupDbQueryId: e.target.value ? Number(e.target.value) : undefined })
+                                      }
+                                      className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                                    >
+                                      <option value="">사용 안 함(원본 값 그대로)</option>
+                                      {nameLookupCandidateDefs.map((def) => (
+                                        <option key={def.dbQueryId} value={def.dbQueryId}>
+                                          {def.queryName}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <p className="text-[9px] text-slate-400 leading-snug mt-0.5">
+                                      이 컬럼 값(코드)을 고른 데이터소스의 VALUE와 맞춰 NAME으로 바꿔 보여줍니다(예: 이석사유 코드 → 사유명). 매핑에 없는 값은 원본 그대로.
+                                    </p>
+                                  </div>
+                                  {/* 계산식 — Redis 테이블 전용. 원본 필드 대신 같은 행의 다른 필드들로 계산한 값을 표시 */}
+                                  {(selectedWidget.item.id === 'table-redis' || selectedWidget.item.id === 'table-join') && (
+                                    <div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[9px] text-slate-400">계산식</span>
+                                        <button
+                                          onClick={() => toggleColumnCalcEnabled(selectedWidget.id, col.key, !col.calc)}
+                                          className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.calc ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                        >
+                                          <span
+                                            className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.calc ? 'translate-x-3' : 'translate-x-0'}`}
+                                          />
+                                        </button>
+                                      </div>
+                                      {col.calc && (
+                                        <div className="flex flex-col gap-1.5 mt-1 p-2 bg-white rounded border border-slate-200">
+                                          <p className="text-[9px] text-slate-400 leading-snug">원본 필드값 대신 같은 행의 다른 필드로 계산한 값을 보여줍니다(예: A / B * 100).</p>
+                                          <input
+                                            type="text"
+                                            value={col.calc.formula}
+                                            onChange={(e) => updateColumnCalc(selectedWidget.id, col.key, { formula: e.target.value })}
+                                            placeholder="예: A + B"
+                                            className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                                          />
+                                          <div className="space-y-1">
+                                            {col.calc.operands.map((op) => (
+                                              <TableColCalcOperandDropZone
+                                                key={op.var}
+                                                widgetId={selectedWidget.id}
+                                                colKey={col.key}
+                                                operand={op}
+                                                onRemove={() => removeColumnCalcOperand(selectedWidget.id, col.key, op.var)}
+                                              />
+                                            ))}
+                                          </div>
+                                          <button
+                                            onClick={() => addColumnCalcOperand(selectedWidget.id, col.key)}
+                                            disabled={col.calc.operands.length >= 26}
+                                            className="py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                                          >
+                                            + 변수 추가
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {selectedWidget.item.id === 'table-redis' && !!redisColumnIndex[selectedWidget.item.redisHashKey ?? '']?.length && (
+                          <p className="text-[9px] text-slate-400 px-1 mb-1 leading-snug">
+                            이 해시키에 실제로 존재하는 필드명만 골라 써야 데이터가 보입니다(WS가 등록한 필드명만 서버에서 필터링해 보내므로). 아래 입력에 타이핑하면 자동완성으로
+                            제안됩니다.
+                          </p>
+                        )}
+                        <datalist id="redis-table-field-suggestions">
+                          {(redisColumnIndex[selectedWidget.item.redisHashKey ?? ''] ?? []).map((field) => (
+                            <option key={field} value={field} />
+                          ))}
+                        </datalist>
+                        <div className="flex gap-1">
+                          <input
+                            type="text"
+                            list={selectedWidget.item.id === 'table-redis' ? 'redis-table-field-suggestions' : undefined}
+                            value={newColKey}
+                            onChange={(e) => setNewColKey(e.target.value)}
+                            placeholder={
+                              selectedWidget.item.id === 'table-redis'
+                                ? `필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`
+                                : '필드명 (RTS_LOGIN)'
+                            }
+                            className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                          <input
+                            type="text"
+                            value={newColLabel}
+                            onChange={(e) => setNewColLabel(e.target.value)}
+                            placeholder="표시명 (로그인)"
+                            className="w-1/2 px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!newColKey.trim()) return;
+                              addWidgetTableColumn(selectedWidget.id, newColKey.trim(), newColLabel.trim() || newColKey.trim());
+                              setNewColKey('');
+                              setNewColLabel('');
+                            }}
+                            className="flex-shrink-0 px-2 py-1 text-[10px] font-bold bg-[#0f5b9e] text-white rounded hover:bg-[#0c4a82]"
+                          >
+                            + 추가
+                          </button>
+                        </div>
                       </div>
-                      {selectedWidget.item.id === 'table-redis' && !!redisColumnIndex[selectedWidget.item.redisHashKey ?? '']?.length && (
-                        <p className="text-[9px] text-slate-400 px-1 mb-1 leading-snug">
-                          이 해시키에 실제로 존재하는 필드명만 골라 써야 데이터가 보입니다(WS가 등록한 필드명만 서버에서 필터링해 보내므로). 아래 입력에 타이핑하면 자동완성으로
-                          제안됩니다.
-                        </p>
-                      )}
-                      <datalist id="redis-table-field-suggestions">
-                        {(redisColumnIndex[selectedWidget.item.redisHashKey ?? ''] ?? []).map((field) => (
-                          <option key={field} value={field} />
-                        ))}
-                      </datalist>
-                      <div className="flex gap-1">
-                        <input
-                          type="text"
-                          list={selectedWidget.item.id === 'table-redis' ? 'redis-table-field-suggestions' : undefined}
-                          value={newColKey}
-                          onChange={(e) => setNewColKey(e.target.value)}
-                          placeholder={
-                            selectedWidget.item.id === 'table-redis'
-                              ? `필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`
-                              : '필드명 (RTS_LOGIN)'
-                          }
-                          className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                        />
-                        <input
-                          type="text"
-                          value={newColLabel}
-                          onChange={(e) => setNewColLabel(e.target.value)}
-                          placeholder="표시명 (로그인)"
-                          className="w-1/2 px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!newColKey.trim()) return;
-                            addWidgetTableColumn(selectedWidget.id, newColKey.trim(), newColLabel.trim() || newColKey.trim());
-                            setNewColKey('');
-                            setNewColLabel('');
-                          }}
-                          className="flex-shrink-0 px-2 py-1 text-[10px] font-bold bg-[#0f5b9e] text-white rounded hover:bg-[#0c4a82]"
-                        >
-                          + 추가
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* 표 설정 — table-queue/table-group/table-agent/table-redis. 행 간격은 숫자로, 열 너비는 캔버스 드래그로 직접 조절 */}
                   {['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
