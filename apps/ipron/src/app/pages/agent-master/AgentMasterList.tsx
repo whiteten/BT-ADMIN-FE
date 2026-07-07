@@ -11,8 +11,8 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Input, Modal, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
+import { Button, Input, Modal, Select } from 'antd';
+import { Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { GridRowColorLegend } from '../../components/GridRowColorLegend';
@@ -22,7 +22,6 @@ import AgentGroupTree from '../../features/agent-master/components/AgentGroupTre
 import AgentImportDrawer from '../../features/agent-master/components/AgentImportDrawer';
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
-import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
 import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey, type MediaOption } from '../../features/agent-master/components/AgentMediaStatusTable';
 import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
@@ -32,7 +31,6 @@ import {
   useDeleteAgentGroup,
   useDeleteAgents,
   useGetAgentGroupTree,
-  useGetAgentTenants,
   useGetAgents,
   useReorderAgentGroup,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
@@ -53,26 +51,26 @@ export default function AgentMasterList() {
   const navigate = useNavigate();
   const modal = useModal();
   const queryClient = useQueryClient();
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   const invalidateAgents = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getList._def });
     queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getTenants.queryKey });
   }, [queryClient]);
 
-  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  // 활성 테넌트 (JWT) — 멀티테넌트 개편(브랜치 C-2): 화면 내 "전체+테넌트" 선택기 제거.
+  // 세션은 활성 테넌트로 토큰 스코프되고, 등록도 활성 테넌트에 생성한다. 전환은 헤더 TenantChip.
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
+  const activeTenantName = useAuthStore((s) => s.userInfo?.tenantName ?? null);
+  // 항상 활성 테넌트로 고정(선택기 없음).
+  const selectedTenantId = ctxTenantId;
 
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<AgentResponse[]>([]);
-  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
-  const [cardExpanded, setCardExpanded] = useState(false);
   // 우측 그리드 박스 탭: 'agent'(상담사 목록) / 'media'(미디어 관리 현황 매트릭스)
   const [gridTab, setGridTab] = useState<'agent' | 'media'>('agent');
   // 미디어 탭 선택 미디어 종류 — 탭 헤더 인라인 Select 로 제어 (동적 첫 번째로 자동 초기화)
@@ -84,14 +82,6 @@ export default function AgentMasterList() {
   // 그룹배정 모달 — 선택 상담사를 다른 그룹으로 일괄 이동
   const [groupDeployOpen, setGroupDeployOpen] = useState(false);
   const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
-
-  // ctx 비동기 로드 시 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   const [treeWidth, setTreeWidth] = useState(260);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -113,7 +103,6 @@ export default function AgentMasterList() {
   const { data: agents = [], isLoading } = useGetAgents({
     params: { tenantId: selectedTenantId ?? undefined, groupId: selectedGroupId ?? undefined },
   });
-  const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({
     params: { tenantId: selectedTenantId ?? undefined },
   });
@@ -256,18 +245,6 @@ export default function AgentMasterList() {
     });
   }, [agents, searchText]);
 
-  const totalStats = useMemo(() => {
-    let totalCnt = 0;
-    let activeCnt = 0;
-    let unassignedAdnCnt = 0;
-    for (const t of tenantStats) {
-      totalCnt += t.totalCnt;
-      activeCnt += t.activeCnt;
-      unassignedAdnCnt += t.unassignedAdnCnt;
-    }
-    return { totalCnt, activeCnt, unassignedAdnCnt };
-  }, [tenantStats]);
-
   // ─── Handlers ───────────────────────────────────────────────────────────
 
   const handleExcelExport = useCallback(async () => {
@@ -350,12 +327,6 @@ export default function AgentMasterList() {
     setDeployTargetGroupId(undefined);
   }, [selectedRows, deployTargetGroupId, bulkGroupAgents]);
 
-  const handleSelectTenant = useCallback((tenantId: number | null) => {
-    setSelectedTenantId(tenantId);
-    setSelectedGroupId(null); // 테넌트 바뀌면 그룹 선택 해제
-    setSelectedRows([]);
-  }, []);
-
   const handleSelectGroup = useCallback((groupId: number | null) => {
     setSelectedGroupId(groupId);
     setSelectedRows([]);
@@ -426,11 +397,6 @@ export default function AgentMasterList() {
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
           <span className="text-sm font-semibold text-gray-700">상담사 설정</span>
-          {selectedTenantId !== null && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
-            </span>
-          )}
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -448,82 +414,6 @@ export default function AgentMasterList() {
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <AgentMasterTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => handleSelectTenant(null)} />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 상담사가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((g) => (
-                    <AgentMasterTenantCard
-                      key={g.tenantId}
-                      tenantId={g.tenantId}
-                      tenantName={g.tenantName ?? '-'}
-                      stats={{ totalCnt: g.totalCnt, activeCnt: g.activeCnt, unassignedAdnCnt: g.unassignedAdnCnt }}
-                      selected={selectedTenantId === g.tenantId}
-                      onClick={(e) => {
-                        handleSelectTenant(g.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill name="전체" count={totalStats.totalCnt} selected={selectedTenantId === null} onClick={() => handleSelectTenant(null)} />
-                {tenantStats.map((g) => (
-                  <CompactTenantPill
-                    key={g.tenantId}
-                    name={g.tenantName ?? '-'}
-                    count={g.totalCnt}
-                    selected={selectedTenantId === g.tenantId}
-                    onClick={() => handleSelectTenant(g.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ===== 트리 ↔ ag-Grid 스플릿 ===== */}
@@ -604,15 +494,7 @@ export default function AgentMasterList() {
           <div className="border-b border-gray-100 flex items-center gap-2 h-[44px] pr-5 flex-shrink-0">
             <div className="flex items-stretch h-full">
               <GridTab label="상담사" active={gridTab === 'agent'} onClick={() => setGridTab('agent')} />
-              <GridTab
-                label="미디어 관리"
-                active={gridTab === 'media'}
-                onClick={() => {
-                  setGridTab('media');
-                  // 미디어 탭 활성 시 카드 compact 고정 — 세로 공간 확보
-                  setCardExpanded(false);
-                }}
-              />
+              <GridTab label="미디어 관리" active={gridTab === 'media'} onClick={() => setGridTab('media')} />
             </div>
             {/* 미디어 탭 활성 시: 미디어 종류 Select 탭 헤더 인라인 배치 (별도 40px 툴바 행 제거) */}
             {gridTab === 'media' && (
@@ -734,7 +616,7 @@ export default function AgentMasterList() {
         open={importDrawerOpen}
         tenantId={selectedTenantId}
         groupId={selectedGroupId}
-        tenantName={tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null}
+        tenantName={activeTenantName}
         groupName={(() => {
           if (!selectedGroupId) return null;
           const findName = (nodes: AgentGroupNode[]): string | null => {
@@ -836,31 +718,6 @@ function GridTab({ label, active, onClick }: GridTabProps) {
     >
       {label}
       {active && <span className="absolute left-0 bottom-0 w-full h-0.5 bg-[#405189]" />}
-    </button>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}명`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
     </button>
   );
 }
