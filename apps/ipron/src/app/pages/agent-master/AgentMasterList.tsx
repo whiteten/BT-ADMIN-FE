@@ -31,6 +31,7 @@ import {
   useDeleteAgentGroup,
   useDeleteAgents,
   useGetAgentGroupTree,
+  useGetAgentTenants,
   useGetAgents,
   useReorderAgentGroup,
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
@@ -70,6 +71,7 @@ export default function AgentMasterList() {
   //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
   const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
   const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
   // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
   const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
@@ -113,6 +115,9 @@ export default function AgentMasterList() {
   const { data: groupTree = [] } = useGetAgentGroupTree({
     params: { tenantId: selectedTenantId ?? undefined },
   });
+
+  // 운영자 모드 전용 — 대행 선택기용 테넌트별 상담사 통계(전체/테넌트 카운트). view-all 로 전체 테넌트 반환.
+  const { data: operatorTenants = [] } = useGetAgentTenants({ queryOptions: { enabled: operatorMode } });
 
   // TB_IC_MEDIA_USAGE 등록·활성 미디어 목록 (동적 노출)
   const { data: mediaTypeList = [] } = useGetMediaTypes();
@@ -431,6 +436,48 @@ export default function AgentMasterList() {
           </div>
         </div>
       </div>
+
+      {/* ===== 운영자 모드 전용: 대행 테넌트 선택기 (전체 ↔ 테넌트) ===== */}
+      {operatorMode && (
+        <div className="bg-amber-50 border border-amber-200 rounded-md flex items-center gap-2 px-3 py-2 flex-shrink-0 overflow-x-auto">
+          <span className="text-[11px] font-bold text-amber-700 shrink-0 pr-1">운영자 · 테넌트</span>
+          <button
+            type="button"
+            onClick={() => {
+              setActAsTenant(null);
+              setSelectedGroupId(null);
+              setSelectedRows([]);
+            }}
+            className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
+              opTenantId == null ? 'border-amber-500 bg-amber-500 text-white' : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
+            }`}
+          >
+            전체
+          </button>
+          {operatorTenants.map((t) => {
+            const selected = opTenantId === t.tenantId;
+            return (
+              <button
+                key={t.tenantId}
+                type="button"
+                onClick={() => {
+                  setActAsTenant(String(t.tenantId));
+                  setSelectedGroupId(null);
+                  setSelectedRows([]);
+                }}
+                title={`${t.tenantName ?? `테넌트 ${t.tenantId}`} · 상담사 ${t.totalCnt.toLocaleString()}명 — 선택 시 이 테넌트를 대행합니다`}
+                className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
+                  selected ? 'border-amber-600 bg-amber-600 text-white shadow-[0_0_0_2px_rgba(217,119,6,.2)]' : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
+                }`}
+              >
+                <span className="font-medium truncate max-w-[130px]">{t.tenantName ?? `테넌트 ${t.tenantId}`}</span>
+                <span className={selected ? 'text-white/80 text-[11px]' : 'text-amber-400 text-[11px]'}>{t.totalCnt.toLocaleString()}</span>
+              </button>
+            );
+          })}
+          {opTenantId != null && <span className="ml-auto shrink-0 text-[11px] font-bold text-amber-700">대행 중 — 등록/수정이 이 테넌트에 반영됩니다</span>}
+        </div>
+      )}
 
       {/* ===== 트리 ↔ ag-Grid 스플릿 ===== */}
       <div ref={splitRef} className="flex flex-1 min-h-0 gap-4">
