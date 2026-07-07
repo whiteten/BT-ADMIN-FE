@@ -3,31 +3,31 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Dropdown, Input, type MenuProps, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { BarChart2, MoreVertical, Pause, Play } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { fuzzyFilter, toast } from '@/shared-util';
 import SttModelDrawer, { type SttModelDrawerRef } from '../components/SttModelDrawer';
 import SttModelRecogDrawer, { type SttModelRecogDrawerRef } from '../components/SttModelRecogDrawer';
 import { useGetCodes } from '../hooks/useCommonQueries';
 import { modelQueryKeys, useDeleteSttModel, useGetSttModelList } from '../hooks/useModelQueries';
-import type { ModelTunningResult, ModelTunningType, SttModelItem } from '../types';
+import { MODEL_TUNNING_RESULT, MODEL_TUNNING_TYPE, type ModelTunningResult, type ModelTunningType, type SttModelItem } from '../types';
 import { Badge } from '@/components/ui/badge';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const MODEL_TYPE_OPTIONS = [
   { label: '전체', value: '' },
-  { label: '수동', value: 0 },
-  { label: '자동', value: 1 },
+  { label: '수동', value: MODEL_TUNNING_TYPE.MANUAL },
+  { label: '자동', value: MODEL_TUNNING_TYPE.AUTO },
 ];
 
 const MODEL_TYPE_CONFIG: Record<ModelTunningType, { label: string; className: string }> = {
-  0: { label: '수동', className: 'text-violet-600 bg-violet-50' },
-  1: { label: '자동', className: 'text-sky-600 bg-sky-50' },
+  [MODEL_TUNNING_TYPE.MANUAL]: { label: '수동', className: 'text-violet-600 bg-violet-50' },
+  [MODEL_TUNNING_TYPE.AUTO]: { label: '자동', className: 'text-sky-600 bg-sky-50' },
 };
 
 const MODEL_STATUS_CONFIG: Record<ModelTunningResult, { label: string; className: string }> = {
-  10: { label: '학습요청', className: 'text-gray-500 bg-gray-100' },
-  20: { label: '학습중', className: 'text-blue-600 bg-blue-50' },
-  30: { label: '학습실패', className: 'text-red-500 bg-red-50' },
-  50: { label: '학습완료', className: 'text-emerald-600 bg-emerald-50' },
+  [MODEL_TUNNING_RESULT.REQUESTED]: { label: '학습요청', className: 'text-gray-500 bg-gray-100' },
+  [MODEL_TUNNING_RESULT.TRAINING]: { label: '학습중', className: 'text-blue-600 bg-blue-50' },
+  [MODEL_TUNNING_RESULT.FAILED]: { label: '학습실패', className: 'text-red-500 bg-red-50' },
+  [MODEL_TUNNING_RESULT.DONE]: { label: '학습완료', className: 'text-emerald-600 bg-emerald-50' },
 };
 
 interface ModelCardProps {
@@ -139,11 +139,8 @@ export default function SttModel() {
     },
   });
 
-  const rowData = rawData.filter((model) => {
-    if (modelName && !model.modelVerName.includes(modelName)) return false;
-    if (modelType !== '' && model.tunningType !== modelType) return false;
-    return true;
-  });
+  const typeFiltered = rawData.filter((model) => modelType === '' || model.tunningType === modelType);
+  const rowData = fuzzyFilter(modelName, typeFiltered, (model) => model.modelVerName);
 
   const handleEngineChange = (value: string) => {
     setEngineCode(value);
@@ -155,7 +152,7 @@ export default function SttModel() {
   };
 
   const handleMeasure = (model: SttModelItem) => {
-    if (model.tunningResult !== 50) {
+    if (model.tunningResult !== MODEL_TUNNING_RESULT.DONE) {
       toast.warning('학습이 완료된 모델만 인식률 측정이 가능합니다.');
       return;
     }

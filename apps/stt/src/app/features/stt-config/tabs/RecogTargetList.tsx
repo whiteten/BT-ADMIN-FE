@@ -37,7 +37,7 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
   const gridRef = useRef<AgGridReact<RecogTargetListItem>>(null);
   const { gridOptions } = useAggridOptions();
 
-  const { data: targetList = [], isLoading } = useGetRecogTargetList({ groupCode, engineCode });
+  const { data: targetList = [], isLoading } = useGetRecogTargetList({ params: { groupCode, engineCode } });
 
   const { mutate: deleteTarget } = useDeleteRecogTarget({
     mutationOptions: {

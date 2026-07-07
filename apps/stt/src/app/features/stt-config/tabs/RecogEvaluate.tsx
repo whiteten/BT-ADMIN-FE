@@ -9,7 +9,7 @@ import { toast } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
 import { modelQueryKeys, useExecuteRecogEvaluate, useGetRecogResultList } from '../hooks/useModelQueries';
 import { recogQueryKeys } from '../hooks/useRecogQueries';
-import type { RecogResultItem, RecogTargetListItem, SttModelItem } from '../types';
+import { MODEL_TUNNING_RESULT, MODEL_TUNNING_TYPE, type RecogResultItem, type RecogTargetListItem, type SttModelItem } from '../types';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -19,8 +19,8 @@ const FIXED_MODEL: SttModelItem = {
   modelDesc: '',
   recogRate: null,
   tunningKind: 0,
-  tunningResult: 10,
-  tunningType: 0,
+  tunningResult: MODEL_TUNNING_RESULT.REQUESTED,
+  tunningType: MODEL_TUNNING_TYPE.MANUAL,
   workTime: '',
 };
 
