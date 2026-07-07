@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Select } from 'antd';
 import { Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { GridRowColorLegend } from '../../components/GridRowColorLegend';
 import { agentMasterApi } from '../../features/agent-master/api/agentMasterApi';
@@ -64,8 +64,15 @@ export default function AgentMasterList() {
     return t ? Number(t) : null;
   });
   const activeTenantName = useAuthStore((s) => s.userInfo?.tenantName ?? null);
-  // 항상 활성 테넌트로 고정(선택기 없음).
-  const selectedTenantId = ctxTenantId;
+
+  // 운영자 모드(통합운영, 브랜치 E) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
 
   // ─── State ──────────────────────────────────────────────────────────────
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
@@ -267,21 +274,30 @@ export default function AgentMasterList() {
   }, [selectedTenantId, selectedGroupId, searchText]);
 
   const handleImportOpen = useCallback(() => {
+    if (operatorMode && opTenantId == null) {
+      toast.warning('운영자 모드 전체 보기에서는 등록할 수 없습니다. 대행할 테넌트를 먼저 선택하세요.');
+      return;
+    }
     if (!selectedGroupId) {
       toast.error('좌측 상담그룹을 먼저 선택하세요');
       return;
     }
     setImportDrawerOpen(true);
-  }, [selectedGroupId]);
+  }, [operatorMode, opTenantId, selectedGroupId]);
 
   const handleCreate = useCallback(() => {
+    // 운영자 모드 "전체"(대행 테넌트 미선택)에서는 생성 대상 테넌트가 모호 → 대행 테넌트 선택 요구.
+    if (operatorMode && opTenantId == null) {
+      toast.warning('운영자 모드 전체 보기에서는 등록할 수 없습니다. 대행할 테넌트를 먼저 선택하세요.');
+      return;
+    }
     setAgentDrawer({
       open: true,
       mode: 'create',
       tenantId: selectedTenantId ?? undefined,
       groupId: selectedGroupId ?? undefined,
     });
-  }, [selectedTenantId, selectedGroupId]);
+  }, [operatorMode, opTenantId, selectedTenantId, selectedGroupId]);
 
   const handleEdit = useCallback((a: AgentResponse) => setAgentDrawer({ open: true, mode: 'edit', agentId: a.agentId }), []);
 

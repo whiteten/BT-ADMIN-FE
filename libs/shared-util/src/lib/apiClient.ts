@@ -5,6 +5,23 @@ import { createShortId, getCookie } from './util';
 
 const Log = new LOG('Api');
 
+/** 운영자 모드 스코프 헤더 주입 (sessionStorage 의 operator-scope-store 를 직접 파싱 — 순환의존 회피). */
+function applyOperatorScopeHeaders(config: InternalAxiosRequestConfig): void {
+  try {
+    const raw = sessionStorage.getItem('operator-scope-store');
+    if (!raw) return;
+    const state = (JSON.parse(raw) as { state?: { operatorMode?: boolean; actAsTenantId?: string | null } }).state;
+    if (!state?.operatorMode) return;
+    if (state.actAsTenantId) {
+      config.headers['X-Act-As-Tenant'] = state.actAsTenantId;
+    } else {
+      config.headers['X-View-All-Tenants'] = 'true';
+    }
+  } catch {
+    // sessionStorage 접근 불가/파싱 실패 시 무시 (일반 콘솔로 동작)
+  }
+}
+
 /** API 에러 이벤트명 */
 export const API_ERROR_EVENT = 'api-error' as const;
 
@@ -112,6 +129,12 @@ export default class ApiClient {
     if (token) {
       config.headers['X-CSRF-TOKEN'] = token;
     }
+    // 운영자 모드(통합운영) 헤더 주입.
+    //  - 전체(view-all): X-View-All-Tenants:true → 크로스테넌트 조회
+    //  - 특정 테넌트 대행: X-Act-As-Tenant:<id> → BFF 가 isSystemAdmin 검증 후 X-Tenant-Id override
+    // shared-store 를 import 하면 순환의존이 생기므로, persist(sessionStorage) 값을 직접 읽는다.
+    // (보안 게이트는 BFF 에 있으므로 비-관리자가 헤더를 넣어도 무시됨)
+    applyOperatorScopeHeaders(config);
     const extendedConfig = config as ExtendedAxiosRequestConfig;
     extendedConfig.key = createShortId(); // 로그 트래킹을 위한 key.
     return extendedConfig;
