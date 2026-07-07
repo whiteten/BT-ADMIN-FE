@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Maximize2 } from 'lucide-react';
-import { useAgentChatStore, useLayoutStore } from '@/shared-store';
+import { useAgentChatStore, useLayoutStore, useOperatorScopeStore } from '@/shared-store';
 import { useCanUseAgentChat } from './hooks/useCanUseAgentChat';
 import TenantChip from '../../components/TenantChip';
 import UserMenuSelector from '../../components/UserMenuSelector';
@@ -19,9 +19,14 @@ export default function TopHeader() {
   const toggleChat = useAgentChatStore((s) => s.toggle);
 
   const canUseAgentChat = useCanUseAgentChat();
+  // 운영자 모드(통합운영) 활성 시 헤더 바를 앰버로 강조 — "지금 전체 테넌트 스코프"를 상시 인지.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
 
   return (
-    <div style={{ height: TOP_HEADER_HEIGHT }} className="relative shrink-0 bg-[var(--color-bt-header)] text-white border-b border-white/10">
+    <div
+      style={{ height: TOP_HEADER_HEIGHT }}
+      className={cn('relative shrink-0 text-white border-b', operatorMode ? 'bg-amber-700 border-amber-500/40' : 'bg-[var(--color-bt-header)] border-white/10')}
+    >
       {/* 좌측: 로고 */}
       <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center">
         <img src="/assets/images/ci-white.svg" alt="CI" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
