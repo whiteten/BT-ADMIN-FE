@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { GripVertical } from 'lucide-react';
-import { labelOfActivate, labelOfAgentGrade, labelOfJikgup, labelOfLoginStatus } from '../constants/codes';
+import { labelOfActivate, labelOfAgentGrade, labelOfJikgup } from '../constants/codes';
 import type { AgentResponse } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -23,6 +23,8 @@ export const AGENT_DRAG_MIME = 'application/x-bt-agent-ids';
 interface AgentMasterTableProps {
   rowData: AgentResponse[];
   isLoading?: boolean;
+  /** 테넌트 컬럼 표시 여부(운영자 모드 전체/대행 시에만 true). 일반 콘솔은 단일 테넌트라 숨김. */
+  showTenant?: boolean;
   onRowDoubleClicked: (agent: AgentResponse) => void;
   onDelete: (agent: AgentResponse) => void;
   onSelectionChanged?: (selected: AgentResponse[]) => void;
@@ -56,6 +58,7 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
 export default function AgentMasterTable({
   rowData,
   isLoading,
+  showTenant = false,
   onRowDoubleClicked,
   onDelete,
   onSelectionChanged,
@@ -105,7 +108,7 @@ export default function AgentMasterTable({
           );
         },
       },
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 100, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 100, hide: !showTenant, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
       { headerName: '그룹', field: 'groupName', flex: 1.2, minWidth: 110, tooltipField: 'groupName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '로그인 ID',
@@ -166,15 +169,6 @@ export default function AgentMasterTable({
         },
       },
       {
-        headerName: '상태',
-        field: 'agentStatus',
-        flex: 0.7,
-        minWidth: 80,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueGetter: (p) => labelOfLoginStatus(p.data?.agentStatus),
-      },
-      { headerName: '작업일시', field: 'workTime', flex: 1.4, minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
-      {
         headerName: '',
         maxWidth: 60,
         sortable: false,
@@ -200,7 +194,7 @@ export default function AgentMasterTable({
         },
       },
     ],
-    [onDelete, onBulkDelete, selectedCount],
+    [onDelete, onBulkDelete, selectedCount, showTenant],
   );
 
   return (

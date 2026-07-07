@@ -175,6 +175,8 @@ export interface AgentGroupNode {
   activateYn: number;
   agentCount: number;
   children: AgentGroupNode[];
+  /** 운영자 전체 모드에서 "테넌트 → 그룹" 으로 묶기 위한 합성 테넌트 노드 표시(실제 그룹 아님). */
+  _scopeKind?: 'tenant';
 }
 
 export interface AgentGroupResponse {

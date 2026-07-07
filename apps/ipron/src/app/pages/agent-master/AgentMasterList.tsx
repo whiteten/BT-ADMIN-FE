@@ -120,6 +120,34 @@ export default function AgentMasterList() {
   // 운영자 모드 전용 — 대행 선택기용 테넌트별 상담사 통계(전체/테넌트 카운트). view-all 로 전체 테넌트 반환.
   const { data: operatorTenants = [] } = useGetAgentTenants({ queryOptions: { enabled: operatorMode } });
 
+  // 운영자 "전체" 모드: 좌측 트리를 "테넌트 → 그룹" 2단계로 묶는다(어느 테넌트 그룹인지 명확화).
+  // 그 외(일반/특정 테넌트 대행)는 기존 그룹 트리 그대로.
+  const displayGroupTree = useMemo<AgentGroupNode[]>(() => {
+    if (!operatorMode || opTenantId != null) return groupTree;
+    const nameOf = (tid: number) => operatorTenants.find((t) => t.tenantId === tid)?.tenantName ?? `테넌트 ${tid}`;
+    const byTenant = new Map<number, AgentGroupNode[]>();
+    for (const g of groupTree) {
+      const arr = byTenant.get(g.tenantId) ?? [];
+      arr.push(g);
+      byTenant.set(g.tenantId, arr);
+    }
+    return [...byTenant.entries()]
+      .sort((a, b) => nameOf(a[0]).localeCompare(nameOf(b[0])))
+      .map(([tid, groups]) => ({
+        groupId: -1_000_000 - tid, // 합성 노드 — 실제 그룹 ID 와 충돌 안 하도록 음수
+        tenantId: tid,
+        tenantName: nameOf(tid),
+        priorGrpId: null,
+        grpDepth: 0,
+        groupName: nameOf(tid),
+        oscomId: null,
+        activateYn: 1,
+        agentCount: groups.reduce((s, g) => s + (g.agentCount ?? 0), 0),
+        children: groups,
+        _scopeKind: 'tenant' as const,
+      }));
+  }, [operatorMode, opTenantId, groupTree, operatorTenants]);
+
   // TB_IC_MEDIA_USAGE 등록·활성 미디어 목록 (동적 노출)
   const { data: mediaTypeList = [] } = useGetMediaTypes();
 
@@ -458,7 +486,6 @@ export default function AgentMasterList() {
             <span className="text-sm font-semibold text-gray-700">상담그룹</span>
             <div className="ml-auto">
               <Button
-                size="small"
                 type="primary"
                 icon={<Plus className="size-3.5" />}
                 onClick={() =>
@@ -475,9 +502,14 @@ export default function AgentMasterList() {
           </div>
           <div className="flex-1 min-h-0">
             <AgentGroupTree
-              tree={groupTree}
+              tree={displayGroupTree}
               selectedGroupId={selectedGroupId}
               onSelectGroup={handleSelectGroup}
+              onSelectTenant={(tid) => {
+                setActAsTenant(String(tid));
+                setSelectedGroupId(null);
+                setSelectedRows([]);
+              }}
               onCreateChild={(parent) =>
                 setGroupDrawer({
                   open: true,
@@ -599,6 +631,7 @@ export default function AgentMasterList() {
               <AgentMasterTable
                 rowData={filteredAgents}
                 isLoading={isLoading}
+                showTenant={operatorMode}
                 onRowDoubleClicked={handleEdit}
                 onDelete={handleDelete}
                 onSelectionChanged={setSelectedRows}
