@@ -418,21 +418,20 @@ export default function AgentMasterList() {
       {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">상담사 설정</span>
+          {/* 좌측: 운영자 모드 = 대행 테넌트 선택 드롭다운(공통 ScopeSelect). 일반 콘솔은 비움(브레드크럼이 화면명 표기). */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={operatorTenants.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedGroupId(null);
+                setSelectedRows([]);
+              }}
+            />
+          )}
           <div className="ml-auto flex items-center gap-2">
-            {/* 운영자 모드 전용: 대행 테넌트 선택(전체 ↔ 테넌트) — 공통 ScopeSelect */}
-            {operatorMode && (
-              <ScopeSelect
-                kind="tenant"
-                options={operatorTenants.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
-                value={actAsTenantId}
-                onChange={(id) => {
-                  setActAsTenant(id);
-                  setSelectedGroupId(null);
-                  setSelectedRows([]);
-                }}
-              />
-            )}
             <Input
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
