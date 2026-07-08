@@ -149,13 +149,10 @@ export default function AgentScheduleList() {
   }, []);
 
   const handleCreate = useCallback(() => {
-    if (selectedTenantId == null) {
-      toast.warning('대행할 테넌트를 먼저 선택하세요');
-      return;
-    }
+    // 전체 보기에서도 등록 허용 — 운영자 모드면 등록 폼의 "테넌트" 필드로 대상 테넌트를 직접 고른다.
     setAssignDrawer({ open: false, schedule: null });
     setInfoDrawer({ open: true, mode: 'create', schedule: null });
-  }, [selectedTenantId]);
+  }, []);
 
   const handleEdit = useCallback((row: ScheduleInfoResponse) => {
     setAssignDrawer({ open: false, schedule: null });
@@ -314,7 +311,15 @@ export default function AgentScheduleList() {
         </div>
 
         <div className="flex-1 min-h-0">
-          <ScheduleInfoTable rowData={filteredSchedules} kind={kind} subject={subject} isLoading={isLoading} onRowDoubleClicked={handleEdit} onSelectionChanged={setSelectedRows} />
+          <ScheduleInfoTable
+            rowData={filteredSchedules}
+            kind={kind}
+            subject={subject}
+            isLoading={isLoading}
+            showTenant={operatorMode}
+            onRowDoubleClicked={handleEdit}
+            onSelectionChanged={setSelectedRows}
+          />
         </div>
       </div>
 
@@ -324,6 +329,8 @@ export default function AgentScheduleList() {
         kind={kind}
         schedule={infoDrawer.schedule}
         tenantId={selectedTenantId}
+        operatorMode={operatorMode}
+        tenantOptions={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}` }))}
         onCancel={() => setInfoDrawer((p) => ({ ...p, open: false }))}
         onSubmit={handleInfoSubmit}
         loading={creating || updating}

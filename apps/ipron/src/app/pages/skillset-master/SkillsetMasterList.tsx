@@ -244,14 +244,11 @@ export default function SkillsetMasterList() {
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   const handleCreateOpen = useCallback(() => {
-    if (selectedTenantId == null) {
-      toast.warning('대행할 테넌트를 먼저 선택하세요');
-      return;
-    }
+    // 전체 보기에서도 등록 허용 — 운영자 모드면 등록 폼의 "테넌트" 필드로 대상 테넌트를 직접 고른다.
     setDrawerMode('create');
     setDrawerSkillset(null);
     setDrawerOpen(true);
-  }, [selectedTenantId]);
+  }, []);
 
   const handleEdit = useCallback((row: SkillsetResponse) => {
     setDrawerMode('edit');
@@ -293,7 +290,7 @@ export default function SkillsetMasterList() {
     (parent: SkillsetGroupResponse | null, tenantHint?: number | null) => {
       const targetTenant = parent?.tenantId ?? tenantHint ?? selectedTenantId;
       if (targetTenant == null) {
-        toast.warning('루트 그룹을 추가할 테넌트 카드를 먼저 선택하세요');
+        toast.warning('루트 그룹을 추가할 테넌트를 먼저 선택하세요 (상단 테넌트 선택)');
         return;
       }
       setGroupDrawerMode('create');
@@ -506,6 +503,7 @@ export default function SkillsetMasterList() {
         defaultTreeId={selectedTreeId && selectedTreeId > 0 ? selectedTreeId : null}
         tenants={tenantOptions}
         groups={flatGroups}
+        operatorMode={operatorMode}
         onCancel={() => setDrawerOpen(false)}
         onSubmit={handleDrawerSubmit}
         loading={isCreating || isUpdating}

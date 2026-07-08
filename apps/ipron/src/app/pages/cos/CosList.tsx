@@ -95,12 +95,16 @@ export default function CosList() {
       .sort((a, b) => a.tenantId - b.tenantId);
   }, [nodeTenants]);
 
-  // 선택된 테넌트의 COS 목록 조회
+  // COS 목록 조회 — 특정 테넌트면 tenantId 전달, 운영자 전체면 미전달(view-all).
   const listParams = useMemo(() => (selectedTenantId && selectedTenantId > 0 ? { tenantId: selectedTenantId } : undefined), [selectedTenantId]);
   const { data: cosList = [], isLoading } = useGetCosList({
     params: listParams,
-    queryOptions: { enabled: !!listParams },
+    // 운영자 모드면 전체(파라미터 없이 view-all)도 조회. 일반 콘솔은 활성 테넌트가 있을 때만.
+    queryOptions: { enabled: operatorMode || !!listParams },
   });
+
+  // tenantId → 이름 매핑 (그리드 테넌트 컬럼 · 운영자 전체 보기용)
+  const tenantNameById = useMemo(() => new Map(tenants.map((t) => [t.tenantId, t.tenantName] as const)), [tenants]);
 
   // 검색 필터
   const filteredCosList = useMemo(() => {
@@ -138,11 +142,9 @@ export default function CosList() {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleCreate = useCallback(() => {
-    if (selectedTenantId == null || selectedTenantId <= 0) {
-      toast.warning('대행할 테넌트를 먼저 선택하세요');
-      return;
-    }
-    navigate(`/ipron/cos/create?tenantId=${selectedTenantId}`);
+    // 전체 보기에서도 등록 허용 — 테넌트 미지정으로 등록 페이지 진입 후 CosForm 의 "테넌트" 필드에서 선택.
+    const q = selectedTenantId && selectedTenantId > 0 ? `?tenantId=${selectedTenantId}` : '';
+    navigate(`/ipron/cos/create${q}`);
   }, [navigate, selectedTenantId]);
 
   const handleEdit = useCallback(
@@ -193,6 +195,17 @@ export default function CosList() {
 
   const columnDefs: ColDef<Cos>[] = useMemo(
     () => [
+      ...(operatorMode
+        ? [
+            {
+              headerName: '테넌트',
+              field: 'tenantId' as const,
+              width: 140,
+              valueGetter: (p: import('ag-grid-community').ValueGetterParams<Cos>) =>
+                tenantNameById.get(p.data?.tenantId ?? -1) ?? (p.data?.tenantId != null ? `테넌트 ${p.data.tenantId}` : '-'),
+            },
+          ]
+        : []),
       { headerName: 'COS 이름', field: 'cosName', flex: 1, minWidth: 160, tooltipField: 'cosName' },
       { headerName: '착신금지', field: 'dnTblSvc', width: 100, filterValueGetter: cosStatusFilterGetter('dnTblSvc'), cellRenderer: StatusBadgeRenderer },
       { headerName: '발신금지', field: 'dnOblSvc', width: 100, filterValueGetter: cosStatusFilterGetter('dnOblSvc'), cellRenderer: StatusBadgeRenderer },
@@ -203,7 +216,7 @@ export default function CosList() {
       { headerName: '특정번호발신허용', field: 'dodNumAllow', width: 140, filterValueGetter: cosStatusFilterGetter('dodNumAllow'), cellRenderer: StatusBadgeRenderer },
       { headerName: '특정번호착신금지', field: 'callScreenSvc', width: 140, filterValueGetter: cosStatusFilterGetter('callScreenSvc'), cellRenderer: StatusBadgeRenderer },
     ],
-    [cosStatusFilterGetter],
+    [cosStatusFilterGetter, operatorMode, tenantNameById],
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -262,7 +275,7 @@ export default function CosList() {
 
       {/* ===== 박스 2: COS 그리드 ===== */}
       <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-        {selectedTenantId && selectedTenantId > 0 ? (
+        {operatorMode || (selectedTenantId && selectedTenantId > 0) ? (
           <>
             {/* Grid header */}
             <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">

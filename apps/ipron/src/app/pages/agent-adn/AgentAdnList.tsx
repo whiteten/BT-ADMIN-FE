@@ -301,10 +301,17 @@ export default function AgentAdnList() {
               <Button
                 icon={<Settings className="size-3.5" />}
                 onClick={() => setPolicyOpen(true)}
-                title={policy?.active ? `정책: ${policy.adnPrefix} + ${policy.digitLength}자리 (활성)` : '자동채번 정책 비활성'}
+                disabled={!operatorMode}
+                title={
+                  !operatorMode
+                    ? '자동채번 정책 설정은 운영자 모드에서만 가능합니다'
+                    : policy?.active
+                      ? `정책: ${policy.adnPrefix} + ${policy.digitLength}자리 (활성)`
+                      : '자동채번 정책 비활성'
+                }
               >
                 자동채번 설정
-                {policy && !policy.active && <span className="ml-1 text-[10px] text-orange-500">●</span>}
+                {operatorMode && policy && !policy.active && <span className="ml-1 text-[10px] text-orange-500">●</span>}
               </Button>
               <Button
                 type="primary"

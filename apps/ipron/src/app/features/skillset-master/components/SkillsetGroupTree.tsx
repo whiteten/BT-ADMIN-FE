@@ -549,7 +549,7 @@ export default function SkillsetGroupTree({
       {/* 순수 그룹 트리 */}
       <div className="flex-1 overflow-auto py-1">
         {groups.length === 0 ? (
-          <div className="px-3 py-6 text-center text-[11px] text-gray-400">{selectedTenantId === null ? '상단 카드에서 테넌트를 선택하세요' : '등록된 업무그룹이 없습니다'}</div>
+          <div className="px-3 py-6 text-center text-[11px] text-gray-400">{selectedTenantId === null ? '상단에서 테넌트를 선택하세요' : '등록된 업무그룹이 없습니다'}</div>
         ) : selectedTenantId !== null ? (
           // 단일 테넌트 모드 — 기존 구현 유지 (DnD 포함, 위/아래 버튼 제거)
           <div {...rootProps}>{items.map(renderSingleTenantRow)}</div>

@@ -67,39 +67,34 @@ export default function MentMgmtList() {
     }
   }, [nodes, selectedNodeId]);
 
-  // ─── 테넌트 필터 옵션 (공통 0 포함, 멘트 수 집계) ────────────────────────────────
+  // ─── 테넌트 필터 옵션 (공통[0] 제외 — 공용멘트는 별도 시스템관리자 메뉴) ──────────────
   const tenantOptions = useMemo(() => {
     const map = new Map<number, { id: number; name: string; count: number }>();
     for (const r of rows) {
-      if (r.tenantId == null) continue;
+      if (r.tenantId == null || r.tenantId === 0) continue; // 공통(0)은 '교환기 공용멘트 관리'에서 관리
       if (!map.has(r.tenantId)) {
-        map.set(r.tenantId, { id: r.tenantId, name: r.tenantId === 0 ? '공통' : (r.tenantName ?? `테넌트 ${r.tenantId}`), count: 0 });
+        map.set(r.tenantId, { id: r.tenantId, name: r.tenantName ?? `테넌트 ${r.tenantId}`, count: 0 });
       }
       map.get(r.tenantId)!.count += 1;
     }
-    // 공통(0) 우선, 그 외 이름순
-    return Array.from(map.values()).sort((a, b) => (a.id === 0 ? -1 : b.id === 0 ? 1 : a.name.localeCompare(b.name)));
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [rows]);
 
-  // ─── 헤더 요약 (총 / 공통 / 테넌트) ──────────────────────────────────────────────
-  const summary = useMemo(() => {
-    const total = rows.length;
-    const common = rows.filter((r) => r.tenantId === 0).length;
-    return { total, common, tenant: total - common };
-  }, [rows]);
+  // ─── 헤더 요약 (총 멘트 — 공통 제외) ─────────────────────────────────────────────
+  const summary = useMemo(() => ({ total: rows.filter((r) => r.tenantId !== 0).length }), [rows]);
 
-  // ─── 그리드 표시용 행 (테넌트 + 텍스트 검색) ───────────────────────────────────────
+  // ─── 그리드 표시용 행 (공통 제외 + 테넌트 + 텍스트 검색) ───────────────────────────────
   const rowsForGrid = useMemo(() => {
-    let list = rows;
+    let list = rows.filter((r) => r.tenantId !== 0); // 공통(0) 제외
     if (selectedTenantId != null) list = list.filter((r) => r.tenantId === selectedTenantId);
     const kw = searchText.trim().toLowerCase();
     if (kw) list = list.filter((r) => [r.mentName, r.fileName, r.mentDesc].some((f) => f != null && String(f).toLowerCase().includes(kw)));
     return list;
   }, [rows, selectedTenantId, searchText]);
 
-  // 등록 컨텍스트 (선택 테넌트 → 없으면 공통 우선)
-  const ctxTenantId = selectedTenantId ?? (tenantOptions.find((c) => c.id === 0) ? 0 : (tenantOptions[0]?.id ?? null));
-  const ctxTenantName = ctxTenantId === 0 ? '공통' : (tenantOptions.find((c) => c.id === ctxTenantId)?.name ?? null);
+  // 등록 컨텍스트 (선택 테넌트 → 없으면 첫 테넌트)
+  const ctxTenantId = selectedTenantId ?? tenantOptions[0]?.id ?? null;
+  const ctxTenantName = tenantOptions.find((c) => c.id === ctxTenantId)?.name ?? null;
   const ctxNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
@@ -230,6 +225,13 @@ export default function MentMgmtList() {
       {/* ===== 박스A: 헤더 (노드/테넌트 스코프 + 요약) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 테넌트 필터 (공통 제외, 클라이언트 필터) */}
+          <ScopeSelect
+            kind="tenant"
+            options={tenantOptions.map((c) => ({ id: c.id, name: c.name, count: c.count }))}
+            value={selectedTenantId == null ? null : String(selectedTenantId)}
+            onChange={(id) => setSelectedTenantId(id == null ? null : Number(id))}
+          />
           {/* 노드 선택 (멘트는 노드 단위 — 필수) */}
           <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
             <Network className="size-3.5 shrink-0 text-blue-600" />
@@ -244,23 +246,10 @@ export default function MentMgmtList() {
               popupMatchSelectWidth={false}
             />
           </div>
-          {/* 테넌트 필터 (공통 포함, 클라이언트 필터) */}
-          <ScopeSelect
-            kind="tenant"
-            options={tenantOptions.map((c) => ({ id: c.id, name: c.name, count: c.count }))}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={(id) => setSelectedTenantId(id == null ? null : Number(id))}
-          />
-          {/* 요약 — 총 / 공통 / 테넌트 */}
+          {/* 요약 — 총 멘트 (공통 제외) */}
           <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
             <span className="text-gray-500">
               총 멘트 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
-            </span>
-            <span className="text-gray-500">
-              공통 <b className="text-[#405189] font-semibold">{summary.common.toLocaleString()}</b>
-            </span>
-            <span className="text-gray-500">
-              테넌트 <b className="text-green-600 font-semibold">{summary.tenant.toLocaleString()}</b>
             </span>
           </div>
           <div className="ml-auto flex items-center gap-2">

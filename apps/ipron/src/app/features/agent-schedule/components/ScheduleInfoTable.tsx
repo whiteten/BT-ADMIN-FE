@@ -18,6 +18,8 @@ interface ScheduleInfoTableProps {
   kind: ScheduleKind;
   subject: ScheduleSubject;
   isLoading?: boolean;
+  /** 운영자 전체 보기 등 다중 테넌트 노출 시 테넌트 컬럼 표시 */
+  showTenant?: boolean;
   onRowDoubleClicked: (row: ScheduleInfoResponse) => void;
   onSelectionChanged?: (selected: ScheduleInfoResponse[]) => void;
 }
@@ -44,7 +46,7 @@ function DayChips({ row }: { row: ScheduleInfoResponse }) {
   );
 }
 
-export default function ScheduleInfoTable({ rowData, kind, subject, isLoading, onRowDoubleClicked, onSelectionChanged }: ScheduleInfoTableProps) {
+export default function ScheduleInfoTable({ rowData, kind, subject, isLoading, showTenant, onRowDoubleClicked, onSelectionChanged }: ScheduleInfoTableProps) {
   const { gridOptions } = useAggridOptions();
 
   const defaultColDef: ColDef = useMemo(
@@ -61,7 +63,20 @@ export default function ScheduleInfoTable({ rowData, kind, subject, isLoading, o
   const subjectLabel = SUBJECT_LABELS[subject];
 
   const columnDefs: ColDef<ScheduleInfoResponse>[] = useMemo(() => {
-    const cols: ColDef<ScheduleInfoResponse>[] = [
+    const cols: ColDef<ScheduleInfoResponse>[] = [];
+
+    if (showTenant) {
+      cols.push({
+        headerName: '테넌트',
+        field: 'tenantName',
+        minWidth: 120,
+        maxWidth: 180,
+        tooltipField: 'tenantName',
+        valueFormatter: (p) => p.value ?? '-',
+      });
+    }
+
+    cols.push(
       {
         headerName: '스케줄명',
         field: 'scheduleName',
@@ -98,7 +113,7 @@ export default function ScheduleInfoTable({ rowData, kind, subject, isLoading, o
         cellStyle: { textAlign: 'center' } as CellStyle,
         valueFormatter: (p) => fmtTime(p.value),
       },
-    ];
+    );
 
     if (isSkill) {
       cols.push(
@@ -134,7 +149,7 @@ export default function ScheduleInfoTable({ rowData, kind, subject, isLoading, o
     );
 
     return cols;
-  }, [isSkill, subjectLabel]);
+  }, [isSkill, subjectLabel, showTenant]);
 
   return (
     <AgGridReact<ScheduleInfoResponse>
