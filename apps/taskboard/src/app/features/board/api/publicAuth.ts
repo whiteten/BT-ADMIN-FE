@@ -37,20 +37,6 @@ export const isPublicMode = (): boolean => _publicMode;
 export const publicAuthHeaders = (): { Authorization: string } | undefined => (_publicToken ? { Authorization: `Bearer ${_publicToken}` } : undefined);
 
 /**
- * OAuth2 토큰 엔드포인트 URL을 반환한다.
- * 개발 서버(webpack dev, port 4200)는 /oauth 경로를 BFF로 프록시하지 않으므로
- * production이 아닌 환경에서는 BFF 절대 URL을 직접 사용한다.
- * BFF의 /oauth/** CORS 설정이 모든 origin을 허용하므로 크로스오리진 요청이 가능하다.
- */
-const getOAuthTokenUrl = (): string => {
-  if (process.env.NODE_ENV !== 'production') {
-    const { protocol, hostname } = window.location;
-    return `${protocol}//${hostname}:8080/oauth/token`;
-  }
-  return '/oauth/token';
-};
-
-/**
  * OAuth2 Client Credentials로 Bearer 토큰을 발급받아 저장한다.
  * BFF /oauth/token 엔드포인트는 permit-all이므로 인증 없이 호출 가능.
  *
@@ -62,7 +48,7 @@ const getOAuthTokenUrl = (): string => {
 export const fetchPublicToken = async (clientId: string, clientSecret: string): Promise<string> => {
   const credentials = btoa(`${clientId}:${clientSecret}`);
   const params = new URLSearchParams({ grant_type: 'client_credentials' });
-  const response = await axios.post<{ access_token: string }>(getOAuthTokenUrl(), params.toString(), {
+  const response = await axios.post<{ access_token: string }>('/oauth/token', params.toString(), {
     headers: {
       Authorization: `Basic ${credentials}`,
       'Content-Type': 'application/x-www-form-urlencoded',
