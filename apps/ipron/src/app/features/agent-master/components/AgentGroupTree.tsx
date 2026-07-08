@@ -40,6 +40,8 @@ const TOOLTIP_PROPS = {
 interface AgentGroupTreeProps {
   tree: AgentGroupNode[];
   selectedGroupId: number | null;
+  /** 운영자 전체 모드에서 보기필터로 선택된 테넌트(합성 노드 하이라이트용). */
+  selectedTenantId?: number | null;
   onSelectGroup: (groupId: number | null) => void;
   onCreateChild?: (parent: AgentGroupNode | null) => void; // null = root 추가
   onEditGroup?: (group: AgentGroupNode) => void;
@@ -47,13 +49,14 @@ interface AgentGroupTreeProps {
   onAgentDrop?: (targetGroupId: number, agentIds: number[]) => void;
   /** 그룹 노드 D&D 재배치. position 은 referenceGroupId(드롭 받은 노드) 기준. */
   onGroupReorder?: (movedGroupId: number, position: AgentGroupReorderPosition, referenceGroupId: number) => void;
-  /** 운영자 전체 모드의 합성 테넌트 노드 클릭 — 그 테넌트로 대행 전환(드릴다운). */
+  /** 운영자 전체 모드의 합성 테넌트 노드 클릭 — 그리드 보기필터만 그 테넌트로 좁힘(대행 스코프는 불변). */
   onSelectTenant?: (tenantId: number) => void;
 }
 
 export default function AgentGroupTree({
   tree,
   selectedGroupId,
+  selectedTenantId,
   onSelectGroup,
   onCreateChild,
   onEditGroup,
@@ -81,6 +84,8 @@ export default function AgentGroupTree({
   });
 
   const totalAgentCount = tree.reduce((s, n) => s + (n.agentCount ?? 0), 0);
+  // "전체" 행 강조 — 그룹 미선택 && 테넌트 보기필터도 없을 때만 (테넌트 필터 활성 시엔 테넌트 노드가 강조).
+  const allRowSelected = selectedGroupId === null && selectedTenantId == null;
 
   /**
    * 마우스 Y 좌표 기준 드롭 위치 계산.
@@ -97,7 +102,7 @@ export default function AgentGroupTree({
   const renderRow = (item: TreeViewItem<AgentGroupNode>) => {
     const node = item.node;
     const isScope = node._scopeKind === 'tenant'; // 운영자 전체 모드의 합성 테넌트 노드
-    const isSelected = selectedGroupId === node.groupId;
+    const isSelected = isScope ? selectedTenantId === node.tenantId : selectedGroupId === node.groupId;
     const isDropTarget = dropTargetId === node.groupId;
     const groupHint = groupDropHint?.id === node.groupId ? groupDropHint.pos : null;
     const dropClass = isDropTarget
@@ -254,14 +259,14 @@ export default function AgentGroupTree({
             (grip 자리 size-3 + gap, folder, name, count, actions 폭 자리) */}
         <div
           className={`group flex items-center gap-1.5 px-3 py-1.5 cursor-pointer select-none border-l-[3px] transition ${
-            selectedGroupId === null ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'border-transparent hover:bg-gray-50'
+            allRowSelected ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'border-transparent hover:bg-gray-50'
           }`}
           onClick={() => onSelectGroup(null)}
         >
           {/* grip 자리 placeholder — 그룹 노드와 좌측 정렬 맞춤 */}
           {onGroupReorder && <span className="size-3 flex-shrink-0" aria-hidden />}
-          <FolderClosed className={`size-3.5 flex-shrink-0 ${selectedGroupId === null ? 'text-[var(--color-bt-primary)]' : 'text-gray-500'}`} />
-          <span className={`flex-1 text-[12.5px] truncate ${selectedGroupId === null ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700'}`}>전체</span>
+          <FolderClosed className={`size-3.5 flex-shrink-0 ${allRowSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-500'}`} />
+          <span className={`flex-1 text-[12.5px] truncate ${allRowSelected ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700'}`}>전체</span>
           {/* 카운트 — 맨 우측에 상시 표시 */}
           <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{totalAgentCount.toLocaleString()}</span>
           {/* 모두 펼치기/접기 토글 — 상시 표시 */}

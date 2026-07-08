@@ -78,6 +78,13 @@ export default function AgentMasterList() {
   const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
 
   // ─── State ──────────────────────────────────────────────────────────────
+  // 운영자 "전체" 모드에서 좌측 트리의 테넌트 노드를 클릭했을 때의 "보기 필터" 테넌트.
+  //  - 드롭다운(actAsTenant=대행/CUD 스코프)과 분리: 트리 클릭은 그리드 조회만 좁히고 대행 상태는 안 건드린다.
+  //  - 드롭다운으로 특정 테넌트를 고르거나(opTenantId!=null) 전체로 되돌리면 이 필터는 무시/초기화된다.
+  const [treeTenantId, setTreeTenantId] = useState<number | null>(null);
+  // 그리드(상담사 목록) 조회 스코프: 운영자 전체 모드면 트리 필터, 그 외엔 대행/활성 테넌트.
+  const gridTenantId = operatorMode && opTenantId == null ? treeTenantId : selectedTenantId;
+
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<AgentResponse[]>([]);
@@ -111,7 +118,7 @@ export default function AgentMasterList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: agents = [], isLoading } = useGetAgents({
-    params: { tenantId: selectedTenantId ?? undefined, groupId: selectedGroupId ?? undefined },
+    params: { tenantId: gridTenantId ?? undefined, groupId: selectedGroupId ?? undefined },
   });
   const { data: groupTree = [] } = useGetAgentGroupTree({
     params: { tenantId: selectedTenantId ?? undefined },
@@ -291,7 +298,7 @@ export default function AgentMasterList() {
   const handleExcelExport = useCallback(async () => {
     try {
       const blob = await agentMasterApi.exportExcel({
-        tenantId: selectedTenantId ?? undefined,
+        tenantId: gridTenantId ?? undefined,
         groupId: selectedGroupId ?? undefined,
         keyword: searchText.trim() || undefined,
       });
@@ -305,7 +312,7 @@ export default function AgentMasterList() {
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message ?? '엑셀 내보내기 실패');
     }
-  }, [selectedTenantId, selectedGroupId, searchText]);
+  }, [gridTenantId, selectedGroupId, searchText]);
 
   const handleImportOpen = useCallback(() => {
     if (operatorMode && opTenantId == null) {
@@ -379,6 +386,7 @@ export default function AgentMasterList() {
 
   const handleSelectGroup = useCallback((groupId: number | null) => {
     setSelectedGroupId(groupId);
+    if (groupId === null) setTreeTenantId(null); // "전체" 행 = 모든 테넌트/그룹 보기 (테넌트 필터 해제)
     setSelectedRows([]);
   }, []);
 
@@ -454,6 +462,7 @@ export default function AgentMasterList() {
               value={actAsTenantId}
               onChange={(id) => {
                 setActAsTenant(id);
+                setTreeTenantId(null); // 대행 스코프 변경 시 트리 보기필터 초기화
                 setSelectedGroupId(null);
                 setSelectedRows([]);
               }}
@@ -504,9 +513,11 @@ export default function AgentMasterList() {
             <AgentGroupTree
               tree={displayGroupTree}
               selectedGroupId={selectedGroupId}
+              selectedTenantId={treeTenantId}
               onSelectGroup={handleSelectGroup}
               onSelectTenant={(tid) => {
-                setActAsTenant(String(tid));
+                // 트리 테넌트 클릭 = 그리드 보기 필터만. 드롭다운(대행/CUD 스코프)은 건드리지 않는다.
+                setTreeTenantId(tid);
                 setSelectedGroupId(null);
                 setSelectedRows([]);
               }}
