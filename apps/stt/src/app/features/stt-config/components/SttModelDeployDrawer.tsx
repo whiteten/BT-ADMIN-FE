@@ -7,7 +7,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
 import { useGetCodes, useGetSttSystemList } from '../hooks/useCommonQueries';
 import { modelQueryKeys, useDeployModel, useGetSttModelList } from '../hooks/useModelQueries';
-import type { SttSystemItem } from '../types';
+import { MODEL_TUNNING_RESULT, type SttSystemItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export interface SttModelDeployDrawerRef {
@@ -61,7 +61,7 @@ const SttModelDeployDrawer = forwardRef<SttModelDeployDrawerRef>((_, ref) => {
     params: engineCode ? { engineCode } : null,
   });
 
-  const modelOptions = models.filter((m) => m.tunningResult === 50).map((m) => ({ label: m.modelVerName, value: m.modelVerId }));
+  const modelOptions = models.filter((m) => m.tunningResult === MODEL_TUNNING_RESULT.DONE).map((m) => ({ label: m.modelVerName, value: m.modelVerId }));
 
   const selectedModel = models.find((m) => m.modelVerId === selectedModelVerId) ?? null;
 

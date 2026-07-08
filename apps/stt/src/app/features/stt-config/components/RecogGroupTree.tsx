@@ -3,14 +3,14 @@
  * 공통 트리(useTreeView + TreeView 프리미티브) 기반 — antd Tree 에서 이관.
  * 구조: 엔진(폴더) → 인식 그룹(leaf, hover 시 수정/삭제 액션) 2-depth 고정.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetCodes } from '../hooks/useCommonQueries';
 import { recogQueryKeys, useDeleteRecogGroup, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogGroupItem } from '../types';
-import RecogGroupEditModal from './RecogGroupEditModal';
+import RecogGroupEditModal, { type RecogGroupEditModalRef } from './RecogGroupEditModal';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { TreeCaret, TreeFolderIcon, TreeLabel, TreeRow } from '@/components/custom/TreeView';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -40,7 +40,7 @@ export default function RecogGroupTree({ selection, onSelectEngine, onSelectGrou
   const modal = useModal();
   const { data: engines = [], isLoading: isEnginesLoading } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
   const { data: groupList = [], isLoading: isGroupLoading } = useGetRecogGroupList();
-  const [editTarget, setEditTarget] = useState<RecogGroupItem | null>(null);
+  const editModalRef = useRef<RecogGroupEditModalRef>(null);
   const initialized = useRef(false);
 
   const isLoading = isEnginesLoading || isGroupLoading;
@@ -69,7 +69,7 @@ export default function RecogGroupTree({ selection, onSelectEngine, onSelectGrou
 
   const handleEditClick = (e: React.MouseEvent, group: RecogGroupItem) => {
     e.stopPropagation();
-    setEditTarget(group);
+    editModalRef.current?.open(group);
   };
 
   const handleDeleteClick = (e: React.MouseEvent, group: RecogGroupItem) => {
@@ -153,17 +153,7 @@ export default function RecogGroupTree({ selection, onSelectEngine, onSelectGrou
           <div {...rootProps}>{items.map(renderRow)}</div>
         </div>
       )}
-      {editTarget && (
-        <RecogGroupEditModal
-          open
-          group={editTarget}
-          onClose={() => setEditTarget(null)}
-          onUpdated={(updated) => {
-            setEditTarget(null);
-            onGroupUpdated(updated);
-          }}
-        />
-      )}
+      <RecogGroupEditModal ref={editModalRef} onUpdated={onGroupUpdated} />
     </div>
   );
 }
