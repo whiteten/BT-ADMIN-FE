@@ -1,6 +1,6 @@
-import { type DragEvent, type UIEvent, useState } from 'react';
+import { type DragEvent, type UIEvent, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { ChevronRight, Pencil, Play, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { ChevronRight, Copy, Pencil, Play, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardApi } from '../api/taskboardApi';
@@ -152,6 +152,39 @@ function PlaceholderTokenPicker({ dbQueryDefs, onPick, includeSelf = true }: { d
   );
 }
 
+// ─── 세션변수 칩 — :tenantId/:userId는 SQL에 직접 선언하지 않아도 실행 시점마다 현재 로그인
+// 테넌트/사용자로 자동 바인딩되는 세션변수인데, 이 컨벤션을 만든 사람이 아니면 알기 어려워서
+// SQL 편집기 옆에 드래그(또는 클릭)로 커서 위치에 꽂아 넣을 수 있는 칩으로 노출한다.
+// 드래그는 "text/plain"으로 실어 보내 브라우저 기본 텍스트 드롭 동작에 맡긴다(커서 위치에 정확히 삽입됨).
+const SESSION_TOKENS = [
+  { name: 'tenantId', label: '테넌트 ID', hint: '실행하는 사용자의 로그인 테넌트로 자동 바인딩(WHERE TENANT_ID = :tenantId)' },
+  { name: 'userId', label: '사용자 ID', hint: '실행하는 사용자의 ID로 자동 바인딩(WHERE USER_ID = :userId)' },
+] as const;
+
+function SessionTokenPicker({ onPick }: { onPick: (name: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-violet-50/50 border border-violet-200 rounded-md">
+      <span className="text-[10px] font-semibold text-violet-700 flex-shrink-0">세션변수</span>
+      {SESSION_TOKENS.map((t) => (
+        <button
+          key={t.name}
+          type="button"
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('text/plain', `:${t.name}`);
+            e.dataTransfer.effectAllowed = 'copy';
+          }}
+          onClick={() => onPick(t.name)}
+          className="px-2 py-0.5 text-[10px] font-mono rounded-full border bg-violet-100 border-violet-300 text-violet-700 hover:bg-violet-200 cursor-grab active:cursor-grabbing transition-colors"
+          title={`${t.hint} — SQL 위로 드래그하거나 클릭(커서 위치에 삽입)`}
+        >
+          {`:${t.name}`} <span className="text-violet-400">({t.label})</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── 해시 키 세그먼트 에디터 — "IC:GROUP:REASON:2026001281:0" 같은 실제 키를 콜론(:) 기준으로
 // 쪼개 세그먼트별로 편집 가능한 칸으로 보여준다. 각 칸은 플레이스홀더 칩을 드롭하면 그 칸만
 // "{groupId}" 같은 토큰으로 바뀐다 — 값 하나 통째로 문자열 치환하는 것보다 어느 자리가 바뀌는지
@@ -218,8 +251,13 @@ function StepHeader({ step, title, hint }: { step: number; title: string; hint?:
 // 값 확인/변경) 쓰는 편의 기능이며, 안 쓴다고 SQL 인젝션 경로가 새로 생기는 것은 아니다.
 export default function DataSourceQueryTab() {
   const userInfo = useAuthStore((s) => s.userInfo);
+  // 등록 범위 기본값 — 시스템 관리자는 전체 테넌트 공용이 기본(토글이 보이는 유일한 대상이라 편의상),
+  // 일반 사용자는 토글 자체가 안 보이므로 서버가 거부하지 않는 개별 테넌트가 기본이어야 한다.
+  const defaultScopeType = (): 'ALL' | 'TENANT' => (userInfo?.isSystemAdmin ? 'ALL' : 'TENANT');
+  const sqlRef = useRef<HTMLTextAreaElement>(null);
   const [sql, setSql] = useState('');
   const [params, setParams] = useState<(DbQueryParam & { id: number })[]>([]);
+  const [scopeType, setScopeType] = useState<'ALL' | 'TENANT'>(defaultScopeType);
   const [result, setResult] = useState<Record<string, unknown>[] | null>(null);
   const [visibleRows, setVisibleRows] = useState(INITIAL_VISIBLE_ROWS);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -234,6 +272,8 @@ export default function DataSourceQueryTab() {
   const [isKeyDropTarget, setIsKeyDropTarget] = useState(false);
   const [isKeyTemplateDropTarget, setIsKeyTemplateDropTarget] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  /** 연동 키 목록에서 수정 중인 항목의 index — null이면 새 항목 추가 모드 */
+  const [editingKeyIndex, setEditingKeyIndex] = useState<number | null>(null);
 
   const runQuery = useMutation({ mutationFn: taskboardApi.runDbQuery });
 
@@ -248,17 +288,45 @@ export default function DataSourceQueryTab() {
   const removeParam = (id: number) => setParams((prev) => prev.filter((p) => p.id !== id));
   const updateParam = (id: number, patch: Partial<DbQueryParam>) => setParams((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
+  /** editingKeyIndex가 있으면 그 항목을 덮어쓰고(수정), 없으면 새 항목을 추가한다 */
   const handleAddRedisKey = () => {
     if (!newKeyLabel.trim() || !newKeyValue.trim()) {
       toast.error('라벨과 Redis 키를 모두 입력하세요.');
       return;
     }
-    setRedisKeys((prev) => [...prev, { label: newKeyLabel.trim(), key: newKeyValue.trim(), keyTemplate: newKeyTemplate.trim() || undefined }]);
+    const entry = { label: newKeyLabel.trim(), key: newKeyValue.trim(), keyTemplate: newKeyTemplate.trim() || undefined };
+    if (editingKeyIndex !== null) {
+      setRedisKeys((prev) => prev.map((rk, i) => (i === editingKeyIndex ? entry : rk)));
+      setEditingKeyIndex(null);
+    } else {
+      setRedisKeys((prev) => [...prev, entry]);
+    }
     setNewKeyLabel('');
     setNewKeyValue('');
     setNewKeyTemplate('');
   };
-  const removeRedisKey = (index: number) => setRedisKeys((prev) => prev.filter((_, i) => i !== index));
+  const removeRedisKey = (index: number) => {
+    setRedisKeys((prev) => prev.filter((_, i) => i !== index));
+    if (editingKeyIndex === index) handleCancelEditRedisKey();
+  };
+
+  /** 기등록된 연동 키 항목을 클릭하면 아래 해시/키 영역 편집 필드로 불러온다 — 목록에서는 빼지 않고
+   *  그대로 두며(사라지지 않음), "+ 등록" 버튼이 수정 모드로 바뀌어 같은 항목을 덮어쓴다. */
+  const handleEditRedisKey = (index: number) => {
+    const rk = redisKeys[index];
+    if (!rk) return;
+    setNewKeyLabel(rk.label);
+    setNewKeyValue(rk.key);
+    setNewKeyTemplate(rk.keyTemplate ?? '');
+    setEditingKeyIndex(index);
+  };
+
+  const handleCancelEditRedisKey = () => {
+    setEditingKeyIndex(null);
+    setNewKeyLabel('');
+    setNewKeyValue('');
+    setNewKeyTemplate('');
+  };
 
   const handleKeyDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -283,6 +351,25 @@ export default function DataSourceQueryTab() {
     setIsKeyTemplateDropTarget(false);
     const tokenName = e.dataTransfer.getData(TEMPLATE_TOKEN_DND_TYPE);
     if (tokenName) appendKeyTemplateToken(tokenName);
+  };
+
+  /** 세션변수 칩 클릭 시 SQL textarea의 현재 커서 위치에 토큰을 삽입(드래그는 네이티브 텍스트 드롭에 맡김) */
+  const insertSessionToken = (name: string) => {
+    const token = `:${name}`;
+    const el = sqlRef.current;
+    if (!el) {
+      setSql((prev) => prev + token);
+      return;
+    }
+    const start = el.selectionStart ?? sql.length;
+    const end = el.selectionEnd ?? sql.length;
+    const next = sql.slice(0, start) + token + sql.slice(end);
+    setSql(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + token.length;
+      el.setSelectionRange(pos, pos);
+    });
   };
 
   const handleRun = async () => {
@@ -344,6 +431,7 @@ export default function DataSourceQueryTab() {
         params: params.length > 0 ? params.map(({ id: _id, ...rest }) => rest) : undefined,
         redisKeys: saveMode === 'dataSource' && redisKeys.length > 0 ? redisKeys : undefined,
         placeholderName: saveMode === 'placeholder' ? placeholderName.trim() : undefined,
+        scopeType,
       };
       if (editingId) {
         await updateDef.mutateAsync({ dbQueryId: editingId, ...payload });
@@ -356,8 +444,10 @@ export default function DataSourceQueryTab() {
       setQueryName('');
       setDescription('');
       setRedisKeys([]);
+      setEditingKeyIndex(null);
       setPlaceholderName('');
       setSaveMode('dataSource');
+      setScopeType(defaultScopeType());
       setEditingId(null);
       refetchDefs();
     } catch (e) {
@@ -372,12 +462,33 @@ export default function DataSourceQueryTab() {
     setQueryName(def.queryName);
     setDescription(def.description ?? '');
     setRedisKeys(def.redisKeys ?? []);
+    setEditingKeyIndex(null);
     setPlaceholderName(def.placeholderName ?? '');
     setSaveMode(def.placeholderName ? 'placeholder' : 'dataSource');
+    setScopeType(def.scopeType ?? 'TENANT');
     setEditingId(def.dbQueryId);
     setResult(null);
     setVisibleRows(INITIAL_VISIBLE_ROWS);
     setSaveOpen(false);
+  };
+
+  /** handleEdit과 동일하게 필드를 채우되, editingId는 비워 저장 시 새 항목으로 생성되게 한다(원본은 그대로 유지).
+   *  placeholderName은 다른 데이터소스가 "{이 이름}"으로 참조하는 유일 키라 그대로 복제하면 원본과 충돌하므로 비워서 새로 입력받는다. */
+  const handleCloneDef = (def: DbQueryDef) => {
+    setSql(def.sqlText);
+    setParams((def.params ?? []).map((p) => ({ ...p, id: (paramSeq += 1) })));
+    setQueryName(`${def.queryName} (복사본)`);
+    setDescription(def.description ?? '');
+    setRedisKeys(def.redisKeys ?? []);
+    setEditingKeyIndex(null);
+    setPlaceholderName('');
+    setSaveMode(def.placeholderName ? 'placeholder' : 'dataSource');
+    setScopeType(def.scopeType ?? 'TENANT');
+    setEditingId(null);
+    setResult(null);
+    setVisibleRows(INITIAL_VISIBLE_ROWS);
+    setSaveOpen(false);
+    toast.success(def.placeholderName ? '복제되었습니다 — 플레이스홀더 이름을 새로 입력하고 실행 후 저장하세요.' : '복제되었습니다 — 이름을 확인하고 실행 후 저장하세요.');
   };
 
   const handleCancelEdit = () => {
@@ -387,8 +498,10 @@ export default function DataSourceQueryTab() {
     setQueryName('');
     setDescription('');
     setRedisKeys([]);
+    setEditingKeyIndex(null);
     setPlaceholderName('');
     setSaveMode('dataSource');
+    setScopeType(defaultScopeType());
     setResult(null);
     setSaveOpen(false);
   };
@@ -416,12 +529,16 @@ export default function DataSourceQueryTab() {
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">SQL (SELECT만 허용, 값은 :name 형태 파라미터로)</label>
             <textarea
+              ref={sqlRef}
               value={sql}
               onChange={(e) => setSql(e.target.value)}
               placeholder={'예: SELECT CTIQ_ID AS VALUE, CTIQ_NAME AS NAME FROM TB_IC_CTIQMASTER WHERE TENANT_ID = :tenantId'}
               rows={4}
               className="w-full border border-slate-200 rounded-md px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#0f5b9e]"
             />
+            <div className="mt-1.5">
+              <SessionTokenPicker onPick={insertSessionToken} />
+            </div>
           </div>
 
           <div>
@@ -539,6 +656,35 @@ export default function DataSourceQueryTab() {
                   </div>
                 </div>
 
+                {userInfo?.isSystemAdmin ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-slate-500 flex-shrink-0">등록 범위</span>
+                    <div className="flex items-center border border-slate-200 rounded-md overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setScopeType('ALL')}
+                        className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+                          scopeType === 'ALL' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        전체테넌트공용
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScopeType('TENANT')}
+                        className={`px-2.5 py-1 text-[10px] font-semibold border-l border-slate-200 transition-colors ${
+                          scopeType === 'TENANT' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        개별테넌트
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400">전체테넌트공용은 모든 테넌트가 조회/실행 가능(수정·삭제는 등록 테넌트만 가능)</span>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-400">등록 범위: 개별테넌트(본인 테넌트 전용) — 전체테넌트공용 등록은 시스템 관리자만 가능</p>
+                )}
+
                 {saveMode === 'placeholder' ? (
                   <div className="flex flex-col gap-1 p-2.5 bg-white rounded-md border border-amber-200">
                     <label className="text-[10px] font-semibold text-amber-700">플레이스홀더 이름 (필수)</label>
@@ -564,13 +710,23 @@ export default function DataSourceQueryTab() {
                   <div className="flex flex-col gap-1.5 p-2.5 bg-white rounded-md border border-slate-200">
                     <label className="text-[10px] font-semibold text-slate-500">연동 Redis 키 (라벨별로 여러 개 가능)</label>
                     <p className="text-[10px] text-slate-400 leading-snug">
-                      해시 이름(HASH)과 필드(KEY) 두 영역을 따로 채운 뒤 라벨 입력 → 추가. 그룹요약/이석사유처럼 여러 해시에 걸치면 라벨별로 나눠 등록하세요.
+                      해시 이름(HASH)과 필드(KEY) 두 영역을 따로 채운 뒤 라벨 입력 → 추가. 그룹요약/이석사유처럼 여러 해시에 걸치면 라벨별로 나눠 등록하세요. 등록된 항목을 클릭하면
+                      아래 해시/필드 영역에 불러와 수정할 수 있습니다.
                     </p>
 
                     {redisKeys.length > 0 && (
                       <div className="flex flex-col gap-1">
                         {redisKeys.map((rk, idx) => (
-                          <div key={`${rk.label}-${idx}`} className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-[10px]">
+                          <div
+                            key={`${rk.label}-${idx}`}
+                            onClick={() => handleEditRedisKey(idx)}
+                            role="button"
+                            tabIndex={0}
+                            title="클릭하면 아래 해시/필드 영역으로 불러와 수정할 수 있습니다"
+                            className={`flex items-center gap-1.5 px-2 py-1 border rounded text-[10px] cursor-pointer transition-colors ${
+                              editingKeyIndex === idx ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 hover:bg-sky-50 border-slate-200 hover:border-sky-300'
+                            }`}
+                          >
                             <span className="font-semibold text-slate-600 flex-shrink-0 max-w-[25%] truncate" title={rk.label}>
                               {rk.label}
                             </span>
@@ -582,7 +738,14 @@ export default function DataSourceQueryTab() {
                                 ={rk.keyTemplate}
                               </span>
                             )}
-                            <button onClick={() => removeRedisKey(idx)} className="flex-shrink-0 text-slate-300 hover:text-red-400 transition-colors" title="삭제">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeRedisKey(idx);
+                              }}
+                              className="flex-shrink-0 text-slate-300 hover:text-red-400 transition-colors"
+                              title="삭제"
+                            >
                               <X className="w-3 h-3" />
                             </button>
                           </div>
@@ -647,12 +810,19 @@ export default function DataSourceQueryTab() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={handleAddRedisKey}
-                      className="self-start px-3 py-1 text-[10px] font-semibold rounded border bg-slate-700 text-white border-slate-700 hover:bg-slate-800 transition-colors"
-                    >
-                      + 이 해시/필드로 등록
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleAddRedisKey}
+                        className="self-start px-3 py-1 text-[10px] font-semibold rounded border bg-slate-700 text-white border-slate-700 hover:bg-slate-800 transition-colors"
+                      >
+                        {editingKeyIndex !== null ? '수정 완료' : '+ 이 해시/필드로 등록'}
+                      </button>
+                      {editingKeyIndex !== null && (
+                        <button onClick={handleCancelEditRedisKey} className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors">
+                          취소
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 <button
@@ -666,9 +836,8 @@ export default function DataSourceQueryTab() {
             )}
 
             <p className="text-[10px] text-slate-400 leading-snug">
-              SELECT 쿼리만 허용됩니다(INSERT/UPDATE/DELETE/DROP 등 차단). 최대 2000건까지 조회되며, 결과 패널에서 스크롤하면 추가로 표시됩니다. WHERE절 값은 위 파라미터로 넘기는
-              것을 권장합니다. 보안상 응답에는 <code className="font-mono">VALUE</code>, <code className="font-mono">NAME</code> 두 컬럼만 남습니다(그 외 컬럼을 SELECT해도 결과에
-              안 실림) — 뷰 그룹 선택 항목으로 저장하려면 이 두 컬럼만 반환되어야 하며, 파라미터가 있으면 현재 입력된 값이 고정값으로 함께 저장됩니다.
+              SELECT만 허용되며 결과는 <code className="font-mono">VALUE</code>, <code className="font-mono">NAME</code> 두 컬럼만 표시됩니다. WHERE절 값은 파라미터로 넘기세요.{' '}
+              <code className="font-mono">:tenantId</code>/<code className="font-mono">:userId</code> 세션변수 칩은 드래그하거나 클릭하면 자동 삽입·바인딩됩니다.
             </p>
           </div>
 
@@ -697,7 +866,16 @@ export default function DataSourceQueryTab() {
                     >
                       <div className="flex-1 min-w-0 grid grid-cols-2 gap-3">
                         <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-700 truncate">{d.queryName}</div>
+                          <div className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
+                            <span className="truncate">{d.queryName}</span>
+                            <span
+                              className={`flex-shrink-0 text-[9px] px-1 py-0.5 rounded font-semibold ${
+                                d.scopeType === 'ALL' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {d.scopeType === 'ALL' ? '전체' : '개별'}
+                            </span>
+                          </div>
                           {d.description && <div className="text-[10px] text-slate-400 truncate">{d.description}</div>}
                         </div>
                         <div className="min-w-0 border-l border-slate-200 pl-3 flex flex-col gap-0.5">
@@ -720,6 +898,13 @@ export default function DataSourceQueryTab() {
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         <button onClick={() => handleEdit(d)} className="p-1 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
                           <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleCloneDef(d)}
+                          className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                          title="복제"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteDef(d.dbQueryId)}
@@ -748,13 +933,25 @@ export default function DataSourceQueryTab() {
                     }`}
                   >
                     <div className="min-w-0">
-                      <div className="text-xs font-semibold text-slate-700 truncate">{d.queryName}</div>
+                      <div className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
+                        <span className="truncate">{d.queryName}</span>
+                        <span
+                          className={`flex-shrink-0 text-[9px] px-1 py-0.5 rounded font-semibold ${
+                            d.scopeType === 'ALL' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                          }`}
+                        >
+                          {d.scopeType === 'ALL' ? '전체' : '개별'}
+                        </span>
+                      </div>
                       {d.description && <div className="text-[10px] text-slate-400 truncate">{d.description}</div>}
                       <div className="text-[10px] text-amber-600 font-mono truncate">{`{${d.placeholderName}}`}</div>
                     </div>
                     <div className="flex items-center gap-0.5 flex-shrink-0">
                       <button onClick={() => handleEdit(d)} className="p-1 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
                         <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button onClick={() => handleCloneDef(d)} className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="복제">
+                        <Copy className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteDef(d.dbQueryId)}

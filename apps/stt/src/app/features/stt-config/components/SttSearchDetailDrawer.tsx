@@ -1,6 +1,6 @@
 import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Descriptions, Drawer, Empty, Form, Input, Modal, Select, Spin } from 'antd';
+import { Button, Descriptions, Drawer, Empty, Form, Input, Modal, Select } from 'antd';
 import type { AxiosError } from 'axios';
 import dayjs from 'dayjs';
 import { Headphones, Info, Target, User } from 'lucide-react';
@@ -9,6 +9,7 @@ import { useCreateRecogTarget, useGetRecogGroupList } from '../hooks/useRecogQue
 import { searchQueryKeys, useGetSttResultSentence, useGetSttSearchListen } from '../hooks/useSearchQueries';
 import type { SttResultSentenceItem, SttSearchItem, SttSearchListenParams } from '../types';
 import SttAudioPlayer, { type SttAudioPlayerRef } from './SttAudioPlayer';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
 
 function getListenErrorMessage(error: Error): string {
@@ -398,7 +399,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
             <div className="flex-shrink-0">
               {isListenLoading ? (
                 <div className="flex h-[88px] items-center justify-center rounded-xl border border-slate-200 bg-white">
-                  <Spin size="small" tip="음성을 불러오는 중..." />
+                  <FallbackSpinner size={36} tip="음성을 불러오는 중..." />
                 </div>
               ) : listenData?.audioBlob ? (
                 <SttAudioPlayer ref={audioPlayerRef} listenData={listenData} onTimeUpdate={handleTimeUpdate} autoPlay highlights={keywordOffsets} />
@@ -426,7 +427,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
           <div className="flex-1 min-h-0 overflow-y-auto rounded-lg bg-slate-50 px-4 py-5">
             {isLoading ? (
               <div className="flex h-full items-center justify-center">
-                <Spin tip="대화 내용을 불러오는 중..." />
+                <FallbackSpinner size={36} tip="대화 내용을 불러오는 중..." />
               </div>
             ) : !sentences || sentences.length === 0 ? (
               <div className="flex h-full items-center justify-center">

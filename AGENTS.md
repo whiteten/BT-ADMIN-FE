@@ -25,6 +25,10 @@
 | 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
 | 기존 remote 앱 점검·정규화 | [.claude/commands/update-remote.md](.claude/commands/update-remote.md) |
 
+### 상위 워크스페이스 (BT-ADMIN-WORKSPACE)
+
+이 저장소는 FE·BE 공통 부모인 `BT-ADMIN-WORKSPACE` 폴더 규격 아래에서 사용될 수 있습니다. 그 경우 워크스페이스 루트의 AGENTS.md(FE·BE 공통 계약·프로젝트 라우팅)가 함께 로드되며, 공통 계약(API 응답 엔벨로프 등)과 이 파일의 내용이 충돌하면 먼저 알리고 확인을 받으세요. 이 저장소를 단독 clone해서 쓰는 경우에는 이 파일만으로 완결됩니다(상위 참조 불필요).
+
 ## 중요 지침
 
 이 프로젝트는 **React Compiler**를 사용합니다. 컴파일러가 자동으로 리렌더링을 최적화하므로, 명시적으로 필요한 경우가 아니면 `useMemo`나 `useCallback`을 사용하지 말 것.

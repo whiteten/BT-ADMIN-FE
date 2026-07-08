@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateNotice, useDeleteNotice, useGetNoticeList, useUpdateNotice } from '../../features/board/hooks/useTaskboardQueries';
 import type { TaskboardNotice } from '../../features/board/types/taskboard.types';
@@ -15,7 +16,6 @@ const EMPTY_FORM: Omit<TaskboardNotice, 'noticeId' | 'regDt'> = {
   noticeKey: '',
   title: '',
   content: '',
-  authorName: '',
   startDt: '',
   endDt: '',
   alwaysActiveYn: 'N',
@@ -40,14 +40,15 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
           noticeKey: initial.noticeKey,
           title: initial.title ?? '',
           content: initial.content,
-          authorName: initial.authorName ?? '',
           startDt: initial.startDt ? initial.startDt.substring(0, 10) : '',
           endDt: initial.endDt ? initial.endDt.substring(0, 10) : '',
           alwaysActiveYn: initial.alwaysActiveYn,
           activeYn: initial.activeYn,
           displayType: initial.displayType,
           sortOrder: initial.sortOrder,
-          useYn: initial.useYn,
+          // USE_YN은 소프트삭제 플래그 — 등록/수정 폼에서는 항상 Y로 고정(N은 삭제 버튼 경로에서만).
+          // 사용 여부 체크박스는 activeYn(노출 여부)만 제어한다.
+          useYn: 'Y',
         }
       : { ...EMPTY_FORM },
   );
@@ -194,15 +195,7 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
 
           {/* 사용 여부 */}
           <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={form.useYn === 'Y'}
-              onChange={(e) => {
-                const val = e.target.checked ? 'Y' : 'N';
-                setForm((prev) => ({ ...prev, useYn: val, activeYn: val }));
-              }}
-              className="accent-[#0f5b9e]"
-            />
+            <input type="checkbox" checked={form.activeYn === 'Y'} onChange={(e) => set('activeYn', e.target.checked ? 'Y' : 'N')} className="accent-[#0f5b9e]" />
             <span className="text-xs text-slate-600 font-medium">사용 여부</span>
           </label>
         </div>
@@ -227,7 +220,16 @@ function NoticeForm({ initial, onSave, onCancel }: NoticeFormProps) {
 
 // ─── 메인 ─────────────────────────────────────────────────────────────────────
 
+const breadcrumb = [{ title: '전광판 관리' }, { title: '공지사항 관리', path: '/taskboard/board/task-notice' }];
+
 export default function TaskNotice() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [formOpen, setFormOpen] = useState(false);
   const [editingNotice, setEditingNotice] = useState<TaskboardNotice | null>(null);
   const [searchKey, setSearchKey] = useState('');
@@ -347,8 +349,10 @@ export default function TaskNotice() {
                     <div key={notice.noticeId} className="px-5 py-4 flex items-start gap-4 hover:bg-slate-50/60 transition-colors">
                       {/* 상태 뱃지 */}
                       <div className="flex flex-col items-center gap-1.5 flex-shrink-0 pt-0.5">
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${notice.useYn === 'Y' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                          {notice.useYn === 'Y' ? '사용' : '미사용'}
+                        <span
+                          className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${notice.activeYn === 'Y' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                        >
+                          {notice.activeYn === 'Y' ? '사용' : '미사용'}
                         </span>
                       </div>
 

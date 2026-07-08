@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
-import { useSuppressApiError401 } from '../../features/board/api/publicAuth';
+import { setPublicMode } from '../../features/board/api/publicAuth';
 import { type RollingLayout, RollingPlayer, parseSelection } from '../../features/board/components/RollingDisplay';
 import { useGetTaskboardDisplayList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -18,7 +18,9 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
  * TaskMgmt.tsx RunOptionsView 의 "새창으로 시작" 버튼이 이 URL을 열어준다.
  */
 export default function TaskRolling() {
-  useSuppressApiError401();
+  // 자식 훅들이 API를 쏘기 전에 먼저 설정 — 세션 쿠키가 없어 401이 나도 apps/host의
+  // 전역 로그인 리다이렉트를 트리거하지 않도록 taskboardApi의 withAuth()가 silent를 실어 보낸다.
+  setPublicMode(true);
   const [searchParams] = useSearchParams();
   const l = searchParams.get('l') ?? '';
   const intervalSec = Math.max(1, Number(searchParams.get('i') ?? '5'));

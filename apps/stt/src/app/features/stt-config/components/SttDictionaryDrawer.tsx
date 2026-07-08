@@ -76,6 +76,8 @@ const SttDictionaryDrawer = forwardRef<SttDictionaryDrawerRef>((_, ref) => {
 
   const onFinishFailed: FormProps<SttDictionaryCreateData>['onFinishFailed'] = (errorInfo) => {
     Log.warn('onFinishFailed', errorInfo);
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
   };
 
   const footer = (

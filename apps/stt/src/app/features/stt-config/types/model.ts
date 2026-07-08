@@ -1,5 +1,16 @@
-export type ModelTunningType = 0 | 1;
-export type ModelTunningResult = 10 | 20 | 30 | 50;
+export const MODEL_TUNNING_TYPE = {
+  MANUAL: 0,
+  AUTO: 1,
+} as const;
+export type ModelTunningType = (typeof MODEL_TUNNING_TYPE)[keyof typeof MODEL_TUNNING_TYPE];
+
+export const MODEL_TUNNING_RESULT = {
+  REQUESTED: 10,
+  TRAINING: 20,
+  FAILED: 30,
+  DONE: 50,
+} as const;
+export type ModelTunningResult = (typeof MODEL_TUNNING_RESULT)[keyof typeof MODEL_TUNNING_RESULT];
 
 export interface SttModelItem {
   modelVerId: string;

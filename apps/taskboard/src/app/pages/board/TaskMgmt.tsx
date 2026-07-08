@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DndContext, type DragEndEvent, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { GripVertical, X } from 'lucide-react';
+import { useBreadcrumbStore } from '@/shared-store';
 import { createUUID, toast } from '@/shared-util';
 import {
   type RollingLayout,
@@ -759,7 +760,16 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
 // ─── 메인 ────────────────────────────────────────────────────────────────────
 type ViewMode = 'list' | 'edit' | 'run-options' | 'rolling';
 
+const breadcrumb = [{ title: '전광판 관리' }, { title: '전광판 그룹 관리', path: '/taskboard/board/task-mgmt' }];
+
 export default function TaskMgmt() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingGroup, setEditingGroup] = useState<RollingGroup | null>(null);
   const [runningGroup, setRunningGroup] = useState<RollingGroup | null>(null);
