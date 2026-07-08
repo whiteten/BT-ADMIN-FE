@@ -13,11 +13,12 @@
  */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, ConfigProvider, Input, InputNumber, Popover, Tag, TreeSelect, type TreeSelectProps } from 'antd';
 import { Check, ChevronRight, FolderClosed, Search, Users, Wrench, X } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { useGetAgentGroupTree, useGetAgents } from '../../../features/agent-master/hooks/useAgentMasterQueries';
+import { agentMasterQueryKeys, useGetAgentGroupTree, useGetAgents } from '../../../features/agent-master/hooks/useAgentMasterQueries';
 import {
   useBulkGrant,
   useBulkRevoke,
@@ -27,7 +28,7 @@ import {
   useGetSkillsetCoverage,
   useGetSkillsetsByAgent,
 } from '../../../features/skill-assign/hooks/useSkillAssignQueries';
-import { useGetSkillsetGroups, useGetSkillsets } from '../../../features/skillset-master/hooks/useSkillsetQueries';
+import { skillsetQueryKeys, useGetSkillsetGroups, useGetSkillsets } from '../../../features/skillset-master/hooks/useSkillsetQueries';
 import { getMediaTypeName } from '../../../features/skillset-master/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { cn } from '@/lib/utils';
@@ -165,14 +166,23 @@ export default function SkillAssignListLite() {
   const coverageMap = useMemo(() => new Map(coverage.map((c) => [c.skillsetId, c.holdingCount])), [coverage]);
 
   // ─── Mutations ────────────────────────────────────────────────────────────
+  const qc = useQueryClient();
   const resetSelection = () => {
     setSelectedAgentIds([]);
     setSelectedSkillsetIds([]);
+  };
+  // 신규 화면 전용: 배정/수정/해제 후 목록 필드(상담사 skillCount·스킬셋 agentCount) 즉시 갱신.
+  // 공통 훅 invalidateAgentSkill 은 목록 캐시를 안 지우므로(기존 화면은 coverage 로만 표기해 불필요했음)
+  // 이 화면에서만 두 목록 쿼리를 국소 무효화한다.
+  const invalidateCountLists = () => {
+    qc.invalidateQueries({ queryKey: agentMasterQueryKeys.getList._def });
+    qc.invalidateQueries({ queryKey: skillsetQueryKeys.getList._def });
   };
   const { mutate: bulkGrant, isPending: granting } = useBulkGrant({
     mutationOptions: {
       onSuccess: (r) => {
         toast.success(`${r.added}건 새로 배정 (이미 배정 ${r.skipped}건 건너뜀)`);
+        invalidateCountLists();
         resetSelection();
       },
       onError: () => toast.error('배정 실패'),
@@ -182,6 +192,7 @@ export default function SkillAssignListLite() {
     mutationOptions: {
       onSuccess: (r) => {
         toast.success(`${r.removed}건 배정 해제`);
+        invalidateCountLists();
         resetSelection();
       },
       onError: () => toast.error('해제 실패'),
@@ -294,7 +305,21 @@ export default function SkillAssignListLite() {
     if (!N || !M) return;
     const mappings = selectedAgentIds.flatMap((agentId) => selectedSkillsetIds.map((skillsetId) => ({ agentId, skillsetId, priority, skillLevel })));
     modal.confirm.execute({
-      options: { title: '스킬 배정', content: `상담사 ${N}명 × 스킬셋 ${M}건 = 최대 ${totalPairs}건 배정 (이미 배정된 조합은 건너뜁니다)`, okText: '배정' },
+      options: {
+        title: '스킬 배정',
+        content: (
+          <>
+            새로 배정될 {newPairs}건을 배정합니다.
+            {existPairs > 0 && (
+              <>
+                <br />
+                이미 배정된 {existPairs}건은 변경되지 않습니다.
+              </>
+            )}
+          </>
+        ),
+        okText: '배정',
+      },
       onOk: () => bulkGrant({ mappings }),
     });
   };
@@ -312,7 +337,7 @@ export default function SkillAssignListLite() {
   const handleRevoke = () => {
     if (!N || !M) return;
     modal.confirm.delete({
-      options: { title: '배정 해제', content: `배정된 ${existPairs}건을 해제합니다.` },
+      options: { title: '배정 해제', content: `배정된 ${existPairs}건을 해제합니다.`, okText: '해제' },
       onOk: () => bulkRevoke({ agentIds: selectedAgentIds, skillsetIds: selectedSkillsetIds }),
     });
   };
@@ -830,10 +855,17 @@ function EmptyRow({ text }: { text: string }) {
 
 function RunHead({ n, m, unit, eqLabel, eqValue }: { n: number; m: number; unit: string; eqLabel: string; eqValue: number }) {
   return (
-    <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0 flex items-baseline gap-1.5 text-[13px] text-gray-500">
-      <span className="text-2xl font-bold text-gray-800">{n}</span>명<span className="text-gray-300 mx-1">×</span>
-      <span className="text-2xl font-bold text-gray-800">{m}</span>
-      {unit === '개' ? '개' : '건'}
+    <div className="px-4 py-3 border-b border-gray-200 flex-shrink-0 flex items-center gap-1.5 text-[13px] text-gray-500">
+      <span className="flex items-center gap-1.5">
+        <Users className="size-4 text-[var(--color-bt-primary)]" />
+        <span className="text-2xl font-bold text-gray-800">{n}</span>명
+      </span>
+      <span className="text-gray-300 mx-1">×</span>
+      <span className="flex items-center gap-1.5">
+        <Wrench className="size-4 text-[var(--color-bt-primary)]" />
+        <span className="text-2xl font-bold text-gray-800">{m}</span>
+        {unit === '개' ? '개' : '건'}
+      </span>
       <span className="ml-auto text-[12px]">
         {eqLabel} <b className="text-[#405189] text-[15px]">{eqValue}</b>건
       </span>
