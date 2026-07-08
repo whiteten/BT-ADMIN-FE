@@ -100,7 +100,11 @@ export default function AgentMasterList() {
   const [groupDeployOpen, setGroupDeployOpen] = useState(false);
   const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
 
-  const [treeWidth, setTreeWidth] = useState(340);
+  // 상담그룹 트리 폭 — localStorage 영속(드래그한 폭 유지). 기본 420, 범위 220~600.
+  const [treeWidth, setTreeWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('agent-master-tree-width'));
+    return saved >= 220 && saved <= 600 ? saved : 420;
+  });
   const splitRef = useRef<HTMLDivElement>(null);
 
   // 드래그 중인 상담사 ID — 트리가 dragover 중 크로스테넌트(이동 불가) 여부를 판정하는 근거.
@@ -129,7 +133,19 @@ export default function AgentMasterList() {
   });
 
   // 운영자 모드 전용 — 대행 선택기용 테넌트별 상담사 통계(전체/테넌트 카운트). view-all 로 전체 테넌트 반환.
-  const { data: operatorTenants = [] } = useGetAgentTenants({ queryOptions: { enabled: operatorMode } });
+  // 테넌트별 상담사 통계(총/활성/ADN미할당). 운영자 대행 선택기 + 헤더 요약 정보에 사용(일반 모드 포함).
+  const { data: operatorTenants = [] } = useGetAgentTenants();
+
+  // 헤더 요약 — 현재 스코프(일반=활성테넌트 / 운영자 전체=합계 / 대행·트리필터=해당 테넌트)의 총/활성/ADN미할당.
+  const summary = useMemo(() => {
+    const scopeTenant = operatorMode ? (opTenantId ?? treeTenantId ?? null) : ctxTenantId;
+    const rows = scopeTenant == null ? operatorTenants : operatorTenants.filter((t) => t.tenantId === scopeTenant);
+    return rows.reduce((a, t) => ({ total: a.total + (t.totalCnt ?? 0), active: a.active + (t.activeCnt ?? 0), unassignedAdn: a.unassignedAdn + (t.unassignedAdnCnt ?? 0) }), {
+      total: 0,
+      active: 0,
+      unassignedAdn: 0,
+    });
+  }, [operatorMode, opTenantId, treeTenantId, ctxTenantId, operatorTenants]);
 
   // 운영자 "전체" 모드: 좌측 트리를 "테넌트 → 그룹" 2단계로 묶는다(어느 테넌트 그룹인지 명확화).
   // 그 외(일반/특정 테넌트 대행)는 기존 그룹 트리 그대로.
@@ -432,14 +448,16 @@ export default function AgentMasterList() {
       e.preventDefault();
       const startX = e.clientX;
       const startWidth = treeWidth;
+      let lastWidth = startWidth;
       const onMove = (ev: MouseEvent) => {
         const delta = ev.clientX - startX;
-        const next = Math.max(180, Math.min(480, startWidth + delta));
-        setTreeWidth(next);
+        lastWidth = Math.max(220, Math.min(600, startWidth + delta));
+        setTreeWidth(lastWidth);
       };
       const onUp = () => {
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
+        localStorage.setItem('agent-master-tree-width', String(lastWidth)); // 드래그한 폭 유지
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
@@ -467,6 +485,18 @@ export default function AgentMasterList() {
               }}
             />
           )}
+          {/* 요약 정보 — 총/활성/ADN 미할당 (운영자 모드는 테넌트 선택 뒤, 일반 모드는 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 상담사 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              활성 <b className="text-green-600 font-semibold">{summary.active.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              ADN 미할당 <b className="text-amber-600 font-semibold">{summary.unassignedAdn.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
