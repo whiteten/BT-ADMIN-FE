@@ -1,6 +1,4 @@
-import { useEffect } from 'react';
 import axios from 'axios';
-import { API_ERROR_EVENT, type ApiErrorEvent } from '@/shared-util';
 
 /**
  * 전광판 공개 액세스 Bearer 토큰 관리.
@@ -8,6 +6,7 @@ import { API_ERROR_EVENT, type ApiErrorEvent } from '@/shared-util';
  * 설정된 토큰은 taskboardApi와 ctiRedisApi의 모든 요청에 Authorization 헤더로 추가된다.
  */
 let _publicToken: string | null = null;
+let _publicMode = false;
 
 export const setPublicBearerToken = (token: string | null): void => {
   _publicToken = token;
@@ -15,28 +14,27 @@ export const setPublicBearerToken = (token: string | null): void => {
 
 export const getPublicBearerToken = (): string | null => _publicToken;
 
+/**
+ * TaskViewPublic이 mount될 때(자식 TaskView가 API를 쏘기 전에) 호출한다.
+ * true가 되면 taskboardApi/ctiRedisApi의 withAuth()가 모든 요청에 apiClient의
+ * silent:true를 실어 보내, 공개 인증 실패로 인한 401이 apps/host의 전역
+ * "로그인 페이지로 리다이렉트" 핸들러를 트리거하지 않도록 한다.
+ *
+ * (원래는 401 api-error 이벤트를 capture 단계에서 stopImmediatePropagation()으로
+ *  차단하려 했으나, window.dispatchEvent(CustomEvent)가 target(window)에 직접 쏘는
+ *  이벤트라 capture/bubble 구분 없이 "리스너 등록 순서"로만 실행 순서가 정해진다.
+ *  host의 전역 핸들러는 앱 부팅 시점에 이미 등록돼 있어 항상 우리보다 먼저 실행되므로
+ *  이벤트 억제로는 절대 이길 수 없는 경쟁이었음 — 요청 자체에 플래그를 실어 보내는
+ *  방식으로 전환.)
+ */
+export const setPublicMode = (value: boolean): void => {
+  _publicMode = value;
+};
+
+export const isPublicMode = (): boolean => _publicMode;
+
 /** 현재 공개 토큰이 있으면 Authorization 헤더 객체를, 없으면 undefined를 반환 */
 export const publicAuthHeaders = (): { Authorization: string } | undefined => (_publicToken ? { Authorization: `Bearer ${_publicToken}` } : undefined);
-
-/**
- * 공개 전광판 페이지에서 세션 없이 발생하는 401 api-error 이벤트를 차단하는 훅.
- *
- * apps/host의 useApiErrorHandler가 bubble 단계에서 401 이벤트를 수신하면 /login으로
- * 이동시키므로, 공개 경로에서는 capture=true로 먼저 등록해 stopImmediatePropagation()으로
- * 차단한다 — window.dispatchEvent(CustomEvent) 시 capture 핸들러가 non-capture보다 먼저 실행됨.
- */
-export const useSuppressApiError401 = (): void => {
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const error = (e as ApiErrorEvent).detail;
-      if (error?.response?.status === 401) {
-        e.stopImmediatePropagation();
-      }
-    };
-    window.addEventListener(API_ERROR_EVENT, handler, true);
-    return () => window.removeEventListener(API_ERROR_EVENT, handler, true);
-  }, []);
-};
 
 /**
  * OAuth2 토큰 엔드포인트 URL을 반환한다.

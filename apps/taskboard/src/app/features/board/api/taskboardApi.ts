@@ -1,5 +1,5 @@
 import ApiClient, { type ApiRequestConfig, type ApiResponse } from '@/shared-util';
-import { publicAuthHeaders } from './publicAuth';
+import { isPublicMode, publicAuthHeaders } from './publicAuth';
 import {
   type DbQueryDef,
   type DbQueryParam,
@@ -17,11 +17,20 @@ import {
  */
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
-/** 공개 Bearer 토큰이 있으면 기존 config에 Authorization 헤더를 병합해 반환한다. */
+/**
+ * 공개 Bearer 토큰이 있으면 기존 config에 Authorization 헤더를 병합해 반환한다.
+ * 공개 모드(TaskViewPublic)면 401이 apps/host의 전역 로그인 리다이렉트를 트리거하지
+ * 않도록 apiClient의 silent 플래그도 함께 실어 보낸다.
+ */
 const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
   const auth = publicAuthHeaders();
-  if (!auth) return config;
-  return { ...config, headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } };
+  const needsSilent = isPublicMode();
+  if (!auth && !needsSilent) return config;
+  return {
+    ...config,
+    ...(auth ? { headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } } : {}),
+    ...(needsSilent ? { silent: true } : {}),
+  };
 };
 
 /** BFF single-step 집계는 컨트롤러가 List를 그대로 반환한 응답을 { value: [...] }로 감싸므로 배열을 꺼낸다. */
@@ -189,6 +198,7 @@ export const taskboardApi = {
     params?: DbQueryParam[];
     redisKeys?: DbQueryRedisKeyEntry[];
     placeholderName?: string;
+    scopeType?: 'ALL' | 'TENANT';
   }): Promise<number> => {
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-create', payload);
     return response.data?.data ?? 0;
@@ -206,6 +216,7 @@ export const taskboardApi = {
     params?: DbQueryParam[];
     redisKeys?: DbQueryRedisKeyEntry[];
     placeholderName?: string;
+    scopeType?: 'ALL' | 'TENANT';
   }): Promise<number> => {
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-update', payload, { params: { id: dbQueryId } });
     return response.data?.data ?? 0;

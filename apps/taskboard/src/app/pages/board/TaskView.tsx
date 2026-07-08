@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../../features/board/api/ctiRedisApi';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
@@ -1149,6 +1150,13 @@ export default function TaskView() {
   const navigate = useNavigate();
   const numLayoutId = layoutId ? Number(layoutId) : undefined;
   const numDisplayId = displayId ? Number(displayId) : undefined;
+
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb([{ title: '전광판 관리' }, { title: '전광판 보기' }]);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
 
   const { data: layoutList = [], isLoading: layoutLoading } = useGetTaskboardLayoutList();
   const { data: displayList = [], isLoading: displayLoading, refetch } = useGetTaskboardDisplayList();

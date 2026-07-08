@@ -1,5 +1,5 @@
 import ApiTaskboard, { type ApiRequestConfig } from '@/shared-util';
-import { publicAuthHeaders } from './publicAuth';
+import { isPublicMode, publicAuthHeaders } from './publicAuth';
 
 /**
  * CTI Redis 실시간 데이터 API
@@ -12,10 +12,19 @@ import { publicAuthHeaders } from './publicAuth';
  */
 const apiTaskboard = new ApiTaskboard({ serviceURL: '/bff' });
 
+/**
+ * 공개 모드(TaskViewPublic)면 401이 apps/host의 전역 로그인 리다이렉트를 트리거하지
+ * 않도록 apiClient의 silent 플래그를 실어 보낸다 (taskboardApi.ts의 withAuth와 동일 패턴).
+ */
 const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
   const auth = publicAuthHeaders();
-  if (!auth) return config;
-  return { ...config, headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } };
+  const needsSilent = isPublicMode();
+  if (!auth && !needsSilent) return config;
+  return {
+    ...config,
+    ...(auth ? { headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } } : {}),
+    ...(needsSilent ? { silent: true } : {}),
+  };
 };
 
 /** TB_IC_CTIQMASTER 큐 행 */

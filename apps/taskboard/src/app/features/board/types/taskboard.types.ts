@@ -3,8 +3,10 @@ export interface TaskboardBg {
   pageId: number;
   pageName: string;
   fileName: string;
-  authorName?: string;
-  authRole?: string;
+  /** 등록자 이름 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
+  createUserName?: string;
+  /** 등록자 사용자 ID — 서버가 세션 기준으로 자동 기록 */
+  createUserId?: number;
   genType: string;
   useYn: string;
   regDt: string;
@@ -329,8 +331,10 @@ export interface TaskboardNotice {
   noticeKey: string;
   title?: string;
   content: string;
-  authorName?: string;
-  authRole?: string;
+  /** 등록자 이름 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
+  createUserName?: string;
+  /** 등록자 사용자 ID — 서버가 세션 기준으로 자동 기록 */
+  createUserId?: number;
   startDt?: string;
   endDt?: string;
   alwaysActiveYn: string;
@@ -428,5 +432,7 @@ export interface DbQueryDef {
   redisKeys?: DbQueryRedisKeyEntry[];
   /** 이 쿼리를 다른 데이터소스의 redisKeys.key에서 "{이 이름}" 플레이스홀더로 참조할 수 있게 등록하는 이름(예: "nodeId"). 미지정 가능 */
   placeholderName?: string;
+  /** 등록 범위 — ALL(전체 테넌트 공용, 조회/실행만 공유) / TENANT(등록 테넌트 전용, 기본값). ALL로 설정하려면 시스템 관리자 권한 필요 */
+  scopeType?: 'ALL' | 'TENANT';
   regDt: string;
 }

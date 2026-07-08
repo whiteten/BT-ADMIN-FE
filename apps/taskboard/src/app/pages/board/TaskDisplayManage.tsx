@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { LayoutGrid, List, Plus } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { MultiSelectDropdown } from '../../features/board/components/MultiSelectDropdown';
 import {
@@ -287,6 +287,14 @@ export default function TaskDisplayManage() {
   const [editingDisplay, setEditingDisplay] = useState<TaskboardDisplay | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [activeTab, setActiveTab] = useState<MainTab>('displays');
+
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    const title = activeTab === 'displays' ? '뷰 그룹 관리' : '데이터 소스 관리';
+    setBreadcrumb([{ title: '전광판 관리' }, { title, path: '/taskboard/board/task-display' }]);
+    return () => clearBreadcrumb();
+  }, [activeTab, setBreadcrumb, clearBreadcrumb]);
 
   const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
   const nameMaps = {

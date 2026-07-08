@@ -5,7 +5,7 @@ import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { Lock, Pipette, Search, Unlock } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
 import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
@@ -2501,6 +2501,13 @@ export default function TaskCreate() {
 
   const isEditMode = !!layout?.layoutId;
   const fileName = layout?.fileName ?? bg?.fileName ?? '';
+
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb([{ title: '전광판 관리' }, { title: isEditMode ? '전광판 편집' : '전광판 만들기', path: '/taskboard/board/task-create' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // ── 저장된 JSON에서 메타 복원 ──────────────────────────────────────────
   const savedMeta = (() => {

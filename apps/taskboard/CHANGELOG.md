@@ -16,6 +16,154 @@
 
 ---
 
+## 2026-07-07
+
+### task-view-public/task-rolling — 공개 페이지에서 401이 로그인 리다이렉트로 튕기는 문제 수정
+
+- **증상**: `http://localhost:4200/taskboard/board/task-view-public/44?s=A:15,B:15,__etc:15` 접속 시
+  브라우저 콘솔에서 `[publicRoutes] Public route verdict: ... → public`으로 라우트 판정 자체는
+  정상인데도, 로그인 페이지로 튕겨나감. 사용자가 제공한 콘솔 로그로 정확한 인과관계 확인.
+- **원인**: `TaskView`가 mount되어 쏘는 `/api/bff/taskboard-layoutlist` 등 요청이 (공개 인증
+  실패로 Authorization 헤더가 없어) 401을 받고, apps/host의 전역 401 핸들러가 `/login`으로
+  리다이렉트시킴. 기존 `useSuppressApiError401`(publicAuth.ts)은 401 `api-error` CustomEvent를
+  capture 단계에서 `stopImmediatePropagation()`으로 막으려 했으나, `window.dispatchEvent`가
+  target(window)에 직접 쏘는 이벤트라 capture/bubble 구분 없이 "리스너 등록 순서"로만 실행
+  순서가 정해짐 — host의 전역 핸들러는 앱 부팅 시점에 이미 등록돼 있어 항상 taskboard 쪽
+  리스너보다 먼저 실행되는, 등록 순서로는 절대 이길 수 없는 경쟁이었음.
+- **조치**: 이벤트 억제 대신, `apiClient`(shared-util)가 요청 config의 `silent:true`를 보면
+  `#responseErrorHandler`(에러 이벤트 dispatch) 자체를 건너뛰는 기존 플래그를 사용.
+  - `publicAuth.ts`: `useSuppressApiError401` 제거, `setPublicMode`/`isPublicMode` 신규 추가.
+  - `TaskViewPublic.tsx`/`TaskRolling.tsx`: mount 시(자식이 API를 쏘기 전에) `setPublicMode(true)`
+    호출로 교체.
+  - `taskboardApi.ts`/`ctiRedisApi.ts`의 `withAuth()`: `isPublicMode()`가 true면 모든 요청에
+    `silent: true`를 병합해, 401이 나도 전역 리다이렉트를 트리거하지 않도록 함.
+- tsc 클린, eslint 0 errors(ctiRedisApi.ts의 `any` 경고 7개는 기존부터 있던 것, 이번 변경과 무관).
+- 관련 파일: `features/board/api/publicAuth.ts`, `taskboardApi.ts`, `ctiRedisApi.ts`,
+  `pages/board/TaskViewPublic.tsx`, `pages/board/TaskRolling.tsx`
+
+### task-view-public — 공개 인증 실패해도 화면은 렌더링되도록 non-blocking 처리
+
+- **배경**: 사용자가 `http://localhost:4200/taskboard/board/task-view-public`(파라미터 없는 라우트, 사용자가 직접 `routes.tsx`에 추가)로 접속해 "공개 인증 실패: Network Error"만 보이고 화면 자체가 안 열림 확인. 로컬 webpack dev 서버(:4200)에서 접속한 것으로 확인돼, 이전에 조사한 BFF CORS 기본 비활성 + `/oauth/token` 프록시 부재가 원인으로 재확인됨(BFF/bff-starter 수정은 taskboard 범위 밖이라 미진행).
+- 실제 인증 문제가 풀리기 전에도 라우팅/레이아웃이 정상인지 확인할 수 있도록, `TaskViewPublic.tsx`에서 인증 실패 시 화면 전체를 막던 것 → 화면(`<TaskView />`)은 그대로 렌더링하고 상단에 작은 경고 배너만 non-blocking으로 표시하도록 변경. 인증 성공 여부와 무관하게 `ready`는 true가 됨(데이터 호출은 위젯별로 개별 실패 — 이미 있던 `useSuppressApiError401`로 401은 전역 로그인 리다이렉트를 트리거하지 않음).
+- tsc/eslint 클린(에러·경고 모두 0).
+- 관련 파일: `pages/board/TaskViewPublic.tsx`
+
+### task-list — 구역(섹션) 모드 공개 URL 404 수정 + 현재 화면 실행 버튼 추가 + 마지막 실행 선택 기억
+
+- **배경**: 사용자 버그 리포트 3건.
+  1. 구역 모드에서 실행 옵션에 "새창으로 실행"/"공개 링크 복사"만 있고 "현재 화면에서 실행"이 없음.
+  2. 구역 모드 공개 URL(`/task-view-public/:layoutId?s=A:1,B:2,...`, displayId 없는 1세그먼트 경로)이 404.
+  3. 실행할 때마다 구역별 뷰 그룹을 매번 새로 선택해야 함 — 가장 최근에 실행한 선택을 다음 실행 시 그대로 세팅해달라는 요청.
+- `routes.tsx`: `task-view-public/:layoutId`(1세그먼트, displayId 없음) 라우트 신규 등록 — 인증 버전(`task-view/:layoutId/:displayId` + `task-view/:layoutId`)은 이미 두 형태 다 등록돼 있었는데 공개 버전은 2세그먼트만 있어서 구역 모드 URL이 아예 매칭되는 라우트가 없었음(2번 버그의 원인).
+- `TaskList.tsx`(`DisplayPickerPopover`, 구역 모드):
+  - "현재 화면에서 실행" 버튼 신규 추가(`navigate()`, 단일 뷰 그룹 모드의 클릭 동작과 동일) — 기존 "새창으로 실행"/"공개 링크 복사"는 그대로 유지, 배치만 주 버튼(전체 너비) + 보조 버튼 2개(가로 분할)로 재구성.
+  - `loadLastSectionMap`/`saveLastSectionMap`(레이아웃별 `localStorage` 키) 신규 — 구역별 뷰 그룹 선택 state(`sectionDisplayMap`)를 팝오버 열 때 마지막 실행 시점 값으로 초기화하고, 3개 실행 버튼(현재 화면/새창/공개 링크) 클릭 시점에 그 선택을 저장. 다음에 같은 레이아웃을 실행할 때 자동으로 복원됨.
+- tsc 통과, eslint 0 errors(기존 baseline 경고만 유지).
+- 관련 파일: `routes.tsx`, `pages/board/TaskList.tsx`
+
+### task-view-public — "공개 인증 실패: Network Error" (BE/BFF 확인 필요, taskboard 범위 밖)
+
+- **증상**: `/taskboard/board/task-view-public/:layoutId/:displayId` 접속 시 OAuth2 Client Credentials 토큰 발급(`publicAuth.ts`의 `fetchPublicToken`)이 `Network Error`로 실패.
+- **조사 결과(BFF 소스 확인, 수정은 하지 않음 — taskboard 범위 밖이라 사용자 지시로 보류)**:
+  - `bff-starter`의 `BffCorsProperties.enabled` 기본값이 `false` — CORS가 기본 비활성이라 webpack dev 서버(`localhost:4200`)처럼 BFF와 다른 origin에서 호출하면 브라우저가 cross-origin 응답을 차단(`Network Error`로 보임). `bff.security.cors.enabled=true` + `allowed-origin-patterns`에 dev 서버 origin 등록 필요.
+  - `/oauth/token`은 Spring Security 설정(`permitAll`, CSRF 면제, CORS 패턴 등록)까지는 돼 있는데, 실제로 이 경로를 처리하는 컨트롤러/프록시가 BFF 어디에도 없음(JWKS는 `JwksProxyController`로 AUTH에 프록시하는 반면 `/oauth/token`은 그런 프록시가 없음) — same-origin(운영 배포, 프로덕션 빌드)이면 문제없이 동작할 수 있으나, dev 서버처럼 cross-origin으로 호출하는 환경에서는 어차피 핸들러가 없어 요청이 처리되지 않음.
+  - `publicAuth.ts`의 `getOAuthTokenUrl()`이 `NODE_ENV !== 'production'`일 때 BFF 포트를 `8080`으로 하드코딩 — 실제 배포 환경(dev 서버 등)의 BFF 포트가 다르면 이 가정 자체도 깨짐.
+- **taskboard 쪽에서 확인할 사항**: 어떤 URL/환경(로컬 `pnpm run serve`인지, 배포된 dev 서버인지)으로 접속했는지에 따라 위 세 가지 중 실제 원인이 갈립니다 — 확인해서 알려주시면 그에 맞는 대응을 안내드리겠습니다. BFF/bff-starter 수정은 taskboard 담당 범위 밖이라 진행하지 않았습니다.
+
+### task-bg/task-notice — 등록자 필드를 세션 기반 CREATE_USER_NAME/CREATE_USER_ID로 교체
+
+- **배경**: BE에서 `TB_BT_TK_NOTICE`/`TB_BT_TK_TASKBOARD_BGLIST`의 `AUTHOR_NAME`/`AUTH_ROLE`을 `CREATE_USER_NAME`(세션 username)/`CREATE_USER_ID`(세션 userId)로 교체(BE CHANGELOG "2026-07-07 세션6" 참고). FE는 더 이상 이 값을 보내지 않아도 됨(서버가 세션에서 직접 채움).
+- `taskboard.types.ts`: `TaskboardBg`/`TaskboardNotice` 인터페이스에서 `authorName`/`authRole` 제거, `createUserName`/`createUserId` 추가.
+- `TaskBg.tsx`: 직접 업로드/AI 자동생성 두 곳에서 하드코딩돼 있던 `authorName: 'admin'`/`authRole: 'MASTER'`(어차피 서버가 무시하던 값) 제거. 목록 카드의 등록자 표시를 `item.createUserName`으로 교체.
+- `TaskNotice.tsx`: 폼 상태(`EMPTY_FORM`, 수정 모드 초기화)에서 `authorName` 필드 제거(입력 UI 자체가 없어 영향 없음).
+- tsc 통과, eslint 0 errors(기존 baseline 경고만 유지).
+- 관련 파일: `features/board/types/taskboard.types.ts`, `pages/board/TaskBg.tsx`, `pages/board/TaskNotice.tsx`
+
+### task-notice — 사용여부 체크 해제 시 USE_YN까지 N으로 저장되던 오동작 수정
+
+- **배경**: 사용자 버그 리포트 — 공지 등록 시 "사용 여부" 체크를 해제하면 `ACTIVE_YN=N`과 함께 `USE_YN=N`으로도 저장됨. USE_YN은 소프트삭제 플래그(오늘 BE에서 목록 조회에 `USE_YN='Y'` 필터 적용됨)라, 이 상태로 등록하면 공지가 목록에서 즉시 사라지는 심각한 문제.
+- `TaskNotice.tsx`:
+  - "사용 여부" 체크박스가 `useYn`/`activeYn`을 둘 다 세팅하던 것 → `activeYn`만 제어하도록 수정.
+  - 폼 초기화(수정 모드)에서 `useYn`을 항상 `'Y'`로 고정 — USE_YN=N은 삭제 버튼 경로에서만 발생해야 함.
+  - 목록의 사용/미사용 배지를 `useYn` 기준 → `activeYn` 기준으로 변경(보이는 행은 이제 전부 USE_YN=Y라 useYn 기준 배지는 항상 "사용"으로만 표시됐을 것).
+- **데이터 정리 필요(사용자 확인)**: 이 버그로 이미 `USE_YN='N'`으로 저장된 공지는 목록에서 안 보이는 상태 — 복구하려면 DB에서 `UPDATE TB_BT_TK_NOTICE SET USE_YN='Y' WHERE USE_YN='N'` 실행 필요. 단, 오늘 이후 삭제 버튼으로 지운 공지도 USE_YN='N'이라 구분이 안 되므로 실행 전 대상 행 확인 권장.
+- 관련 파일: `pages/board/TaskNotice.tsx`
+
+### task-bg — CI 자동생성 배경을 방송 전광판 스타일로 업그레이드
+
+- **배경**: 사용자 피드백 — 자동생성 레이아웃이 혁신적이긴 하나 제약이 많고 밋밋함. "영역을 구분해서 실제 TV 전광판처럼 생동감 있게, CI에 어울리게" 요청.
+- `TaskBg.tsx` `handleAnalyze()` 렌더러 전면 개편(5 배경 × 4 존 스타일 = 20종 구조는 유지):
+  - **공통 헬퍼 신규**: `vignette`(모서리 어둡게 — 깊이감), `glow`(원형 색 번짐 — 스튜디오 조명), `dotGrid`(LED 도트 질감), `lightSweep`(대각선 빛줄기). 두께/반경은 `scale = w/1920`로 해상도 무관 스케일링(기존엔 4K에서 8px 고정 반경이라 디테일이 뭉개졌음).
+  - **배경 5종 개편**: ① 오로라 글로우 다크(CI 색조+인접색조 조명 3개 중첩), ② 스포트라이트 딥 블랙(상단 중앙 무대조명+LED 도트), ③ 라이트 스튜디오(밝은 베이스+CI 틴트 조명), ④ 브랜드 그라디언트+라이트 스윕, ⑤ 딥 듀얼톤+하단 글로우. 전부 비네트로 마감.
+  - **존 스타일 4종 개편**: A 글래스 패널(그림자+상단 하이라이트+얇은 테두리 — 유리 질감), B 엘리베이티드 카드(수직 그라디언트+드롭섀도 — 떠 있는 카드), C 네온 엣지(CI 색 발광 테두리, shadowBlur 글로우), D 방송 HUD(코너 브래킷 4개+좌측 액센트 바 — 뉴스/중계 그래픽).
+  - **영역 역할 구분 신규**: `isHeaderZone()`(id에 header 포함 또는 최상단 전폭 존 휴리스틱) 판정 → 헤더 존은 존 스타일과 무관하게 `finishHeaderZone()`으로 CI 컬러 수평 스윕 + 하단 발광 언더라인 처리(방송 타이틀바 느낌, 헤더/본문 시각 구분 강화).
+- tsc 통과, eslint 0 errors(기존 no-alert 경고 1건만).
+- 관련 파일: `pages/board/TaskBg.tsx`
+
+### 데이터소스 관리 — 복제(Copy) 아이콘 추가
+
+- **배경**: 사용자 요청 — 수정/삭제 아이콘 옆에 복제 옵션도 있으면 좋겠음.
+- `DataSourceQueryTab.tsx`: `handleCloneDef(def)` 신규 — `handleEdit`과 동일하게 SQL/파라미터/연동키/등록범위를 폼에 채우되 `editingId`는 비워 저장 시 새 항목으로 생성(원본은 그대로 유지). 쿼리 이름에 " (복사본)" 접미사 자동 추가. `placeholderName`은 다른 데이터소스가 `{이 이름}`으로 참조하는 유일 키라 그대로 복제하면 원본과 충돌하므로 비워서 사용자가 새로 입력하도록 함(플레이스홀더 항목 복제 시 안내 토스트 문구도 다르게).
+- lucide `Copy` 아이콘으로 뷰그룹 데이터/플레이스홀더 저장 목록 양쪽에 수정·삭제 사이 복제 버튼 추가.
+- `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit` 통과, eslint 0 errors(기존 baseline 경고만 유지).
+- 관련 파일: `features/board/tabs/DataSourceQueryTab.tsx`
+
+### 데이터소스 관리 — SCOPE_TYPE 저장 버그 진단용 임시 로그 추가
+
+- **배경**: 사용자 버그 리포트 — "전체테넌트로 계속 저장하려는데 계속 개별로 저장됨". FE/BE 코드를 정독했으나 로직상 결함을 못 찾음(계정도 시스템 관리자 확인됨, BFF 로그에도 에러 없이 전부 200). 정확한 원인 확인을 위해 BE에 임시 진단 로그 추가(`TaskboardDbQueryDefController` 저장/수정 로그에 `requestScopeType`/`previousScopeType`/`savedScopeType` 추가) — 사용자 재현 후 `logs/service-taskboard.log` 확인해서 원인 파악 예정. **원인 파악되면 진단 로그는 제거 예정**(임시 코드).
+- 관련 파일(BE): `BT-ADMIN-SERVICE-TASKBOARD/.../web/controller/TaskboardDbQueryDefController.java`
+
+### 데이터소스 관리 — 전체/종속 테넌트 등록범위 + tenantId/userId 예약변수 드래그 UI
+
+- **배경**: BE `DbQueryDef`에 `SCOPE_TYPE`(ALL/TENANT) 컬럼과 `:userId` 예약 바인드변수가 추가됨(BE CHANGELOG "2026-07-07 세션2" 참고). FE는 저장 폼에 등록범위 선택 UI와, SQL 편집기에서 `:tenantId`/`:userId`를 몰라도 쓸 수 있는 드래그 칩을 추가.
+- `DataSourceQueryTab.tsx`:
+  - `SessionTokenPicker` 신규 — `:tenantId`/`:userId` 칩 2개를 SQL textarea 위에 노출. 드래그는 `text/plain` 데이터로 실어 브라우저 기본 텍스트 드롭에 위임(커서 위치에 정확히 삽입), 클릭은 `insertSessionToken()`이 추적한 `selectionStart`/`selectionEnd`로 직접 스플라이스 삽입.
+  - 저장 폼에 "등록 범위"(종속 테넌트/전체 테넌트 공용) 토글 추가 — `userInfo.isSystemAdmin`이 아니면 토글을 숨기고 안내 문구만 표시(서버도 동일하게 시스템 관리자만 ALL 승격 허용, FE는 UX상 미리 숨기는 것뿐).
+  - 저장된 목록(뷰그룹/플레이스홀더 양쪽)에 `scopeType==='ALL'`이면 "전체" 배지 표시.
+  - `handleSave`/`handleEdit`/`handleCancelEdit`에 `scopeType` state 반영.
+- `taskboardApi.ts`: `createDbQueryDef`/`updateDbQueryDef` payload 타입에 `scopeType?: 'ALL' | 'TENANT'` 추가.
+- `taskboard.types.ts`: `DbQueryDef.scopeType?: 'ALL' | 'TENANT'` 추가.
+- `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit` 통과, eslint 0 errors(기존 baseline 경고만 유지).
+- 관련 파일: `features/board/tabs/DataSourceQueryTab.tsx`, `features/board/api/taskboardApi.ts`, `features/board/types/taskboard.types.ts`
+
+### 데이터소스 관리 — 후속 수정(연동키 클릭 편집, 등록범위 명칭/순서/기본값)
+
+- **배경**: 사용자 피드백 — ① "뷰그룹 선택용"에서 기등록된 연동 키를 클릭해도 해시/키 영역에 다시 채워지지 않아 수정이 불편함, ② 등록범위 순서를 전체 먼저로, 기본값도 전체로, 명칭도 변경 요청.
+- `DataSourceQueryTab.tsx`:
+  - `handleEditRedisKey(index)` 신규 — 이미 추가된 연동 키 항목(라벨/해시/필드키 목록의 행)을 클릭하면 그 값을 `newKeyLabel`/`newKeyValue`/`newKeyTemplate` 편집 필드로 불러오고 목록에서는 빼서(재등록 시 중복 방지), 수정 후 "+ 이 해시/필드로 등록"으로 다시 넣을 수 있게 함. 삭제(X) 버튼은 `stopPropagation`으로 분리해 클릭 시 편집 로드가 같이 발동하지 않게 함.
+  - 등록 범위 토글: 버튼 순서를 전체→개별로 변경, 라벨을 "전체테넌트공용"/"개별테넌트"로 변경. 기본값을 `defaultScopeType()`(시스템 관리자면 `ALL`, 아니면 `TENANT`)로 계산 — 토글 자체가 안 보이는 일반 사용자는 여전히 `TENANT`가 기본이라 서버 측 "ALL은 시스템 관리자만" 검증에 걸리지 않음.
+- `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit` 통과, eslint 0 errors(기존 baseline 경고만 유지).
+- 관련 파일: `features/board/tabs/DataSourceQueryTab.tsx`
+
+### 데이터소스 관리 — 2차 후속 수정(연동키 편집 정정, 세션변수 명칭, 안내문 축약, 스코프 항상 표시)
+
+- **배경**: 사용자 재요청 — ① 바로 위 항목에서 구현한 연동키 클릭 편집이 클릭 즉시 목록에서 사라지는 방식이었는데, 목록은 그대로 두고 "수정 모드"로만 들어가길 원함, ② "예약변수" 용어를 "세션변수"로 통일, ③ 안내 문단이 너무 길어 축약, ④ 저장된 목록에 전체(ALL)일 때만 배지가 붙어 개별(TENANT)인지 구분이 안 됨 — 항상 표시되도록.
+- `DataSourceQueryTab.tsx`:
+  - `editingKeyIndex` state 신규 — 연동 키 항목 클릭 시 더 이상 목록에서 제거하지 않고 `editingKeyIndex`만 세팅, 해당 행에 amber 하이라이트. `handleAddRedisKey`가 `editingKeyIndex`가 있으면 그 인덱스를 덮어쓰고(수정), 없으면 새로 추가. 버튼 라벨도 수정 모드일 때 "수정 완료"로 바뀌고 "취소" 링크(`handleCancelEditRedisKey`) 추가. 항목 삭제 시 그 항목이 수정 중이었다면 편집도 함께 취소.
+  - "예약 변수" → "세션변수"로 명칭 통일(칩 라벨, 안내 문단, 관련 주석).
+  - 안내 문단을 3문장 분량에서 2문장으로 대폭 축약(핵심만: SELECT 전용/VALUE·NAME 컬럼/세션변수 칩 사용법).
+  - 저장된 목록(뷰그룹/플레이스홀더 양쪽)의 스코프 배지를 `scopeType==='ALL'`일 때만 표시하던 것 → 항상 표시(전체=에메랄드, 개별=슬레이트)로 변경.
+- BE(`TaskboardDbQueryDefController.java`, `TaskboardDbQueryController.java`): `:tenantId`/`:userId` 직접 선언 시 에러 메시지 문구를 "예약된 이름입니다" → "세션변수입니다"로 통일(FE 용어와 일치).
+- `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit` 통과, eslint 0 errors. BE `compileJava` BUILD SUCCESSFUL(`rtk proxy`, 11초).
+- 관련 파일: `features/board/tabs/DataSourceQueryTab.tsx`(FE), `web/controller/TaskboardDbQueryDefController.java`, `web/controller/TaskboardDbQueryController.java`(BE, BT-ADMIN-SERVICE-TASKBOARD)
+
+### 전체 페이지 Breadcrumb 적용
+
+- **배경**: 사용자 요청 — "다른 웹소스(ipron 등)처럼 breadcrumb을 taskboard 모든 tsx 페이지에 적용".
+- `useBreadcrumbStore`(`@/shared-store`)의 `setBreadcrumb`/`clearBreadcrumb`을 각 페이지 컴포넌트 시작부 `useEffect`에서 mount 시 set / unmount 시 clear하는 표준 패턴(AGENTS.md "페이지 Breadcrumb 패턴")으로 7개 페이지에 적용:
+  - `TaskBg.tsx` → `[전광판 관리, 배경 관리]`
+  - `TaskList.tsx` → `[전광판 관리, 전광판 목록]`
+  - `TaskMgmt.tsx` → `[전광판 관리, 전광판 그룹 관리]`
+  - `TaskNotice.tsx` → `[전광판 관리, 공지사항 관리]`
+  - `TaskDisplayManage.tsx` → `[전광판 관리, 뷰 그룹 관리 | 데이터 소스 관리]`(탭 상태 `activeTab`에 따라 동적 라벨, deps에 `activeTab` 포함)
+  - `TaskCreate.tsx` → `[전광판 관리, 전광판 편집 | 전광판 만들기]`(`isEditMode` 기준 동적 라벨)
+  - `TaskView.tsx` → `[전광판 관리, 전광판 보기]`(early-return 로딩 분기보다 앞에 위치시켜 hook 순서 유지)
+- **제외**: `TaskRolling.tsx`, `TaskViewPublic.tsx` — 둘 다 `routes.tsx`에 `handle: { public: true }`로 선언된 공개 라우트라 host `PublicRouteGate`가 Chromeless를 강제해 SubHeader(breadcrumb을 그리는 주체) 자체가 렌더되지 않음. breadcrumb 호출을 추가해도 시각적 효과가 없어 제외(호출해도 해가 되진 않지만 불필요한 코드).
+- `npx tsc -p apps/taskboard/tsconfig.app.json --noEmit` 통과, eslint 0 errors(기존 baseline 경고만 유지, 새로 추가된 코드 라인에서 발생한 경고 없음).
+- 관련 파일: `pages/board/TaskBg.tsx`, `TaskList.tsx`, `TaskMgmt.tsx`, `TaskNotice.tsx`, `TaskDisplayManage.tsx`, `TaskCreate.tsx`, `TaskView.tsx`
+
+---
+
 ## 2026-06-30 — 세션N
 
 ### task-create: 구역(섹션) UX 개선 + 롤링전광판 구역별 설정 추가

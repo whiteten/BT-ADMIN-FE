@@ -39,9 +39,18 @@ export const routes = [
           // 로그인 창에서 window.open으로 열리는 세션 쿠키 공유 새창.
           // chromeless는 host PublicRouteGate가 강제하므로 별도 <Chromeless> 래퍼 불필요.
           { path: 'task-rolling', handle: { public: true } satisfies RouteHandle, element: <TaskRolling /> },
-          // 공개 뷰: 공개 라우트(handle.public) — 익명 접근 허용, 데이터 인증은 자체 publicAuth가 담당.
           {
             path: 'task-view-public/:layoutId/:displayId',
+            handle: { public: true } satisfies RouteHandle,
+            element: <TaskViewPublic />,
+          },
+          {
+            path: 'task-view-public/:layoutId',
+            handle: { public: true } satisfies RouteHandle,
+            element: <TaskViewPublic />,
+          },
+          {
+            path: 'task-view-public',
             handle: { public: true } satisfies RouteHandle,
             element: <TaskViewPublic />,
           },
