@@ -33,6 +33,7 @@ const SipTrunkList = React.lazy(() => import('./pages/line/SipTrunkList'));
 const CommonTrunkList = React.lazy(() => import('./pages/line/CommonTrunkList'));
 const CtiQueueList = React.lazy(() => import('./pages/line/CtiQueueList'));
 const MentMgmtList = React.lazy(() => import('./pages/line/MentMgmtList'));
+const MentCommonList = React.lazy(() => import('./pages/line/MentCommonList'));
 
 // acd-gdn (ACD 그룹DN 관리 — SWAT IPR20S3010 + IPR20S3030, GDN_TYPE=16)
 const AcdGdnList = React.lazy(() => import('./pages/acd-gdn/AcdGdnList'));
@@ -226,6 +227,11 @@ export const routes = [
       {
         path: 'ment-mgmt',
         element: pv('ment-mgmt', MentMgmtList),
+      },
+      {
+        // 교환기 공용멘트 관리 (시스템 관리자 전용 — 메뉴 권한을 ROLE_ADMIN 글로벌 역할에만 매핑)
+        path: 'ment-common',
+        element: pv('ment-common', MentCommonList),
       },
       {
         path: 'agent-master',
