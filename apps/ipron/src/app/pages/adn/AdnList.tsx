@@ -2,19 +2,19 @@
  * ADN 관리 목록 페이지 (AS-IS SWAT IPR20S2023)
  * — DN 패턴 차용. ADN 은 노드 개념 없어 viewMode/탭 제거, 카드 슬라이더만.
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, Input, Select } from 'antd';
+import { Download, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { adnApi } from '../../features/adn/api/adnApi';
 import AdnCopyDrawer, { type AdnCopyFormValues } from '../../features/adn/components/AdnCopyDrawer';
 import AdnFormDrawer from '../../features/adn/components/AdnFormDrawer';
 import AdnImportDrawer from '../../features/adn/components/AdnImportDrawer';
 import AdnTable from '../../features/adn/components/AdnTable';
-import AdnTenantCard from '../../features/adn/components/AdnTenantCard';
 import { useCopyAdn, useDeleteAdns, useGetAdnTenants, useGetAdns } from '../../features/adn/hooks/useAdnQueries';
 import type { AdnResponse } from '../../features/adn/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ADN', path: '/ipron/adn' }];
@@ -28,16 +28,24 @@ export default function AdnList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [searchText, setSearchText] = useState('');
   /**
    * ADN 상태 필터 — AS-IS SWAT IPR20S2023 srchAdnStatus 콤보 대응.
@@ -54,16 +62,6 @@ export default function AdnList() {
     mode: 'create',
     dnId: null,
   });
-  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
-  const [cardExpanded, setCardExpanded] = useState(false);
-
-  // ctx 비동기 로드 시 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   // dnStatus 는 BE 서버 필터로 전달 (AS-IS SWAT AND A.DN_STATUS=#dnStatus# 대응).
@@ -118,25 +116,27 @@ export default function AdnList() {
     return rows;
   }, [adns, selectedTenantId, searchText]);
 
-  const totalStats = useMemo(() => {
-    let totalCnt = 0;
-    let loggedInCnt = 0;
-    let loggedOutCnt = 0;
-    for (const t of tenantStats) {
-      totalCnt += t.totalCnt;
-      loggedInCnt += t.loggedInCnt;
-      loggedOutCnt += t.loggedOutCnt;
-    }
-    return { totalCnt, loggedInCnt, loggedOutCnt };
-  }, [tenantStats]);
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 총/로그인/로그아웃.
+  const summary = useMemo(() => {
+    const rows = selectedTenantId == null ? tenantStats : tenantStats.filter((t) => t.tenantId === selectedTenantId);
+    return rows.reduce((a, t) => ({ total: a.total + t.totalCnt, loggedIn: a.loggedIn + t.loggedInCnt, loggedOut: a.loggedOut + t.loggedOutCnt }), {
+      total: 0,
+      loggedIn: 0,
+      loggedOut: 0,
+    });
+  }, [tenantStats, selectedTenantId]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   // 등록/수정 드로어 오픈 시 복사·가져오기 드로어를 닫아 중첩을 방지한다.
   const handleCreate = useCallback(() => {
+    if (selectedTenantId == null) {
+      toast.warning('대행할 테넌트를 먼저 선택하세요');
+      return;
+    }
     setCopyOpen(false);
     setImportOpen(false);
     setFormDrawer({ open: true, mode: 'create', dnId: null });
-  }, []);
+  }, [selectedTenantId]);
 
   const handleEdit = useCallback((adn: AdnResponse) => {
     setCopyOpen(false);
@@ -214,15 +214,33 @@ export default function AdnList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 요약) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">ADN 현황</span>
-          {selectedTenantId !== null && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
-            </span>
+        <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedRows([]);
+              }}
+            />
           )}
+          {/* 요약 — 총/로그인/로그아웃 (운영자는 선택 뒤, 일반은 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 ADN <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              로그인 <b className="text-green-600 font-semibold">{summary.loggedIn.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              로그아웃 <b className="text-gray-500 font-semibold">{summary.loggedOut.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             {/* AS-IS srchAdnStatus 콤보 — TB_CC_COMMONCODE CLASS_CD='DN_STATUS' ADDCOND1_VALUE='ADN' */}
             <Select
@@ -258,82 +276,6 @@ export default function AdnList() {
             </Button>
           </div>
         </div>
-      </div>
-
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스, gap-4 로 분리) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <AdnTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 ADN 이 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((g) => (
-                    <AdnTenantCard
-                      key={g.tenantId}
-                      tenantId={g.tenantId}
-                      tenantName={g.tenantName ?? '-'}
-                      stats={{ totalCnt: g.totalCnt, loggedInCnt: g.loggedInCnt, loggedOutCnt: g.loggedOutCnt }}
-                      selected={selectedTenantId === g.tenantId}
-                      onClick={(e) => {
-                        setSelectedTenantId(g.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill name="전체" count={totalStats.totalCnt} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantStats.map((g) => (
-                  <CompactTenantPill
-                    key={g.tenantId}
-                    name={g.tenantName ?? '-'}
-                    count={g.totalCnt}
-                    selected={selectedTenantId === g.tenantId}
-                    onClick={() => setSelectedTenantId(g.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ===== ag-Grid 박스 ===== */}
@@ -387,30 +329,5 @@ export default function AdnList() {
       <AdnCopyDrawer open={copyOpen} source={selectedRows[0] ?? null} onCancel={() => setCopyOpen(false)} onSubmit={handleCopySubmit} />
       <AdnImportDrawer open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}건`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
-    </button>
   );
 }

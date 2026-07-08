@@ -1,20 +1,20 @@
 /**
  * SIP 트렁크(테넌트) 관리 페이지 (SWAT IPR20S3030, GDN_TYPE=18).
  *
- * 레이아웃 (sip-trunk-v2 목업 1:1):
- *  - 박스1: 노드 탭바 (⇅ viewMode swap + 노드 탭 + 검색)
- *  - 박스2: 테넌트 카드 슬라이더 (DnList 정식 패턴, 채널 사용률 게이지)
- *  - 박스3: 메인 2-패널 (좌 그룹DN 단일선택 / 우 SIP 트렁크 다중선택 — N:N 데이터, 1:N 행위)
+ * 멀티테넌트 개편(상담사 관리 정합): 노드 탭바 + 테넌트 카드 슬라이더 → 노드 Select + 테넌트 ScopeSelect + 요약.
+ *  - 박스A: 헤더 — 노드 Select(필수) + 테넌트 ScopeSelect(공통[0] 포함, 클라이언트 필터) + 요약(그룹DN/트렁크/채널).
+ *  - 박스B: 메인 2-패널 (좌 그룹DN 단일선택 / 우 SIP 트렁크 다중선택 — N:N 데이터, 1:N 행위)
  *  - floating bulk-bar: 그룹DN 1 × 트렁크 N → 배정 / 해제 / 선택 해제
  *
  * 우 패널은 선택된 그룹DN 기준 멤버 풀(배정중/미배정)을 노출. 그룹DN 미선택 시 안내.
+ * 데이터: 선택 노드 단위 조회 후 테넌트/검색은 클라이언트 필터.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Empty, Input, Select } from 'antd';
-import { ArrowUpDown, Building2, Cable, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, LayoutGrid, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Input, Select } from 'antd';
+import { Cable, LayoutGrid, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
@@ -31,7 +31,8 @@ import {
   useGetSipTrunks,
   useSaveSipTrunkMembers,
 } from '../../features/sip-trunk/hooks/useSipTrunkQueries';
-import { type SipGdnResponse, type SipTrunkMemberResponse, type SipTrunkResponse, getSipTrunkKindName } from '../../features/sip-trunk/types';
+import { type SipGdnResponse, type SipTrunkMemberResponse, getSipTrunkKindName } from '../../features/sip-trunk/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -54,16 +55,12 @@ export default function SipTrunkList() {
 
   const modal = useModal();
   const { gridOptions: baseGridOptions } = useAggridOptions();
-  const tabScrollRef = useRef<HTMLDivElement>(null);
-  const cardScrollRef = useRef<HTMLDivElement>(null);
   const trunkGridRef = useRef<AgGridReactType<SipTrunkMemberResponse>>(null);
   const hasInitNodeRef = useRef(false);
 
   // ─── State ────────────────────────────────────────────────────────────────
-  const [viewMode, setViewMode] = useState<'byNode' | 'byTenant'>('byNode');
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [cardExpanded, setCardExpanded] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체(클라이언트 필터)
   const [topSearch, setTopSearch] = useState('');
   const [gdnSearch, setGdnSearch] = useState('');
   const [selectedGdn, setSelectedGdn] = useState<SipGdnResponse | null>(null);
@@ -97,7 +94,7 @@ export default function SipTrunkList() {
   );
   const { data: members = [], isLoading: membersLoading } = useGetSipTrunkMembers(memberParams);
 
-  // 그룹DN 미선택 시 카드 통계용 — 노드 전체 트렁크 목록
+  // 그룹DN 미선택 시 통계용 — 노드 전체 트렁크 목록
   const { data: allTrunks = [] } = useGetSipTrunks({ params: selectedNodeId ? { nodeId: selectedNodeId, tenantScope: 'tenant' } : { tenantScope: 'tenant' } });
 
   // ag-Grid 는 grid 레벨 이벤트 콜백(onRowDoubleClicked)을 마운트 시 1회 바인딩하므로
@@ -106,77 +103,36 @@ export default function SipTrunkList() {
   const allTrunksRef = useRef(allTrunks);
   allTrunksRef.current = allTrunks;
 
-  // ─── Derived: 탭 / 카드 ───────────────────────────────────────────────────
+  // ─── Derived: 노드 옵션 ─────────────────────────────────────────────────────
   const assignedNodes = useMemo(() => {
     const ids = new Set(nodeTenants.map((nt) => nt.nodeId));
     const filtered = nodes.filter((n) => ids.has(n.nodeId));
     return filtered.length > 0 ? filtered : nodes;
   }, [nodes, nodeTenants]);
 
-  const assignedTenants = useMemo(() => {
-    const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const nt of nodeTenants) if (!map.has(nt.tenantId)) map.set(nt.tenantId, { tenantId: nt.tenantId, tenantName: nt.tenantName });
-    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [nodeTenants]);
-
-  const tabItems = useMemo(
-    () => (viewMode === 'byNode' ? assignedNodes.map((n) => ({ id: n.nodeId, name: n.nodeName })) : assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))),
-    [viewMode, assignedNodes, assignedTenants],
-  );
-
-  // 테넌트 카드 — 선택된 노드의 테넌트별 트렁크/채널 집계
-  const cardStats = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; trunkCnt: number; totalChnl: number; usedChnl: number }>();
-    // 시드: 노드에 매핑된 테넌트
-    if (viewMode === 'byNode' && selectedNodeId) {
-      for (const nt of nodeTenants) {
-        if (nt.nodeId !== selectedNodeId) continue;
-        if (!map.has(nt.tenantId)) map.set(nt.tenantId, { id: nt.tenantId, name: nt.tenantName ?? '-', trunkCnt: 0, totalChnl: 0, usedChnl: 0 });
+  // ─── Derived: 테넌트 필터 옵션 (로드된 그룹DN 기준 distinct + 그룹DN 수) ────────────
+  const tenantOptions = useMemo(() => {
+    const map = new Map<number, { id: number; name: string; count: number }>();
+    for (const g of gdns) {
+      if (g.tenantId == null) continue;
+      if (!map.has(g.tenantId)) {
+        map.set(g.tenantId, { id: g.tenantId, name: g.tenantId === 0 ? '공통' : (g.tenantName ?? `테넌트 ${g.tenantId}`), count: 0 });
       }
-    } else if (viewMode === 'byTenant' && selectedTenantId) {
-      for (const nt of nodeTenants) {
-        if (nt.tenantId !== selectedTenantId) continue;
-        if (!map.has(nt.nodeId)) map.set(nt.nodeId, { id: nt.nodeId, name: nt.nodeName ?? '-', trunkCnt: 0, totalChnl: 0, usedChnl: 0 });
-      }
+      map.get(g.tenantId)!.count += 1;
     }
-    for (const t of allTrunks) {
-      const key = viewMode === 'byNode' ? t.tenantId : t.nodeId;
-      if (key == null) continue;
-      // 노드-테넌트 마스터 시드에 없는 테넌트(미매핑/orphan)는 카드로 노출하지 않음.
-      // → SIP트렁크(테넌트)는 "전체"(노드별 테넌트 전체) 카드 개념이 없으므로 orphan "-" 카드 제거.
-      if (!map.has(key)) continue;
-      const g = map.get(key)!;
-      g.trunkCnt += 1;
-      g.totalChnl += t.chnlCnt ?? 0;
-      g.usedChnl += t.totChannelCount ?? 0;
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [allTrunks, viewMode, nodeTenants, selectedNodeId, selectedTenantId]);
+    return Array.from(map.values()).sort((a, b) => (a.id === 0 ? -1 : b.id === 0 ? 1 : a.name.localeCompare(b.name)));
+  }, [gdns]);
 
-  const selectedCardId = viewMode === 'byNode' ? selectedTenantId : selectedNodeId;
-  const setSelectedCardId = useCallback(
-    (id: number | null) => {
-      if (viewMode === 'byNode') setSelectedTenantId(id);
-      else setSelectedNodeId(id);
-    },
-    [viewMode],
-  );
+  // ─── Derived: 그리드 표시용 그룹DN (테넌트 클라이언트 필터) ────────────────────────
+  const gdnsForGrid = useMemo(() => (selectedTenantId == null ? gdns : gdns.filter((g) => g.tenantId === selectedTenantId)), [gdns, selectedTenantId]);
 
   // ─── Auto-select 첫 노드 ──────────────────────────────────────────────────
   useEffect(() => {
-    if (viewMode !== 'byNode') return;
     if (assignedNodes.length > 0 && !hasInitNodeRef.current && selectedNodeId == null) {
       hasInitNodeRef.current = true;
       setSelectedNodeId(assignedNodes[0].nodeId);
     }
-  }, [viewMode, assignedNodes, selectedNodeId]);
-
-  // 첫 테넌트 카드 자동 선택 (로드 시)
-  useEffect(() => {
-    if (selectedCardId != null) return;
-    if (cardStats.length > 0) setSelectedCardId(cardStats[0].id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardStats]);
+  }, [assignedNodes, selectedNodeId]);
 
   // 그룹DN 목록 변경 시 선택 무효화만 (자동 선택 제거 — 사용자가 클릭 선택)
   useEffect(() => {
@@ -191,15 +147,6 @@ export default function SipTrunkList() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gdns]);
 
-  // 카드 전환 시 GDN·트렁크 선택 및 잠금 초기화
-  // GDN 선택도 함께 초기화해야 L202 useEffect 가 selectedGdn===null 을 보고 lockedTenantId 를 정리한다.
-  // (GDN 선택 유지 채로 카드만 바꿔도 교차테넌트 잠금이 풀리지 않는 버그 방지)
-  useEffect(() => {
-    setSelectedGdn(null);
-    setSelectedTrunks([]);
-    setLockedTenantId(null);
-  }, [selectedCardId]);
-
   // 트렁크 선택이 모두 해제되면 lockedTenantId 를 해제
   // 단, GDN이 선택된 상태에서는 GDN 기준 잠금을 유지한다(교차테넌트 누출 방지)
   useEffect(() => {
@@ -209,28 +156,21 @@ export default function SipTrunkList() {
   }, [selectedTrunks, selectedGdn]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleTabSelect = useCallback(
-    (id: number | null) => {
-      if (viewMode === 'byNode') {
-        setSelectedNodeId(id);
-        setSelectedTenantId(null);
-      } else {
-        setSelectedTenantId(id);
-        setSelectedNodeId(null);
-      }
-      setSelectedGdn(null);
-      setSelectedTrunks([]);
-    },
-    [viewMode],
-  );
-
-  const toggleViewMode = useCallback(() => {
-    setViewMode((prev) => (prev === 'byNode' ? 'byTenant' : 'byNode'));
-    setSelectedNodeId(null);
+  const handleNodeChange = useCallback((nodeId: number) => {
+    setSelectedNodeId(nodeId);
     setSelectedTenantId(null);
-    hasInitNodeRef.current = false;
+    setTopSearch('');
+    setGdnSearch('');
     setSelectedGdn(null);
     setSelectedTrunks([]);
+    setLockedTenantId(null);
+  }, []);
+
+  const handleTenantChange = useCallback((id: string | null) => {
+    setSelectedTenantId(id == null ? null : Number(id));
+    setSelectedGdn(null);
+    setSelectedTrunks([]);
+    setLockedTenantId(null);
   }, []);
 
   // ─── Mutations ──────────────────────────────────────────────────────────
@@ -250,6 +190,31 @@ export default function SipTrunkList() {
       onError: (err: unknown) => toast.error((err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? '해제 실패'),
     },
   });
+
+  // ─── Create 가드 (노드·테넌트 컨텍스트 필수) ────────────────────────────────────
+  const handleGdnCreate = useCallback(() => {
+    if (selectedNodeId == null) {
+      toast.warning('노드를 먼저 선택하세요');
+      return;
+    }
+    if (selectedTenantId == null) {
+      toast.warning('대상 테넌트를 먼저 선택하세요');
+      return;
+    }
+    gdnDrawerRef.current?.openCreate();
+  }, [selectedNodeId, selectedTenantId]);
+
+  const handleTrunkCreate = useCallback(() => {
+    if (selectedNodeId == null) {
+      toast.warning('노드를 먼저 선택하세요');
+      return;
+    }
+    if (selectedTenantId == null) {
+      toast.warning('대상 테넌트를 먼저 선택하세요');
+      return;
+    }
+    trunkDrawerRef.current?.openCreate();
+  }, [selectedNodeId, selectedTenantId]);
 
   // 단일선택 삭제 — 선택된 그룹DN 1건 삭제 (AcdGdnList 정합)
   const handleGdnDelete = useCallback(() => {
@@ -556,8 +521,8 @@ export default function SipTrunkList() {
   }, [members, kindFilter, allTrunks, lockedTenantId]);
 
   const selectedNode = nodes.find((n) => n.nodeId === selectedNodeId);
-  const selectedTenant = assignedTenants.find((t) => t.tenantId === selectedTenantId);
-  const contextLabel = `${selectedNode?.nodeName ?? '-'} · ${selectedTenant?.tenantName ?? '전체'}`;
+  const selectedTenant = tenantOptions.find((t) => t.id === selectedTenantId) ?? null;
+  const contextLabel = `${selectedNode?.nodeName ?? '-'} · ${selectedTenant?.name ?? '전체'}`;
   const drNodeOptions = useMemo(() => nodes.filter((n) => n.nodeId !== selectedNodeId), [nodes, selectedNodeId]);
 
   const totalNodeSummary = useMemo(() => {
@@ -568,67 +533,48 @@ export default function SipTrunkList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex h-full w-full flex-col gap-3">
-      {/* 박스1: 노드 탭바 */}
+      {/* ===== 박스A: 헤더 (노드 Select + 테넌트 ScopeSelect + 요약) ===== */}
       <div className="bg-white bt-shadow flex-shrink-0 overflow-hidden">
-        <div className="flex h-[56px] items-stretch pr-3">
-          <button
-            type="button"
-            onClick={toggleViewMode}
-            title={`현재: 탭=${viewMode === 'byNode' ? '노드' : '테넌트'} / 카드=${viewMode === 'byNode' ? '테넌트' : '노드'}. 클릭 시 전환`}
-            className="flex w-[44px] flex-shrink-0 cursor-pointer flex-col items-center justify-center border-r border-gray-200 transition-colors hover:bg-blue-50"
-          >
-            {viewMode === 'byNode' ? <Network size={14} className="text-blue-600" /> : <Building2 size={14} className="text-blue-600" />}
-            <ArrowUpDown size={12} className="my-0.5 text-blue-500" />
-            {viewMode === 'byNode' ? <Building2 size={14} className="text-gray-500" /> : <Network size={14} className="text-gray-500" />}
-          </button>
-
-          <button
-            type="button"
-            className="flex w-8 flex-shrink-0 cursor-pointer items-center justify-center border-r border-gray-200 hover:bg-gray-100"
-            onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-            aria-label="이전 탭"
-          >
-            <ChevronLeft className="size-4 text-gray-500" />
-          </button>
-
-          <div
-            ref={tabScrollRef}
-            className="flex min-w-0 max-w-[800px] items-stretch divide-x divide-gray-200 overflow-x-auto"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {tabItems.map((item) => {
-              const current = viewMode === 'byNode' ? selectedNodeId : selectedTenantId;
-              const isActive = current === item.id;
-              const Icon = viewMode === 'byNode' ? Network : Building2;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`-mb-[1px] flex w-[120px] flex-shrink-0 cursor-pointer items-center justify-center gap-2 border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors ${
-                    isActive ? 'border-b-current bg-blue-50 text-blue-700' : 'border-b-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                  onClick={(e) => {
-                    handleTabSelect(item.id);
-                    (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                  }}
-                >
-                  <Icon className="size-3.5 flex-shrink-0" />
-                  <span className="truncate">{item.name}</span>
-                </button>
-              );
-            })}
+        <div className="flex h-[56px] items-center gap-3 px-4">
+          {/* 노드 선택 (SIP 트렁크는 노드 단위 — 필수) */}
+          <div className="inline-flex h-8 items-center gap-1 rounded-md border border-gray-200 bg-white pl-2">
+            <Network className="size-3.5 shrink-0 text-blue-600" />
+            <Select
+              size="small"
+              variant="borderless"
+              value={selectedNodeId ?? undefined}
+              onChange={handleNodeChange}
+              placeholder="노드 선택"
+              options={assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
+              style={{ width: 150 }}
+              popupMatchSelectWidth={false}
+            />
           </div>
-
-          <button
-            type="button"
-            className="flex w-8 flex-shrink-0 cursor-pointer items-center justify-center border-l border-r border-gray-200 hover:bg-gray-100"
-            onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-            aria-label="다음 탭"
-          >
-            <ChevronRight className="size-4 text-gray-500" />
-          </button>
-
-          <div className="ml-auto flex flex-shrink-0 items-center gap-2 pl-3">
+          {/* 테넌트 필터 (공통 포함, 클라이언트 필터) */}
+          <ScopeSelect
+            kind="tenant"
+            options={tenantOptions.map((t) => ({ id: t.id, name: t.name, count: t.count }))}
+            value={selectedTenantId == null ? null : String(selectedTenantId)}
+            onChange={handleTenantChange}
+          />
+          {/* 요약 — 그룹DN / 트렁크 / 채널 */}
+          <div className="ml-1 flex items-center gap-4 border-l border-gray-200 pl-3 text-[13px]">
+            <span className="text-gray-500">
+              그룹DN <b className="font-semibold text-gray-800">{gdnsForGrid.length.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              트렁크 <b className="font-semibold text-[#405189]">{allTrunks.length.toLocaleString()}</b>
+            </span>
+            {totalNodeSummary && (
+              <span className="text-gray-500">
+                채널{' '}
+                <b className="font-semibold" style={{ color: gaugeColor(totalNodeSummary.usedChnl, totalNodeSummary.totalChnl) }}>
+                  {totalNodeSummary.usedChnl}/{totalNodeSummary.totalChnl}
+                </b>
+              </span>
+            )}
+          </div>
+          <div className="ml-auto flex flex-shrink-0 items-center gap-2">
             <Input
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
@@ -644,121 +590,7 @@ export default function SipTrunkList() {
         </div>
       </div>
 
-      {/* 박스2: 테넌트 카드 슬라이더 */}
-      <div className="bg-white bt-shadow flex-shrink-0 overflow-hidden">
-        {cardExpanded ? (
-          <div className="flex h-[140px] items-center px-4 py-3">
-            <div className="relative flex w-full items-center gap-2">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!h-8 !w-8 !flex-shrink-0 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex flex-1 gap-3 overflow-x-auto px-1 py-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {cardStats.length === 0 ? (
-                  <div className="flex min-h-[100px] flex-1 flex-col items-center justify-center gap-2 text-gray-400">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 트렁크가 없습니다</span>
-                  </div>
-                ) : (
-                  cardStats.map((g) => {
-                    const pct = g.totalChnl > 0 ? Math.round((g.usedChnl / g.totalChnl) * 100) : 0;
-                    const color = gaugeColor(g.usedChnl, g.totalChnl);
-                    const selected = selectedCardId === g.id;
-                    return (
-                      <div
-                        key={g.id}
-                        onClick={(e) => {
-                          setSelectedCardId(g.id);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
-                        className={`flex h-[100px] w-[240px] flex-shrink-0 cursor-pointer flex-col rounded-lg border bg-white p-3 transition-all ${
-                          selected ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center gap-1.5">
-                          <Building2 className={`size-3.5 flex-shrink-0 ${selected ? 'text-[#405189]' : 'text-gray-500'}`} />
-                          <span className={`truncate text-[13px] font-semibold ${selected ? 'text-[#405189]' : 'text-gray-800'}`} title={g.name}>
-                            {g.name}
-                          </span>
-                        </div>
-                        <div className="flex flex-1 flex-col gap-0.5 text-xs text-gray-600">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500">전체 트렁크</span>
-                            <span className="font-semibold text-gray-800">{g.trunkCnt.toLocaleString()}건</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-500">채널 사용</span>
-                            <span className="font-medium" style={{ color }}>
-                              {g.usedChnl.toLocaleString()} / {g.totalChnl.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 flex items-center gap-1.5">
-                            <div className="h-[5px] flex-1 overflow-hidden rounded bg-gray-200">
-                              <div className="h-full rounded" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: color }} />
-                            </div>
-                            <span className="font-medium" style={{ color }}>
-                              {pct}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!h-8 !w-8 !flex-shrink-0 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!h-8 !w-8 !flex-shrink-0 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-[44px] items-center px-4">
-            <div className="flex w-full items-center gap-2">
-              <div className="flex flex-1 items-center gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {cardStats.map((g) => {
-                  const selected = selectedCardId === g.id;
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => setSelectedCardId(g.id)}
-                      className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
-                        selected
-                          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-                      }`}
-                    >
-                      <span className="max-w-[120px] truncate font-medium">{g.name}</span>
-                      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{g.trunkCnt}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!h-8 !w-8 !flex-shrink-0 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* 박스3: 메인 2-패널 */}
+      {/* ===== 박스B: 메인 2-패널 ===== */}
       <PanelGroup direction="horizontal" className="min-h-0 flex-1">
         {/* 좌 패널: 그룹DN */}
         <Panel defaultSize={42} minSize={25}>
@@ -767,7 +599,7 @@ export default function SipTrunkList() {
               <LayoutGrid className="size-3.5 text-[#405189]" />
               <span className="text-sm font-semibold text-gray-700">그룹DN</span>
               <span className="text-xs text-gray-500">
-                총 <b>{gdns.length}건</b>
+                총 <b>{gdnsForGrid.length}건</b>
               </span>
               <div className="ml-auto flex items-center gap-1.5">
                 <Input
@@ -779,7 +611,7 @@ export default function SipTrunkList() {
                   onChange={(e) => setGdnSearch(e.target.value)}
                   style={{ width: 140 }}
                 />
-                <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => gdnDrawerRef.current?.openCreate()}>
+                <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={handleGdnCreate}>
                   그룹DN 등록
                 </Button>
                 <Button
@@ -797,10 +629,10 @@ export default function SipTrunkList() {
             <div className="flex h-[34px] flex-shrink-0 items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 text-[11.5px] font-semibold text-gray-500">
               <Network className="size-3" />
               {contextLabel}
-              <span className="ml-auto font-normal text-gray-400">총 {gdns.length}건</span>
+              <span className="ml-auto font-normal text-gray-400">총 {gdnsForGrid.length}건</span>
             </div>
             <div className="ag-theme-quartz min-h-0 flex-1">
-              <AgGridReact<SipGdnResponse> rowData={gdns} columnDefs={gdnColumns} gridOptions={gdnGridOptions} rowSelection={gdnRowSelection} loading={gdnsLoading} />
+              <AgGridReact<SipGdnResponse> rowData={gdnsForGrid} columnDefs={gdnColumns} gridOptions={gdnGridOptions} rowSelection={gdnRowSelection} loading={gdnsLoading} />
             </div>
           </div>
         </Panel>
@@ -841,7 +673,7 @@ export default function SipTrunkList() {
                     { value: '3rd party PBX', label: '외부 교환기(PBX)' },
                   ]}
                 />
-                <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={() => trunkDrawerRef.current?.openCreate()}>
+                <Button size="small" type="primary" icon={<Plus className="size-3" />} onClick={handleTrunkCreate}>
                   트렁크 등록
                 </Button>
                 <Button
@@ -931,7 +763,7 @@ export default function SipTrunkList() {
 
       {/* Drawers */}
       <SipGdnDrawer ref={gdnDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} drNodeOptions={drNodeOptions} />
-      <SipTrunkDrawer ref={trunkDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} tenantName={selectedTenant?.tenantName ?? null} drNodeOptions={drNodeOptions} />
+      <SipTrunkDrawer ref={trunkDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} tenantName={selectedTenant?.name ?? null} drNodeOptions={drNodeOptions} />
       <SipTrunkAssignDrawer
         open={assignDrawerOpen}
         gdnId={selectedGdn?.gdnId ?? null}

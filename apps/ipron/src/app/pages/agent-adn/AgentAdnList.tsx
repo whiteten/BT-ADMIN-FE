@@ -5,23 +5,26 @@
  * menuKey: ipron-dn-agent-adn
  * BE:     /api/ipron/agent-adns
  *
- * 화면 구조 (IPRON 표준 — 트리 없음):
- *   [헤더 h-56]
- *   [테넌트 카드 슬라이더 expanded h-140 / compact h-44]
- *   [ag-Grid 단일 그리드 + 상태 필터 + 자동채번/자동배정/배정해제 액션]
+ * 멀티테넌트 개편(상담사 관리 정합): 상단 테넌트 카드 슬라이더 제거.
+ *   - 일반 콘솔: 테넌트 선택기 없음(토큰=활성 테넌트 스코프). 헤더에 요약(총/배정/미배정)만.
+ *   - 운영자 모드: 헤더에 대행 테넌트 ScopeSelect(공통) + 그 옆에 요약.
+ *
+ * 화면 구조:
+ *   [헤더 h-56 — 스코프 선택 + 요약 + 검색/상태 필터]
+ *   [좌 상담그룹 트리 + 스플리터 + 우 ag-Grid + 자동채번/자동배정/배정해제 액션]
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Search, Settings, Zap } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { Button, Input, Select } from 'antd';
+import { Search, Settings, Zap } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AdnAutoConfigDrawer from '../../features/agent-adn/components/AdnAutoConfigDrawer';
 import AgentAdnTable from '../../features/agent-adn/components/AgentAdnTable';
-import AgentAdnTenantCard from '../../features/agent-adn/components/AgentAdnTenantCard';
 import { useAutoAssign, useGetAdnAutoConfig, useGetAgentAdnTenants, useGetAgentAdns, useSaveAdnAutoConfig, useUnassign } from '../../features/agent-adn/hooks/useAgentAdnQueries';
 import type { AgentAdnRowResponse } from '../../features/agent-adn/types';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
 import { useGetAgentGroupTree } from '../../features/agent-master/hooks/useAgentMasterQueries';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '상담사 관리' }, { title: '상담사' }, { title: '상담사 ADN 배정', path: '/ipron/agent-adn' }];
@@ -35,31 +38,31 @@ export default function AgentAdnList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // ctx 테넌트 (JWT)
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ASSIGNED' | 'UNASSIGNED'>('ALL');
   const [selectedRows, setSelectedRows] = useState<AgentAdnRowResponse[]>([]);
   const [policyOpen, setPolicyOpen] = useState(false);
-  const [cardExpanded, setCardExpanded] = useState(false);
   const [treeWidth, setTreeWidth] = useState(260);
   const splitRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   // 테넌트 변경 시 그룹 선택/체크 해제
   useEffect(() => {
@@ -160,17 +163,15 @@ export default function AgentAdnList() {
     return r;
   }, [rows, selectedTenantId, statusFilter, searchText]);
 
-  const totalStats = useMemo(() => {
-    let totalCnt = 0;
-    let assignedCnt = 0;
-    let unassignedCnt = 0;
-    for (const t of tenantStats) {
-      totalCnt += t.totalCnt;
-      assignedCnt += t.assignedCnt;
-      unassignedCnt += t.unassignedCnt;
-    }
-    return { totalCnt, assignedCnt, unassignedCnt };
-  }, [tenantStats]);
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 총/배정/미배정.
+  const summary = useMemo(() => {
+    const stats = selectedTenantId == null ? tenantStats : tenantStats.filter((t) => t.tenantId === selectedTenantId);
+    return stats.reduce((a, t) => ({ total: a.total + t.totalCnt, assigned: a.assigned + t.assignedCnt, unassigned: a.unassigned + t.unassignedCnt }), {
+      total: 0,
+      assigned: 0,
+      unassigned: 0,
+    });
+  }, [tenantStats, selectedTenantId]);
 
   const selectedUnassigned = useMemo(() => selectedRows.filter((r) => r.mappingStatus === 'UNASSIGNED').length, [selectedRows]);
   const selectedAssigned = useMemo(() => selectedRows.filter((r) => r.mappingStatus === 'ASSIGNED').length, [selectedRows]);
@@ -216,15 +217,34 @@ export default function AgentAdnList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 요약 + 검색/상태 필터) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">상담사 ADN 관리</span>
-          {selectedTenantId !== null && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
-            </span>
+        <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedGroupId(null);
+                setSelectedRows([]);
+              }}
+            />
           )}
+          {/* 요약 — 총/배정/미배정 (운영자는 선택 뒤, 일반은 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 상담사 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              배정 <b className="text-green-600 font-semibold">{summary.assigned.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              미배정 <b className="text-orange-600 font-semibold">{summary.unassigned.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -248,90 +268,7 @@ export default function AgentAdnList() {
         </div>
       </div>
 
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <AgentAdnTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 상담사가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((g) => (
-                    <AgentAdnTenantCard
-                      key={g.tenantId}
-                      tenantId={g.tenantId}
-                      tenantName={g.tenantName ?? '-'}
-                      stats={{ totalCnt: g.totalCnt, assignedCnt: g.assignedCnt, unassignedCnt: g.unassignedCnt }}
-                      selected={selectedTenantId === g.tenantId}
-                      onClick={(e) => {
-                        setSelectedTenantId(g.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill
-                  name="전체"
-                  count={totalStats.totalCnt}
-                  unassigned={totalStats.unassignedCnt}
-                  selected={selectedTenantId === null}
-                  onClick={() => setSelectedTenantId(null)}
-                />
-                {tenantStats.map((g) => (
-                  <CompactTenantPill
-                    key={g.tenantId}
-                    name={g.tenantName ?? '-'}
-                    count={g.totalCnt}
-                    unassigned={g.unassignedCnt}
-                    selected={selectedTenantId === g.tenantId}
-                    onClick={() => setSelectedTenantId(g.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ===== 박스 3: 좌 그룹트리 + 스플리터 + 우 ag-Grid ===== */}
+      {/* ===== 박스 2: 좌 그룹트리 + 스플리터 + 우 ag-Grid ===== */}
       <div ref={splitRef} className="flex flex-1 min-h-0 gap-4">
         {/* 좌측 상담그룹 트리 (read-only) */}
         <div className="bg-white bt-shadow flex flex-col flex-shrink-0 overflow-hidden" style={{ width: treeWidth }}>
@@ -398,32 +335,5 @@ export default function AgentAdnList() {
 
       <AdnAutoConfigDrawer open={policyOpen} initial={policy ?? null} onCancel={() => setPolicyOpen(false)} onSubmit={(values) => savePolicy(values)} submitting={isSavingPolicy} />
     </div>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  unassigned: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, unassigned, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · 전체 ${count.toLocaleString()} / 미배정 ${unassigned.toLocaleString()}`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
-      {unassigned > 0 && <span className={`text-[10px] px-1 rounded ${selected ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-600'}`}>{unassigned}</span>}
-    </button>
   );
 }
