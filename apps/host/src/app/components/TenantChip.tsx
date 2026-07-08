@@ -58,9 +58,7 @@ export default function TenantChip() {
           title={operatorMode ? '운영자 모드 — 클릭하여 전환/종료' : '테넌트 전환'}
           className={cn(
             'group inline-flex items-center gap-2 h-9 pl-2.5 pr-2 rounded-full transition-colors cursor-pointer max-w-[240px]',
-            operatorMode
-              ? 'bg-amber-500 text-white ring-1 ring-amber-300 hover:bg-amber-500/90 shadow-[0_0_0_3px_rgba(217,119,6,.3)]'
-              : 'bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/20',
+            operatorMode ? 'bg-amber-500/85 text-white ring-1 ring-amber-300/60 hover:bg-amber-500' : 'bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/20',
           )}
         >
           {operatorMode ? <ShieldCheck className="size-4 shrink-0" /> : <Building2 className="size-4 shrink-0 text-white/80" />}

@@ -57,7 +57,7 @@ export default function ScopeSelect({ kind = 'tenant', options, value, onChange,
     <div
       className={cn(
         'inline-flex items-center gap-1 h-8 pl-2 rounded-md border transition-colors',
-        acting ? 'border-amber-500 bg-amber-50 shadow-[0_0_0_2px_rgba(217,119,6,.15)]' : 'border-amber-300 bg-white',
+        acting ? 'border-amber-400 bg-amber-50/60' : 'border-amber-200 bg-white',
         className,
       )}
       title={acting ? '대행/스코프 중 — 등록·수정이 이 대상에 반영됩니다' : '전체 조회 중'}

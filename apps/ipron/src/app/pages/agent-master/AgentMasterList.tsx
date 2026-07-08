@@ -327,18 +327,15 @@ export default function AgentMasterList() {
   }, [operatorMode, opTenantId, selectedGroupId]);
 
   const handleCreate = useCallback(() => {
-    // 운영자 모드 "전체"(대행 테넌트 미선택)에서는 생성 대상 테넌트가 모호 → 대행 테넌트 선택 요구.
-    if (operatorMode && opTenantId == null) {
-      toast.warning('운영자 모드 전체 보기에서는 등록할 수 없습니다. 대행할 테넌트를 먼저 선택하세요.');
-      return;
-    }
+    // 전체 보기에서도 등록 허용 — 등록 폼의 "테넌트" 필드(필수)로 대상 테넌트를 직접 고른다.
+    // 트리에서 특정 테넌트를 필터 중이면 그 값을 기본값으로 채운다(전체=미지정 → 폼에서 선택).
     setAgentDrawer({
       open: true,
       mode: 'create',
-      tenantId: selectedTenantId ?? undefined,
+      tenantId: gridTenantId ?? undefined,
       groupId: selectedGroupId ?? undefined,
     });
-  }, [operatorMode, opTenantId, selectedTenantId, selectedGroupId]);
+  }, [gridTenantId, selectedGroupId]);
 
   const handleEdit = useCallback((a: AgentResponse) => setAgentDrawer({ open: true, mode: 'edit', agentId: a.agentId }), []);
 
@@ -406,25 +403,16 @@ export default function AgentMasterList() {
       }
       const crossTenant = target && (sourceTenantIds.size > 1 || !sourceTenantIds.has(target.tenantId));
 
-      // 드롭 그룹(target)으로 dragged 상담사 전원을 1콜 벌크 이동.
-      // crossTenant 면 확인 다이얼로그를 거친 뒤 실행(테넌트 이동 안전장치 보존).
-      const move = () => {
-        bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
-      };
-
+      // 테넌트 간 이동 금지 — 자원의 소속 테넌트는 불변(시스템 관리자도 불가). 드롭 자체를 차단.
       if (crossTenant) {
-        modal.confirm.execute({
-          onOk: () => move(),
-          options: {
-            title: '다른 테넌트로 이동',
-            content: `대상 그룹의 테넌트가 다릅니다. ${dragged.length}명의 상담사를 ${target?.tenantName ?? '대상 테넌트'} 로 이동하시겠습니까?`,
-          },
-        });
-      } else {
-        move();
+        toast.error('다른 테넌트의 그룹으로는 이동할 수 없습니다. 자원의 테넌트는 변경할 수 없습니다.');
+        return;
       }
+
+      // 같은 테넌트 내 그룹 이동 — dragged 상담사 전원을 1콜 벌크 이동.
+      bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
     },
-    [agents, groupTree, modal, bulkGroupAgents],
+    [agents, groupTree, bulkGroupAgents],
   );
 
   // ─── Splitter (트리 ↔ 그리드 리사이즈) ──────────────────────────────────
@@ -687,6 +675,7 @@ export default function AgentMasterList() {
         agentId={agentDrawer.open && agentDrawer.mode === 'edit' ? agentDrawer.agentId : undefined}
         initialTenantId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.tenantId : undefined}
         initialGroupId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.groupId : undefined}
+        operatorMode={operatorMode}
         onClose={() => setAgentDrawer({ open: false })}
       />
 

@@ -25,7 +25,7 @@ export default function TopHeader() {
   return (
     <div
       style={{ height: TOP_HEADER_HEIGHT }}
-      className={cn('relative shrink-0 text-white border-b', operatorMode ? 'bg-amber-700 border-amber-500/40' : 'bg-[var(--color-bt-header)] border-white/10')}
+      className={cn('relative shrink-0 text-white border-b', operatorMode ? 'bg-[#4a4a5e] border-amber-300/40' : 'bg-[var(--color-bt-header)] border-white/10')}
     >
       {/* 좌측: 로고 */}
       <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center">
