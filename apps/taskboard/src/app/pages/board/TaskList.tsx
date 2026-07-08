@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
+import { X } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardDisplayList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
@@ -82,9 +83,14 @@ function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; on
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
       <div ref={ref} className="bg-white rounded-xl shadow-2xl w-[360px] overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-800 truncate">{layout.layoutName}</h3>
-          <p className="text-xs text-slate-400 mt-0.5">{hasSections ? `섹션 ${sections.length}개 — 섹션별 뷰 그룹을 선택하세요.` : '실행할 뷰 그룹(표시값 세트)을 선택하세요.'}</p>
+        <div className="relative px-5 py-4 border-b border-slate-100">
+          <h3 className="text-sm font-bold text-slate-800 truncate pr-6">{layout.layoutName}</h3>
+          <p className="text-xs text-slate-400 mt-0.5 pr-6">
+            {hasSections ? `섹션 ${sections.length}개 — 섹션별 뷰 그룹을 선택하세요.` : '실행할 뷰 그룹(표시값 세트)을 선택하세요.'}
+          </p>
+          <button onClick={onClose} title="닫기" className="absolute top-3 right-3 p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {/* 섹션 모드 — 섹션별 뷰 그룹 선택 */}
@@ -220,15 +226,6 @@ function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; on
             )}
           </div>
         )}
-
-        <div className="flex border-t border-slate-100">
-          <button onClick={onClose} className="flex-1 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50 transition-colors border-r border-slate-100">
-            취소
-          </button>
-          <button onClick={() => navigate('/taskboard/board/task-display')} className="flex-1 py-3 text-sm font-bold text-[#0f5b9e] hover:bg-blue-50 transition-colors">
-            뷰 그룹 관리
-          </button>
-        </div>
       </div>
     </div>
   );
