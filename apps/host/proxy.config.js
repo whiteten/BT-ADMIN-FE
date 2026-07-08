@@ -19,6 +19,7 @@ const path = require('path');
 // 공유 기본 proxy 설정
 const config = [
   { context: ['/api'], target: 'http://localhost:8080', secure: false, changeOrigin: true },
+  { context: ['/oauth'], target: 'http://localhost:8080', secure: false, changeOrigin: true },
   { context: ['/ws'], target: 'http://localhost:8080', secure: false, changeOrigin: true, ws: true },
 ];
 
