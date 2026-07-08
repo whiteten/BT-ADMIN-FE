@@ -62,6 +62,8 @@ export interface AgentResponse {
   workUser: number | null;
   workUserName: string | null;
   workTime: string | null;
+  /** 상담사 목록 조회 시 BE 가 함께 집계해 주는 보유 스킬 개수 (목록 응답 전용, 상세엔 없을 수 있음) */
+  skillCount?: number;
 }
 
 export interface AgentCreateRequest {
