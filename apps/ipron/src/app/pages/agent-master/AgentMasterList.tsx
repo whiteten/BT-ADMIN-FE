@@ -100,8 +100,12 @@ export default function AgentMasterList() {
   const [groupDeployOpen, setGroupDeployOpen] = useState(false);
   const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
 
-  const [treeWidth, setTreeWidth] = useState(260);
+  const [treeWidth, setTreeWidth] = useState(340);
   const splitRef = useRef<HTMLDivElement>(null);
+
+  // 드래그 중인 상담사 ID — 트리가 dragover 중 크로스테넌트(이동 불가) 여부를 판정하는 근거.
+  // dragover 시엔 dataTransfer payload 를 못 읽으므로 드래그 시작 시점에 페이지가 통지한다.
+  const [dragAgentIds, setDragAgentIds] = useState<number[] | null>(null);
 
   // 상담그룹 Drawer (등록/수정) — 트리 액션에서 호출
   const [groupDrawer, setGroupDrawer] = useState<
@@ -293,6 +297,12 @@ export default function AgentMasterList() {
     });
   }, [agents, searchText]);
 
+  // 드래그 중인 상담사들의 소속 테넌트 집합 — 트리 크로스테넌트 판정용(이동 불가 = X 표시).
+  const dragTenantIds = useMemo<Set<number> | null>(() => {
+    if (!dragAgentIds) return null;
+    return new Set(agents.filter((a) => dragAgentIds.includes(a.agentId)).map((a) => a.tenantId));
+  }, [dragAgentIds, agents]);
+
   // ─── Handlers ───────────────────────────────────────────────────────────
 
   const handleExcelExport = useCallback(async () => {
@@ -390,6 +400,7 @@ export default function AgentMasterList() {
   // 그룹 이동 (드래그앤드롭) — 페이로드 agentIds 를 targetGroupId 로 이동
   const handleAgentDrop = useCallback(
     (targetGroupId: number, agentIds: number[]) => {
+      setDragAgentIds(null); // 드롭 완료 — 트리 판정 상태 해제
       if (!agentIds || agentIds.length === 0) return;
       const dragged = agents.filter((a) => agentIds.includes(a.agentId));
       if (dragged.length === 0) return;
@@ -502,6 +513,7 @@ export default function AgentMasterList() {
               tree={displayGroupTree}
               selectedGroupId={selectedGroupId}
               selectedTenantId={treeTenantId}
+              dragTenantIds={dragTenantIds}
               onSelectGroup={handleSelectGroup}
               onSelectTenant={(tid) => {
                 // 트리 테넌트 클릭 = 그리드 보기 필터만. 드롭다운(대행/CUD 스코프)은 건드리지 않는다.
@@ -642,6 +654,8 @@ export default function AgentMasterList() {
                   }
                   return [dragRow.agentId];
                 }}
+                onDragStartAgents={setDragAgentIds}
+                onDragEndAgents={() => setDragAgentIds(null)}
               />
             ) : (
               <AgentMediaStatusTable

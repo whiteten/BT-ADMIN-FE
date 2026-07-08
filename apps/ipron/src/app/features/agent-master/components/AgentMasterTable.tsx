@@ -35,6 +35,10 @@ interface AgentMasterTableProps {
    * 보통: 선택된 행이 있으면 그 ID 들, 없으면 드래그된 단일 행만.
    */
   getDragAgentIds?: (dragRow: AgentResponse) => number[];
+  /** 드래그 시작 — 트리가 크로스테넌트 여부를 dragover 중에 판정할 수 있도록 대상 agentId 통지. */
+  onDragStartAgents?: (agentIds: number[]) => void;
+  /** 드래그 종료 — 트리 판정 상태 초기화. */
+  onDragEndAgents?: () => void;
 }
 
 function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () => void; selectedCount: number }) {
@@ -65,6 +69,8 @@ export default function AgentMasterTable({
   onBulkDelete,
   selectedCount = 0,
   getDragAgentIds,
+  onDragStartAgents,
+  onDragEndAgents,
 }: AgentMasterTableProps) {
   const { gridOptions } = useAggridOptions();
 
@@ -99,7 +105,9 @@ export default function AgentMasterTable({
                 const ids = getDragAgentIds?.(data) ?? [data.agentId];
                 e.dataTransfer.setData(AGENT_DRAG_MIME, JSON.stringify(ids));
                 e.dataTransfer.effectAllowed = 'move';
+                onDragStartAgents?.(ids);
               }}
+              onDragEnd={() => onDragEndAgents?.()}
               className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600"
               title="드래그하여 상담그룹 이동"
             >
