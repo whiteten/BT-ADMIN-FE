@@ -12,12 +12,12 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 type LocationLike = { pathname: string; search: string };
 
 /** 운영자 전용 메뉴(featureFlag='operator') — operatorMode 시 제자리 유지 + 앰버 강조 + "운영자 전용" 배지. */
-const isOperatorOnly = (item: MenuItem): boolean => item.featureFlag === 'operator';
+export const isOperatorOnly = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator';
 /** 운영자 모드에서 범위/동작이 달라지는 메뉴(featureFlag='operator-aware') — 제자리 유지 + 보라 배지. */
-const isOperatorAware = (item: MenuItem): boolean => item.featureFlag === 'operator-aware';
+export const isOperatorAware = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator-aware';
 
 /** operator 전용 배지 — 운영자 모드에서만 보이는 전용 메뉴임을 알림. */
-function OperatorOnlyBadge() {
+export function OperatorOnlyBadge() {
   return (
     <span
       className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 ring-1 ring-amber-200"
@@ -29,7 +29,7 @@ function OperatorOnlyBadge() {
 }
 
 /** operator-aware 배지 — 운영자 모드에서 범위/동작이 달라짐을 알림(예: 일반=본인 테넌트, 운영자=전체 테넌트). */
-function OperatorAwareBadge() {
+export function OperatorAwareBadge() {
   return (
     <span
       className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-violet-100 text-violet-700 ring-1 ring-violet-200"
