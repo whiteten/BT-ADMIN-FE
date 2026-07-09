@@ -43,12 +43,12 @@ export const campaignStatisticsApi = {
   },
 
   getTenantOptionList: async (params?: Record<string, unknown>): Promise<TenantOptionListItem[]> => {
-    const response = await apiClient.post<ApiResponse<{ items: TenantOptionListItem[] }>>('/stat-tenant-options', params ?? {});
+    const response = await apiClient.post<ApiResponse<{ items: TenantOptionListItem[] }>>('/campaign-option-tenant', params ?? {});
     return response.data?.data?.items ?? [];
   },
 
   getCampaignOptionList: async (params?: Record<string, unknown>): Promise<CampaignOptionListItem[]> => {
-    const response = await apiClient.post<ApiResponse<{ items: CampaignOptionListItem[] }>>('/stat-campaign-options', params ?? {});
+    const response = await apiClient.post<ApiResponse<{ items: CampaignOptionListItem[] }>>('/campaign-option-campaign', params ?? {});
     return response.data?.data?.items ?? [];
   },
 };

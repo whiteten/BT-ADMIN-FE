@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
@@ -14,9 +15,11 @@ import {
   type CampaignInUseFilter,
   type CampaignServiceTypeFilter,
 } from '../../features/management/constants/campaignManagementConstants';
-import { MOCK_CAMPAIGN_LIST } from '../../features/management/constants/campaignManagementMockData';
 import { useCampaignManagementContext } from '../../features/management/hooks/useCampaignManagementContext';
-import type { CampaignListItem } from '../../features/management/types/campaign';
+import { campaignQueryKeys, useGetCampaignMasters } from '../../features/management/hooks/useCampaignQueries';
+import type { CampaignMasterListItem } from '../../features/management/types/campaign';
+import { toCampaignListItem } from '../../features/management/utils/campaignMasterUtils';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -40,6 +43,7 @@ const INITIAL_APPLIED_FILTERS: AppliedFilters = {
 export default function CampaignList() {
   const navigate = useNavigate();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [serviceTypeFilter, setServiceTypeFilter] = useState<CampaignServiceTypeFilter>(CAMPAIGN_SERVICE_TYPE_FILTER.ALL);
@@ -47,18 +51,21 @@ export default function CampaignList() {
   const [searchValue, setSearchValue] = useState('');
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(INITIAL_APPLIED_FILTERS);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const [campaignList, setCampaignList] = useState<CampaignListItem[]>(MOCK_CAMPAIGN_LIST);
-  const { tenantIds, setTenantIds, tenantSelectOptions, validateContext } = useCampaignManagementContext();
+  const { tenantIds, setTenantIds, tenantSelectOptions } = useCampaignManagementContext();
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
+  const listQueryKey = campaignQueryKeys.getCampaignMasterList().queryKey;
+
+  const { data: campaignMasters = [], isFetching, isLoading } = useGetCampaignMasters({});
+
   const filteredList = useMemo(() => {
     const keyword = appliedFilters.searchValue.trim().toLowerCase();
 
-    return campaignList.filter((campaign) => {
+    return campaignMasters.map(toCampaignListItem).filter((campaign) => {
       if (appliedFilters.serviceTypeFilter !== CAMPAIGN_SERVICE_TYPE_FILTER.ALL && campaign.serviceType !== appliedFilters.serviceTypeFilter) {
         return false;
       }
@@ -77,11 +84,9 @@ export default function CampaignList() {
 
       return true;
     });
-  }, [appliedFilters, campaignList]);
+  }, [appliedFilters, campaignMasters]);
 
   const handleSearch = () => {
-    if (!validateContext()) return;
-
     setAppliedFilters({
       serviceTypeFilter,
       inUseFilter,
@@ -99,13 +104,19 @@ export default function CampaignList() {
   };
 
   const handleDetail = (campaignId: string) => {
-    navigate(`../${campaignId}`);
+    const master = campaignMasters.find((item) => item.campaignId === campaignId);
+    navigate(`../${campaignId}`, {
+      state: {
+        campaignId: master?.campaignId ?? campaignId,
+        tenantId: master?.tenantId,
+      },
+    });
   };
 
   const handleDelete = (campaignId: string) => {
     modal.confirm.delete({
       onOk: () => {
-        setCampaignList((prev) => prev.filter((item) => item.campaignId !== campaignId));
+        queryClient.setQueryData<CampaignMasterListItem[]>(listQueryKey, (prev) => (prev ?? []).filter((item) => item.campaignId !== campaignId));
         setSelectedCampaignId((prev) => (prev === campaignId ? null : prev));
         toast.success('캠페인이 삭제되었습니다.');
       },
@@ -120,6 +131,8 @@ export default function CampaignList() {
 
     handleDelete(selectedCampaignId);
   };
+
+  const showLoading = isLoading || (isFetching && campaignMasters.length === 0);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -169,7 +182,11 @@ export default function CampaignList() {
           </Button>
         </div>
       </div>
-      {filteredList.length ? (
+      {showLoading ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <FallbackSpinner />
+        </div>
+      ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((campaign) => (
             <CampaignCard

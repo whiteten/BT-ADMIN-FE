@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Col, DatePicker, Form, type FormProps, Input, InputNumber, Row, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { CAMPAIGN_IN_USE_OPTIONS, CAMPAIGN_SERVICE_TYPE_OPTIONS } from '../constants/campaignManagementConstants';
-import { getMockCampaignDetail } from '../constants/campaignManagementMockData';
+import { useCampaignMasterDetailParams } from '../hooks/useCampaignMasterDetailParams';
+import { useGetCampaignMasterDetail } from '../hooks/useCampaignQueries';
+import { toCampaignItem, toCampaignMasterFormDateTime } from '../utils/campaignMasterUtils';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type CampaignBasicInfoFormValues = {
@@ -20,11 +23,17 @@ type CampaignBasicInfoFormValues = {
 const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
 
 export default function CampaignBasicInfo() {
-  const { campaignId } = useParams();
   const navigate = useNavigate();
   const modal = useModal();
   const [form] = Form.useForm<CampaignBasicInfoFormValues>();
-  const campaign = campaignId ? getMockCampaignDetail(campaignId) : undefined;
+  const detailParams = useCampaignMasterDetailParams();
+
+  const { data: campaignMaster, isFetching } = useGetCampaignMasterDetail({
+    params: detailParams,
+    queryOptions: { enabled: Boolean(detailParams?.campaignId) },
+  });
+
+  const campaign = useMemo(() => (campaignMaster ? toCampaignItem(campaignMaster) : undefined), [campaignMaster]);
 
   const onFinish: FormProps<CampaignBasicInfoFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
@@ -51,17 +60,26 @@ export default function CampaignBasicInfo() {
   };
 
   useEffect(() => {
-    if (!campaign) return;
+    if (!campaignMaster || !campaign) return;
+
+    const startDateTime = toCampaignMasterFormDateTime(campaignMaster.campaignStartdate, campaignMaster.campaignStarttime);
+    const endDateTime = toCampaignMasterFormDateTime(campaignMaster.campaignEnddate, campaignMaster.campaignEndtime);
+    const start = startDateTime ? dayjs(startDateTime) : null;
+    const end = endDateTime ? dayjs(endDateTime) : null;
 
     form.setFieldsValue({
       campaignName: campaign.campaignName,
-      executionPeriod: [dayjs(campaign.startDateTime), dayjs(campaign.endDateTime)],
-      sortOrder: campaign.sortOrder,
-      priority: campaign.priority,
-      serviceType: campaign.serviceType,
+      ...(start?.isValid() && end?.isValid() ? { executionPeriod: [start, end] } : {}),
+      sortOrder: campaignMaster.sortSeq ?? undefined,
+      priority: campaignMaster.priority ?? undefined,
+      serviceType: campaign.serviceType || undefined,
       inUse: campaign.inUse,
     });
-  }, [campaign, form]);
+  }, [campaign, campaignMaster, form]);
+
+  if (isFetching) {
+    return <FallbackSpinner />;
+  }
 
   if (!campaign) {
     return <div className="p-7 text-gray-500">캠페인 정보를 찾을 수 없습니다.</div>;
