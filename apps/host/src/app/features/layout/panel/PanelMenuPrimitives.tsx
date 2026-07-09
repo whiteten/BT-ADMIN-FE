@@ -35,7 +35,7 @@ export function OperatorAwareBadge() {
       className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-violet-100 text-violet-700 ring-1 ring-violet-200"
       title="운영자 모드에서 범위/동작이 달라지는 메뉴 (예: 일반 모드=본인 테넌트, 운영자 모드=전체 테넌트)"
     >
-      운영시 변경
+      운영자 모드
     </span>
   );
 }
