@@ -1,25 +1,25 @@
 /**
  * 수신번호 차단 관리 목록 페이지
  *
- * 멀티테넌트 개편(상담사 관리 정합): 상단 노드 탭바 + 테넌트 카드 슬라이더 → 셀렉트박스 + 요약으로 단순화.
- *   - 노드 Select (수신번호차단은 노드 단위 구성 — 필수 선택, "전체 노드" 없음).
- *   - 테넌트 ScopeSelect (전체 포함, 노드 로드 결과에 대한 클라이언트 필터).
- *   - 옆에 요약(총 차단번호 / 테넌트 수).
+ * 멀티테넌트 개편(상담사 관리 정합): 노드 개념 완전 제거 → 테넌트 전용 화면.
+ *   - 이 화면은 노드를 실제로 쓰지 않음(테이블 NODE_ID 항상 0 고정). 노드 선택기/컬럼/폼 필드 없음.
+ *   - 일반 콘솔: 테넌트 선택기 없음(토큰=활성 테넌트 스코프). 헤더에 요약(총 차단번호)만.
+ *   - 운영자 모드: 헤더에 대행 테넌트 ScopeSelect(전체 포함) + 요약(총 차단번호 / 테넌트 수).
  *   - 하단: 차단번호 목록 ag-Grid.
  *
- * 데이터 흐름: 선택 노드 단위로 차단번호 1회 조회(nodeId 서버 param) → 테넌트는 클라이언트 필터.
- *   번호패턴 검색은 서버사이드 LIKE(SWAT IPR20S1060L numPattern 대응) — 검색 중엔 노드/테넌트 필터 무시.
+ * 데이터 흐름: tenantId(선택 스코프) 기준 서버 조회. 운영자 전체(null)면 tenantId 미전달 → BE view-all.
+ *   번호패턴 검색은 서버사이드 LIKE(SWAT IPR20S1060L numPattern 대응) — tenantId 와 함께 전달.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input, Select } from 'antd';
-import { Network, Plus, Trash2 } from 'lucide-react';
+import { Button, Empty, Input } from 'antd';
+import { Plus, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallScreenDrawer, { type CallScreenDrawerRef } from '../../features/call-screen/components/CallScreenDrawer';
-import { callScreenQueryKeys, useDeleteCallScreenBatch, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
+import { callScreenQueryKeys, useDeleteCallScreenBatch, useGetCallScreenList } from '../../features/call-screen/hooks/useCallScreenQueries';
 import type { CallScreen } from '../../features/call-screen/types';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -48,132 +48,57 @@ export default function CallScreenList() {
   });
 
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  // 운영자 전용 테넌트 필터(null=전체 테넌트, 클라이언트 필터). 일반 모드는 ctxTenantId 로 파생.
+  // 운영자 전용 테넌트 필터(null=전체 테넌트 view-all). 일반 모드는 ctxTenantId 로 파생.
   const [tenantFilter, setTenantFilter] = useState<number | null>(null);
   const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   /** 번호패턴 서버사이드 LIKE 검색어 — SWAT IPR20S1060L numPattern 대응 */
   const [numPatternSearch, setNumPatternSearch] = useState('');
   const [selectedRows, setSelectedRows] = useState<CallScreen[]>([]);
 
-  const hasInitializedNodeRef = useRef(false);
-
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const drawerRef = useRef<CallScreenDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodeTenants = [] } = useGetNodeTenants();
-
   const isNumPatternSearching = numPatternSearch.trim().length > 0;
 
-  // 번호패턴 검색 모드: 서버 LIKE 검색 — SWAT numPattern 조건 대응
-  const numPatternParams = useMemo(
-    () =>
-      isNumPatternSearching
-        ? {
-            numPattern: numPatternSearch.trim(),
-            ...(selectedNodeId ? { nodeId: selectedNodeId } : {}),
-          }
-        : undefined,
-    [isNumPatternSearching, numPatternSearch, selectedNodeId],
-  );
-  const { data: numPatternResults = [], isLoading: isNumPatternLoading } = useGetCallScreenList({
-    params: numPatternParams,
-    queryOptions: { enabled: !!numPatternParams },
-  });
+  // 테넌트 스코프 + (검색 시) 번호패턴 LIKE 를 함께 서버로 전달.
+  //  - 운영자 전체(selectedTenantId==null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 조회.
+  const listParams = useMemo(() => {
+    const p: Record<string, unknown> = {};
+    if (selectedTenantId != null) p.tenantId = selectedTenantId;
+    if (isNumPatternSearching) p.numPattern = numPatternSearch.trim();
+    return p;
+  }, [selectedTenantId, isNumPatternSearching, numPatternSearch]);
 
-  // 노드 선택 모드: 선택된 노드의 전체 차단번호 1회 fetch → 클라이언트에서 테넌트별 필터 + 카운트
-  const nodeListParams = useMemo(() => (selectedNodeId && !isNumPatternSearching ? { nodeId: selectedNodeId } : undefined), [selectedNodeId, isNumPatternSearching]);
-  const { data: nodeCallScreens = [], isLoading: isNodeLoading } = useGetCallScreenList({
-    params: nodeListParams,
-    queryOptions: { enabled: !!nodeListParams },
-  });
+  const { data: callScreens = [], isLoading } = useGetCallScreenList({ params: listParams });
 
-  const isLoading = isNumPatternSearching ? isNumPatternLoading : isNodeLoading;
-
-  // 그리드 표시용: 번호패턴 검색이면 서버 결과, 아니면 노드/테넌트 필터
-  const callScreens = useMemo(() => {
-    if (isNumPatternSearching) return numPatternResults;
-    if (selectedTenantId == null) return nodeCallScreens;
-    return nodeCallScreens.filter((cs) => cs.tenantId === selectedTenantId);
-  }, [isNumPatternSearching, numPatternResults, nodeCallScreens, selectedTenantId]);
-
-  // 테넌트별 차단번호 개수
-  const callScreenCountByTenant = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const cs of nodeCallScreens) {
-      map.set(cs.tenantId, (map.get(cs.tenantId) ?? 0) + 1);
-    }
-    return map;
-  }, [nodeCallScreens]);
-
-  // ─── Derived data: 노드 > 테넌트 구조 ──────────────────────────────────────
-  interface NodeGroup {
-    nodeId: number;
-    nodeName: string;
-  }
-  interface TenantInfo {
-    tenantId: number;
-    tenantName: string;
-    nodeId: number;
-  }
-
-  const { nodeGroups, tenantsByNode } = useMemo(() => {
-    const nodeMap = new Map<number, { nodeName: string; tenantMap: Map<number, string> }>();
-
-    for (const nt of nodeTenants) {
-      let node = nodeMap.get(nt.nodeId);
-      if (!node) {
-        node = { nodeName: nt.nodeName, tenantMap: new Map() };
-        nodeMap.set(nt.nodeId, node);
-      }
-      node.tenantMap.set(nt.tenantId, nt.tenantName);
-    }
-
-    const groups: NodeGroup[] = [];
-    const byNode = new Map<number, TenantInfo[]>();
-
-    for (const [nodeId, data] of Array.from(nodeMap.entries()).sort((a, b) => a[0] - b[0])) {
-      groups.push({ nodeId, nodeName: data.nodeName });
-      byNode.set(
-        nodeId,
-        Array.from(data.tenantMap.entries()).map(([tenantId, tenantName]) => ({ tenantId, tenantName, nodeId })),
-      );
-    }
-
-    return { nodeGroups: groups, tenantsByNode: byNode };
-  }, [nodeTenants]);
-
-  // 선택 노드의 테넌트 목록 (ScopeSelect 옵션 — 차단번호 0건 테넌트도 등록 대상으로 노출)
+  // ─── Derived data ───────────────────────────────────────────────────────────
+  // 테넌트 옵션 — 로드된 rows 에서 distinct 테넌트로 구성(운영자 ScopeSelect 용).
   const tenantOptions = useMemo(() => {
-    if (selectedNodeId == null) return [];
-    const list = tenantsByNode.get(selectedNodeId) ?? [];
-    return list.map((t) => ({ id: t.tenantId, name: t.tenantName, count: callScreenCountByTenant.get(t.tenantId) ?? 0 })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [selectedNodeId, tenantsByNode, callScreenCountByTenant]);
-
-  // 헤더 요약 — 선택 노드 기준 총 차단번호 / 테넌트 수
-  const summary = useMemo(() => ({ total: nodeCallScreens.length, tenant: tenantOptions.length }), [nodeCallScreens, tenantOptions]);
-
-  const selectedNodeName = useMemo(() => nodeGroups.find((g) => g.nodeId === selectedNodeId)?.nodeName ?? '', [nodeGroups, selectedNodeId]);
-  const selectedTenantName = useMemo(() => (selectedTenantId == null ? '' : (tenantOptions.find((t) => t.id === selectedTenantId)?.name ?? '')), [tenantOptions, selectedTenantId]);
-
-  // Auto-select: 첫 노드 자동 선택
-  useEffect(() => {
-    if (nodeGroups.length > 0 && !hasInitializedNodeRef.current && selectedNodeId == null) {
-      hasInitializedNodeRef.current = true;
-      setSelectedNodeId(nodeGroups[0].nodeId);
+    const map = new Map<number, { name: string; count: number }>();
+    for (const cs of callScreens) {
+      const cur = map.get(cs.tenantId);
+      if (cur) cur.count += 1;
+      else map.set(cs.tenantId, { name: cs.tenantName, count: 1 });
     }
-  }, [nodeGroups, selectedNodeId]);
+    return Array.from(map.entries())
+      .map(([id, v]) => ({ id, name: v.name, count: v.count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [callScreens]);
+
+  const selectedTenantName = useMemo(
+    () =>
+      selectedTenantId == null ? '' : (tenantOptions.find((t) => t.id === selectedTenantId)?.name ?? callScreens.find((c) => c.tenantId === selectedTenantId)?.tenantName ?? ''),
+    [tenantOptions, callScreens, selectedTenantId],
+  );
+
+  // 헤더 요약 — 총 차단번호 / (운영자만) 테넌트 수
+  const summary = useMemo(() => ({ total: callScreens.length, tenant: tenantOptions.length }), [callScreens, tenantOptions]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const invalidateList = useCallback(() => {
-    if (nodeListParams) {
-      queryClient.invalidateQueries({ queryKey: callScreenQueryKeys.getList(nodeListParams).queryKey });
-    }
-    if (numPatternParams) {
-      queryClient.invalidateQueries({ queryKey: callScreenQueryKeys.getList(numPatternParams).queryKey });
-    }
-  }, [queryClient, nodeListParams, numPatternParams]);
+    queryClient.invalidateQueries({ queryKey: callScreenQueryKeys.getList(listParams).queryKey });
+  }, [queryClient, listParams]);
 
   const { mutate: deleteCallScreenBatch } = useDeleteCallScreenBatch({
     mutationOptions: {
@@ -186,20 +111,13 @@ export default function CallScreenList() {
   });
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleNodeChange = useCallback((nodeId: number) => {
-    setSelectedNodeId(nodeId);
-    setTenantFilter(null);
-    setNumPatternSearch('');
-    setSelectedRows([]);
-  }, []);
-
   const handleCreate = useCallback(() => {
-    if (selectedNodeId == null || selectedTenantId == null) {
-      toast.warning('노드와 특정 테넌트를 선택하세요');
+    if (operatorMode && selectedTenantId == null) {
+      toast.warning('대행할 테넌트를 먼저 선택하세요');
       return;
     }
-    drawerRef.current?.open(undefined, selectedNodeId, selectedNodeName, selectedTenantId, selectedTenantName);
-  }, [selectedNodeId, selectedTenantId, selectedNodeName, selectedTenantName]);
+    drawerRef.current?.open(undefined, selectedTenantId ?? undefined, selectedTenantName || undefined);
+  }, [operatorMode, selectedTenantId, selectedTenantName]);
 
   const handleEdit = useCallback((item: CallScreen) => {
     drawerRef.current?.open(item);
@@ -221,21 +139,18 @@ export default function CallScreenList() {
   }, [invalidateList]);
 
   // ─── ag-Grid Column Defs ──────────────────────────────────────────────────
-  const columnDefs: ColDef<CallScreen>[] = useMemo(
-    () => [
-      {
-        headerName: '노드명',
-        field: 'nodeName',
-        flex: 1,
-        minWidth: 110,
-        valueFormatter: (params) => params.data?.nodeName ?? '-',
-      },
-      {
+  const columnDefs: ColDef<CallScreen>[] = useMemo(() => {
+    const cols: ColDef<CallScreen>[] = [];
+    // 테넌트명은 운영자 모드(다중 테넌트)일 때만 표시 — 일반 모드는 단일 테넌트라 숨김
+    if (operatorMode) {
+      cols.push({
         headerName: '테넌트명',
         field: 'tenantName',
         flex: 1,
         minWidth: 120,
-      },
+      });
+    }
+    cols.push(
       {
         headerName: '차단번호패턴',
         field: 'numPattern',
@@ -252,31 +167,19 @@ export default function CallScreenList() {
         tooltipField: 'screenDesc',
         valueFormatter: (params) => params.data?.screenDesc ?? '-',
       },
-    ],
-    [],
-  );
+    );
+    return cols;
+  }, [operatorMode]);
+
+  const addDisabled = operatorMode && selectedTenantId == null;
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스A: 헤더 (노드/테넌트 스코프 + 요약) ===== */}
+      {/* ===== 박스A: 헤더 (테넌트 스코프 + 요약) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-3">
-          {/* 노드 선택 (수신번호차단은 노드 단위 — 필수) */}
-          <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-            <Network className="size-3.5 shrink-0 text-blue-600" />
-            <Select
-              size="small"
-              variant="borderless"
-              value={selectedNodeId ?? undefined}
-              onChange={handleNodeChange}
-              placeholder="노드 선택"
-              options={nodeGroups.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
-              style={{ width: 150 }}
-              popupMatchSelectWidth={false}
-            />
-          </div>
-          {/* 테넌트 필터 (전체 포함, 클라이언트 필터) — 운영자 모드에서만 노출 */}
+          {/* 테넌트 스코프 (전체 포함) — 운영자 모드에서만 노출. 일반 콘솔은 브레드크럼이 화면명 표기. */}
           {operatorMode && (
             <ScopeSelect
               kind="tenant"
@@ -288,14 +191,16 @@ export default function CallScreenList() {
               }}
             />
           )}
-          {/* 요약 — 총 차단번호 / 테넌트 수 */}
-          <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+          {/* 요약 — 총 차단번호 / (운영자) 테넌트 수 */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-1 pl-3 border-l border-gray-200' : ''}`}>
             <span className="text-gray-500">
               총 차단번호 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
             </span>
-            <span className="text-gray-500">
-              테넌트 <b className="text-[#405189] font-semibold">{summary.tenant.toLocaleString()}</b>
-            </span>
+            {operatorMode && (
+              <span className="text-gray-500">
+                테넌트 <b className="text-[#405189] font-semibold">{summary.tenant.toLocaleString()}</b>
+              </span>
+            )}
           </div>
           <div className="ml-auto flex items-center gap-2">
             {/* 번호패턴 서버사이드 LIKE 검색 — SWAT "차단번호패턴" 검색란 대응 */}
@@ -317,7 +222,11 @@ export default function CallScreenList() {
           <span className="text-sm font-semibold text-gray-800">
             {isNumPatternSearching
               ? `차단번호패턴 "${numPatternSearch.trim()}" 검색 결과`
-              : `${selectedNodeName || '수신번호차단'} / ${selectedTenantId == null ? '전체 테넌트' : selectedTenantName}`}
+              : operatorMode
+                ? selectedTenantId == null
+                  ? '전체 테넌트'
+                  : selectedTenantName || '수신번호차단'
+                : '수신번호차단'}
           </span>
           <span className="text-xs text-gray-500">
             총 {callScreens.length.toLocaleString()}건{selectedRows.length > 0 ? ` · 선택 ${selectedRows.length}건` : ''}
@@ -336,8 +245,8 @@ export default function CallScreenList() {
               type="primary"
               icon={<Plus className="size-3.5" />}
               onClick={handleCreate}
-              disabled={selectedNodeId == null || selectedTenantId == null}
-              title={selectedNodeId == null || selectedTenantId == null ? '노드와 특정 테넌트를 선택하세요' : undefined}
+              disabled={addDisabled}
+              title={addDisabled ? '대행할 테넌트를 먼저 선택하세요' : undefined}
             >
               추가
             </Button>
