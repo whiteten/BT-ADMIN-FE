@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { Cog } from 'lucide-react';
 import { LOG } from '@/log';
 import { useMenuStore, useNavigationStore, useOperatorScopeStore } from '@/shared-store';
 import { resolveMenuIcon } from '@/components/custom/menuIconRegistry';
@@ -7,9 +6,6 @@ import type { NaviApp, NaviMenuItem } from '@/libs/shared-api/src/lib/types/navi
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
 const Log = new LOG('useMenuLoader');
-
-/** 운영자 전용 메뉴를 모으는 합성 중메뉴(폴더)의 키. */
-const OPERATOR_FOLDER_KEY = '__operator_only__';
 
 const toMenuItem = (navi: NaviMenuItem): MenuItem => {
   const children = navi.children.length > 0 ? navi.children.map(toMenuItem) : undefined;
@@ -34,36 +30,19 @@ const toMenuConfig = (app: NaviApp): MenuConfig => ({
 
 /**
  * 운영자 메뉴 트리 변환.
- * - operatorMode OFF : featureFlag='operator'(운영자 전용) 메뉴를 트리에서 제거.
- * - operatorMode ON  : 운영자 전용 메뉴를 원위치에서 떼어내 앱 최상단의 "운영자 전용" 중메뉴(폴더)로 모음.
- * - 'operator-aware'(운영자 모드에서 범위/동작이 달라지는 메뉴)는 항상 제자리 유지(렌더에서 배지 강조).
- * - 자식이 전부 빠져 비게 된 FOLDER 는 함께 제거.
+ * - operatorMode OFF : featureFlag='operator'(운영자 전용) 메뉴를 트리에서 제거(빈 폴더도 정리).
+ * - operatorMode ON  : 트리를 그대로 유지(**폴더로 묶지 않음**). 운영자 전용/영향 메뉴는 제자리에서 렌더 배지로 표기.
+ *                      'operator'      → "운영자 전용" 앰버 배지
+ *                      'operator-aware'→ "운영시 변경" 보라 배지
  */
 const transformOperatorMenus = (menus: MenuItem[], operatorMode: boolean): MenuItem[] => {
-  const collected: MenuItem[] = [];
-  const walk = (items: MenuItem[]): MenuItem[] =>
-    items
-      .map((m) => (m.children ? { ...m, children: walk(m.children) } : m))
-      .filter((m) => {
-        if (m.featureFlag === 'operator') {
-          if (operatorMode) collected.push(m); // ON: 폴더로 모으려고 수집 / OFF: 그냥 제거(숨김)
-          return false;
-        }
-        return true;
-      })
-      .filter((m) => m.path || (m.children && m.children.length > 0)); // 빈 폴더 제거
-
-  const base = walk(menus);
-  if (operatorMode && collected.length > 0) {
-    base.push({
-      menuKey: OPERATOR_FOLDER_KEY,
-      label: '운영자 전용',
-      icon: Cog,
-      featureFlag: 'operator', // 폴더도 앰버 강조 대상
-      children: collected,
-    });
-  }
-  return base;
+  const recurse = (items: MenuItem[]): MenuItem[] => {
+    const processed = items.map((m) => (m.children ? { ...m, children: recurse(m.children) } : m));
+    if (operatorMode) return processed; // ON: 제자리 유지, 배지로만 표기
+    // OFF: operator 전용 제거 + 빈 폴더 정리
+    return processed.filter((m) => m.featureFlag !== 'operator').filter((m) => m.path || (m.children && m.children.length > 0));
+  };
+  return recurse(menus);
 };
 
 export function useMenuLoader() {

@@ -11,10 +11,22 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 type LocationLike = { pathname: string; search: string };
 
-/** 운영자 전용 메뉴(featureFlag='operator') — operatorMode 시 "운영자 전용" 중메뉴로 묶임 + 앰버 강조. */
+/** 운영자 전용 메뉴(featureFlag='operator') — operatorMode 시 제자리 유지 + 앰버 강조 + "운영자 전용" 배지. */
 const isOperatorOnly = (item: MenuItem): boolean => item.featureFlag === 'operator';
 /** 운영자 모드에서 범위/동작이 달라지는 메뉴(featureFlag='operator-aware') — 제자리 유지 + 보라 배지. */
 const isOperatorAware = (item: MenuItem): boolean => item.featureFlag === 'operator-aware';
+
+/** operator 전용 배지 — 운영자 모드에서만 보이는 전용 메뉴임을 알림. */
+function OperatorOnlyBadge() {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+      title="운영자 모드에서만 노출되는 전용 메뉴 (일반 모드에서는 숨김)"
+    >
+      운영자 전용
+    </span>
+  );
+}
 
 /** operator-aware 배지 — 운영자 모드에서 범위/동작이 달라짐을 알림(예: 일반=본인 테넌트, 운영자=전체 테넌트). */
 function OperatorAwareBadge() {
@@ -120,6 +132,7 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
           </p>
         )}
       </div>
+      {opOnly && <OperatorOnlyBadge />}
       {opAware && <OperatorAwareBadge />}
       <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
         <MenuActionButtons menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
@@ -252,6 +265,7 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
         {Icon ? <Icon className="!size-5" /> : <SquareDashed className="!size-5" />}
       </span>
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
+      {opOnly && <OperatorOnlyBadge />}
       {opAware && <OperatorAwareBadge />}
       {isFolder && (
         <svg
