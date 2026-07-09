@@ -22,14 +22,6 @@ export const TELCO_KIND_LABELS: Record<TelcoKindCode, string> = {
   '3': 'LGU+',
 };
 
-// 통신사 배지 색상 (프로토타입 A 기준)
-export const TELCO_KIND_BADGE: Record<TelcoKindCode, { bg: string; color: string; border: string }> = {
-  '0': { bg: '#f0f0f0', color: '#595959', border: '#d9d9d9' },
-  '1': { bg: '#fff7e6', color: '#d46b08', border: '#ffd591' },
-  '2': { bg: '#f9f0ff', color: '#531dab', border: '#d3adf7' },
-  '3': { bg: '#ffeded', color: '#cf1322', border: '#ffadd2' },
-};
-
 // ─── Backend Response 타입 ──────────────────────────────────────────────────
 
 export interface IrAinMaster {

@@ -12,7 +12,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Dropdown, Empty, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
-import { ChevronLeft, ChevronRight, MoreVertical, Network, Pause, Play, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Pause, Play, Plus, Trash2, Users } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import HaGroupDrawer, { type HaGroupDrawerRef } from '../../features/ha-group/components/HaGroupDrawer';
@@ -20,7 +20,7 @@ import HaGroupMemberDrawer, { type HaGroupMemberDrawerRef } from '../../features
 import { useGetCodes } from '../../features/ha-group/hooks/useCommonQueries';
 import { haGroupQueryKeys, useDeleteHaGroup, useDeleteHaGroupMember, useGetHaGroupMembers, useGetHaGroups, useGetNodes } from '../../features/ha-group/hooks/useHaGroupQueries';
 import { HA_ROLE_STATUS_KIND, HA_ROLE_TYPE_KIND, type HaGroup, type HaGroupMember } from '../../features/ha-group/types';
-import { IconTrash } from '@/components/custom/Icons';
+import NodeTabBar, { type NodeTabBarItem } from '@/components/custom/NodeTabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -58,7 +58,6 @@ export default function HaGroupList() {
   const [selectedHaGroupId, setSelectedHaGroupId] = useState<number | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshSeconds, setRefreshSeconds] = useState(5);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   const groupDrawerRef = useRef<HaGroupDrawerRef>(null);
@@ -99,6 +98,9 @@ export default function HaGroupList() {
   }, [haGroups, selectedHaGroupId]);
 
   const selectedHaGroup = useMemo(() => haGroups.find((g) => g.haGroupId === selectedHaGroupId) ?? null, [haGroups, selectedHaGroupId]);
+
+  // HA 그룹은 노드별로만 조회 가능(전체 집계 API 없음) — count 없이 표시.
+  const nodeTabItems: NodeTabBarItem<number>[] = useMemo(() => nodes.map((node) => ({ id: node.nodeId, label: node.nodeName, icon: Network })), [nodes]);
 
   // ─── Invalidation ───────────────────────────────────────────────────────
   const invalidateHaGroups = () => queryClient.invalidateQueries({ queryKey: haGroupQueryKeys.getHaGroups._def });
@@ -238,7 +240,7 @@ export default function HaGroupList() {
         cellRenderer: (p: ICellRendererParams<HaGroupMember>) =>
           p.data ? (
             <button type="button" title="삭제" onClick={() => handleDeleteMember(p.data!)}>
-              <IconTrash className="size-4 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
             </button>
           ) : null,
       },
@@ -250,55 +252,25 @@ export default function HaGroupList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 탭 바 박스 (노드) ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-            <div ref={tabScrollRef} className="flex items-stretch min-w-0 overflow-x-auto divide-x divide-gray-200" style={{ scrollbarWidth: 'none' }}>
-              {nodes.map((node) => {
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] flex-shrink-0 transition-colors ${isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'}`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-            <div className="ml-auto flex items-center gap-2">
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateGroup}>
-                그룹 추가
-              </Button>
-            </div>
-          </div>
-        </div>
+        <NodeTabBar<number>
+          items={nodeTabItems}
+          selectedId={selectedNodeId}
+          onSelect={handleNodeSelect}
+          rightContent={
+            <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateGroup}>
+              그룹 추가
+            </Button>
+          }
+        />
 
         {/* ===== HA 그룹 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center px-4 py-2 border-b border-gray-100">
-            <span className="text-[12px] text-gray-500">HA 그룹 ({haGroups.length}건)</span>
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100">
+            <Layers className="size-4 text-[#405189]" />
+            <h3 className="text-sm font-semibold text-gray-800">HA 그룹</h3>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{haGroups.length}개</span>
           </div>
-          <div className="flex items-center gap-2 px-4 py-3 h-[140px]">
+          <div className="flex items-center gap-2 px-4 py-3 h-[150px]">
             <Button
               type="text"
               icon={<ChevronLeft className="size-5" />}
@@ -321,6 +293,7 @@ export default function HaGroupList() {
                     {/* Card header: 그룹명 + 더보기 */}
                     <div className="flex items-center justify-between gap-1 mb-1.5">
                       <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <Layers className="size-3.5 text-gray-400 flex-shrink-0" />
                         <span className="text-sm font-semibold text-gray-800 truncate">{g.haGroupName}</span>
                       </div>
                       <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
@@ -376,8 +349,19 @@ export default function HaGroupList() {
 
         {/* ===== 하단: 멤버 그리드 박스 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">HA 그룹 멤버 {selectedHaGroup ? `— ${selectedHaGroup.haGroupName} (${members.length}/4)` : ''}</span>
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Users className="size-4 text-[#405189]" />
+              <h3 className="text-sm font-semibold text-gray-800">
+                HA 그룹 멤버 — <span className="text-[#405189]">{selectedHaGroup?.haGroupName ?? ''}</span>
+              </h3>
+              <span
+                className={cn('text-[11px] font-medium px-1.5 py-0.5 rounded', members.length >= 4 ? 'text-amber-600 bg-amber-50' : 'text-slate-400 bg-slate-100')}
+                title="HA 그룹 멤버는 최대 4개까지 등록할 수 있습니다"
+              >
+                {members.length}/4개
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-[#495057] shrink-0">모니터링</span>
               <Select
@@ -415,7 +399,8 @@ export default function HaGroupList() {
               </Button>
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="border-t border-gray-200" />
+          <div className="flex-1 min-h-0 p-5">
             {!selectedHaGroup ? (
               <div className="flex items-center justify-center h-full">
                 <Empty description="HA 그룹을 선택하세요" />
