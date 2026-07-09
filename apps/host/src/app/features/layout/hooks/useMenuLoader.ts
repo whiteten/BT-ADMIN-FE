@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Cog } from 'lucide-react';
 import { LOG } from '@/log';
 import { useMenuStore, useNavigationStore, useOperatorScopeStore } from '@/shared-store';
 import { resolveMenuIcon } from '@/components/custom/menuIconRegistry';
@@ -6,6 +7,9 @@ import type { NaviApp, NaviMenuItem } from '@/libs/shared-api/src/lib/types/navi
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
 
 const Log = new LOG('useMenuLoader');
+
+/** 운영자 전용 메뉴를 모으는 합성 중메뉴(폴더)의 키. */
+const OPERATOR_FOLDER_KEY = '__operator_only__';
 
 const toMenuItem = (navi: NaviMenuItem): MenuItem => {
   const children = navi.children.length > 0 ? navi.children.map(toMenuItem) : undefined;
@@ -29,15 +33,38 @@ const toMenuConfig = (app: NaviApp): MenuConfig => ({
 });
 
 /**
- * 운영자 전용 메뉴(featureFlag='operator') 필터.
- * operatorMode OFF 시 제외. 'operator-aware'(운영자 모드에서 동작이 달라지는 메뉴)는 항상 유지(강조만 렌더에서 처리).
- * featureFlag 로 비워진 FOLDER(하위 전부 숨김)도 함께 제거.
+ * 운영자 메뉴 트리 변환.
+ * - operatorMode OFF : featureFlag='operator'(운영자 전용) 메뉴를 트리에서 제거.
+ * - operatorMode ON  : 운영자 전용 메뉴를 원위치에서 떼어내 앱 최상단의 "운영자 전용" 중메뉴(폴더)로 모음.
+ * - 'operator-aware'(운영자 모드에서 범위/동작이 달라지는 메뉴)는 항상 제자리 유지(렌더에서 배지 강조).
+ * - 자식이 전부 빠져 비게 된 FOLDER 는 함께 제거.
  */
-const filterOperatorMenus = (items: MenuItem[], operatorMode: boolean): MenuItem[] =>
-  items
-    .filter((m) => operatorMode || m.featureFlag !== 'operator')
-    .map((m) => (m.children ? { ...m, children: filterOperatorMenus(m.children, operatorMode) } : m))
-    .filter((m) => m.path || (m.children && m.children.length > 0));
+const transformOperatorMenus = (menus: MenuItem[], operatorMode: boolean): MenuItem[] => {
+  const collected: MenuItem[] = [];
+  const walk = (items: MenuItem[]): MenuItem[] =>
+    items
+      .map((m) => (m.children ? { ...m, children: walk(m.children) } : m))
+      .filter((m) => {
+        if (m.featureFlag === 'operator') {
+          if (operatorMode) collected.push(m); // ON: 폴더로 모으려고 수집 / OFF: 그냥 제거(숨김)
+          return false;
+        }
+        return true;
+      })
+      .filter((m) => m.path || (m.children && m.children.length > 0)); // 빈 폴더 제거
+
+  const base = walk(menus);
+  if (operatorMode && collected.length > 0) {
+    base.push({
+      menuKey: OPERATOR_FOLDER_KEY,
+      label: '운영자 전용',
+      icon: Cog,
+      featureFlag: 'operator', // 폴더도 앰버 강조 대상
+      children: collected,
+    });
+  }
+  return base;
+};
 
 export function useMenuLoader() {
   const { setMenuConfigs, setIsLoading } = useMenuStore();
@@ -47,7 +74,7 @@ export function useMenuLoader() {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const menuConfigs = apps.map(toMenuConfig).map((c) => ({ ...c, menus: filterOperatorMenus(c.menus, operatorMode) }));
+      const menuConfigs = apps.map(toMenuConfig).map((c) => ({ ...c, menus: transformOperatorMenus(c.menus, operatorMode) }));
       setMenuConfigs(menuConfigs);
       Log.debug('Menu configs loaded successfully.', menuConfigs);
     } catch (err) {
