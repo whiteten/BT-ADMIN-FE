@@ -19,7 +19,7 @@ import type { ColDef, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DeviceBulkDeleteModal from '../../features/device/components/DeviceBulkDeleteModal';
 import DeviceFormDrawer, { type DeviceFormDrawerRef } from '../../features/device/components/DeviceFormDrawer';
@@ -44,9 +44,19 @@ export default function DeviceList() {
 
   const queryClient = useQueryClient();
 
+  // 운영자 모드에서만 테넌트 필터 노출(일반 콘솔은 토큰=본인 테넌트 스코프).
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체 테넌트
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
+  // 일반 모드는 활성 테넌트(ctx)로 스코프, 운영자 모드는 필터 선택값(null=전체).
+  // 단말기 행은 tenantId 없음 → selectedTenantId 를 tenantNodeIds 매핑으로 노드 집합 변환 후 필터.
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<DevMasterResponse[]>([]);
   const [importOpen, setImportOpen] = useState(false);
@@ -266,16 +276,18 @@ export default function DeviceList() {
               popupMatchSelectWidth={false}
             />
           </div>
-          {/* 테넌트 필터 */}
-          <ScopeSelect
-            kind="tenant"
-            options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={(id) => {
-              setSelectedTenantId(id == null ? null : Number(id));
-              setSelectedRows([]);
-            }}
-          />
+          {/* 테넌트 필터 — 운영자 모드에서만 노출(일반 콘솔은 토큰 스코프) */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+              value={tenantFilter == null ? null : String(tenantFilter)}
+              onChange={(id) => {
+                setTenantFilter(id == null ? null : Number(id));
+                setSelectedRows([]);
+              }}
+            />
+          )}
           {/* 요약 — 총/펌웨어사용/프로비저닝성공 */}
           <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
             <span className="text-gray-500">

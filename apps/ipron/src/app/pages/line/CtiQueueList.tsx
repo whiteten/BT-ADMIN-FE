@@ -16,7 +16,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Select, Table } from 'antd';
 import { Download, LayoutGrid, Network, Pencil, Plus, RotateCcw, Save, Search, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ctiQueueApi } from '../../features/cti-queue/api/ctiQueueApi';
 import CtiQueueBulkUpdateModal from '../../features/cti-queue/components/CtiQueueBulkUpdateModal';
@@ -84,9 +84,18 @@ export default function CtiQueueList() {
   const modal = useModal();
   const queryClient = useQueryClient();
 
+  // 운영자 모드에서만 테넌트 스코프 선택 노출. 일반 콘솔은 토큰=본인 테넌트로 고정.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const tokenTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체 테넌트
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 전용 테넌트 필터 (null=전체)
+  // 화면 전역에서 쓰는 테넌트 스코프 — 일반=토큰 테넌트, 운영자=선택 필터(전체 가능).
+  const selectedTenantId = operatorMode ? tenantFilter : tokenTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
@@ -607,17 +616,19 @@ export default function CtiQueueList() {
                 popupMatchSelectWidth={false}
               />
             </div>
-            {/* 테넌트 필터 */}
-            <ScopeSelect
-              kind="tenant"
-              options={assignedTenants.map((t) => ({ id: t.id, name: t.name }))}
-              value={selectedTenantId == null ? null : String(selectedTenantId)}
-              onChange={(id) => {
-                setSelectedTenantId(id == null ? null : Number(id));
-                setSelectedTreeId(null);
-                setSelectedRows([]);
-              }}
-            />
+            {/* 테넌트 필터 — 운영자 모드만 노출 (일반 콘솔은 토큰 테넌트로 고정) */}
+            {operatorMode && (
+              <ScopeSelect
+                kind="tenant"
+                options={assignedTenants.map((t) => ({ id: t.id, name: t.name }))}
+                value={tenantFilter == null ? null : String(tenantFilter)}
+                onChange={(id) => {
+                  setTenantFilter(id == null ? null : Number(id));
+                  setSelectedTreeId(null);
+                  setSelectedRows([]);
+                }}
+              />
+            )}
             {/* 요약 — 총/활성 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">

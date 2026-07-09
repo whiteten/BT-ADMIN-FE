@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { SquareDashed } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { fuzzyScore } from '@/shared-util';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { MenuActionButtons } from '../components/MenuActionButtons';
@@ -9,6 +10,21 @@ import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 type LocationLike = { pathname: string; search: string };
+
+/** 운영자 컨텍스트 메뉴(featureFlag: operator/operator-aware) 여부 — 운영자 모드 ON 시 앰버 강조 대상. */
+const isOperatorMenu = (item: MenuItem): boolean => item.featureFlag === 'operator' || item.featureFlag === 'operator-aware';
+
+/** 운영자 모드에서 "운영" 앰버 배지. */
+function OperatorBadge() {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+      title="운영자 모드 전용/영향 메뉴"
+    >
+      운영
+    </span>
+  );
+}
 
 /**
  * 메뉴 path가 현재 URL과 매치되는지 판단한다.
@@ -72,6 +88,8 @@ interface MenuLinkProps {
 /** 리프 메뉴 링크 — 패널 안에서 사용. 활성 상태 강조 + 즐겨찾기 버튼 노출 */
 export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false }: MenuLinkProps) {
   const location = useLocation();
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const opAccent = operatorMode && isOperatorMenu(item);
   const isActive = item.path ? isMenuActive(item.path, location, appId) : false;
   const showDescRow = showDesc && !!item.desc;
 
@@ -83,6 +101,8 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
         // active 상태: 1뎁스(PanelMenuRow)와 동일한 푸른 배경 + 좌측 세로 인디케이터
         isActive &&
           'bg-[var(--color-bt-primary)]/[0.08] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
+        // 운영자 컨텍스트 메뉴: 활성 아닐 때 앰버 좌측 인디케이터
+        opAccent && !isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
@@ -96,6 +116,7 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
           </p>
         )}
       </div>
+      {opAccent && <OperatorBadge />}
       <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
         <MenuActionButtons menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
@@ -191,6 +212,8 @@ interface PanelMenuRowProps {
 export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
   const location = useLocation();
   const { activeMenuKey, mode, setActiveMenuKey, setMode } = useMenuPanelStore();
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const opAccent = operatorMode && isOperatorMenu(item);
   const Icon = item.icon;
   const isFolder = !!item.children?.length;
   const isLeaf = !!item.path && !isFolder;
@@ -215,6 +238,7 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
         'hover:bg-[#f1f3f5]',
         isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
         isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
+        opAccent && !isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
         isActiveBranch ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >
@@ -222,6 +246,7 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
         {Icon ? <Icon className="!size-5" /> : <SquareDashed className="!size-5" />}
       </span>
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
+      {opAccent && <OperatorBadge />}
       {isFolder && (
         <svg
           xmlns="http://www.w3.org/2000/svg"

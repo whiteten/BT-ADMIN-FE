@@ -13,7 +13,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { mentApi } from '../../features/ment-mgmt/api/mentApi';
@@ -40,9 +40,18 @@ export default function MentMgmtList() {
 
   const modal = useModal();
 
+  // ─── 운영자 모드 / 로그인 테넌트 스코프 ────────────────────────────────────────────
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const authTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체, 0=공통
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
+  // 실제 스코프: 운영자=필터값, 일반=로그인 테넌트(토큰). null=전체, 0=공통
+  const selectedTenantId = operatorMode ? tenantFilter : authTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<MentResponse[]>([]);
   const [drawer, setDrawer] = useState<MentDrawerState>({ open: false });
@@ -100,7 +109,7 @@ export default function MentMgmtList() {
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleNodeChange = useCallback((nodeId: number) => {
     setSelectedNodeId(nodeId);
-    setSelectedTenantId(null);
+    setTenantFilter(null);
     setSearchText('');
     setSelectedRows([]);
   }, []);
@@ -225,13 +234,15 @@ export default function MentMgmtList() {
       {/* ===== 박스A: 헤더 (노드/테넌트 스코프 + 요약) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-3">
-          {/* 테넌트 필터 (공통 제외, 클라이언트 필터) */}
-          <ScopeSelect
-            kind="tenant"
-            options={tenantOptions.map((c) => ({ id: c.id, name: c.name, count: c.count }))}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={(id) => setSelectedTenantId(id == null ? null : Number(id))}
-          />
+          {/* 테넌트 필터 (공통 제외, 클라이언트 필터) — 운영자 모드에서만 노출 */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantOptions.map((c) => ({ id: c.id, name: c.name, count: c.count }))}
+              value={tenantFilter == null ? null : String(tenantFilter)}
+              onChange={(id) => setTenantFilter(id == null ? null : Number(id))}
+            />
+          )}
           {/* 노드 선택 (멘트는 노드 단위 — 필수) */}
           <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
             <Network className="size-3.5 shrink-0 text-blue-600" />

@@ -2,7 +2,8 @@
  * DN 관리 목록 페이지 (IPR20S2020)
  *
  * 멀티테넌트 개편(상담사 관리 / 내선 프로파일 정합): byNode/byTenant 뷰전환 + 탭바 + 카드 슬라이더 제거
- *   → 상단에 노드 Select + 테넌트 ScopeSelect 두 필터(각 "전체" 포함) + 요약.
+ *   → 상단에 테넌트 ScopeSelect + 노드 Select 두 필터(각 "전체" 포함) + 요약.
+ *   기본 순서 테넌트→노드, 가운데 ↔ 버튼으로 순서 스위칭 가능.
  *   노드는 서버 param(nodeId) — 노드 변경 시 서버 재조회, "전체 노드"는 nodeId 미전달.
  *   테넌트/검색은 클라이언트 필터.
  *
@@ -22,8 +23,8 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'rea
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input, Modal, Select, Table } from 'antd';
-import { Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { ArrowLeftRight, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnApi } from '../../features/dn/api/dnApi';
 import DnBatchDialog from '../../features/dn/components/DnBatchDialog';
@@ -52,9 +53,19 @@ export default function DnList() {
   const queryClient = useQueryClient();
   const modal = useModal();
 
+  // 운영자 모드에서만 테넌트 필터 노출(일반 콘솔은 토큰=본인 테넌트 스코프).
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체 테넌트
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
+  // 일반 모드는 활성 테넌트(ctx)로 스코프, 운영자 모드는 필터 선택값(null=전체).
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
+  const [tenantFirst, setTenantFirst] = useState(true); // 스코프 필터 순서 — 기본 테넌트→노드, ↔ 버튼으로 스위칭
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<DnResponse[]>([]);
   const [batchOpen, setBatchOpen] = useState(false);
@@ -299,29 +310,49 @@ export default function DnList() {
       {/* ===== 박스1: 헤더 (노드/테넌트 스코프 + 요약 + 검색/액션) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-3">
-          {/* 노드 필터 */}
-          <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-            <Network className="size-3.5 shrink-0 text-blue-600" />
-            <Select
-              size="small"
-              variant="borderless"
-              value={selectedNodeId ?? '__all__'}
-              onChange={(v) => setSelectedNodeId(v === '__all__' ? null : Number(v))}
-              options={[{ value: '__all__', label: '전체 노드' }, ...assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-              style={{ width: 150 }}
-              popupMatchSelectWidth={false}
-            />
-          </div>
-          {/* 테넌트 필터 */}
-          <ScopeSelect
-            kind="tenant"
-            options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={(id) => {
-              setSelectedTenantId(id == null ? null : Number(id));
-              setSelectedRows([]);
-            }}
-          />
+          {/* 스코프 필터 — 기본 테넌트→노드, ↔ 버튼으로 순서 스위칭 */}
+          {(() => {
+            const nodeFilterEl = (
+              <div key="node" className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+                <Network className="size-3.5 shrink-0 text-blue-600" />
+                <Select
+                  size="small"
+                  variant="borderless"
+                  value={selectedNodeId ?? '__all__'}
+                  onChange={(v) => setSelectedNodeId(v === '__all__' ? null : Number(v))}
+                  options={[{ value: '__all__', label: '전체 노드' }, ...assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                  style={{ width: 150 }}
+                  popupMatchSelectWidth={false}
+                />
+              </div>
+            );
+            const tenantFilterEl = (
+              <ScopeSelect
+                key="tenant"
+                kind="tenant"
+                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+                value={tenantFilter == null ? null : String(tenantFilter)}
+                onChange={(id) => {
+                  setTenantFilter(id == null ? null : Number(id));
+                  setSelectedRows([]);
+                }}
+              />
+            );
+            const swapBtnEl = (
+              <button
+                key="swap"
+                type="button"
+                onClick={() => setTenantFirst((v) => !v)}
+                title="테넌트/노드 순서 전환"
+                className="inline-flex items-center justify-center size-7 rounded-md border border-gray-200 text-gray-400 hover:text-[#405189] hover:border-[#c5cbe0] transition"
+              >
+                <ArrowLeftRight className="size-3.5" />
+              </button>
+            );
+            // 일반 모드: 노드 Select만. 운영자 모드: 테넌트+노드(스위칭 가능).
+            if (!operatorMode) return nodeFilterEl;
+            return tenantFirst ? [tenantFilterEl, swapBtnEl, nodeFilterEl] : [nodeFilterEl, swapBtnEl, tenantFilterEl];
+          })()}
           {/* 요약 — 총/활성/비활성 */}
           <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
             <span className="text-gray-500">

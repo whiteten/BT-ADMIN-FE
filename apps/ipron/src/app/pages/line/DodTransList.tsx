@@ -21,7 +21,7 @@ import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChanged
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../../features/dod-trans/components/DodTransMasterDrawer';
@@ -55,6 +55,12 @@ export default function DodTransList() {
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
 
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // URL query params for initial selection
   const initNodeId = searchParams.get('nodeId') ? Number(searchParams.get('nodeId')) : null;
   const initTenantId = searchParams.get('tenantId') ? Number(searchParams.get('tenantId')) : null;
@@ -62,7 +68,8 @@ export default function DodTransList() {
 
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId); // null=전체 노드
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(initTenantId); // null=전체 테넌트
+  const [tenantFilter, setTenantFilter] = useState<number | null>(initTenantId); // 운영자 전용 필터 (null=전체 테넌트)
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId; // 일반=ctx(본인 테넌트), 운영자=필터
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
   const [searchText, setSearchText] = useState('');
   const [numPatternSearch, setNumPatternSearch] = useState('');
@@ -357,16 +364,18 @@ export default function DodTransList() {
                 popupMatchSelectWidth={false}
               />
             </div>
-            {/* 테넌트 필터 */}
-            <ScopeSelect
-              kind="tenant"
-              options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
-              value={selectedTenantId == null ? null : String(selectedTenantId)}
-              onChange={(id) => {
-                setSelectedTenantId(id == null ? null : Number(id));
-                setSelectedMasterId(null);
-              }}
-            />
+            {/* 테넌트 필터 — 운영자 모드에서만 노출 (일반 콘솔은 토큰 스코프) */}
+            {operatorMode && (
+              <ScopeSelect
+                kind="tenant"
+                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+                value={tenantFilter == null ? null : String(tenantFilter)}
+                onChange={(id) => {
+                  setTenantFilter(id == null ? null : Number(id));
+                  setSelectedMasterId(null);
+                }}
+              />
+            )}
             {/* 요약 — 총 변환/패턴 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">

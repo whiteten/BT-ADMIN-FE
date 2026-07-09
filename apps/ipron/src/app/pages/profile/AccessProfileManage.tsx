@@ -21,7 +21,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { Copy, Edit3, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AccessCodeDrawer, { type AccessCodeDrawerRef } from '../../features/access-profile/components/AccessCodeDrawer';
 import AccessProfileCopyDialog, { type AccessProfileCopyDialogRef } from '../../features/access-profile/components/AccessProfileCopyDialog';
@@ -62,9 +62,17 @@ export default function AccessProfileManage() {
   const queryClient = useQueryClient();
   const modal = useModal();
 
+  // 운영자 모드에서만 테넌트 필터 노출. 일반 콘솔은 토큰=본인 테넌트로 스코프됨.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체 테넌트
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 전용 테넌트 필터 (null=전체)
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId; // 일반=ctx, 운영자=필터
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   // 하단 접근코드 그리드 서버사이드 검색 (SWAT IPR20S2250 sAccessCode / sAccessCodeName)
@@ -356,16 +364,18 @@ export default function AccessProfileManage() {
                 popupMatchSelectWidth={false}
               />
             </div>
-            {/* 테넌트 필터 */}
-            <ScopeSelect
-              kind="tenant"
-              options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}` }))}
-              value={selectedTenantId == null ? null : String(selectedTenantId)}
-              onChange={(id) => {
-                setSelectedTenantId(id == null ? null : Number(id));
-                setSelectedProfileId(null);
-              }}
-            />
+            {/* 테넌트 필터 — 운영자 모드에서만 노출 */}
+            {operatorMode && (
+              <ScopeSelect
+                kind="tenant"
+                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}` }))}
+                value={tenantFilter == null ? null : String(tenantFilter)}
+                onChange={(id) => {
+                  setTenantFilter(id == null ? null : Number(id));
+                  setSelectedProfileId(null);
+                }}
+              />
+            )}
             {/* 요약 — 총/코드등록 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">

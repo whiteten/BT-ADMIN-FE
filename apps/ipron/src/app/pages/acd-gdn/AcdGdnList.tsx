@@ -20,7 +20,7 @@ import type { ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AcdGdnFormDrawer from '../../features/acd-gdn/components/AcdGdnFormDrawer';
 import AcdGdnMemberGrid from '../../features/acd-gdn/components/AcdGdnMemberGrid';
@@ -47,9 +47,18 @@ export default function AcdGdnList() {
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
 
+  // 운영자 모드에서만 테넌트 ScopeSelect 노출. 일반 콘솔은 토큰 테넌트로 스코프.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체 테넌트
+  // 운영자 전용 테넌트 필터. 실제 사용하는 selectedTenantId 는 아래 파생값(일반=ctx, 운영자=필터).
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // null=전체 테넌트
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
 
   // 좌 그리드 검색/필터
   const [gdnSearch, setGdnSearch] = useState('');
@@ -410,13 +419,15 @@ export default function AcdGdnList() {
               popupMatchSelectWidth={false}
             />
           </div>
-          {/* 테넌트 필터 */}
-          <ScopeSelect
-            kind="tenant"
-            options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={(id) => setSelectedTenantId(id == null ? null : Number(id))}
-          />
+          {/* 테넌트 필터 — 운영자 모드에서만 노출 */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+              value={tenantFilter == null ? null : String(tenantFilter)}
+              onChange={(id) => setTenantFilter(id == null ? null : Number(id))}
+            />
+          )}
           {/* 요약 — 총/호분배/블록 */}
           <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
             <span className="text-gray-500">

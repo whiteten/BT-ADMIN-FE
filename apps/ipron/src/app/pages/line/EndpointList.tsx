@@ -1,12 +1,12 @@
 /**
  * 국선관리 목록 페이지
  *
- * 상단: 노드 탭 바 + 카드 슬라이더
+ * 상단: 노드 Select + 카드 슬라이더(항상 펼침)
  * 하단: 멤버/인증번호 탭 그리드
  *
  * Layout:
  * ┌──────────────────────────────────────────────────────┐
- * │ [전체(n)] [C1N1 ⚠(3)] [C1N2(2)] [C1N3(5)]  [검색] [+추가] │
+ * │ [🌐 노드 ▾]  총 국선 n           [검색] [G/W] [+추가]    │
  * │ [Card1] [Card2] [Card3] ...                           │
  * ├──────────────────────────────────────────────────────┤
  * │ [멤버(3)] [인증번호(2)]                    [멤버 추가]   │
@@ -19,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
-import { AlertTriangle, Ban, ChevronDown, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -83,13 +83,11 @@ export default function EndpointList() {
   const [selectedEndpointId, setSelectedEndpointId] = useState<number | null>(initEndptId);
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
-  const [sliderOpen, setSliderOpen] = useState(false);
   const [filterEndptType, setFilterEndptType] = useState<number | null>(null);
   const [filterLocationNodeId, setFilterLocationNodeId] = useState<number | null>(null);
   const [selectedMembers, setSelectedMembers] = useState<EndpointMember[]>([]);
   const [selectedRegnums, setSelectedRegnums] = useState<EndpointRegnum[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const [tenantOptions, setTenantOptions] = useState<Array<{ label: string; value: number }>>([]);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
@@ -198,15 +196,6 @@ export default function EndpointList() {
     [searchFilteredEndpoints, selectedNodeId, isFiltering],
   );
 
-  // 노드별 국선 개수 (검색 결과 기준)
-  const endpointCountByNode = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const ep of searchFilteredEndpoints) {
-      map.set(ep.nodeId, (map.get(ep.nodeId) ?? 0) + 1);
-    }
-    return map;
-  }, [searchFilteredEndpoints]);
-
   // Auto-select: 진입 시 첫 번째 endpoint 카드 자동 선택
   useEffect(() => {
     if (!selectedEndpointId && filteredEndpoints.length > 0) {
@@ -234,8 +223,8 @@ export default function EndpointList() {
   }, [selectedEndpoint?.nodeId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleNodeSelect = (nodeId: number) => {
-    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+  const handleNodeChange = (nodeId: number | null | undefined) => {
+    setSelectedNodeId(nodeId ?? null);
     setSelectedEndpointId(null);
     setSearchText('');
     setFilterEndptType(null);
@@ -595,84 +584,32 @@ export default function EndpointList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}
+        {/* ===== 상단: 노드 선택 + 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            {/* 좌측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            {/* 탭 스크롤 컨테이너 */}
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {/* 전체 탭 */}
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
-                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
-                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedNodeId(null);
-                  setSearchText('');
-                  setSelectedEndpointId(null);
-                  setFilterEndptType(null);
-                  setFilterLocationNodeId(null);
-                }}
-              >
-                <Layers className="size-3.5" />
-                <span>전체</span>
-                <span className="text-[11px] text-gray-400">({searchFilteredEndpoints.length})</span>
-              </button>
-
-              {/* 노드 탭들 */}
-              {nodes.map((node) => {
-                const nodeEps = searchFilteredEndpoints.filter((ep) => ep.nodeId === node.nodeId);
-                const hasFault = nodeEps.some((ep) => ep.epStatus === 0);
-                const hasBlocked = nodeEps.some((ep) => ep.blockYn === 1);
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeEps.length})</span>
-                    {hasFault && <AlertTriangle className="size-3 text-red-500" />}
-                    {hasBlocked && <Ban className="size-3 text-orange-500" />}
-                  </button>
-                );
-              })}
+          {/* Header: 노드 Select + 검색 + 추가 버튼 */}
+          <div className="flex items-center bg-white px-4 gap-3 flex-shrink-0 h-[56px]">
+            {/* 노드 선택 (국선은 노드 단위 스코프) */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                allowClear
+                value={selectedNodeId ?? undefined}
+                onChange={handleNodeChange}
+                placeholder="노드 선택"
+                options={nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
             </div>
 
-            {/* 우측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
+            {/* 요약 — 총 국선 (검색 결과 기준) */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 국선 <b className="text-gray-800 font-semibold">{searchFilteredEndpoints.length.toLocaleString()}</b>
+              </span>
+            </div>
 
             {/* 우측: 검색 + G/W 우회설정 + 추가 버튼 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
@@ -705,119 +642,108 @@ export default function EndpointList() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 ===== */}
+        {/* ===== 카드 슬라이더 박스 (항상 펼침) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 접기/펼치기 토글 헤더 */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setSliderOpen((v) => !v)}
-          >
-            <span>국선 선택</span>
-            <ChevronDown className={`size-4 transition-transform ${sliderOpen ? 'rotate-180' : ''}`} />
-          </button>
           {/* Card slider body — 높이 고정 */}
-          {sliderOpen && (
-            <div className="flex items-center px-4 py-3 h-[185px]">
-              {filteredEndpoints.length === 0 ? (
-                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                  <Empty description={false} imageStyle={{ height: 40 }} />
-                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
-                </div>
-              ) : (
-                <div className="relative flex items-center gap-2 w-full">
-                  <Button
-                    type="text"
-                    icon={<ChevronLeft className="size-5" />}
-                    onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                  />
-                  <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {filteredEndpoints.map((ep) => {
-                      const isCardSelected = selectedEndpointId === ep.endptId;
-                      const tags = getEndpointTagList(ep);
-                      const status = getEndpointStatusInfo(ep);
-                      return (
-                        <div
-                          key={ep.endptId}
-                          id={`ep-card-${ep.endptId}`}
-                          className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[220px] h-[155px] flex-shrink-0 flex flex-col ${
-                            isCardSelected
-                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                          }`}
-                          onClick={(e) => {
-                            handleCardSelect(ep);
-                            (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                          }}
-                          onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
-                        >
-                          {/* Card header: 상태 배지(비정상만) + 국선명 + 더보기 */}
-                          <div className="flex items-center justify-between gap-1 mb-1.5">
-                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                              {ep.epStatus !== 1 && (
-                                <span
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                  style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
-                                >
-                                  {status.label}
-                                </span>
-                              )}
-                              <span className="text-sm font-semibold text-gray-800 truncate">{ep.endptName}</span>
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                              <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
-                                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
-                                  <MoreVertical className="size-3.5 text-gray-400" />
-                                </button>
-                              </Dropdown>
-                            </div>
+          <div className="flex items-center px-4 py-3 h-[185px]">
+            {filteredEndpoints.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
+              </div>
+            ) : (
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {filteredEndpoints.map((ep) => {
+                    const isCardSelected = selectedEndpointId === ep.endptId;
+                    const tags = getEndpointTagList(ep);
+                    const status = getEndpointStatusInfo(ep);
+                    return (
+                      <div
+                        key={ep.endptId}
+                        id={`ep-card-${ep.endptId}`}
+                        className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[220px] h-[155px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
+                        onClick={(e) => {
+                          handleCardSelect(ep);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        }}
+                        onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
+                      >
+                        {/* Card header: 상태 배지(비정상만) + 국선명 + 더보기 */}
+                        <div className="flex items-center justify-between gap-1 mb-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            {ep.epStatus !== 1 && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
+                              >
+                                {status.label}
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-800 truncate">{ep.endptName}</span>
                           </div>
-
-                          {/* Card info */}
-                          <div className="text-xs text-gray-500 space-y-0.5">
-                            <div className="flex items-center gap-1">
-                              <Network className="size-3 text-gray-400" />
-                              <span className="truncate">{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
-                            </div>
-                            <div className="truncate">프로파일: {ep.sipProfileName ?? '-'}</div>
-                            <div>
-                              채널: {ep.endptMaxchnl ?? 0} (OB {ep.endptDodchnl ?? 0})
-                            </div>
-                            <div className="flex items-center gap-2 truncate">
-                              <span className="truncate">할당: {ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
-                              <span className="truncate">등록: {REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
-                            </div>
+                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                            <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-3.5 text-gray-400" />
+                              </button>
+                            </Dropdown>
                           </div>
-
-                          {/* 하단 상태 태그 (블락/모니터링 등) */}
-                          {tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-auto pt-1.5">
-                              {tags.slice(0, 2).map((tag) => (
-                                <span
-                                  key={tag.label}
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
-                                  style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
-                                >
-                                  {tag.label}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    type="text"
-                    icon={<ChevronRight className="size-5" />}
-                    onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                  />
+
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Network className="size-3 text-gray-400" />
+                            <span className="truncate">{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
+                          </div>
+                          <div className="truncate">프로파일: {ep.sipProfileName ?? '-'}</div>
+                          <div>
+                            채널: {ep.endptMaxchnl ?? 0} (OB {ep.endptDodchnl ?? 0})
+                          </div>
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="truncate">할당: {ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
+                            <span className="truncate">등록: {REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
+                          </div>
+                        </div>
+
+                        {/* 하단 상태 태그 (블락/모니터링 등) */}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-auto pt-1.5">
+                            {tags.slice(0, 2).map((tag) => (
+                              <span
+                                key={tag.label}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                                style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
+                              >
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          )}
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ===== 하단: 멤버/인증번호 탭 그리드 ===== */}

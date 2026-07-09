@@ -16,7 +16,7 @@ import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input, Select } from 'antd';
 import { Network, Plus, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallScreenDrawer, { type CallScreenDrawerRef } from '../../features/call-screen/components/CallScreenDrawer';
 import { callScreenQueryKeys, useDeleteCallScreenBatch, useGetCallScreenList, useGetNodeTenants } from '../../features/call-screen/hooks/useCallScreenQueries';
@@ -40,9 +40,18 @@ export default function CallScreenList() {
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
 
+  // ─── 운영자/테넌트 스코프 ───────────────────────────────────────────────────
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체 테넌트, 클라이언트 필터
+  // 운영자 전용 테넌트 필터(null=전체 테넌트, 클라이언트 필터). 일반 모드는 ctxTenantId 로 파생.
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null);
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   /** 번호패턴 서버사이드 LIKE 검색어 — SWAT IPR20S1060L numPattern 대응 */
   const [numPatternSearch, setNumPatternSearch] = useState('');
   const [selectedRows, setSelectedRows] = useState<CallScreen[]>([]);
@@ -179,7 +188,7 @@ export default function CallScreenList() {
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeChange = useCallback((nodeId: number) => {
     setSelectedNodeId(nodeId);
-    setSelectedTenantId(null);
+    setTenantFilter(null);
     setNumPatternSearch('');
     setSelectedRows([]);
   }, []);
@@ -267,16 +276,18 @@ export default function CallScreenList() {
               popupMatchSelectWidth={false}
             />
           </div>
-          {/* 테넌트 필터 (전체 포함, 클라이언트 필터) */}
-          <ScopeSelect
-            kind="tenant"
-            options={tenantOptions}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={(id) => {
-              setSelectedTenantId(id == null ? null : Number(id));
-              setSelectedRows([]);
-            }}
-          />
+          {/* 테넌트 필터 (전체 포함, 클라이언트 필터) — 운영자 모드에서만 노출 */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantOptions}
+              value={tenantFilter == null ? null : String(tenantFilter)}
+              onChange={(id) => {
+                setTenantFilter(id == null ? null : Number(id));
+                setSelectedRows([]);
+              }}
+            />
+          )}
           {/* 요약 — 총 차단번호 / 테넌트 수 */}
           <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
             <span className="text-gray-500">

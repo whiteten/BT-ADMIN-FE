@@ -15,7 +15,7 @@ import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-gri
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Cable, LayoutGrid, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodeTenants, useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
@@ -54,13 +54,20 @@ export default function SipTrunkList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
   const { gridOptions: baseGridOptions } = useAggridOptions();
   const trunkGridRef = useRef<AgGridReactType<SipTrunkMemberResponse>>(null);
   const hasInitNodeRef = useRef(false);
 
   // ─── State ────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null); // null=전체(클라이언트 필터)
+  // 운영자 전용 테넌트 필터. 일반 모드는 토큰 테넌트(ctx)로 스코프되어 UI 미노출.
+  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // null=전체(클라이언트 필터)
+  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   const [topSearch, setTopSearch] = useState('');
   const [gdnSearch, setGdnSearch] = useState('');
   const [selectedGdn, setSelectedGdn] = useState<SipGdnResponse | null>(null);
@@ -158,7 +165,7 @@ export default function SipTrunkList() {
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeChange = useCallback((nodeId: number) => {
     setSelectedNodeId(nodeId);
-    setSelectedTenantId(null);
+    setTenantFilter(null);
     setTopSearch('');
     setGdnSearch('');
     setSelectedGdn(null);
@@ -167,7 +174,7 @@ export default function SipTrunkList() {
   }, []);
 
   const handleTenantChange = useCallback((id: string | null) => {
-    setSelectedTenantId(id == null ? null : Number(id));
+    setTenantFilter(id == null ? null : Number(id));
     setSelectedGdn(null);
     setSelectedTrunks([]);
     setLockedTenantId(null);
@@ -550,13 +557,15 @@ export default function SipTrunkList() {
               popupMatchSelectWidth={false}
             />
           </div>
-          {/* 테넌트 필터 (공통 포함, 클라이언트 필터) */}
-          <ScopeSelect
-            kind="tenant"
-            options={tenantOptions.map((t) => ({ id: t.id, name: t.name, count: t.count }))}
-            value={selectedTenantId == null ? null : String(selectedTenantId)}
-            onChange={handleTenantChange}
-          />
+          {/* 테넌트 필터 (공통 포함, 클라이언트 필터) — 운영자 모드에서만 노출 */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantOptions.map((t) => ({ id: t.id, name: t.name, count: t.count }))}
+              value={tenantFilter == null ? null : String(tenantFilter)}
+              onChange={handleTenantChange}
+            />
+          )}
           {/* 요약 — 그룹DN / 트렁크 / 채널 */}
           <div className="ml-1 flex items-center gap-4 border-l border-gray-200 pl-3 text-[13px]">
             <span className="text-gray-500">
