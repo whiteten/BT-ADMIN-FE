@@ -594,11 +594,9 @@ export default function EndpointList() {
               <Select
                 size="small"
                 variant="borderless"
-                allowClear
-                value={selectedNodeId ?? undefined}
-                onChange={handleNodeChange}
-                placeholder="노드 선택"
-                options={nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
+                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
                 style={{ width: 150 }}
                 popupMatchSelectWidth={false}
               />

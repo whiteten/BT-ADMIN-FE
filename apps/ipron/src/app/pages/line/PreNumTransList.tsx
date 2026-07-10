@@ -16,8 +16,8 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Input, Select } from 'antd';
+import { Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PreNumTransDrawer, { type PreNumTransDrawerRef } from '../../features/pre-num-trans/components/PreNumTransDrawer';
@@ -48,7 +48,6 @@ export default function PreNumTransList() {
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const drawerRef = useRef<PreNumTransDrawerRef>(null);
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetNodes();
@@ -72,15 +71,6 @@ export default function PreNumTransList() {
     () => (isSearching || !selectedNodeId ? allTransList : allTransList.filter((t) => t.nodeId === selectedNodeId)),
     [allTransList, selectedNodeId, isSearching],
   );
-
-  // 노드별 사전변환 개수 (현재 목록 기준)
-  const transCountByNode = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const t of allTransList) {
-      map.set(t.nodeId, (map.get(t.nodeId) ?? 0) + 1);
-    }
-    return map;
-  }, [allTransList]);
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -107,8 +97,8 @@ export default function PreNumTransList() {
   }, [queryClient]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleNodeSelect = (nodeId: number) => {
-    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+  const handleNodeChange = (nodeId: number | null) => {
+    setSelectedNodeId(nodeId);
   };
 
   const handleCreate = useCallback(() => {
@@ -215,13 +205,31 @@ export default function PreNumTransList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단 헤더 박스 (제목 + 검색 + 추가) ===== */}
+        {/* ===== 상단: 노드 Select + 검색 + 추가 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="px-5 h-[56px] bg-white flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-gray-800">발신 DNIS 사전변환 (총 {allTransList.length}건)</span>
+          <div className="flex items-center px-4 h-[56px] gap-3">
+            {/* 노드 선택 (발신 DNIS 사전변환은 노드 단위 스코프) */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
+                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
             </div>
-            <div className="flex items-center gap-2">
+
+            {/* 요약 — 총 사전변환 */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 사전변환 <b className="text-gray-800 font-semibold">{allTransList.length.toLocaleString()}</b>
+              </span>
+            </div>
+
+            <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -234,86 +242,6 @@ export default function PreNumTransList() {
                 추가
               </Button>
             </div>
-          </div>
-        </div>
-
-        {/* ===== 카드 슬라이더 박스 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center px-4 py-3 h-[170px]">
-            {nodes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">등록된 노드가 없습니다</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {/* 전체 카드 (노드 필터 해제) — 작은 사이즈 */}
-                  {(() => {
-                    const isAllSelected = selectedNodeId === null;
-                    return (
-                      <div
-                        key="__all__"
-                        className={`border rounded-lg p-3 cursor-pointer transition-all w-[110px] h-[130px] flex-shrink-0 flex flex-col items-center justify-center gap-1.5 ${
-                          isAllSelected
-                            ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-[#c5cbe0] hover:text-[#405189]'
-                        }`}
-                        onClick={() => setSelectedNodeId(null)}
-                      >
-                        <Layers className="size-5" />
-                        <span className="text-sm font-semibold">전체</span>
-                        <span className={`text-[11px] ${isAllSelected ? 'text-white/80' : 'text-gray-400'}`}>{allTransList.length}건</span>
-                      </div>
-                    );
-                  })()}
-
-                  {nodes.map((node) => {
-                    const isSelected = selectedNodeId === node.nodeId;
-                    const count = transCountByNode.get(node.nodeId) ?? 0;
-                    return (
-                      <div
-                        key={node.nodeId}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
-                          isSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={() => handleNodeSelect(node.nodeId)}
-                      >
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <Network className={`size-4 flex-shrink-0 ${isSelected ? 'text-[#405189]' : 'text-gray-400'}`} />
-                          <span className="text-sm font-semibold text-gray-800 truncate">{node.nodeName}</span>
-                        </div>
-
-                        {/* 하단 태그: 등록 건수 */}
-                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                              count > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            {count > 0 ? `사전변환 ${count}건` : '미등록'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
           </div>
         </div>
 

@@ -8,8 +8,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input } from 'antd';
-import { Ban, ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Ban, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ENDPOINT_TYPE_LABELS } from '../../features/endpoint/types';
@@ -46,7 +46,6 @@ export default function RouteList() {
   const [searchText, setSearchText] = useState('');
   const [selectedRoutePoints, setSelectedRoutePoints] = useState<RoutePoint[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const routePointDialogRef = useRef<RoutePointDialogRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
@@ -119,7 +118,7 @@ export default function RouteList() {
   }, [filteredRoutes, selectedRouteId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleNodeSelect = (nodeId: number) => {
+  const handleNodeChange = (nodeId: number | null) => {
     setSelectedNodeId(nodeId);
     setSelectedRouteId(null);
     setSearchText('');
@@ -285,74 +284,28 @@ export default function RouteList() {
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== Top: Node Tab Bar + Card Slider ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            {/* 좌측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            {/* 탭 스크롤 컨테이너 */}
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {/* 전체 탭 */}
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
-                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
-                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedNodeId(null);
-                  setSearchText('');
-                  setSelectedRouteId(null);
-                }}
-              >
-                <Layers className="size-3.5" />
-                <span>전체</span>
-                <span className="text-[11px] text-gray-400">({searchFilteredRoutes.length})</span>
-              </button>
-
-              {/* 노드 탭들 */}
-              {nodes.map((node) => {
-                const nodeRoutes = searchFilteredRoutes.filter((r) => r.nodeId === node.nodeId);
-                const isActive = selectedNodeId === node.nodeId && !isSearching;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeRoutes.length})</span>
-                  </button>
-                );
-              })}
+          {/* Header: 노드 Select + 검색 + 추가 버튼 */}
+          <div className="flex items-center bg-white px-4 gap-3 flex-shrink-0 h-[56px]">
+            {/* 노드 선택 (발신라우트는 노드 단위 스코프) */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
+                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
             </div>
 
-            {/* 우측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
+            {/* 요약 — 총 라우트 (검색 결과 기준) */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 라우트 <b className="text-gray-800 font-semibold">{searchFilteredRoutes.length.toLocaleString()}</b>
+              </span>
+            </div>
 
             {/* 우측: 검색 + 추가 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">

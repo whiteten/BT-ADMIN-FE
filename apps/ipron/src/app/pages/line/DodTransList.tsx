@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
@@ -70,6 +70,7 @@ export default function DodTransList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId); // null=전체 노드
   const [tenantFilter, setTenantFilter] = useState<number | null>(initTenantId); // 운영자 전용 필터 (null=전체 테넌트)
   const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId; // 일반=ctx(본인 테넌트), 운영자=필터
+  const [tenantFirst, setTenantFirst] = useState(true); // 스코프 필터 순서 — 기본 테넌트→노드, ↔ 버튼으로 스위칭
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
   const [searchText, setSearchText] = useState('');
   const [numPatternSearch, setNumPatternSearch] = useState('');
@@ -348,34 +349,52 @@ export default function DodTransList() {
         {/* ===== 박스1: 헤더 (노드/테넌트 스코프 + 요약 + 검색/추가) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
-            {/* 노드 필터 */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => {
-                  setSelectedNodeId(v === '__all__' ? null : Number(v));
-                  setSelectedMasterId(null);
-                }}
-                options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
-            {/* 테넌트 필터 — 운영자 모드에서만 노출 (일반 콘솔은 토큰 스코프) */}
-            {operatorMode && (
-              <ScopeSelect
-                kind="tenant"
-                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
-                value={tenantFilter == null ? null : String(tenantFilter)}
-                onChange={(id) => {
-                  setTenantFilter(id == null ? null : Number(id));
-                  setSelectedMasterId(null);
-                }}
-              />
-            )}
+            {/* 스코프 필터 — 일반=노드만, 운영자=테넌트↔노드(기본 테넌트→노드, ↔ 버튼으로 스위칭) */}
+            {(() => {
+              const nodeFilterEl = (
+                <div key="node" className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+                  <Network className="size-3.5 shrink-0 text-blue-600" />
+                  <Select
+                    size="small"
+                    variant="borderless"
+                    value={selectedNodeId ?? '__all__'}
+                    onChange={(v) => {
+                      setSelectedNodeId(v === '__all__' ? null : Number(v));
+                      setSelectedMasterId(null);
+                    }}
+                    options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                    style={{ width: 150 }}
+                    popupMatchSelectWidth={false}
+                  />
+                </div>
+              );
+              const tenantFilterEl = (
+                <ScopeSelect
+                  key="tenant"
+                  kind="tenant"
+                  options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+                  value={tenantFilter == null ? null : String(tenantFilter)}
+                  onChange={(id) => {
+                    setTenantFilter(id == null ? null : Number(id));
+                    setSelectedMasterId(null);
+                  }}
+                />
+              );
+              const swapBtnEl = (
+                <button
+                  key="swap"
+                  type="button"
+                  onClick={() => setTenantFirst((v) => !v)}
+                  title="테넌트/노드 순서 전환"
+                  className="inline-flex items-center justify-center size-7 rounded-md border border-gray-200 text-gray-400 hover:text-[#405189] hover:border-[#c5cbe0] transition"
+                >
+                  <ArrowLeftRight className="size-3.5" />
+                </button>
+              );
+              // 일반 모드: 노드 Select만. 운영자 모드: 테넌트+노드(스위칭 가능).
+              if (!operatorMode) return nodeFilterEl;
+              return tenantFirst ? [tenantFilterEl, swapBtnEl, nodeFilterEl] : [nodeFilterEl, swapBtnEl, tenantFilterEl];
+            })()}
             {/* 요약 — 총 변환/패턴 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">
