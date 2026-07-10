@@ -23,4 +23,6 @@ jobs:
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          LANG: C.UTF-8       # 한글 파일명(doc/manuals/*.png) 스캐너 순회 시 unmappable 방지
+          LC_ALL: C.UTF-8
         run: npx --yes sonarqube-scanner@4.2.0 -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.login="$SONAR_TOKEN"
