@@ -16,6 +16,8 @@ const DnisList = React.lazy(() => import('./pages/scenario/DnisList'));
 const ExtAdaptorList = React.lazy(() => import('./pages/addon/ExtAdaptorList'));
 // worktime (IVR 업무시간관리 — SWAT IPR30S4022 의 IR 분리분. 교환기 분리분은 apps/ipron)
 const IrWorktimeList = React.lazy(() => import('./pages/worktime/IrWorktimeList'));
+// ha (HA 다중화 구성 — SWAT IPR20S8080. 모니터링/수동전환·할당 관리 팝업은 스코프 제외)
+const HaGroupList = React.lazy(() => import('./pages/ha/HaGroupList'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('ivr');
@@ -60,6 +62,14 @@ export const routes = [
       {
         path: 'worktime',
         element: pv('worktime', IrWorktimeList),
+      },
+      {
+        path: 'ha',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="group" replace /> },
+          { path: 'group', element: pv('ha/group', HaGroupList) },
+        ],
       },
     ],
   },

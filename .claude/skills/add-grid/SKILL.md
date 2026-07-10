@@ -1,6 +1,6 @@
 ---
 name: add-grid
-description: AG-Grid Enterprise 테이블 추가 패턴. useAggridOptions 훅으로 공통 옵션 적용, ColDef 타입 파라미터로 row 타입 지정, 편집 가능 컬럼·커스텀 렌더러·액션 버튼 컬럼 구성, 커스텀 셀 에디터 작성법. 테이블 추가, 인라인 편집 UI 작성, 행별 액션 버튼 구성, 커스텀 셀 에디터 작성 시 사용.
+description: AG-Grid Enterprise 테이블 추가 패턴. useAggridOptions 훅으로 공통 옵션 적용, ColDef 타입 파라미터로 row 타입 지정, 편집 가능 컬럼·커스텀 렌더러·액션 버튼 컬럼(삭제 아이콘 Trash2 표준 포함)·상태값 뱃지(shadcn Badge + Record 색상 맵 표준) 구성, 커스텀 셀 에디터 작성법. 탭바+카드 슬라이더 3단 목록 화면의 하단 그리드(헤더 또는 탭 변형) 표준도 포함. 테이블 추가, 인라인 편집 UI 작성, 행별 액션 버튼(삭제 아이콘 포함) 구성, 그리드 안 상태 뱃지 작성, 커스텀 셀 에디터 작성, 3단 목록 화면 하단 그리드 작성 시 사용.
 ---
 
 # add-grid
@@ -83,6 +83,81 @@ const columnDefs: ColDef<IntentSentenceListItem>[] = [
 ];
 ```
 
+### 2-1. 액션 컬럼 삭제 아이콘 표준
+
+행 삭제 버튼은 lucide `Trash2`로 통일한다(`IconTrash` 커스텀 SVG는 레거시 — 신규/수정 코드에 쓰지 않는다. 아이콘 우선순위 일반 규칙은 AGENTS.md "아이콘 사용 패턴" 참조).
+
+```tsx
+{
+  headerName: '',
+  colId: 'actions',
+  width: 56, // 아이콘 1개면 50~60px, 여러 개면 그만큼 확보
+  sortable: false,
+  filter: false,
+  suppressHeaderMenuButton: true,
+  cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  cellRenderer: (p: ICellRendererParams<RowType>) =>
+    p.data ? (
+      <button
+        type="button"
+        title="삭제"
+        onClick={(e) => {
+          e.stopPropagation(); // 행 클릭에 selection/선택 로직이 걸려 있으면 필수
+          handleDelete(p.data!);
+        }}
+      >
+        <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
+      </button>
+    ) : null,
+}
+```
+
+- **아이콘**: `<Trash2 className="size-4 text-red-500 hover:cursor-pointer" />` — 크기는 `size-4`(그리드 기본), 촘촘한 그리드는 `size-3.5`도 허용. 색상은 `text-red-500` 고정.
+- **클릭 영역**: 아이콘을 감싼 `<button type="button">`에 `title="삭제"`를 달아 툴팁을 제공한다. 별도 배경·테두리·padding은 주지 않는다(아이콘 자체가 클릭 영역).
+- **`e.stopPropagation()`**: `onRowClicked`로 행 선택을 처리하는 그리드(예: 카드 슬라이더 선택과 연동되는 목록)에서는 반드시 호출해 행 선택과 삭제 클릭이 충돌하지 않게 한다. 행 클릭에 아무 동작이 없는 그리드(예: `onRowDoubleClicked`만 있는 경우)는 생략 가능.
+- 삭제 실행 자체는 `useModal().confirm.delete({ onOk: () => ... })`로 확인 후 처리(AGENTS.md "확인 모달" 참조) — 클릭 즉시 삭제하지 않는다.
+- 수정(연필) 등 다른 액션 아이콘과 나란히 두는 경우 `flex items-center gap-2.5`로 감싸고, 각각 `title`(수정/삭제)을 부여한다.
+
+### 2-2. 그리드 안 상태값 뱃지 표준
+
+행의 상태·분류값(Role 타입, 상태, 구분 코드 등)을 그리드 셀에 표현할 때는 antd `Tag`나 인라인 `style` 컬러 `<span>`이 아니라 **shadcn `Badge` + `Record` 색상 맵**을 쓴다. 레퍼런스: [HaGroupList.tsx](../../../apps/ivr/src/app/pages/ha/HaGroupList.tsx)의 멤버 그리드(`ROLE_TYPE_BADGE_CLASS`/`ROLE_STATUS_BADGE_CLASS`), [ScenarioAssignedStatusModal.tsx](../../../apps/ivr/src/app/features/scenario/components/ScenarioAssignedStatusModal.tsx).
+
+```tsx
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+// 파일 상단(컬럼 정의 밖) — 값별 색상은 고정 매핑, 라벨은 별도 소스(공통코드 API·LABELS record)에서 가져온다.
+const ROLE_TYPE_BADGE_CLASS: Record<number, string> = {
+  [ROLE_TYPE.BACKUP]: 'text-gray-500 bg-gray-100',
+  [ROLE_TYPE.SERVICE]: 'text-blue-600 bg-blue-50',
+};
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+
+// ColDef 안
+{
+  headerName: 'ROLE TYPE',
+  field: 'roleType',
+  width: 110,
+  cellRenderer: (p: ICellRendererParams<RowType>) =>
+    p.data ? <Badge className={cn(BADGE_CLASS, ROLE_TYPE_BADGE_CLASS[p.data.roleType] ?? DEFAULT_BADGE_CLASS)}>{labelMap.get(p.data.roleType) ?? '-'}</Badge> : null,
+}
+```
+
+- **컴포넌트**: shadcn `Badge`(`@/components/ui/badge`)로 통일한다. antd `Tag`는 기본 padding·border·font-size가 shadcn Badge와 달라 같은 화면 안에서도 톤이 어긋나 보이므로 그리드 신규/수정 코드에 쓰지 않는다(과거 antd `Tag`를 쓰던 코드는 발견 시 이 표준으로 교체).
+- **크기 고정값**: `BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6'`를 모든 뱃지 컬럼에 공통 적용한다. shadcn Badge 기본 높이를 덮어써야 하므로 `!h-6`처럼 `!important`가 필요하다.
+- **색상 매핑**: 값(코드)마다 `Record<code, string>` 형태로 `text-<color>-600 bg-<color>-50`(또는 `text-<color>-500 bg-<color>-100`) 조합을 고정한다. 매핑에 없는 값은 `DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100'`로 폴백한다(맵 조회에 `?? DEFAULT_BADGE_CLASS` 필수 — 없으면 신규 코드값 추가 시 아예 렌더가 깨진다).
+- **색상 팔레트 의미**(이 저장소에서 반복 확인된 관례 — 화면마다 임의로 다른 색을 고르지 말 것):
+  - `gray`/`slate` — 대기, 기본, 미배포, 비활성
+  - `blue` — 진행중, 활성, 전송/명령 완료
+  - `emerald` — 정상, 성공, 적용완료
+  - `red` — 실패, 에러
+  - `amber` — 대기(경고성), 최대치 임박
+  - `purple` — 예약 등 별도 구분(경쟁 상태와 무관한 3번째 분류가 필요할 때)
+- **라벨 소스와 색상 매핑을 분리**한다: 라벨은 공통코드 API 응답(`labelMap.get(code)`)이나 `<도메인>_LABELS` record에서, 색상은 이 파일에 고정된 `<도메인>_BADGE_CLASS` map에서 — 백엔드 공통코드 라벨이 바뀌어도 색상 로직에 영향이 없게 분리한다.
+- **null 처리**: 값이 없을 수 있는 컬럼은 `p.data?.field != null ? <Badge>...</Badge> : '-'`로 대시 처리한다(빈 뱃지를 렌더하지 않는다).
+- 카드 슬라이더(2단)에서 같은 상태값을 배지로 표현할 때는 Badge 대신 `inline-flex items-center px-1.5 py-0.5 rounded text-[10~11px] font-medium border` 계열의 색상 pill을 쓴다([add-card-slider](../add-card-slider/SKILL.md) 참조) — 그리드 셀과 카드는 서로 다른 밀도라 폰트 크기·padding이 다르다. 같은 상태값이면 색상 의미(위 팔레트)는 동일하게 유지한다.
+
 ## 3. 커스텀 셀 에디터
 
 AG-Grid가 에디터에 전달하는 `value`, `onValueChange`, `cellStartedEdit`을 받아 처리:
@@ -126,6 +201,56 @@ const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStart
 
 툴바가 함께 있으면 툴바도 별도 `bg-white bt-shadow` 컨테이너로 분리.
 
+## 5. 3단 목록 화면(탭바 + 카드 슬라이더 + 하단 그리드)의 하단 그리드
+
+노드/시스템 탭 → 카드 슬라이더 → 하단 그리드로 이어지는 3단 목록 화면(1단은 [add-tab-bar](../add-tab-bar/SKILL.md), 2단은 [add-card-slider](../add-card-slider/SKILL.md) 스킬 참조)에서, 카드 선택에 반응하는 **하단 그리드 박스**의 헤더·패딩 표준. 레퍼런스: [HaGroupList.tsx](../../../apps/ivr/src/app/pages/ha/HaGroupList.tsx), [IvrDnGroupList.tsx](../../../apps/ivr/src/app/pages/line/IvrDnGroupList.tsx).
+
+### 5-1. 기본형 — 헤더 하나
+
+```tsx
+<div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
+  <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+    <div className="flex items-center gap-2">
+      <Icon className="size-4 text-[#405189]" />
+      <h3 className="text-sm font-semibold text-gray-800">
+        제목 — <span className="text-[#405189]">{선택된값}</span>
+      </h3>
+      <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{count}개</span>
+    </div>
+    <div className="flex items-center gap-2">{/* 검색, 추가 버튼 등 */}</div>
+  </div>
+  <div className="border-t border-gray-200" />
+  <div className="flex-1 min-h-0 p-5">
+    <AgGridReact ... />
+  </div>
+</div>
+```
+
+- 헤더: 아이콘 + 기존 semibold 제목(도메인별 문구는 유지, 새로 짓지 않음) + 카운트 배지, 컨테이너 `px-5 py-3`.
+- **상위 단(1단 탭·2단 카드)에서 선택한 값이 있으면 제목에 반영**: `제목 — <span className="text-[#405189]">{선택값}</span>` 형태(em dash `—` + 브랜드 컬러 강조). 값이 없을 때(전체·미선택) 뒤 span은 빈 문자열로 비워 두거나 조건부로 아예 생략. 검색 중처럼 선택값 기준 제목이 의미 없는 상태는 "검색 결과" 등 별도 문구로 대체. 레퍼런스: `HaGroupList.tsx`의 `HA 그룹 멤버 — {haGroupName}`, `IvrDnGroupList.tsx`의 `DN 그룹 — {systemName}`.
+- **헤더 자체에 `border-b` 금지** — 헤더 바로 아래 별도 `<div className="border-t border-gray-200" />` 구분선을 둔다.
+- 그리드를 감싸는 래퍼에 **`p-5` 패딩 필수**(그리드가 박스 테두리에 바로 붙지 않도록). 기존 `flex-1 min-h-0`에 `p-5`만 추가.
+- 그리드 셀 안의 상태·분류값은 뱃지로 표현(이미 뱃지/컬러 pill을 쓰고 있으면 그대로 유지).
+
+### 5-2. 변형 — 하단이 헤더 대신 탭인 경우
+
+하나의 상위 항목 아래 성격이 다른 콘텐츠 여러 개를 전환해서 보여줘야 하는 화면(예: [IvrMedia.tsx](../../../apps/ivr/src/app/pages/line/IvrMedia.tsx) — Media Server/TTS Master/STT Master 탭)은 5-1의 "헤더 + `border-t`" 대신 **1단 탭바와 동일한 시각 언어**의 탭 줄을 쓴다:
+
+```tsx
+<div className="flex items-stretch border-b-2 border-gray-200 bg-white pr-5 h-[56px] flex-shrink-0">
+  {/* TabButton: 아이콘 + 라벨 + (카운트), 활성 시 border-b-2 border-b-[var(--color-bt-primary)] -mb-[2px] */}
+  <div className="ml-auto flex items-center gap-2 self-center">{/* 추가 버튼 등 */}</div>
+</div>
+<div className="flex-1 flex flex-col overflow-hidden">
+  {/* 탭 콘텐츠 — 그리드면 p-5 패딩 */}
+</div>
+```
+
+- 탭 스트립 자체의 `border-b-2 border-gray-200`가 구분선을 겸하므로 별도 `border-t` div를 추가하지 않는다.
+- **탭 버튼**: 아이콘 + 라벨 + 카운트는 슬레이트 pill 배지가 아니라 `(N)` 괄호 형태(1단 노드 탭과 동일 포맷) — `text-[11px] text-gray-400`. 활성 탭 `text-[var(--color-bt-primary)] border-b-2 border-b-[var(--color-bt-primary)] -mb-[2px]`, 비활성 `text-gray-400 border-b-transparent`.
+- 우측 액션 버튼이 있으면 탭 줄 컨테이너에 `pr-5`(`pr-3` 쓰지 말 것), 버튼 그룹은 `ml-auto flex items-center gap-2 self-center`.
+- 탭 콘텐츠가 그리드면 그리드 래퍼에 `p-5` 패딩(5-1과 동일). 그리드가 아닌 콘텐츠(정보 패널 등)는 그 콘텐츠 자체의 기존 여백 규칙을 따름 — 강제로 p-5를 얹지 않는다.
+
 ## 체크리스트
 
 - [ ] `useAggridOptions()`로 공통 옵션을 적용했는가?
@@ -133,5 +258,10 @@ const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStart
 - [ ] `ColDef<RowType>[]` 타입 파라미터를 지정했는가?
 - [ ] 액션 컬럼에 `colId: 'actions'` 및 sort/filter/headerMenu 비활성화 옵션이 있는가?
 - [ ] 편집 가능 컬럼에 커스텀 `cellEditor`를 사용했는가?
+- [ ] 삭제 아이콘이 `IconTrash`가 아니라 lucide `Trash2`(`size-4 text-red-500`)인가, 필요 시 `stopPropagation`을 걸었는가?
+- [ ] 상태값 뱃지가 antd `Tag`/인라인 컬러 `span`이 아니라 shadcn `Badge` + `Record` 색상 맵(`BADGE_CLASS` + `<도메인>_BADGE_CLASS` + `DEFAULT_BADGE_CLASS` 폴백)인가?
 - [ ] 테이블이 `bg-white bt-shadow` 컨테이너로 감싸져 있는가?
+- [ ] (3단 목록 화면 하단 그리드인 경우) 헤더에 `border-b` 대신 별도 `border-t` 구분선을 뒀는가, 그리드 래퍼에 `p-5`를 줬는가?
+- [ ] (3단 목록 화면 하단 그리드인 경우) 상위 단 선택값이 있으면 헤더 제목을 `제목 — {선택값}`(em dash + `text-[#405189]` 강조) 형태로 반영했는가?
+- [ ] (탭 변형인 경우) 탭 줄에 `pr-5`(우측 버튼 있을 때)와 `(N)` 괄호 카운트 포맷을 썼는가?
 - [ ] 파일 수정 후 `npx eslint --fix <file-path>`를 실행했는가?

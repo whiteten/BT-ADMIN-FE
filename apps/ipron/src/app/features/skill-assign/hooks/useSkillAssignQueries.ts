@@ -5,7 +5,7 @@
  *  - bulkAssign / unassign / update  → skillsetsByAgent + availableSkillsets + tenantStats
  *  - createGroup / updateGroup / deleteGroup → skillGroups + tenantStats
  */
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { skillAssignApi } from '../api/skillAssignApi';
@@ -85,6 +85,20 @@ export const useGetAgentsBySkillset = (skillsetId: number | null | undefined, { 
     // observer 소멸 후에도 캐시 유지 → 재hover 시 staleTime 내 재요청 0
     gcTime: 60_000,
     ...queryOptions,
+  });
+
+/**
+ * 여러 스킬셋의 배정 상담사 목록을 병렬 조회 (임팩트 카드 hover — 상담사×스킬셋 조합 계산용).
+ * 단건 훅 useGetAgentsBySkillset 과 동일 queryKey(agentsBySkillset) 를 써서 캐시를 공유한다.
+ */
+export const useGetAgentsBySkillsetMany = (skillsetIds: number[]) =>
+  useQueries({
+    queries: skillsetIds.map((skillsetId) => ({
+      queryKey: skillAssignQueryKeys.agentsBySkillset(skillsetId).queryKey,
+      queryFn: ({ signal }: { signal: AbortSignal }) => skillAssignApi.getAgentsBySkillset(skillsetId, signal),
+      staleTime: 30_000,
+      gcTime: 60_000,
+    })),
   });
 
 export const useGetSkillGroups = ({ params, queryOptions }: QueryHookWithParamsOptions<SkillGroupResponse[]> = {}) =>

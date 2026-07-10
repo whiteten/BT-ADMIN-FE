@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { createPageVariantSocket } from '@/components/custom/DynamicElement';
+import { skillAssignVariants } from './pages/skill-assign/SkillAssignList.variants';
+import DynamicElement, { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 // profile
@@ -62,9 +63,6 @@ const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
 
 // media-type (미디어타입 관리 — SWAT IPR10S6060, 상담사 관리 > 코드 관리 하위)
 const MediaTypeList = React.lazy(() => import('./pages/media-type/MediaTypeList'));
-
-// skill-assign (스킬배정)
-const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssignList'));
 
 // skillset-master (스킬셋 관리 — SWAT IPR20S5010)
 const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
@@ -245,7 +243,7 @@ export const routes = [
       },
       {
         path: 'skill-assign',
-        element: pv('skill-assign', SkillAssignList),
+        element: <DynamicElement variants={skillAssignVariants} />,
       },
       {
         path: 'agent-adn',

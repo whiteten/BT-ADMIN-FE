@@ -8,13 +8,18 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Star } from 'lucide-react';
+import { Star, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { ivrMediaQueryKeys, useDeleteStt, useGetSttMasters } from '../hooks/useIvrMediaQueries';
 import type { IrSttMaster } from '../types';
-import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+/** 그리드 안 상태값 배지 표준(add-grid 스킬 참조). */
+const DEFAULT_MARK_BADGE_CLASS = 'text-amber-700 bg-amber-50';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 interface Props {
   onEdit: (row: IrSttMaster) => void;
@@ -84,14 +89,7 @@ export default function SttMasterTab({ onEdit, onCountChange }: Props) {
           return (
             <span className="flex items-center gap-1.5">
               <span>{params.data.sttName}</span>
-              {isDefault && (
-                <span
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border"
-                  style={{ background: '#fffbe6', color: '#ad6800', borderColor: '#ffe58f' }}
-                >
-                  기본
-                </span>
-              )}
+              {isDefault && <Badge className={cn(BADGE_CLASS, DEFAULT_MARK_BADGE_CLASS)}>기본</Badge>}
             </span>
           );
         },
@@ -135,7 +133,7 @@ export default function SttMasterTab({ onEdit, onCountChange }: Props) {
               }}
               aria-label="삭제"
             >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
             </button>
           );
         },
@@ -145,7 +143,7 @@ export default function SttMasterTab({ onEdit, onCountChange }: Props) {
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden p-5">
       <AgGridReact<IrSttMaster>
         rowData={sttMasters}
         columnDefs={columnDefs}
