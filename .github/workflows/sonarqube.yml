@@ -1,0 +1,26 @@
+name: sonarqube
+
+# 정적분석: PR + 수동 실행. self-hosted 러너(arc-btadmin-fe)에서 실행.
+# Docker 없이 npx sonarqube-scanner 로 스캐너 실행(내부 SonarQube 로 리포트).
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  sonar:
+    runs-on: arc-btadmin-fe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: SonarQube scan
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: npx --yes sonarqube-scanner@4.2.0
