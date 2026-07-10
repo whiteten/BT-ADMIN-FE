@@ -23,4 +23,4 @@ jobs:
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: npx --yes sonarqube-scanner@4.2.0
+        run: npx --yes sonarqube-scanner@4.2.0 -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.login="$SONAR_TOKEN"
