@@ -19,7 +19,9 @@
 | Zustand 스토어 작성 | [.claude/skills/add-store/SKILL.md](.claude/skills/add-store/SKILL.md) |
 | 트리 UI (useTreeView + TreeView) 작성 | [.claude/skills/add-tree/SKILL.md](.claude/skills/add-tree/SKILL.md) |
 | 검색 기능(client-side fuzzy) 작성 | [.claude/skills/add-search/SKILL.md](.claude/skills/add-search/SKILL.md) |
-| AG-Grid 테이블 작성 | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
+| AG-Grid 테이블 작성 (3단 목록 화면 하단 그리드 표준 포함) | [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) |
+| 탭바 (3단 목록 화면 1단) 작성 | [.claude/skills/add-tab-bar/SKILL.md](.claude/skills/add-tab-bar/SKILL.md) |
+| 카드 슬라이더 (3단 목록 화면 2단) 작성 | [.claude/skills/add-card-slider/SKILL.md](.claude/skills/add-card-slider/SKILL.md) |
 | 정식 화면 변형(page variant) 작성 | [.claude/skills/add-variant/SKILL.md](.claude/skills/add-variant/SKILL.md) |
 | React 성능 점검·리팩터 (번들·async·리렌더 체크리스트) | [.claude/skills/react-perf/SKILL.md](.claude/skills/react-perf/SKILL.md) |
 | 사용자 매뉴얼 자동 생성 (스크린샷 + Markdown) | [.claude/skills/generate-manual/SKILL.md](.claude/skills/generate-manual/SKILL.md) |
@@ -521,6 +523,14 @@ if (isLoading) return <FallbackSpinner />;
 - **Drawer·Modal**: 흰색 래퍼 밖, 외곽 컨테이너 안쪽에 배치
 
 상세 절차(검색 폼 분리 기준, Collapsible 필터, 다중 그리드 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "페이지 레이아웃 가이드 → 화면 패턴: 검색·필터 + 그리드 목록" 섹션 참조.
+
+#### 화면 패턴: 탭바 + 카드 슬라이더 + 하단 그리드
+
+노드/시스템처럼 상위 분류가 있고, 그 안에서 카드 단위 항목을 고르면 하단 그리드가 반응하는 3단 목록 화면의 표준 레이아웃이다(레퍼런스: HaGroupList.tsx, IvrDnGroupList.tsx, IvrMedia.tsx). 각 단은 별도의 `bg-white bt-shadow` 박스(위 "검색·필터 + 그리드" 패턴과 달리 단일 흰색 래퍼로 묶지 않음 — 3단 각각이 독립된 박스).
+
+- **1단(탭바)** 상세 규칙: [.claude/skills/add-tab-bar/SKILL.md](.claude/skills/add-tab-bar/SKILL.md) 스킬 참조.
+- **2단(카드 슬라이더)** 상세 규칙: [.claude/skills/add-card-slider/SKILL.md](.claude/skills/add-card-slider/SKILL.md) 스킬 참조.
+- **3단(하단 그리드, 헤더형·탭형 변형 포함)** 상세 규칙: [.claude/skills/add-grid/SKILL.md](.claude/skills/add-grid/SKILL.md) 스킬의 "3단 목록 화면의 하단 그리드" 섹션 참조.
 
 ### 데이터 추가/수정 폼 패턴
 
