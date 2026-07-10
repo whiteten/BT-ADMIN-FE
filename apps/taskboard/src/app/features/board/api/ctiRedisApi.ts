@@ -79,6 +79,25 @@ export interface CtiGroupRow {
   agentCount: number;
 }
 
+/** application-redis-key-map.yml의 key-definitions 항목 하나 (BE RedisKeyMapper.KeyDefinition과 1:1 대응) */
+export interface RedisKeyDefinition {
+  /** 실제 Redis HASH KEY 패턴 ({var}는 가이드용 표기, 예: "IC:GROUP:REASON:{groupId}:{mediaType}") */
+  actual: string;
+  /** FE 탐색기 한국어 표시명 */
+  label: string;
+  /** 복합 field key의 파트 이름 목록(순서대로) */
+  fieldParts: string[];
+  /** 각 파트의 고정 길이(0 또는 마지막 파트 = 나머지 전체) */
+  fieldLengths: number[];
+}
+
+/** GET /api/taskboard/redis/key-definitions 응답 전체 */
+export interface RedisKeyDefinitionsResponse {
+  mediaType: Record<string, string>;
+  prefixMap: Record<string, string>;
+  keyDefinitions: Record<string, RedisKeyDefinition>;
+}
+
 export const ctiRedisApi = {
   /** 큐 리스트 (TB_IC_CTIQMASTER via Redis) */
   getCtiQueueList: async (): Promise<CtiQueueRow[]> => {
@@ -134,5 +153,15 @@ export const ctiRedisApi = {
     const response = await apiTaskboard.get<any>('/taskboard-redis-media-type', withAuth());
     const list = response?.data?.data?.value ?? response?.data?.data;
     return Array.isArray(list) ? list : [];
+  },
+
+  /**
+   * Redis BASE KEY → 실제 HASH KEY 매핑 메타데이터(application-redis-key-map.yml 로드 결과).
+   * BE `RedisKeyMapper`가 기동 시 로드 — YAML을 고쳐도 재시작 전엔 안 바뀌는 정적 데이터.
+   */
+  getRedisKeyDefinitions: async (): Promise<RedisKeyDefinitionsResponse> => {
+    const response = await apiTaskboard.get<any>('/taskboard-redis-key-definitions', withAuth());
+    const data = response?.data?.data?.value ?? response?.data?.data;
+    return data && typeof data === 'object' && !Array.isArray(data) ? (data as RedisKeyDefinitionsResponse) : { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
   },
 };

@@ -3,6 +3,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieCh
 import { AnimatedTableCell } from './AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
 import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from './RedisTableWidget';
+import { WebEmbedWidget, isWebEmbedWidget } from './WebEmbedWidget';
 import { type CtiAgentRow, type CtiGroupRow, type CtiQueueRow } from '../api/ctiRedisApi';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
@@ -10,6 +11,7 @@ import { useGetCtiAgentList, useGetCtiGroupList, useGetCtiQueueList, useGetDbQue
 import { useValueChangeKey } from '../hooks/useValueChangeAnimation';
 import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../utils/clockFormat';
+import { buildLiveChartData, buildLiveTableRows, collectTableColumns, mergeByHashKeys } from '../utils/legacyMasterWidgets';
 import {
   buildDataSourceKeySelectionIds,
   buildGroupReasonHashKeys,
@@ -26,6 +28,9 @@ import {
   mergeWsSubscriptions,
   parseGroupReasonHashKey,
   resolveGroupIdsFromSelection,
+  resolveMediaTypesFromSelection,
+  resolveQueueIdsFromSelection,
+  resolveValidEntityIds,
 } from '../utils/redisValue';
 import {
   VALUE_CHANGE_ANIMATION_CSS,
@@ -62,55 +67,6 @@ export function parseSelection(selectionJson?: string): TaskboardDisplaySelectio
   } catch {
     return {};
   }
-}
-
-/** 여러 hashKey의 id→record 맵을 하나로 합친다. */
-function mergeByHashKeys(dataByHashKey: Record<string, Record<string, CtiqRecord>>, hashKeys: string[]): Record<string, CtiqRecord> {
-  const merged: Record<string, CtiqRecord> = {};
-  hashKeys.forEach((hk) => Object.assign(merged, dataByHashKey[hk] ?? {}));
-  return merged;
-}
-
-/** 레이아웃들의 위젯에서 table-group/queue/agent가 실제 쓰는 컬럼을 모아 WS 구독 columns로 사용(여러 레이아웃 합집합). */
-function collectTableColumns(allWidgets: DroppedWidget[]) {
-  const tableGroupWidgets = allWidgets.filter((w) => w.item.id === 'table-group' && Array.isArray(w.item.tableConfig?.columns));
-  const configuredRtsCols = tableGroupWidgets.flatMap((w) =>
-    (w.item.tableConfig!.columns as TableColumn[]).filter((c) => !['name', 'agents', 'talk'].includes(c.key)).map((c) => c.key.toUpperCase()),
-  );
-  const groupColumns = configuredRtsCols.length > 0 ? [...new Set(configuredRtsCols)] : undefined;
-
-  const tableQueueWidgets = allWidgets.filter((w) => w.item.id === 'table-queue' && Array.isArray(w.item.tableConfig?.columns));
-  const queueChartWidgets = allWidgets.filter((w) => w.item.id === 'chart-bar-queue' || w.item.id === 'chart-line-trend');
-  const queueColumns = [
-    ...new Set(
-      [
-        ...tableQueueWidgets.flatMap((w) =>
-          (w.item.tableConfig!.columns as TableColumn[]).map((c) =>
-            c.key === 'wait' ? 'RTS_WAIT_CNT' : c.key === 'talk' ? 'SUM_CONN_CNT' : c.key === 'name' ? null : c.key.toUpperCase(),
-          ),
-        ),
-        ...(queueChartWidgets.length > 0 ? ['RTS_WAIT_CNT'] : []),
-      ].filter((c): c is string => !!c),
-    ),
-  ];
-
-  const tableAgentWidgets = allWidgets.filter((w) => w.item.id === 'table-agent' && Array.isArray(w.item.tableConfig?.columns));
-  const agentColumns = [
-    ...new Set(
-      tableAgentWidgets.flatMap((w) =>
-        (w.item.tableConfig!.columns as TableColumn[]).map((c) =>
-          c.key === 'status' ? 'AGENT_STATUS' : c.key === 'count' ? 'SUM_ANSW_CNT' : c.key === 'name' ? null : c.key.toUpperCase(),
-        ),
-      ),
-    ),
-  ].filter((c): c is string => !!c);
-
-  // 미디어타입은 디스플레이 선택값이 아니라 위젯 등록 시점에 고정된 값(item.mediaType) — 위젯별로 합집합
-  const groupMediaTypes = [...new Set(tableGroupWidgets.map((w) => w.item.mediaType ?? '0'))];
-  const queueMediaTypes = [...new Set([...tableQueueWidgets, ...queueChartWidgets].map((w) => w.item.mediaType ?? '0'))];
-  const agentMediaTypes = [...new Set(tableAgentWidgets.map((w) => w.item.mediaType ?? '0'))];
-
-  return { groupColumns, queueColumns, agentColumns, configuredRtsCols, tableGroupWidgets, groupMediaTypes, queueMediaTypes, agentMediaTypes };
 }
 
 export const parseRollingData = (raw?: string): RollingData => {
@@ -261,161 +217,6 @@ export const TRANSITION_PREVIEW_CSS = `
 `;
 
 const CHART_ROLLING_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
-
-/** 정렬 기준 컬럼(sortKey)이 있으면 숫자 기준 정렬 후, limit(미지정 시 20)만큼만 잘라서 반환 */
-function applySortAndLimit(rows: Record<string, string | number>[], sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number }): Record<string, string | number>[] {
-  let result = rows;
-  if (sortConfig?.key) {
-    const order = sortConfig.order ?? 'desc';
-    const key = sortConfig.key;
-    result = [...result].sort((a, b) => {
-      const av = Number(a[key]) || 0;
-      const bv = Number(b[key]) || 0;
-      return order === 'asc' ? av - bv : bv - av;
-    });
-  }
-  if (sortConfig?.limit && sortConfig.limit > 0) return result.slice(0, sortConfig.limit);
-  return result;
-}
-
-// ── 실시간 테이블 행 생성 헬퍼 ───────────────────────────────────────────────
-function buildLiveTableRows(
-  widgetId: string,
-  queueRows: CtiQueueRow[],
-  agentRows: CtiAgentRow[],
-  groupRows: CtiGroupRow[],
-  columns: TableColumn[],
-  selection: TaskboardDisplaySelection,
-  mediaTypes: string[],
-  dataByHashKey: Record<string, Record<string, CtiqRecord>>,
-  agentHashKeys: string[],
-  sortConfig?: { key?: string; order?: 'asc' | 'desc'; limit?: number },
-  // 상담그룹은 selection 자체에 필드가 없다 — "데이터소스 관리 등록 데이터"(IC:GROUP:{mediaType} 등록 소스)
-  // 선택값에서 해석한 그룹ID 목록을 호출부가 별도로 넘긴다(resolveGroupIdsFromSelection 결과).
-  selectedGroupIds: string[] = [],
-): Record<string, string | number>[] {
-  if (widgetId === 'table-queue') {
-    const selectedQueueIds = selection.queueIds ?? [];
-    const ctiqWsData = mergeByHashKeys(
-      dataByHashKey,
-      mediaTypes.map((mt) => `IC:CTIQ:${mt}`),
-    );
-    const filtered = selectedQueueIds.length > 0 ? queueRows.filter((q) => selectedQueueIds.includes(q.ctiqId)) : queueRows;
-    const result = filtered.map((q) => {
-      const ws = ctiqWsData[q.ctiqId];
-      const row: Record<string, string | number> = {};
-      columns.forEach((col) => {
-        switch (col.key) {
-          case 'name':
-            row[col.key] = q.ctiqName;
-            break;
-          case 'wait':
-            row[col.key] = Number(ws?.RTS_WAIT_CNT ?? q.rtsWaitCnt ?? 0);
-            break;
-          case 'talk':
-            row[col.key] = Number(ws?.SUM_CONN_CNT ?? q.totalIn ?? 0);
-            break;
-          default:
-            row[col.key] = ws?.[col.key.toUpperCase()] != null ? String(ws[col.key.toUpperCase()]) : q[col.key] != null ? String(q[col.key]) : '';
-        }
-      });
-      return row;
-    });
-    return applySortAndLimit(result, sortConfig);
-  }
-  if (widgetId === 'table-agent') {
-    const selectedAgentIds = selection.agentIds ?? [];
-    const agentWsData = mergeByHashKeys(dataByHashKey, agentHashKeys);
-    const filtered = selectedAgentIds.length > 0 ? agentRows.filter((a) => selectedAgentIds.includes(a.agentId)) : agentRows;
-    const result = filtered.map((agent) => {
-      const ws = agentWsData[agent.agentId];
-      const row: Record<string, string | number> = {};
-      columns.forEach((col) => {
-        switch (col.key) {
-          case 'name':
-            row[col.key] = agent.agentName;
-            break;
-          case 'status':
-            row[col.key] = String(ws?.AGENT_STATUS ?? agent.statusName ?? '');
-            break;
-          case 'count':
-            row[col.key] = Number(ws?.SUM_ANSW_CNT ?? agent.talkCount ?? 0);
-            break;
-          default:
-            row[col.key] = ws?.[col.key.toUpperCase()] != null ? String(ws[col.key.toUpperCase()]) : agent[col.key] != null ? String(agent[col.key]) : '';
-        }
-      });
-      return row;
-    });
-    return applySortAndLimit(result, sortConfig);
-  }
-  if (widgetId === 'table-group') {
-    const filtered = selectedGroupIds.length > 0 ? groupRows.filter((g) => selectedGroupIds.includes(g.groupId)) : groupRows;
-    const result = filtered.map((group) => {
-      const row: Record<string, string | number> = {};
-      columns.forEach((col) => {
-        switch (col.key) {
-          case 'name':
-            row[col.key] = group.groupName;
-            break;
-          case 'agents':
-            row[col.key] = group.agentCount;
-            break;
-          case 'talk':
-            row[col.key] = group.talkCount;
-            break;
-          default: {
-            // IC:GROUP:{mediaType} 해시에서 compositeKey별 값을 조회하여 합산
-            row[col.key] = (group.compositeKeys ?? []).reduce((sum, ck) => {
-              return sum + mediaTypes.reduce((mSum, mt) => mSum + Number(dataByHashKey[`IC:GROUP:${mt}`]?.[ck]?.[col.key.toUpperCase()] ?? 0), 0);
-            }, 0);
-            break;
-          }
-        }
-      });
-      return row;
-    });
-    return applySortAndLimit(result, sortConfig);
-  }
-  return [];
-}
-
-// ── 실시간 차트 데이터 생성 헬퍼 ─────────────────────────────────────────────
-function buildLiveChartData(
-  widgetId: string,
-  queueRows: CtiQueueRow[],
-  agentRows: CtiAgentRow[],
-  groupRows: CtiGroupRow[],
-  ctiqWsData: Record<string, CtiqRecord>,
-  selectedQueueIds: string[],
-): Array<{ name: string; value: number }> {
-  if (widgetId === 'chart-bar-queue' || widgetId === 'chart-line-trend') {
-    const hasWs = Object.keys(ctiqWsData).length > 0;
-    if (hasWs) {
-      const qIds = selectedQueueIds.length > 0 ? selectedQueueIds : Object.keys(ctiqWsData);
-      return qIds.slice(0, 8).map((qId) => {
-        const q = ctiqWsData[qId] ?? {};
-        const name = queueRows.find((r) => r.ctiqId === qId)?.ctiqName ?? qId;
-        const value = Number(q.RTS_WAIT_CNT ?? 0);
-        return { name, value };
-      });
-    }
-    const filtered = selectedQueueIds.length > 0 ? queueRows.filter((q) => selectedQueueIds.includes(q.ctiqId)) : queueRows;
-    return filtered.slice(0, 8).map((q) => ({ name: q.ctiqName, value: q.rtsWaitCnt ?? 0 }));
-  }
-  if (widgetId === 'chart-pie-agent') {
-    const statusMap: Record<string, number> = {};
-    agentRows.forEach((agent) => {
-      const s = agent.statusName || '알수없음';
-      statusMap[s] = (statusMap[s] ?? 0) + 1;
-    });
-    return Object.entries(statusMap).map(([name, value]) => ({ name, value }));
-  }
-  if (widgetId === 'chart-donut-group') {
-    return groupRows.slice(0, 6).map((g) => ({ name: g.groupName, value: g.talkCount }));
-  }
-  return [];
-}
 
 // ── 테이블 위젯 렌더 ────────────────────────────────────────────────────────
 function RollingTableWidget({
@@ -591,6 +392,7 @@ function RollingValueWidget({
   redisData,
   selectionIdsByHashKey,
   targetIdsByPrefix = {},
+  selectedMediaTypes = [],
   fontScale = 1,
 }: {
   widget: DroppedWidget;
@@ -599,6 +401,8 @@ function RollingValueWidget({
   selectionIdsByHashKey?: Record<string, string[]>;
   /** REASON 패밀리(그룹/스킬 등) 단일값 위젯 전용 — 이 슬라이드의 basePrefix별 디스플레이 선택 엔티티 ID 목록. */
   targetIdsByPrefix?: Record<string, string[]>;
+  /** 마스킹된 "{mediatype}" 키(GROUP/CTIQ/AGENT 등) 단일값 위젯 전용 — 이 슬라이드가 선택한 미디어타입. */
+  selectedMediaTypes?: string[];
   fontScale?: number;
 }) {
   const isEtcClock = widget.item.category === 'etc' && ROLLING_ETC_CLOCK_IDS.has(widget.item.id);
@@ -656,8 +460,8 @@ function RollingValueWidget({
     : isDbQuery
       ? dbQueryValue
       : isCalc
-        ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey, targetIdsByPrefix)
-        : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey, targetIdsByPrefix) : widget.item.sampleValue));
+        ? getCalcDisplayValue(widget, widgets, redisData, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes)
+        : (groupBySum ?? (isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes) : widget.item.sampleValue));
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
   const animKey = useValueChangeKey(displayValue);
@@ -739,23 +543,6 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
   const { queueMediaTypes, groupMediaTypes } = collectTableColumns(widgets);
 
   const layoutTargetGroupIds = resolveGroupIdsFromSelection(selection, dbQueryDefs);
-  const layoutGroupReasonTargetGroupIds = layoutTargetGroupIds.length > 0 ? layoutTargetGroupIds : liveGroups.map((g) => g.groupId);
-
-  // GROUP/CTIQ/AGENT(미디어타입 해시) 단일값 위젯이 보여줄 id들은 이 슬라이드 자신의 선택값 기준으로 결정.
-  // (RollingPlayer가 모든 슬라이드를 합산해 구독은 이미 끝냈으므로, 여기서는 받은 데이터 중 이 슬라이드 몫만 골라 읽는다)
-  const selectionIdsByHashKey = {
-    ...buildSelectionIdsByHashKey(widgets, {
-      queueRows: liveQueues,
-      selectedQueueIds: selection.queueIds ?? [],
-      groupRows: liveGroups,
-      selectedGroupIds: layoutTargetGroupIds,
-      agentRows: liveAgents,
-      selectedAgentIds: selection.agentIds ?? [],
-    }),
-    // REASON 패밀리 등록 키(IC:GROUP:REASON:*, IC:SKILL:REASON:* 등)는 이제 buildDataSourceKeySelectionIds가
-    // 각 패밀리의 basePrefix에 대응하는 엔티티 목록 데이터소스의 선택값을 자체적으로 찾아 스코핑한다.
-    ...buildDataSourceKeySelectionIds(dbQueryDefs, selection.dbQuerySelections, placeholderOptionValues, { groupId: layoutGroupReasonTargetGroupIds }),
-  };
 
   const ctiqWsData = mergeByHashKeys(
     dataByHashKey,
@@ -786,18 +573,37 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
 
   const renderWidget = (widget: DroppedWidget) => {
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
+    if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} />;
     // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc fallback, 그것도 없으면 기본 selection
     const effectiveSel = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
     // REASON 패밀리(그룹/스킬 등)용 targetIdsByPrefix도 이 위젯의 sectionKey 기준 selection을 따라야 한다(레이아웃 전체 기준 X)
     const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSel, dbQueryDefs);
-    const effectiveTargetGroupIds = effectiveGroupIds.length > 0 ? effectiveGroupIds : liveGroups.map((g) => g.groupId);
+    const effectiveQueueIds = resolveQueueIdsFromSelection(effectiveSel, dbQueryDefs);
+    const effectiveMediaTypes = resolveMediaTypesFromSelection(effectiveSel, dbQueryDefs);
+    const effectiveTargetGroupIds = resolveValidEntityIds(
+      effectiveGroupIds,
+      liveGroups.map((g) => g.groupId),
+    );
     const effectiveTargetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, effectiveSel.dbQuerySelections);
     effectiveTargetIdsByPrefix['IC:GROUP:'] = effectiveTargetGroupIds;
+    // 값 위젯은 이 위젯이 속한 섹션(effectiveSel)만의 id로 값을 계산해야 한다 — 레이아웃 전체 selectionIdsByHashKey를
+    // 그대로 쓰면 같은 redisHashKey를 쓰는 여러 섹션의 위젯이 전부 같은(합산된) 값을 보게 된다.
+    const effectiveSelectionIdsByHashKey: Record<string, string[]> = {
+      ...buildSelectionIdsByHashKey([widget], {
+        queueRows: liveQueues,
+        selectedQueueIds: effectiveQueueIds,
+        groupRows: liveGroups,
+        selectedGroupIds: effectiveGroupIds,
+        agentRows: liveAgents,
+        selectedAgentIds: effectiveSel.agentIds ?? [],
+      }),
+      ...buildDataSourceKeySelectionIds(dbQueryDefs, effectiveSel.dbQuerySelections, placeholderOptionValues, { groupId: effectiveTargetGroupIds }),
+    };
     const dt = widget.item.displayType;
     // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
     if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
     if (dt === 'chart') {
-      const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, effectiveSel.queueIds ?? []);
+      const liveChartData = buildLiveChartData(widget.item.id, liveQueues, liveAgents, liveGroups, ctiqWsData, effectiveQueueIds);
       return <RollingChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
     }
     if (dt === 'table') {
@@ -825,6 +631,7 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
               limit: cfg.limit,
             },
             effectiveGroupIds,
+            effectiveQueueIds,
           )
         : [];
       return <RollingTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
@@ -834,8 +641,9 @@ export function LayoutScreen({ layout, liveQueues = [], liveAgents = [], liveGro
         widget={widget}
         widgets={widgets}
         redisData={dataByHashKey}
-        selectionIdsByHashKey={selectionIdsByHashKey}
+        selectionIdsByHashKey={effectiveSelectionIdsByHashKey}
         targetIdsByPrefix={effectiveTargetIdsByPrefix}
+        selectedMediaTypes={effectiveMediaTypes}
         fontScale={fontScale}
       />
     );
@@ -917,11 +725,17 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const needsAgent = allWidgets.some((w) => w.item.id === 'table-agent');
 
   // GROUP과 동일한 "선택 없음 = 전체" 규칙 — 합집합이 비어있으면(슬라이드 전부 미선택) 마스터 큐 전체를 구독한다.
-  const allSelectedQueueIds = [...new Set(allSelections.flatMap((s) => s.queueIds ?? []))];
+  const allSelectedQueueIds = [...new Set(allSelections.flatMap((s) => resolveQueueIdsFromSelection(s, dbQueryDefs)))];
   const allQueueIds = needsQueue ? (allSelectedQueueIds.length > 0 ? allSelectedQueueIds : queueRows.map((q) => q.ctiqId)) : [];
   const allSelectedGroupIds = [...new Set(allSelections.flatMap((s) => resolveGroupIdsFromSelection(s, dbQueryDefs)))];
+  // 슬라이드마다 미디어타입이 다를 수 있으므로 구독은 전체 슬라이드 선택값의 합집합으로 넉넉히 받는다
+  // (표시는 LayoutScreen이 슬라이드 자신의 selectedMediaTypes로 다시 좁혀 읽는다).
+  const allSelectedMediaTypes = [...new Set(allSelections.flatMap((s) => resolveMediaTypesFromSelection(s, dbQueryDefs)))];
   // IC:GROUP:REASON 패밀리 전용 — 로테이션 내 모든 슬라이드 선택값의 합집합(없으면 전체 그룹)
-  const allGroupReasonTargetGroupIds = allSelectedGroupIds.length > 0 ? allSelectedGroupIds : groupRows.map((g) => g.groupId);
+  const allGroupReasonTargetGroupIds = resolveValidEntityIds(
+    allSelectedGroupIds,
+    groupRows.map((g) => g.groupId),
+  );
   // REASON 패밀리(그룹/스킬 등) 전체 — basePrefix별 로테이션 내 모든 슬라이드 선택값의 합집합. 그룹은 위
   // "선택 없음=전체" 폴백을 유지하고, 그 외 엔티티는 등록된 데이터소스 선택값을 그대로 쓴다.
   const allTargetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, mergedDbQuerySelections);
@@ -959,6 +773,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
       ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues, { groupId: allGroupReasonTargetGroupIds }),
     },
     allTargetIdsByPrefix,
+    allSelectedMediaTypes,
   );
 
   // 화면별 실제 표시는 LayoutScreen이 그 슬라이드 자신의 선택값으로 다시 걸러서 보여준다.

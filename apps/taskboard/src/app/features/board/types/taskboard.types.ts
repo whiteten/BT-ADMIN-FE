@@ -3,9 +3,9 @@ export interface TaskboardBg {
   pageId: number;
   pageName: string;
   fileName: string;
-  /** 등록자 이름 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
-  createUserName?: string;
-  /** 등록자 사용자 ID — 서버가 세션 기준으로 자동 기록 */
+  /** 등록자 로그인 계정 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
+  createUserLoginId?: string;
+  /** 등록자 사용자 ID(시스템 PK) — 서버가 세션 기준으로 자동 기록 */
   createUserId?: number;
   genType: string;
   useYn: string;
@@ -84,7 +84,7 @@ export interface ChartConfig {
 /** 드래그 가능한 콜데이터 위젯 아이템 */
 export interface CallDataItem {
   id: string;
-  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List' | 'Redis' | 'notice' | 'Calc' | 'ExternalApi' | 'DbQuery';
+  category: 'IVR' | 'CTI' | 'Agent' | 'Group' | 'Skill' | 'Tenant' | 'etc' | 'List' | 'Redis' | 'notice' | 'Calc' | 'ExternalApi' | 'DbQuery' | 'WebEmbed';
   label: string;
   unit?: string;
   sampleValue: string | number;
@@ -185,6 +185,13 @@ export interface CallDataItem {
   externalApiIntervalSec?: number;
   /** 외부 API 요청 헤더 — 한 줄에 헤더 하나, `Key: Value` 형식. 빈 줄·`#` 주석 줄은 무시. */
   externalApiHeaders?: string;
+  /**
+   * 웹 임베드 URL — category=WebEmbed 위젯 전용. 위젯 영역 안에 iframe으로 표시할 웹 페이지 주소
+   * (홈쇼핑 방송, YouTube 라이브, 사내 대시보드 등). http/https/localhost 모두 허용하되, 대상 사이트가
+   * X-Frame-Options/CSP로 임베드를 거부하면 빈 화면으로 보인다. YouTube 시청 URL은 렌더 시점에
+   * embed URL(음소거 자동재생)로 자동 변환된다 — WebEmbedWidget.tsx의 normalizeEmbedUrl 참고.
+   */
+  webEmbedUrl?: string;
   /** DB Query 키 — category=DbQuery 위젯 전용 (예: "custom1") */
   dbQueryKey?: string;
   /** DB Query 결과 행에서 표시할 컬럼명 (예: "GROUP_ID") — 미지정 시 첫 번째 컬럼 값 표시 */
@@ -333,8 +340,8 @@ export interface TaskboardNotice {
   content: string;
   /** 등록자 이름 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
   createUserName?: string;
-  /** 등록자 사용자 ID — 서버가 세션 기준으로 자동 기록 */
-  createUserId?: number;
+  /** 등록자 로그인 계정 — 서버가 세션 기준으로 자동 기록 */
+  createUserId?: string;
   startDt?: string;
   endDt?: string;
   alwaysActiveYn: string;

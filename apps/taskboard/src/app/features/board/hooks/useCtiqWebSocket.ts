@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isPublicMode } from '../api/publicAuth';
 
 export type CtiqRecord = Record<string, string | number | null>;
 
@@ -66,6 +67,12 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
     let destroyed = false;
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    // 공개(client-credentials) 토큰은 브라우저 WebSocket API 제약상 Authorization 헤더로 실어 보낼 수
+    // 없어 /ws/proxy/**(인증 필수) 핸드셰이크가 항상 실패한다(세션 쿠키가 있는 "로그인 상태로 공개
+    // URL 접속" 케이스는 예외 — 그 경우 아래에서 실제 연결에 성공하면 정상적으로 무한 재연결로 전환됨).
+    // 세션 없는 순수 공개 접근에서 매번 재연결을 시도하면 콘솔에 실패 로그만 계속 쌓이므로,
+    // 한 번도 연결에 성공한 적이 없으면 재시도를 포기한다.
+    let everConnected = false;
 
     const connect = () => {
       if (destroyed) return;
@@ -74,6 +81,7 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
       ws = new WebSocket(`${protocol}//${window.location.host}/ws/proxy/taskboard/taskboard-rt`);
 
       ws.onopen = () => {
+        everConnected = true;
         setIsConnected(true);
         if (subsRef.current.length > 0) {
           ws?.send(JSON.stringify({ action: 'subscribe', subscriptions: subsRef.current }));
@@ -100,7 +108,7 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
 
       ws.onclose = () => {
         setIsConnected(false);
-        if (!destroyed) {
+        if (!destroyed && (everConnected || !isPublicMode())) {
           reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
         }
       };

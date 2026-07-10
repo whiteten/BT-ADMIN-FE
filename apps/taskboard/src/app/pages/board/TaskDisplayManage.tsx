@@ -28,6 +28,16 @@ function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
   }
 }
 
+/**
+ * 미디어타입 데이터소스 판별 — 데이터소스 관리 탭에서 플레이스홀더 이름 "mediatype"(대소문자 무관)으로
+ * 등록한 것. YAML(application-redis-key-map.yml)의 `{mediatype}` 토큰과 짝이며, 위젯의 마스킹된 해시키
+ * (IC:CTIQ:{mediatype} 등)가 실행 시점에 이 데이터소스의 선택값으로 치환된다. 뷰그룹 등록 시 이 선택은
+ * 필수(2026-07-10 사용자 요건) — 다른 플레이스홀더(groupid 등)와 달리 뷰그룹 폼에 노출한다.
+ */
+function isMediaTypeDef(def: DbQueryDef): boolean {
+  return (def.placeholderName ?? '').trim().toLowerCase() === 'mediatype';
+}
+
 // ─── 선택값 요약 칩 — 큐/상담그룹/상담사 각각 일부 이름 + 나머지 개수만 간략히 보여준다 ──
 interface SelectionCategory {
   label: string;
@@ -121,9 +131,15 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   // 데이터 소스 관리 탭(DataSourceQueryTab)에서 등록한 뷰그룹 체크박스 옵션 소스 — 저장된 쿼리 개수만큼 옵션(VALUE/NAME) 조회.
   // 플레이스홀더로 등록된 것(placeholderName 있음, 예: nodeId)은 뷰그룹마다 고를 필요 없는 값이라 여기서 제외한다.
   // 상담그룹도 별도 직접선택 필드 없이 여기 체크박스(IC:GROUP:{mediaType} 등록 데이터소스)로 처리한다.
+  // 예외 — 미디어타입(placeholderName='mediatype')은 플레이스홀더지만 뷰그룹마다 반드시 골라야 하는 필수값이라
+  // 별도 "미디어타입 (필수)" 섹션으로 노출한다(2026-07-10 요건).
   const { data: allDbQueryDefs = [] } = useGetDbQueryDefList();
+  const mediaTypeDefs = allDbQueryDefs.filter(isMediaTypeDef);
   const dbQueryDefs = allDbQueryDefs.filter((d) => !d.placeholderName);
-  const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
+  // 옵션 조회는 [미디어타입 defs, 일반 defs] 순으로 하나의 훅 호출에 합침 — 인덱스 접근 시 이 순서 기준
+  const optionDefs = [...mediaTypeDefs, ...dbQueryDefs];
+  const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(optionDefs.map((d) => d.dbQueryId));
+  const modal = useModal();
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -144,18 +160,28 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
       return next;
     });
 
-  const toggleDbQueryValue = (dbQueryId: number, value: string) =>
+  // 값을 하나라도 고르면 "사용" 체크박스를 자동으로 켠다 — 별도 체크박스와 드롭다운 선택을 각각
+  // 건드려야 하는 2단계 조작이라, 드롭다운만 채우고 체크박스를 안 켠 채로 저장하면 handleSubmit이
+  // enabledDbQueryIds 기준으로 이 항목을 통째로 걸러내(값은 골랐는데 저장 안 됨) 에러 없이 조용히
+  // 선택이 사라지는 현상이 있었다(2026-07-10 실측 — 뷰그룹에 큐 리스트를 체크했다고 생각했는데
+  // 실제 저장된 selectionJson엔 없었음). 값이 비면(전부 해제) 기존처럼 자동으로 끄진 않는다 —
+  // 사용자가 명시적으로 껐다가 다시 켤 때 이전 선택을 잃지 않게 하려는 의도적 비대칭.
+  const toggleDbQueryValue = (dbQueryId: number, value: string) => {
     setDbQuerySelections((prev) => {
       const current = prev[dbQueryId] ?? [];
       const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
       return { ...prev, [dbQueryId]: next };
     });
-  const toggleAllDbQueryValues = (dbQueryId: number, allValues: string[]) =>
+    setEnabledDbQueryIds((prev) => (prev.has(dbQueryId) ? prev : new Set(prev).add(dbQueryId)));
+  };
+  const toggleAllDbQueryValues = (dbQueryId: number, allValues: string[]) => {
     setDbQuerySelections((prev) => {
       const current = prev[dbQueryId] ?? [];
       const next = current.length === allValues.length && allValues.length > 0 ? [] : allValues;
       return { ...prev, [dbQueryId]: next };
     });
+    setEnabledDbQueryIds((prev) => (prev.has(dbQueryId) ? prev : new Set(prev).add(dbQueryId)));
+  };
 
   const createDisplay = useCreateTaskboardDisplay({});
   const updateDisplay = useUpdateTaskboardDisplay({});
@@ -165,8 +191,30 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
       toast.error('뷰 그룹 이름을 입력해 주세요.');
       return;
     }
+    // ── 필수 검증 (2026-07-10 요건): ①미디어타입 데이터소스 등록 자체가 없으면 안내 ②미디어타입 미선택 ③일반 리스트 미선택 ──
+    if (mediaTypeDefs.length === 0) {
+      modal.show.info(
+        '미디어타입 데이터소스가 등록되어 있지 않습니다. 데이터 소스 관리 탭에서 플레이스홀더 이름 "mediatype"으로 미디어타입 목록을 먼저 등록해 주세요.',
+        '미디어타입 등록 필요',
+      );
+      return;
+    }
+    const mediaTypeIds = new Set(mediaTypeDefs.map((d) => d.dbQueryId));
+    const hasMediaTypeSelection = mediaTypeDefs.some((d) => (dbQuerySelections[d.dbQueryId] ?? []).length > 0);
+    if (!hasMediaTypeSelection) {
+      modal.show.info('미디어타입은 필수 선택입니다. 이 뷰 그룹에서 보여줄 미디어타입을 1개 이상 선택해 주세요.', '미디어타입 선택 필요');
+      return;
+    }
+    const hasListSelection = Object.entries(dbQuerySelections).some(([id, v]) => v.length > 0 && enabledDbQueryIds.has(Number(id)) && !mediaTypeIds.has(Number(id)));
+    if (!hasListSelection) {
+      modal.show.info('미디어타입 외에 이 뷰 그룹에서 보여줄 데이터 리스트를 1개 이상 선택해 주세요.', '데이터 리스트 선택 필요');
+      return;
+    }
     const selectionJson = JSON.stringify({
-      dbQuerySelections: Object.fromEntries(Object.entries(dbQuerySelections).filter(([id, v]) => v.length > 0 && enabledDbQueryIds.has(Number(id)))),
+      // 일반 데이터소스는 사용 체크된 것만, 미디어타입은 체크박스 없이 항상 저장(필수값)
+      dbQuerySelections: Object.fromEntries(
+        Object.entries(dbQuerySelections).filter(([id, v]) => v.length > 0 && (enabledDbQueryIds.has(Number(id)) || mediaTypeIds.has(Number(id)))),
+      ),
     });
     setIsSaving(true);
     try {
@@ -207,10 +255,54 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
           </div>
 
           <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              미디어타입 <span className="text-red-500">*</span> <span className="font-normal text-slate-400">(필수 — 이 뷰 그룹에서 보여줄 미디어타입)</span>
+            </label>
+            <div className="flex flex-col gap-3 p-3 bg-sky-50 rounded-lg border border-sky-200">
+              {mediaTypeDefs.map((def, idx) => {
+                const optionsQuery = dbQueryOptionsResults[idx];
+                const items = extractNameValueItems(optionsQuery?.data ?? []);
+                const selected = dbQuerySelections[def.dbQueryId] ?? [];
+                return (
+                  <div key={def.dbQueryId} className="flex items-center gap-3">
+                    <span className="text-[11px] font-semibold text-sky-700 w-40 flex-shrink-0 truncate" title={def.queryName}>
+                      {def.queryName}
+                    </span>
+                    <MultiSelectDropdown
+                      label={def.queryName}
+                      color="#0369a1"
+                      isFetching={optionsQuery?.isFetching ?? false}
+                      items={items}
+                      selectedIds={selected}
+                      isOpen={openDbQueryId === def.dbQueryId}
+                      dropdownRef={getDbQueryDropdownRef(def.dbQueryId)}
+                      onToggleOpen={() => setOpenDbQueryId((v) => (v === def.dbQueryId ? null : def.dbQueryId))}
+                      onToggleItem={(id) => toggleDbQueryValue(def.dbQueryId, id)}
+                      onToggleAll={() =>
+                        toggleAllDbQueryValues(
+                          def.dbQueryId,
+                          items.map((i) => i.id),
+                        )
+                      }
+                      emptyText="옵션 없음"
+                    />
+                  </div>
+                );
+              })}
+              {mediaTypeDefs.length === 0 && (
+                <p className="text-[10px] text-red-500 px-1">
+                  미디어타입 데이터소스가 없습니다. 데이터 소스 관리 탭에서 플레이스홀더 이름 &quot;mediatype&quot;으로 먼저 등록해 주세요 (등록 전에는 뷰 그룹을 저장할 수
+                  없습니다).
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">이 뷰 그룹에서 보여줄 데이터 (데이터 소스 관리 등록 데이터)</label>
             <div className="flex flex-col gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
               {dbQueryDefs.map((def, idx) => {
-                const optionsQuery = dbQueryOptionsResults[idx];
+                const optionsQuery = dbQueryOptionsResults[mediaTypeDefs.length + idx];
                 const items = extractNameValueItems(optionsQuery?.data ?? []);
                 const selected = dbQuerySelections[def.dbQueryId] ?? [];
                 const enabled = enabledDbQueryIds.has(def.dbQueryId);
@@ -301,9 +393,10 @@ export default function TaskDisplayManage() {
     queue: new Map(queueRows.map((q) => [q.ctiqId, q.ctiqName])),
   };
 
-  // 카드/목록 요약에 TASK-DB-QUERY 선택값도 함께 보여주기 위한 이름 매핑 (플레이스홀더 등록분은 뷰그룹 선택 대상이 아니라 제외)
+  // 카드/목록 요약에 TASK-DB-QUERY 선택값도 함께 보여주기 위한 이름 매핑 (플레이스홀더 등록분은 뷰그룹 선택 대상이 아니라
+  // 제외하되, 미디어타입(placeholderName='mediatype')은 뷰그룹 필수 선택값이라 요약에도 포함)
   const { data: allDbQueryDefsForSummary = [] } = useGetDbQueryDefList();
-  const dbQueryDefs = allDbQueryDefsForSummary.filter((d) => !d.placeholderName);
+  const dbQueryDefs = allDbQueryDefsForSummary.filter((d) => !d.placeholderName || isMediaTypeDef(d));
   const dbQueryOptionsResults = useGetDbQueryDefOptionsMulti(dbQueryDefs.map((d) => d.dbQueryId));
   const dbQueryNameMaps = new Map<number, Map<string, string>>(
     dbQueryDefs.map((def, idx) => [def.dbQueryId, new Map(extractNameValueItems(dbQueryOptionsResults[idx]?.data ?? []).map((i) => [i.id, i.name]))]),

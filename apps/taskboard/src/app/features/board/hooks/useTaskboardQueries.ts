@@ -1,7 +1,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
+import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, type RedisKeyDefinitionsResponse, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
 import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
@@ -266,6 +266,7 @@ export const ctiRedisQueryKeys = createQueryKeys('cti-redis', {
   hashKeys: () => [{}],
   hashColumns: () => [{}],
   hashEntries: (hashKey: string) => [{ hashKey }],
+  keyDefinitions: () => [{}],
 });
 
 /** 큐 리스트 (TB_IC_CTIQMASTER via Redis) — 5초 자동 갱신 */
@@ -352,6 +353,19 @@ export const useGetRedisHashEntries = (hashKey: string, { queryOptions }: QueryH
     queryKey: ctiRedisQueryKeys.hashEntries(hashKey).queryKey,
     queryFn: () => ctiRedisApi.getRedisHashEntries(hashKey),
     enabled: !!hashKey,
+    ...queryOptions,
+  });
+};
+
+/**
+ * Redis BASE KEY → 실제 HASH KEY 매핑 메타데이터(application-redis-key-map.yml). BE 재시작 전엔 안 바뀌는
+ * 정적 데이터라 staleTime을 길게 둔다.
+ */
+export const useGetRedisKeyDefinitions = ({ queryOptions }: QueryHookWithParamsOptions<RedisKeyDefinitionsResponse> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.keyDefinitions().queryKey,
+    queryFn: () => ctiRedisApi.getRedisKeyDefinitions(),
+    staleTime: 10 * 60 * 1000,
     ...queryOptions,
   });
 };

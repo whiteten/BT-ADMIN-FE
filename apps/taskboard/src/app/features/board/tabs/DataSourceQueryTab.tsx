@@ -4,8 +4,9 @@ import { ChevronRight, Copy, Pencil, Play, Plus, Save, Search, Trash2, X } from 
 import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardApi } from '../api/taskboardApi';
-import { useCreateDbQueryDef, useDeleteDbQueryDef, useGetDbQueryDefList, useGetRedisHashKeys, useUpdateDbQueryDef } from '../hooks/useTaskboardQueries';
+import { useCreateDbQueryDef, useDeleteDbQueryDef, useGetDbQueryDefList, useGetRedisHashKeys, useGetRedisKeyDefinitions, useUpdateDbQueryDef } from '../hooks/useTaskboardQueries';
 import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry } from '../types/taskboard.types';
+import { matchKeyDefinition, suggestKeyTemplate } from '../utils/redisKeyDefinitions';
 import { type RedisKeyNode, filterRedisTree, groupRedisKeys } from '../utils/redisKeyPattern';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -21,6 +22,31 @@ let paramSeq = 0;
 function makeEmptyParam(): DbQueryParam & { id: number } {
   paramSeq += 1;
   return { id: paramSeq, name: '', type: 'STRING', value: '' };
+}
+
+/** "{...}" 안의 내용을 전부 잡는다(redisValue.ts의 실제 토큰 파싱 정규식 `/\{(\w+)(?::(\d+))?\}/g`보다 느슨함) —
+ *  한글 등 `\w`가 아닌 문자가 섞인 잘못된 토큰도 여기선 일단 잡아내서 아래에서 "유효하지 않은 형태"로
+ *  구분해 보여주기 위함이다(느슨한 정규식으로 안 잡으면 실제 파싱에서 토큰으로 인식조차 안 돼 그냥 문자열
+ *  그대로 취급되고, 그러면 이 검증 자체가 통과돼버려 정작 걸러야 할 실수를 놓친다). */
+const PLACEHOLDER_TOKEN_DISPLAY_PATTERN = /\{([^}]*)\}/g;
+
+/**
+ * key/keyTemplate 문자열에 등록되지 않은 플레이스홀더 토큰이 있으면 그 토큰들을 반환한다(없으면 빈 배열).
+ * "{value}"(이 쿼리 자신의 VALUE를 가리키는 예약 토큰)는 항상 유효로 취급한다. 토큰 이름이 `\w+`(영문/숫자/
+ * 밑줄) 형태가 아니면(예: 한글) 그 자체로 무효 — 실제 런타임 파싱(redisValue.ts의 PLACEHOLDER_TOKEN_PATTERN)이
+ * `\w+`만 토큰으로 인식하기 때문에, 이런 값은 치환 자체가 안 되고 문자열 그대로 남아 절대 실제 Redis 키와
+ * 매칭되지 않는다(2026-07-10 실측 — "{미디어타입}"으로 등록해서 큐 리스트 매핑이 계속 실패했던 사고).
+ */
+function findUnregisteredPlaceholderTokens(text: string, registeredNamesLower: Set<string>): string[] {
+  const found = new Set<string>();
+  for (const m of text.matchAll(PLACEHOLDER_TOKEN_DISPLAY_PATTERN)) {
+    const raw = m[1];
+    const isValidShape = /^\w+(:\d+)?$/.test(raw);
+    const name = isValidShape ? raw.split(':')[0].toLowerCase() : raw.toLowerCase();
+    if (name === SELF_VALUE_TOKEN_NAME) continue;
+    if (!isValidShape || !registeredNamesLower.has(name)) found.add(raw);
+  }
+  return [...found];
 }
 
 /** 저장 시 이 쿼리를 뷰그룹 선택용(연동 Redis 키 등록)으로 쓸지, 플레이스홀더(다른 데이터소스가 참조하는
@@ -278,6 +304,10 @@ export default function DataSourceQueryTab() {
   const runQuery = useMutation({ mutationFn: taskboardApi.runDbQuery });
 
   const { data: savedDefs = [], refetch: refetchDefs } = useGetDbQueryDefList();
+  // "해시(HASH) 영역"에 입력한 키가 application-redis-key-map.yml에 등록된 IC 정의와 매치되면, 그 정의의
+  // 라벨과 keyTemplate 자동완성을 제공한다(강제 아님 — 매치 안 되면 기존처럼 완전 자유입력).
+  const { data: redisKeyDefs } = useGetRedisKeyDefinitions();
+  const matchedKeyDefinition = redisKeyDefs ? matchKeyDefinition(newKeyValue.trim(), redisKeyDefs) : null;
   const createDef = useCreateDbQueryDef({});
   const updateDef = useUpdateDbQueryDef({});
   const deleteDef = useDeleteDbQueryDef({});
@@ -422,6 +452,33 @@ export default function DataSourceQueryTab() {
       toast.error('파라미터 값이 비어있습니다 — 저장 시점 값이 고정값으로 저장됩니다.');
       return;
     }
+    // 연동 Redis 키(key/keyTemplate)에 등록되지 않은 플레이스홀더 토큰이 있으면 저장을 막는다 — 안 막으면
+    // "{미디어타입}"처럼 실제 등록된 이름(mediatype)과 안 맞는 토큰을 그대로 저장해도 에러 없이 통과되고,
+    // 실행 시점에 조용히 치환 자체가 안 돼(문자열 그대로 남아) 실제 Redis 키와 절대 안 맞는 사고가 난다
+    // (2026-07-10 실측 사고). placeholderName으로 등록된 다른 데이터소스 이름 전부 + 이 쿼리 자신이
+    // saveMode='placeholder'로 저장될 때 쓸 이름(자기참조 대비)까지 포함해서 검사한다.
+    if (saveMode === 'dataSource' && redisKeys.length > 0) {
+      const registeredNamesLower = new Set(
+        savedDefs
+          .map((d) => d.placeholderName ?? '')
+          .filter((n) => n !== '')
+          .map((n) => n.toLowerCase()),
+      );
+      const badTokens = [
+        ...new Set(
+          redisKeys.flatMap((rk) => [
+            ...findUnregisteredPlaceholderTokens(rk.key, registeredNamesLower),
+            ...(rk.keyTemplate ? findUnregisteredPlaceholderTokens(rk.keyTemplate, registeredNamesLower) : []),
+          ]),
+        ),
+      ];
+      if (badTokens.length > 0) {
+        toast.error(
+          `등록되지 않은 플레이스홀더 토큰: ${badTokens.map((t) => `{${t}}`).join(', ')} — 데이터 소스 관리에 등록된 플레이스홀더 이름과 정확히 일치해야 합니다(대소문자 무관).`,
+        );
+        return;
+      }
+    }
     try {
       const payload = {
         tenantId: userInfo?.tenant ?? '',
@@ -470,6 +527,11 @@ export default function DataSourceQueryTab() {
     setResult(null);
     setVisibleRows(INITIAL_VISIBLE_ROWS);
     setSaveOpen(false);
+    // 저장된 데이터 목록(Step 3)에서 누른 수정 버튼 → 위쪽 쿼리 작성 영역(Step 1)으로 포커스 이동
+    requestAnimationFrame(() => {
+      sqlRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      sqlRef.current?.focus();
+    });
   };
 
   /** handleEdit과 동일하게 필드를 채우되, editingId는 비워 저장 시 새 항목으로 생성되게 한다(원본은 그대로 유지).
@@ -809,6 +871,24 @@ export default function DataSourceQueryTab() {
                         </p>
                       </div>
                     </div>
+
+                    {matchedKeyDefinition && (
+                      <div className="text-[10px] text-emerald-600 leading-snug flex items-center gap-1.5">
+                        <span>
+                          📖 등록된 정의: <b>{matchedKeyDefinition.definition.label}</b>
+                        </span>
+                        {matchedKeyDefinition.definition.fieldParts.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setNewKeyTemplate(suggestKeyTemplate(matchedKeyDefinition.definition))}
+                            className="underline decoration-dotted"
+                            title={`필드 구성: ${matchedKeyDefinition.definition.fieldParts.join(' + ')}`}
+                          >
+                            필드(KEY) 조합식 자동 채우기
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2">
                       <button

@@ -1,4 +1,6 @@
 import { fuzzyScore } from '@/shared-util';
+import { collapseIcVariableSegment } from './redisKeyDefinitions';
+import type { RedisKeyDefinitionsResponse } from '../api/ctiRedisApi';
 
 /**
  * CTI 경로를 거치는 Redis 데이터에만 붙는 고정 미디어타입 값. 0/10/20/40 외 값이 추가될 일은 없다고
@@ -87,32 +89,29 @@ export interface RedisKeyNode {
   leafCount: number;
 }
 
-export const REDIS_TREE_MAX_DEPTH = 3;
+/** 리터럴 세그먼트(마스킹 안 된 실제 문자열)만 폴더로 계속 쪼갠다. 마스킹된 변수 토큰(`{groupid}`,
+ * `{mediatype}` 등)이 선두에 나타나는 순간부터는 남은 구간 전체(변수 토큰이 여러 개 이어져 있어도)를
+ * 콜론 포함 문자열 그대로 리프 하나로 합친다 — yml `actual` 템플릿이 "고정 접두사 + 변수 꼬리"
+ * 형태(예: IC:GROUP:REASON:{groupid}:{mediatype})이므로, 고정 접두사(IC>GROUP>REASON)까지는
+ * 폴더, 변수 꼬리는 템플릿 표기 그대로 한 라벨(`{groupid}:{mediatype}`)로 보여야 하기 때문
+ * (사용자 확정, 2026-07-10). */
+function isVarToken(segment: string): boolean {
+  return /^\{\w+\}$/.test(segment);
+}
 
 /** 콜론(:)으로 구분된 Redis 키 목록을 세그먼트 기준 트리로 그룹화한다. */
 export function groupRedisKeys(keys: string[], prefix: string, depth: number): RedisKeyNode[] {
-  // 최대 깊이 도달 시 나머지를 플랫 리프로 처리
-  if (depth >= REDIS_TREE_MAX_DEPTH) {
-    return keys
-      .slice()
-      .sort()
-      .map((key) => ({
-        label: key,
-        fullKey: prefix ? `${prefix}:${key}` : key,
-        children: [],
-        leafCount: 1,
-      }));
-  }
-
   const segMap = new Map<string, { isLeaf: boolean; childKeys: string[] }>();
   for (const key of keys) {
     const idx = key.indexOf(':');
-    if (idx === -1) {
+    const firstSeg = idx === -1 ? key : key.slice(0, idx);
+    if (idx === -1 || isVarToken(firstSeg)) {
+      // 콜론이 없거나(원래 리프), 변수 토큰이 시작되는 지점이면 — 남은 구간 전체를 리프 하나로 합친다
       const e = segMap.get(key) ?? { isLeaf: false, childKeys: [] };
       e.isLeaf = true;
       segMap.set(key, e);
     } else {
-      const seg = key.slice(0, idx);
+      const seg = firstSeg;
       const rest = key.slice(idx + 1);
       const e = segMap.get(seg) ?? { isLeaf: false, childKeys: [] };
       e.childKeys.push(rest);
@@ -163,20 +162,20 @@ export function filterRedisTree(nodes: RedisKeyNode[], query: string, fieldIndex
 }
 
 /**
- * IC 계열 Redis 키의 가변 그룹ID 세그먼트를 트리에서 숨기고 미디어타입 레벨까지만 표시한다.
- * IC 섹션에만 적용 — 다른 데이터(BT, FC 등)는 null 반환으로 원본 키 그대로 사용.
- *
- * IC:AGENT:{GROUP_ID}:{MEDIA_TYPE}       → IC:AGENT:{MEDIA_TYPE}
- * IC:GROUP:REASON:{GROUP_ID}:{MEDIA_TYPE} → IC:GROUP:REASON:{MEDIA_TYPE}
+ * IC 계열 Redis 키의 가변 엔티티ID 세그먼트(groupId/skillId 등)를 트리에서 숨기고 미디어타입 레벨까지만
+ * 표시한다. `application-redis-key-map.yml`(BE `RedisKeyMapper`) 기반 `collapseIcVariableSegment`에
+ * 위임 — 예전엔 IC:AGENT/IC:GROUP:REASON 2개 패턴만 하드코딩돼 있었으나, 이제 YAML에 등록된 모든 IC_*
+ * 정의(엔티티 변수가 정확히 1개인 것)에 대해 자동으로 동작한다(IC:SKILL:REASON도 처음으로 접힘).
+ * IC 섹션에만 적용 — 다른 데이터(BT, FC 등)나 YAML에 없는 키는 null 반환으로 원본 키 그대로 사용.
  */
-export function collapseIcGroupSegment(key: string): string | null {
-  const segs = key.split(':');
-  if (segs[0] !== 'IC') return null;
-  if (segs.length === 4 && segs[1] === 'AGENT' && segs[3] in MEDIA_TYPE_LABELS) {
-    return `IC:AGENT:${segs[3]}`;
-  }
-  if (segs.length === 5 && segs[1] === 'GROUP' && segs[2] === 'REASON' && segs[4] in MEDIA_TYPE_LABELS) {
-    return `IC:GROUP:REASON:${segs[4]}`;
-  }
-  return null;
+export function collapseIcGroupSegment(key: string, defs: RedisKeyDefinitionsResponse): string | null {
+  return collapseIcVariableSegment(key, defs)?.collapsedKey ?? null;
+}
+
+/**
+ * collapseIcGroupSegment가 접는 바로 그 엔티티ID 세그먼트를 반대로 추출한다(같은 판정 로직 재사용).
+ * 데이터소스관리에 등록된 엔티티ID 리스트와 대조해 트리의 대표 미리보기/siblings 순서를 정확하게 맞출 때 사용.
+ */
+export function extractIcGroupIdSegment(key: string, defs: RedisKeyDefinitionsResponse): string | undefined {
+  return collapseIcVariableSegment(key, defs)?.varValue;
 }

@@ -2,18 +2,18 @@ import { useContext } from 'react';
 import { AnimatedTableCell } from './AnimatedTableCell';
 import { ChartWidget, buildChartDataFromRows } from './ChartWidget';
 import { TableColumnResizeContext, handleColumnResizePointerDown } from './TableColumnGapContext';
+import type { RedisKeyDefinitionsResponse } from '../api/ctiRedisApi';
 import type { CtiWsDataByHashKey, CtiWsSubscription } from '../hooks/useCtiqWebSocket';
-import { useGetDbQueryDefOptionsMulti, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
+import { useGetDbQueryDefOptionsMulti, useGetRedisHashKeys, useGetRedisKeyDefinitions } from '../hooks/useTaskboardQueries';
 import type { DroppedWidget, TableColumn } from '../types/taskboard.types';
+import { extractCompositeLeadPart, isCompositeFieldKey, matchKeyDefinition } from '../utils/redisKeyDefinitions';
 import { extractSystemIdSegment, findSiblingKeys } from '../utils/redisKeyPattern';
 import {
   buildGroupReasonHashKeys,
   evaluateFormula,
   extractNameValueItems,
-  extractSystemIdFromCompositeFieldKey,
   findGroupReasonKeys,
   groupSumRedisHashEntries,
-  isSystemNodeCompositeFieldKey,
   mergeCompositeNodeEntries,
   mergeWsSubscriptions,
   parseGroupReasonHashKey,
@@ -173,6 +173,9 @@ export function RedisTableWidget({
   const hashKey = widget.item.redisHashKey ?? '';
   const pattern = widget.item.redisKeyPattern ?? 'fields';
   const { data: allHashKeys = [] } = useGetRedisHashKeys();
+  const { data: redisKeyDefs } = useGetRedisKeyDefinitions();
+  const defs: RedisKeyDefinitionsResponse = redisKeyDefs ?? { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
+  const compositeFieldDefinitionName = matchKeyDefinition(hashKey, defs)?.name;
   const groupReason = parseGroupReasonHashKey(hashKey);
   const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
   let columns = widget.item.tableConfig?.columns ?? [];
@@ -431,10 +434,10 @@ export function RedisTableWidget({
     // SYSTEM_ID(10)+NODE_ID(6) 합성 필드 키 해시(예: IC:GROUP:{mediaType})는 노드별로 행이 중복돼 보이므로
     // SYSTEM_ID로 묶어 1행으로 합친다(숫자 컬럼은 노드 합계) — 다른 해시(필드 키가 이 모양이 아님)는
     // 영향 없음. 필드가 하나도 없거나 전부 이 모양이 아니면 기존처럼 field 1개=행 1개로 그대로 둔다.
-    if (entryList.length > 0 && entryList.every(([id]) => isSystemNodeCompositeFieldKey(id))) {
+    if (entryList.length > 0 && entryList.every(([id]) => isCompositeFieldKey(id, compositeFieldDefinitionName, defs))) {
       const bySystemId = new Map<string, Record<string, unknown>[]>();
       entryList.forEach(([id, parsed]) => {
-        const systemId = extractSystemIdFromCompositeFieldKey(id);
+        const systemId = extractCompositeLeadPart(id, compositeFieldDefinitionName, defs);
         const list = bySystemId.get(systemId) ?? [];
         list.push(parsed);
         bySystemId.set(systemId, list);
