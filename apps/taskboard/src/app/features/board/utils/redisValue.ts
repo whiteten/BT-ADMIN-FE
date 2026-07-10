@@ -112,6 +112,20 @@ export function filterGroupReasonKeysByTarget(hashKeys: string[], targetIdsByPre
   });
 }
 
+/**
+ * hashKeys(주로 hashSiblingKeys) 중 위젯이 마스킹해둔 키가 "...:{mediatype}"로 끝나는 경우에 한해, 실제
+ * 트레일링 세그먼트가 selectedMediaTypes 중 하나와 일치하는 키만 남긴다. mediaType은 groupId/skillId와
+ * 달리 "여러 개 골라 합산"하는 값이 아니라 뷰그룹(디스플레이)당 정확히 1개를 골라 대입하는 값이라, 마스킹된
+ * hashSiblingKeys(라이브에 존재하는 모든 미디어타입 변형 키)를 그대로 합산/구독하면 안 된다(2026-07-10
+ * mediaType이 마스킹 대상에 포함된 이후 실측된 버그: IC:CTIQ:{mediatype}에서 미디어타입 0만 선택해도
+ * IC:CTIQ:0/10/IN_TOT 전부 구독·합산됨). maskedHashKey가 mediatype 마스킹이 아니거나(다른 종류의 마스킹,
+ * 예: REASON 패밀리의 groupId만 마스킹) selectedMediaTypes가 비어있으면(로딩 중 등) 그대로 통과시킨다.
+ */
+export function filterKeysByMediaType(hashKeys: string[], maskedHashKey: string | undefined, selectedMediaTypes: string[]): string[] {
+  if (!maskedHashKey?.endsWith(':{mediatype}') || selectedMediaTypes.length === 0) return hashKeys;
+  return hashKeys.filter((k) => selectedMediaTypes.some((mt) => k.endsWith(`:${mt}`)));
+}
+
 /** 여러 hashKey(예: 디스플레이가 선택한 여러 그룹의 IC:GROUP:REASON 해시)의 entries를 모두 byKey로 묶어
  * aggKey를 합산한다 — groupSumRedisHashEntries를 hashKey별로 적용한 뒤 합친 버전. */
 export function groupSumAcrossHashKeys(
@@ -125,21 +139,6 @@ export function groupSumAcrossHashKeys(
     groupSumRedisHashEntries(entriesByHashKey[hk] ?? {}, byKey, aggKey).forEach((v, k) => total.set(k, (total.get(k) ?? 0) + v));
   });
   return total;
-}
-
-/**
- * IC:GROUP:{mediaType}처럼 SYSTEM_ID(10자리)+NODE_ID(6자리)를 이어붙인 16자리 숫자 필드를 Hash field로
- * 쓰는 해시(DS_GROUP/DS_SKILL/DS_BSR_GROUP 등)인지 판별. 이런 해시를 table-redis로 통째로 펼치면 같은
- * SYSTEM_ID가 노드 수만큼 행이 중복돼 보인다 — 노드별로 따로 표기할 필요가 없으므로 SYSTEM_ID로 묶어
- * 1행으로 합쳐야 한다(숫자 컬럼은 노드 합계, 그 외는 첫 값).
- */
-export function isSystemNodeCompositeFieldKey(fieldKey: string): boolean {
-  return /^\d{16}$/.test(fieldKey);
-}
-
-/** SYSTEM_ID(앞 10자리)만 추출 — composite 필드 키를 그룹화할 때 사용. */
-export function extractSystemIdFromCompositeFieldKey(fieldKey: string): string {
-  return fieldKey.slice(0, 10);
 }
 
 /**
@@ -202,16 +201,64 @@ export interface SelectionListContext {
 }
 
 /**
+ * "마스터 리스트가 있는 미디어타입 해시" 1종에 대한 정의 — prefix 뒤에 extraSegments개의 세그먼트(예:
+ * AGENT의 {groupId})와 mediaType 세그먼트 1개가 정확히 붙는 hashKey만 매칭한다. 새 마스터 엔티티가
+ * 추가돼도 이 배열(MASTER_ENTITY_HASH_DEFS)에 객체 하나만 추가하면 되고, buildSelectionIdsByHashKey
+ * 본문은 수정할 필요가 없다.
+ */
+interface MasterEntityHashDef {
+  prefix: string;
+  /** prefix와 mediaType 세그먼트 사이에 오는 추가 세그먼트 수 (GROUP/QUEUE=0, AGENT의 {groupId}=1) */
+  extraSegments: number;
+  /**
+   * 선택된 id를 이 해시의 실제 field id 목록으로 변환한다. 선택값이 비어있으면(뷰그룹에서 이 카테고리를
+   * 아예 안 골랐거나 등록을 안 한 경우) "선택 없음=전체"로 마스터 리스트 전체를 반환해야 한다 — WS 구독
+   * 크기 계산(queueIdsForSub 등)이 이미 쓰는 규칙과 동일하게 맞춰서, 같은 "선택 없음" 상황에 구독은
+   * 전체인데 표시값만 0으로 나오던 불일치를 없앤다.
+   */
+  resolveFieldIds: (ctx: SelectionListContext, extraSegmentValues: string[]) => string[];
+}
+
+const MASTER_ENTITY_HASH_DEFS: MasterEntityHashDef[] = [
+  {
+    prefix: GROUP_HASH_PREFIX,
+    extraSegments: 0,
+    resolveFieldIds: (ctx) => {
+      const targetGroups = ctx.selectedGroupIds.length > 0 ? ctx.groupRows.filter((g) => ctx.selectedGroupIds.includes(g.groupId)) : ctx.groupRows;
+      return [...new Set(targetGroups.flatMap((g) => g.compositeKeys ?? []))];
+    },
+  },
+  {
+    prefix: QUEUE_HASH_PREFIX,
+    extraSegments: 0,
+    resolveFieldIds: (ctx) => (ctx.selectedQueueIds.length > 0 ? ctx.selectedQueueIds : ctx.queueRows.map((q) => q.ctiqId)),
+  },
+  {
+    prefix: AGENT_HASH_PREFIX,
+    extraSegments: 1,
+    resolveFieldIds: (ctx, [groupId]) => {
+      const agentsInGroup = ctx.agentRows.filter((a) => a.groupId === groupId);
+      return ctx.selectedAgentIds.length > 0 ? agentsInGroup.filter((a) => ctx.selectedAgentIds.includes(a.agentId)).map((a) => a.agentId) : agentsInGroup.map((a) => a.agentId);
+    },
+  },
+];
+
+/**
  * GROUP/CTIQ/AGENT(미디어타입 해시) 위젯이 보여줄 id(field) 목록을 디스플레이 선택값으로 계산한다.
- * 뷰그룹에 그 카테고리 선택값이 없으면(큐/상담그룹 선택 UI가 더는 없어 사실상 항상 없거나, 관리자가 그
- * 카테고리를 아예 안 씀) 이 hashKey는 빈 배열로 채워진다 — getRedisDisplayValue가 "선택값 있음, 개수 0"을
- * 보고 0을 보여준다(뷰그룹에 매핑 안 된 카테고리는 위젯이 자기 마음대로 예전 값을 보여주지 않게).
- * 선택값이 있으면 그 id들의 값을 합산해서 보여준다.
+ * 뷰그룹에 그 카테고리 선택값이 없으면(선택 안 함, 또는 등록 자체를 안 함) 마스터 리스트 전체를 보여준다
+ * ("선택 없음=전체" — 애매한 설정보다 데이터가 더 보이는 쪽을 기본으로 함). 선택값이 있으면 그 id들만.
  */
 export function buildSelectionIdsByHashKey(widgets: DroppedWidget[], ctx: SelectionListContext): Record<string, string[]> {
   const hashKeysInUse = new Set<string>();
   const collect = (item: CallDataItem) => {
-    if (item.category === 'Redis' && item.redisHashKey) hashKeysInUse.add(item.redisHashKey);
+    // 마스킹된 키(예: "IC:CTIQ:{mediatype}", task-create Redis 트리에서 드래그한 값 위젯)는 여기서 다루지
+    // 않는다 — "선택 없음=전체" 폴백을 가진 이 함수(MASTER_ENTITY_HASH_DEFS)를 마스킹 키에도 적용하면,
+    // 데이터소스관리에 아무 리스트도 등록 안 한 위젯까지 전체 마스터 리스트로 강제 override돼버린다
+    // (뷰그룹/데이터소스관리에 매핑된 값이 위젯의 값과 "일치할 때만" 리스트를 적용해야 한다는 설계와
+    // 어긋남). 마스킹 키의 field override는 오직 `buildDataSourceKeySelectionIds`(문자열 정확히 일치하는
+    // 등록된 데이터소스가 있을 때만 적용, 없으면 위젯이 원래 드래그된 필드 그대로 동작)로만 처리한다.
+    // 이 함수는 item.mediaType이 리터럴로 박힌 concrete 키(테이블/차트 위젯)만 대상으로 유지.
+    if (item.category === 'Redis' && item.redisHashKey && !item.redisHashKey.includes('{')) hashKeysInUse.add(item.redisHashKey);
   };
   widgets.forEach((w) => {
     collect(w.item);
@@ -222,23 +269,14 @@ export function buildSelectionIdsByHashKey(widgets: DroppedWidget[], ctx: Select
 
   const result: Record<string, string[]> = {};
   hashKeysInUse.forEach((hashKey) => {
-    // 단순 "IC:GROUP:" / "IC:CTIQ:" 접두사 일치만 보면 IC:GROUP:REASON:*, IC:CTIQ:TSPEC:/WAIT:/IN_TOT
-    // 같은 "그 안에 더 들어간(nested)" 다른 데이터셋까지 일반 그룹/큐 테이블로 오인해서 전체 마스터
-    // id 목록을 잘못 끼워 넣게 된다(접두사 뒤에 ':'가 더 있으면 같은 패밀리의 다른 데이터셋).
-    // 그래서 접두사 뒤에 남는 부분이 "딱 미디어타입 1개"인 경우에만 매칭한다.
-    const groupRest = hashKey.startsWith(GROUP_HASH_PREFIX) ? hashKey.slice(GROUP_HASH_PREFIX.length) : null;
-    const queueRest = hashKey.startsWith(QUEUE_HASH_PREFIX) ? hashKey.slice(QUEUE_HASH_PREFIX.length) : null;
-    if (groupRest !== null && !groupRest.includes(':')) {
-      result[hashKey] = [...new Set(ctx.groupRows.filter((g) => ctx.selectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))];
-    } else if (queueRest !== null && !queueRest.includes(':')) {
-      result[hashKey] = ctx.selectedQueueIds;
-    } else if (hashKey.startsWith(AGENT_HASH_PREFIX)) {
-      // IC:AGENT:{groupId}:{mediaType} — 접두사 뒤에 정확히 "groupId:mediaType" 2조각일 때만 매칭.
-      const agentRest = hashKey.slice(AGENT_HASH_PREFIX.length).split(':');
-      if (agentRest.length !== 2) return;
-      const agentsInGroup = ctx.agentRows.filter((a) => a.groupId === agentRest[0]);
-      result[hashKey] = ctx.selectedAgentIds.length > 0 ? agentsInGroup.filter((a) => ctx.selectedAgentIds.includes(a.agentId)).map((a) => a.agentId) : [];
-    }
+    const def = MASTER_ENTITY_HASH_DEFS.find((d) => hashKey.startsWith(d.prefix));
+    if (!def) return;
+    // 단순 접두사 일치만 보면 IC:GROUP:REASON:*, IC:CTIQ:TSPEC:/WAIT:/IN_TOT 같은 "그 안에 더 들어간
+    // (nested)" 다른 데이터셋까지 오인해서 전체 마스터 id 목록을 잘못 끼워 넣게 된다 — 그래서 접두사 뒤에
+    // 남는 부분이 "extraSegments개 세그먼트 + mediaType 1개"로 정확히 떨어질 때만 매칭한다.
+    const rest = hashKey.slice(def.prefix.length).split(':');
+    if (rest.length !== def.extraSegments + 1) return;
+    result[hashKey] = def.resolveFieldIds(ctx, rest.slice(0, def.extraSegments));
   });
   return result;
 }
@@ -257,30 +295,48 @@ export function getRedisDisplayValue(
   redisData?: CtiWsDataByHashKey,
   selectionIdsByHashKey?: Record<string, string[]>,
   targetIdsByPrefix: Record<string, string[]> = {},
+  selectedMediaTypes: string[] = [],
 ): string {
   const { redisHashKey, redisField, redisJsonField, hashSiblingKeys } = widget.item;
   if (!redisHashKey || !redisData) return String(widget.item.sampleValue);
 
-  const selectedIds = selectionIdsByHashKey?.[redisHashKey];
-  if (selectedIds) {
-    if (selectedIds.length === 0) return '0';
-    const nums = selectedIds.map((id) => toNumericField(redisData[redisHashKey], id, redisJsonField));
+  // redisHashKey 자체가 "{groupId}"/"{mediatype}" 같은 마스킹 토큰이면(task-create에서 실제 groupId/미디어타입을
+  // 노출하지 않으려고 심어둔 자리표시자) 이 키로 redisData를 직접 조회하면 항상 undefined다 — 실데이터는 항상
+  // hashSiblingKeys(드래그 시점에 모아둔 실제 키 후보) 중, REASON 패밀리는 targetIdsByPrefix로, mediaType
+  // 마스킹은 selectedMediaTypes로 좁힌 "실제 조회 가능한 키" 목록을 통해서만 조회 가능하다.
+  const isMaskedKey = redisHashKey.includes('{');
+  const resolvedKeys = isMaskedKey
+    ? filterKeysByMediaType(filterGroupReasonKeysByTarget(hashSiblingKeys ?? [], targetIdsByPrefix), redisHashKey, selectedMediaTypes)
+    : [redisHashKey];
+
+  // GROUP/CTIQ/AGENT(미디어타입 해시) 등 마스터 리스트가 있는 엔티티로 확정된 키는, 디자인 시점에 고정된
+  // redisField 대신 디스플레이 선택값(selectionIdsByHashKey)으로 결정된 id들을 합산해서 보여준다.
+  const overrides = resolvedKeys.map((k) => ({ k, ids: selectionIdsByHashKey?.[k] })).filter((e): e is { k: string; ids: string[] } => e.ids !== undefined);
+  if (overrides.length > 0) {
+    const nums = overrides.flatMap(({ k, ids }) => ids.map((id) => toNumericField(redisData[k], id, redisJsonField)));
+    if (nums.length === 0) return '0';
     return String(nums.reduce((a, b) => a + b, 0));
   }
 
   if (!redisField) return String(widget.item.sampleValue);
   const { aggregation } = widget;
-  if (aggregation && aggregation !== 'none') {
+  // aggregation이 명시적으로 설정 안 돼있어도(디자인 시점 기본값 'none') 마스킹된 키는 siblings 집계
+  // 경로를 강제로 탄다(기본 집계는 sum) — resolvedKeys가 이미 REASON/mediaType 조건으로 좁혀져 있다.
+  if ((aggregation && aggregation !== 'none') || (isMaskedKey && resolvedKeys.length > 0)) {
     // 해시 그룹(큐별로 분리된 여러 hashKey)의 동일 필드를 모아 집계. 그룹이 없으면 자기 자신만으로 집계한다.
-    const keys = filterGroupReasonKeysByTarget(hashSiblingKeys && hashSiblingKeys.length > 0 ? hashSiblingKeys : [redisHashKey], targetIdsByPrefix);
-    const nums = keys.map((siblingKey) => toNumericField(redisData[siblingKey], redisField, redisJsonField));
+    const nums = resolvedKeys.map((siblingKey) => toNumericField(redisData[siblingKey], redisField, redisJsonField));
     if (nums.length === 0) return '0';
-    if (aggregation === 'sum') return String(nums.reduce((a, b) => a + b, 0));
-    if (aggregation === 'max') return String(Math.max(...nums));
-    if (aggregation === 'min') return String(Math.min(...nums));
+    const effectiveAggregation = aggregation && aggregation !== 'none' ? aggregation : 'sum';
+    if (effectiveAggregation === 'sum') return String(nums.reduce((a, b) => a + b, 0));
+    if (effectiveAggregation === 'max') return String(Math.max(...nums));
+    if (effectiveAggregation === 'min') return String(Math.min(...nums));
     const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
     return String(Math.round(avg * 100) / 100);
   }
+
+  // 마스킹된 키인데 siblings조차 없으면(등록 데이터소스 없음 등) 진짜 키처럼 조회 시도하지 않는다 —
+  // 항상 undefined일 값을 굳이 조회해서 sampleValue로 새는 대신, 명시적으로 0.
+  if (isMaskedKey) return '0';
 
   const val = readJsonField(redisData[redisHashKey]?.[redisField], redisJsonField);
   return val != null ? String(val) : String(widget.item.sampleValue);
@@ -296,9 +352,10 @@ export function getWidgetNumericValue(
   redisData?: CtiWsDataByHashKey,
   selectionIdsByHashKey?: Record<string, string[]>,
   targetIdsByPrefix: Record<string, string[]> = {},
+  selectedMediaTypes: string[] = [],
 ): number {
   const isRedis = widget.item.category === 'Redis' && !!widget.item.redisHashKey;
-  const raw = isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey, targetIdsByPrefix) : widget.item.sampleValue;
+  const raw = isRedis ? getRedisDisplayValue(widget, redisData, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes) : widget.item.sampleValue;
   return Number(raw);
 }
 
@@ -314,17 +371,18 @@ export function getOperandNumericValue(
   redisData?: CtiWsDataByHashKey,
   selectionIdsByHashKey?: Record<string, string[]>,
   targetIdsByPrefix: Record<string, string[]> = {},
+  selectedMediaTypes: string[] = [],
 ): number {
   if (operand.source) {
     const isRedis = operand.source.category === 'Redis' && !!operand.source.redisHashKey;
     const raw = isRedis
-      ? getRedisDisplayValue({ item: operand.source, aggregation: operand.aggregation }, redisData, selectionIdsByHashKey, targetIdsByPrefix)
+      ? getRedisDisplayValue({ item: operand.source, aggregation: operand.aggregation }, redisData, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes)
       : operand.source.sampleValue;
     return Number(raw);
   }
   const target = widgets.find((w) => w.id === operand.widgetId);
   if (!target) return NaN;
-  return getWidgetNumericValue(target, redisData, selectionIdsByHashKey, targetIdsByPrefix);
+  return getWidgetNumericValue(target, redisData, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes);
 }
 
 /**
@@ -340,16 +398,23 @@ export function collectRedisWsSubscriptions(
   widgets: DroppedWidget[],
   selectionIdsByHashKey?: Record<string, string[]>,
   targetIdsByPrefix: Record<string, string[]> = {},
+  selectedMediaTypes: string[] = [],
 ): CtiWsSubscription[] {
   const byHashKey = new Map<string, { ids: Set<string>; columns: Set<string> }>();
   const addItem = (item: CallDataItem) => {
     if (item.category !== 'Redis' || !item.redisHashKey || !item.redisField) return;
-    const hashKeys = filterGroupReasonKeysByTarget(item.hashSiblingKeys?.length ? item.hashSiblingKeys : [item.redisHashKey], targetIdsByPrefix);
+    const isMaskedKey = item.redisHashKey.includes('{');
+    const hashKeys = isMaskedKey
+      ? filterKeysByMediaType(filterGroupReasonKeysByTarget(item.hashSiblingKeys ?? [], targetIdsByPrefix), item.redisHashKey, selectedMediaTypes)
+      : [item.redisHashKey];
     hashKeys.forEach((hashKey) => {
       if (!byHashKey.has(hashKey)) byHashKey.set(hashKey, { ids: new Set(), columns: new Set() });
       const entry = byHashKey.get(hashKey)!;
       const selectedIds = selectionIdsByHashKey?.[hashKey];
-      if (selectedIds) {
+      // 빈 배열([])도 "선택값 있음"으로 취급하면, 큐/그룹처럼 이 화면에서 아무 선택도 안 한 경우
+      // 위젯이 원래 드래그한 고정 필드(item.redisField)까지 덮어써 구독 자체가 사라진다 — 반드시
+      // 실제로 값이 있을 때만 override, 없으면 디자인 시점 고정 필드로 폴백.
+      if (selectedIds && selectedIds.length > 0) {
         selectedIds.forEach((id) => entry.ids.add(id));
       } else {
         entry.ids.add(item.redisField!);
@@ -633,30 +698,23 @@ function expandKeyFieldTemplate(template: string, ownValueIds: string[], placeho
  * 이석사유=[14] → 병합 결과가 [14]만 남음) 먼저 나온 섹션의 위젯이 구독을 못 받아 0으로 보인다 —
  * 반드시 값 배열끼리 합쳐야 한다.
  */
-/** "IC:GROUP:0"처럼 REASON 패밀리가 아닌 그룹 기본 해시(IC:GROUP:{mediaType})만 매칭 — GROUP_REASON_HASH_PREFIX도
- * "IC:GROUP:"로 시작해서 겹치므로 반드시 뒤가 숫자(mediaType)로 바로 끝나는지까지 확인한다. */
-const GROUP_BASE_HASH_KEY_PATTERN = /^IC:GROUP:\d+$/;
-
-/**
- * 상담그룹 전용 직접선택 필드 없이, "데이터소스 관리"에 등록된 데이터소스 중 IC:GROUP:{mediaType}
- * 기본 해시(예: "IC:GROUP:0")를 redisKeys로 등록해둔 것을 "이 뷰그룹의 상담그룹 선택 소스"로 삼는다 —
- * 여러 개 등록돼 있으면 첫 번째를 사용. 없으면 undefined(그룹 선택 기능 자체가 없는 뷰그룹).
- */
-export function findGroupSelectionDbQueryId(dbQueryDefs: DbQueryDef[]): number | undefined {
-  return dbQueryDefs.find((d) => (d.redisKeys ?? []).some((rk) => GROUP_BASE_HASH_KEY_PATTERN.test(rk.key)))?.dbQueryId;
-}
-
 /** "IC:{엔티티}:{mediaType}" 형태(REASON 등 하위 패밀리가 아닌 기본 해시)의 등록 키를 아무 접두사에 대해서나
- * 매칭 — GROUP_BASE_HASH_KEY_PATTERN을 그룹 이외의 엔티티(스킬 등)로 일반화한 버전. */
-const BASE_ENTITY_HASH_KEY_PATTERN = /^(IC:[A-Za-z0-9_]+:)\d+$/;
+ * 매칭 — GROUP_BASE_HASH_KEY_PATTERN을 그룹 이외의 엔티티(스킬 등)로 일반화한 버전. 트레일링 세그먼트는
+ * 실제 미디어타입 숫자(예: "IC:GROUP:0")뿐 아니라 "{mediatype}" 같은 마스킹/템플릿 토큰(예:
+ * "IC:CTIQ:{mediatype}")도 인정한다 — 2026-07-10 mediaType 마스킹 도입 이후로는 데이터소스관리에
+ * 엔티티 목록을 등록할 때 실제 값 대신 템플릿 토큰으로 등록하는 경우도 정상이므로, 숫자만 인정하면
+ * 그 등록을 아예 못 찾아 "선택 없음=전체" 폴백으로 새어나간다(큐 리스트를 등록했는데도 전체 큐가
+ * 구독되는 버그의 원인이었음). */
+const BASE_ENTITY_HASH_KEY_PATTERN = /^(IC:[A-Za-z0-9_]+:)(?:\d+|\{[A-Za-z0-9_]+\})$/;
 
 /**
  * dbQueryDefs 중 "IC:{엔티티}:{mediaType}" 기본 해시(예: IC:GROUP:0, IC:SKILL:0)를 redisKeys로 등록해둔
  * 데이터소스를 전부 찾아 {엔티티 접두사(예: "IC:GROUP:") → 그 데이터소스의 dbQueryId} 맵으로 반환한다.
- * findGroupSelectionDbQueryId를 그룹 하나만이 아니라 등록된 모든 엔티티로 일반화한 버전 — buildDataSourceKeySelectionIds가
- * 이 맵으로 "그룹은 GROUP리스트의 선택값, 스킬은 스킬리스트의 선택값"처럼 엔티티별로 알맞은 선택값을 찾는다.
+ * 엔티티(그룹/큐/스킬 등)별로 전용 함수를 복사하지 않고, 등록된 모든 엔티티를 한 번에 일반화한 버전 —
+ * buildDataSourceKeySelectionIds/resolveEntityIdsFromSelection이 이 맵으로 "그룹은 GROUP리스트의 선택값,
+ * 큐는 CTIQ리스트의 선택값"처럼 엔티티별로 알맞은 선택값을 찾는다.
  */
-function findEntitySelectionDbQueryIdsByPrefix(dbQueryDefs: DbQueryDef[]): Map<string, number> {
+export function findEntitySelectionDbQueryIdsByPrefix(dbQueryDefs: DbQueryDef[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const d of dbQueryDefs) {
     for (const rk of d.redisKeys ?? []) {
@@ -671,7 +729,7 @@ function findEntitySelectionDbQueryIdsByPrefix(dbQueryDefs: DbQueryDef[]): Map<s
  * 도출한다 — 사용자가 실제로 "GROUPID"/"SKILLID" 같은 이름의 플레이스홀더 데이터소스를 등록해 다른 쿼리의
  * 필드 조합식(예: "{groupid}||{nodeid}")에서 참조하는 경우, 그 이름을 안 몰라도 현재 선택값으로 자동
  * override할 수 있게 해준다(등록 키의 대소문자/철자가 다르면 매칭이 깨지던 문제의 근본 해결). */
-function deriveEntityIdPlaceholderName(basePrefix: string): string {
+export function deriveEntityIdPlaceholderName(basePrefix: string): string {
   const middle = basePrefix.replace(/^IC:/, '').replace(/:$/, '');
   return `${middle.toLowerCase()}id`;
 }
@@ -696,16 +754,54 @@ export function buildReasonFamilyTargetIdsByPrefix(dbQueryDefs: DbQueryDef[], db
 }
 
 /**
- * 뷰그룹(디스플레이 selection)이 고른 상담그룹 ID 목록을 가져온다. SoT는 `selection.groupIds`가 아니라
- * "IC:GROUP:{mediaType}" 기본 해시를 등록해둔 데이터소스의 `selection.dbQuerySelections[그 dbQueryId]` —
- * 상담그룹 전용 직접선택 필드를 없애고 "데이터소스 관리 등록 데이터" 체크박스 하나로 통일했기 때문이다.
- * 그 데이터소스 자체가 없거나 선택값이 비어있으면 "선택 없음=전체" 규칙에 따라 호출부(table-group-reason의
- * targetGroupIds, GROUP/CTIQ/AGENT 위젯의 selectedGroupIds)에서 전체 그룹으로 폴백한다.
+ * 뷰그룹(디스플레이 selection)이 고른 엔티티(그룹/큐 등) ID 목록을 가져온다. SoT는 엔티티 전용 직접선택
+ * 필드가 아니라 "IC:{엔티티}:{mediaType}" 기본 해시를 등록해둔 데이터소스의
+ * `selection.dbQuerySelections[그 dbQueryId]` — 엔티티마다 전용 함수를 복사하지 않고 entityPrefix만
+ * 바꿔서 재사용한다(새 엔티티가 늘어나도 이 함수 수정 불필요, basePrefix 등록만 하면 됨).
+ * 그 데이터소스 자체가 없으면 legacyIds로 폴백한다 — 그룹처럼 직접선택 필드가 아예 없어진 엔티티는
+ * legacyIds에 빈 배열([])을 넘기면 "선택 없음=전체" 규칙이 호출부에서 그대로 적용되고, 큐처럼 아직
+ * 직접선택 UI(톱니바퀴 설정 패널의 selection.queueIds)가 남아있는 엔티티는 그 값을 legacyIds로 넘겨
+ * 하위호환한다(등록된 데이터소스가 있으면 그게 우선, 선택값이 빈 배열이어도 "명시적으로 0"이라 legacyIds로
+ * 안 새어나간다 — 데이터소스 등록 후에는 그쪽이 유일한 SoT).
  */
+export function resolveEntityIdsFromSelection(entityPrefix: string, selection: TaskboardDisplaySelection, dbQueryDefs: DbQueryDef[], legacyIds: string[] = []): string[] {
+  const dbQueryId = findEntitySelectionDbQueryIdsByPrefix(dbQueryDefs).get(entityPrefix);
+  if (dbQueryId === undefined) return legacyIds;
+  return selection.dbQuerySelections?.[dbQueryId] ?? legacyIds;
+}
+
 export function resolveGroupIdsFromSelection(selection: TaskboardDisplaySelection, dbQueryDefs: DbQueryDef[]): string[] {
-  const groupDbQueryId = findGroupSelectionDbQueryId(dbQueryDefs);
-  if (groupDbQueryId === undefined) return [];
-  return selection.dbQuerySelections?.[groupDbQueryId] ?? [];
+  return resolveEntityIdsFromSelection('IC:GROUP:', selection, dbQueryDefs);
+}
+
+export function resolveQueueIdsFromSelection(selection: TaskboardDisplaySelection, dbQueryDefs: DbQueryDef[]): string[] {
+  return resolveEntityIdsFromSelection('IC:CTIQ:', selection, dbQueryDefs, selection.queueIds ?? []);
+}
+
+/**
+ * 뷰그룹(디스플레이 selection)이 고른 미디어타입 값을 가져온다. SoT는 TaskDisplayManage.tsx가 판별하는
+ * placeholderName='mediatype'(대소문자 무관) 데이터소스의 `selection.dbQuerySelections[그 dbQueryId]` —
+ * groupId/queueId와 달리 별도 basePrefix 해시 등록 없이 이름으로만 찾는다(mediatype은 실제 데이터를 담은
+ * 마스터 해시가 아니라 순수 선택값 목록이라서). 등록된 데이터소스가 없으면(플레이스홀더 미등록) 빈 배열 —
+ * 마스킹 필터(filterKeysByMediaType)는 빈 배열을 "필터 없음(그대로 통과)"로 취급한다.
+ */
+export function resolveMediaTypesFromSelection(selection: TaskboardDisplaySelection, dbQueryDefs: DbQueryDef[]): string[] {
+  const dbQueryId = dbQueryDefs.find((d) => normalizePlaceholderName(d.placeholderName ?? '') === 'mediatype')?.dbQueryId;
+  if (dbQueryId === undefined) return [];
+  return selection.dbQuerySelections?.[dbQueryId] ?? [];
+}
+
+/**
+ * 뷰그룹에 저장된 엔티티 선택값(예: 그룹 A,B)을 실행 시점에 유효한 목록(예: 현재 마스터에 존재하는 그룹)
+ * 기준으로 보정한다 — A가 시스템에서 삭제된 뒤에도 뷰그룹 저장값엔 그대로 남아있을 수 있어서, "선택
+ * 없음=전체" 폴백만으로는 부족하다(선택값이 있긴 하지만 그중 일부가 무효인 경우). GROUP/CTIQ/AGENT
+ * 마스터엔티티 해시 경로(MASTER_ENTITY_HASH_DEFS)는 이미 마스터 리스트에서 `.filter()`하는 방식이라
+ * 우연히 안전하지만, REASON 패밀리 경로(targetGroupIds류)는 저장값을 그대로 썼다 — 이 함수로 통일한다.
+ */
+export function resolveValidEntityIds(selectedIds: string[], currentValidIds: string[]): string[] {
+  if (selectedIds.length === 0) return currentValidIds;
+  const validSet = new Set(currentValidIds);
+  return selectedIds.filter((id) => validSet.has(id));
 }
 
 export function mergeDbQuerySelections(selections: (Record<number, string[]> | undefined)[]): Record<number, string[]> {
@@ -764,12 +860,13 @@ export function buildDataSourceKeySelectionIds(
     for (const rk of def.redisKeys ?? []) {
       if (!rk.key) continue;
       // REASON 패밀리 등록 키(예: "IC:GROUP:REASON:{groupid}:0", "IC:SKILL:REASON:{아무이름}")는 토큰 이름이
-      // 뭐든 상관없이, 그 패밀리의 basePrefix(IC:GROUP:/IC:SKILL: 등)에 대응하는 엔티티 목록 데이터소스의
-      // 현재 선택값으로 직접 스코핑한다 — 이름 매칭(placeholderValuesByName)을 아예 안 거친다. 그룹 REASON에
-      // 그룹 선택값을, 스킬 REASON에 스킬 선택값을 각각 정확히 매칭하기 위함(등록 키 토큰 이름이 서로 달라도
-      // 안전, 엔티티마다 별도 override 코드를 추가할 필요도 없음).
+      // 뭐든 상관없이, 그 패밀리의 basePrefix(IC:GROUP:/IC:SKILL: 등)에 대응하는 엔티티 목록으로 직접
+      // 스코핑한다. placeholderValuesByName을 거쳐서 읽는다(dbQuerySelections를 다시 직접 읽지 않음) —
+      // 호출부(TaskView.tsx/RollingDisplay.tsx)가 directPlaceholderValuesByName으로 "현재 유효한 그룹만"으로
+      // 이미 보정한 값을 주입해두므로, 여기서 raw 저장값을 다시 읽으면 그 보정을 우회해 삭제된 그룹까지
+      // 새어나간다(뷰그룹에 A,B를 등록했는데 A가 시스템에서 삭제돼도 저장값엔 A가 남아있는 경우).
       const groupReason = parseGroupReasonHashKey(rk.key);
-      const reasonEntityIds = groupReason ? (dbQuerySelections?.[entityListDbQueryIdByPrefix.get(groupReason.basePrefix) ?? -1] ?? []) : [];
+      const reasonEntityIds = groupReason ? (placeholderValuesByName[normalizePlaceholderName(deriveEntityIdPlaceholderName(groupReason.basePrefix))] ?? []) : [];
       const expandedHashKeys = groupReason
         ? buildGroupReasonHashKeys(groupReason.prefix, groupReason.mediaType, reasonEntityIds)
         : expandTemplateKey(rk.key, placeholderValuesByName);
@@ -794,6 +891,7 @@ export function getCalcDisplayValue(
   redisData?: CtiWsDataByHashKey,
   selectionIdsByHashKey?: Record<string, string[]>,
   targetIdsByPrefix: Record<string, string[]> = {},
+  selectedMediaTypes: string[] = [],
 ): string {
   const calc = widget.calc;
   if (!calc?.formula.trim() || calc.operands.length === 0) return '—';
@@ -801,7 +899,7 @@ export function getCalcDisplayValue(
   const vars: Record<string, number> = {};
   for (const operand of calc.operands) {
     if (!operand.widgetId && !operand.source) return '—';
-    const value = getOperandNumericValue(operand, widgets, redisData, selectionIdsByHashKey, targetIdsByPrefix);
+    const value = getOperandNumericValue(operand, widgets, redisData, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes);
     if (Number.isNaN(value)) return '—';
     vars[operand.var] = value;
   }

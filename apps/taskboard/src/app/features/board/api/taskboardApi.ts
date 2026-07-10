@@ -174,7 +174,7 @@ export const taskboardApi = {
 
   // ── yml 기반 커스텀 DB 쿼리 실행 (custom1~custom10) ────────────────────────
   executeDbQuery: async (key: string): Promise<unknown[]> => {
-    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-db-query', { params: { key } });
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-db-query', withAuth({ params: { key } }));
     return unwrapListResponse(response.data?.data);
   },
 
@@ -186,7 +186,7 @@ export const taskboardApi = {
 
   // ── 저장된 DB 쿼리 정의 (뷰그룹 체크박스 옵션 소스) ────────────────────────
   listDbQueryDefs: async (): Promise<DbQueryDef[]> => {
-    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-list');
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-list', withAuth());
     return unwrapListResponse(response.data?.data);
   },
 
@@ -228,7 +228,7 @@ export const taskboardApi = {
   },
 
   getDbQueryDefOptions: async (id: number): Promise<Record<string, unknown>[]> => {
-    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-options', { params: { id } });
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-options', withAuth({ params: { id } }));
     return unwrapListResponse(response.data?.data);
   },
 };

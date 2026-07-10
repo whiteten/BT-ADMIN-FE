@@ -46,10 +46,10 @@ function isWithinDisplayWindow(notice: TaskboardNotice, now: Date): boolean {
  * - 둘 다 없으면 전체 활성 공지 표시
  *
  * 전광판 실행 중에도 공지 수정/등록이 {@link NOTICE_REFETCH_INTERVAL_MS} 주기로 재조회되어 반영된다.
- * notice.displayType='fixed'는 항상 같이 보이고, 'slide'는 두 가지 효과가 같이 적용된다 —
- * (1) 여러 건이면 한 번에 1건씩 {@link SLIDE_INTERVAL_MS} 주기로 돌려가며 표시(fixed 아래에 이어서),
- * (2) 표시되는 동안 그 글자 자체가 가로로 흘러가는 마퀴(ticker) 애니메이션(`tb-marquee-track`)이 붙는다 —
- * 슬라이드 공지가 1건뿐이어도 (2) 덕분에 "고정처럼 안 보이는" 동적인 느낌을 준다.
+ * 위젯 1개는 항상 공지 1건만 보여준다 — displayType('fixed'/'slide')은 "고정으로 계속 보일지 vs 여러 건과
+ * 순환할지"가 아니라, 그 공지가 화면에 떠 있는 동안 어떻게 표시되는지(정적 텍스트 vs 마퀴로 흘러가는 텍스트)만
+ * 결정한다. 매칭된 공지가 여러 건이면 {@link SLIDE_INTERVAL_MS} 주기로 전체(고정/슬라이드 구분 없이)를
+ * 한 건씩 순환한다.
  */
 export function AnnouncementWidget({ widget }: { widget: DroppedWidget }) {
   const { data: notices } = useGetNoticeList({ queryOptions: { refetchInterval: NOTICE_REFETCH_INTERVAL_MS } });
@@ -61,15 +61,14 @@ export function AnnouncementWidget({ widget }: { widget: DroppedWidget }) {
     return () => clearInterval(timer);
   }, []);
 
-  const active = (notices ?? []).filter((n) => n.useYn === 'Y' && isWithinDisplayWindow(n, now));
+  // activeYn(노출 여부) — useYn은 소프트삭제 플래그라 삭제 안 된 행은 항상 'Y'라서 "사용/미사용" 판정에 못 쓴다.
+  const active = (notices ?? []).filter((n) => n.activeYn === 'Y' && isWithinDisplayWindow(n, now));
   const filtered = widget.item.noticeId
     ? active.filter((n) => n.noticeId === widget.item.noticeId)
     : widget.noticeKey
-      ? (keyNotices ?? []).filter((n) => n.useYn === 'Y' && isWithinDisplayWindow(n, now))
+      ? (keyNotices ?? []).filter((n) => n.activeYn === 'Y' && isWithinDisplayWindow(n, now))
       : active;
   const sorted = [...filtered].sort((a, b) => a.sortOrder - b.sortOrder);
-  const fixedNotices = sorted.filter((n) => n.displayType !== 'slide');
-  const slideNotices = sorted.filter((n) => n.displayType === 'slide');
 
   // 슬라이드 속도(초) — task-create 속성 패널에서 위젯별로 지정. 회전 전환 주기와 마퀴 흐름 속도에 공통 사용.
   const slideIntervalSec = widget.slideIntervalSec ?? SLIDE_INTERVAL_MS / 1000;
@@ -77,16 +76,16 @@ export function AnnouncementWidget({ widget }: { widget: DroppedWidget }) {
 
   const [slideIndex, setSlideIndex] = useState(0);
   useEffect(() => {
-    if (slideNotices.length <= 1) {
+    if (sorted.length <= 1) {
       setSlideIndex(0);
       return;
     }
-    const timer = setInterval(() => setSlideIndex((i) => (i + 1) % slideNotices.length), slideIntervalMs);
+    const timer = setInterval(() => setSlideIndex((i) => (i + 1) % sorted.length), slideIntervalMs);
     return () => clearInterval(timer);
-  }, [slideNotices.length, slideIntervalMs]);
+  }, [sorted.length, slideIntervalMs]);
 
-  const currentSlide = slideNotices.length > 0 ? slideNotices[slideIndex % slideNotices.length] : null;
-  const visible = currentSlide ? [...fixedNotices, currentSlide] : fixedNotices;
+  const current = sorted.length > 0 ? sorted[slideIndex % sorted.length] : null;
+  const visible = current ? [current] : [];
   const showTitle = widget.showTitle !== false;
 
   if (visible.length === 0) {
@@ -111,7 +110,7 @@ export function AnnouncementWidget({ widget }: { widget: DroppedWidget }) {
           )}
           {notice.displayType === 'slide' ? (
             <div className="overflow-hidden whitespace-nowrap" style={{ fontFamily: widget.style.fontFamily, fontWeight: widget.style.fontWeight ?? 'normal' }}>
-              <span className="tb-marquee-track" style={{ animationDuration: `${slideIntervalSec * 2.4}s` }}>
+              <span className="tb-marquee-track" style={{ animationDuration: `${slideIntervalSec}s` }}>
                 {notice.content}
               </span>
             </div>
