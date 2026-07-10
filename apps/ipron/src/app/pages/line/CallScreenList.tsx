@@ -79,11 +79,11 @@ export default function CallScreenList() {
     for (const cs of callScreens) {
       const cur = map.get(cs.tenantId);
       if (cur) cur.count += 1;
-      else map.set(cs.tenantId, { name: cs.tenantName, count: 1 });
+      else map.set(cs.tenantId, { name: cs.tenantName ?? String(cs.tenantId), count: 1 });
     }
     return Array.from(map.entries())
       .map(([id, v]) => ({ id, name: v.name, count: v.count }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
   }, [callScreens]);
 
   const selectedTenantName = useMemo(
