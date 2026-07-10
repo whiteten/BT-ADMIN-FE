@@ -265,7 +265,7 @@ export default function DidRouteList() {
             {/* 요약 — 총 DID라우트 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">
-                총 DID라우트 <b className="text-gray-800 font-semibold">{allDidRouteList.length.toLocaleString()}</b>
+                총 DID라우트 <b className="text-gray-800 font-semibold">{didRouteList.length.toLocaleString()}</b>
               </span>
             </div>
 

@@ -605,7 +605,7 @@ export default function EndpointList() {
             {/* 요약 — 총 국선 (검색 결과 기준) */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">
-                총 국선 <b className="text-gray-800 font-semibold">{searchFilteredEndpoints.length.toLocaleString()}</b>
+                총 국선 <b className="text-gray-800 font-semibold">{filteredEndpoints.length.toLocaleString()}</b>
               </span>
             </div>
 

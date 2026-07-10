@@ -303,7 +303,7 @@ export default function RouteList() {
             {/* 요약 — 총 라우트 (검색 결과 기준) */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">
-                총 라우트 <b className="text-gray-800 font-semibold">{searchFilteredRoutes.length.toLocaleString()}</b>
+                총 라우트 <b className="text-gray-800 font-semibold">{filteredRoutes.length.toLocaleString()}</b>
               </span>
             </div>
 
