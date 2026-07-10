@@ -8,9 +8,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, Select, Switch } from 'antd';
 import { toast } from '@/shared-util';
-import { useGetCodes } from '../hooks/useCommonQueries';
 import { useCreateHaGroup, useUpdateHaGroup } from '../hooks/useHaGroupQueries';
-import { HA_GROUP_MODE_KIND, type HaGroup, type HaGroupCreateRequest } from '../types';
+import { HA_GROUP_MODE_KIND, HA_GROUP_MODE_KIND_LABELS, type HaGroup, type HaGroupCreateRequest } from '../types';
+
+const GROUP_MODE_OPTIONS = Object.entries(HA_GROUP_MODE_KIND_LABELS).map(([value, label]) => ({ label, value: Number(value) }));
 
 export interface HaGroupDrawerRef {
   open: (data?: HaGroup) => void;
@@ -42,8 +43,6 @@ const HaGroupDrawer = forwardRef<HaGroupDrawerRef, Props>(({ selectedNodeId, nod
       form.resetFields();
     },
   }));
-
-  const { data: groupModeCodes = [] } = useGetCodes({ params: { classCd: 'HA_GROUP_MODE' }, queryOptions: { enabled: visible } });
 
   useEffect(() => {
     if (visible && editData) {
@@ -150,7 +149,7 @@ const HaGroupDrawer = forwardRef<HaGroupDrawerRef, Props>(({ selectedNodeId, nod
         </Form.Item>
 
         <Form.Item name="haGroupMode" label="HA 모드" required rules={[{ required: true, message: 'HA 모드는 필수입니다' }]}>
-          <Select options={groupModeCodes.map((c) => ({ label: c.value, value: Number(c.code) }))} placeholder="HA 모드 선택" />
+          <Select options={GROUP_MODE_OPTIONS} placeholder="HA 모드 선택" />
         </Form.Item>
 
         <Form.Item name="activateYn" label="활성화 여부" valuePropName="checked">

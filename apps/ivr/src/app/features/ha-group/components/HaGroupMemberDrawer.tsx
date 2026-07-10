@@ -10,9 +10,10 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
 import { toast } from '@/shared-util';
-import { useGetCodes } from '../hooks/useCommonQueries';
 import { useCreateHaGroupMember, useGetAvailableSystems, useUpdateHaGroupMember } from '../hooks/useHaGroupQueries';
-import { HA_ROLE_TYPE_KIND, type HaGroupMember, type HaGroupMemberCreateRequest, type HaGroupMemberUpdateRequest } from '../types';
+import { HA_ROLE_TYPE_KIND, HA_ROLE_TYPE_KIND_LABELS, type HaGroupMember, type HaGroupMemberCreateRequest, type HaGroupMemberUpdateRequest } from '../types';
+
+const ROLE_TYPE_OPTIONS = Object.entries(HA_ROLE_TYPE_KIND_LABELS).map(([value, label]) => ({ label, value: Number(value) }));
 
 export interface HaGroupMemberDrawerRef {
   open: (data?: HaGroupMember) => void;
@@ -46,7 +47,6 @@ const HaGroupMemberDrawer = forwardRef<HaGroupMemberDrawerRef, Props>(({ haGroup
     },
   }));
 
-  const { data: roleTypeCodes = [] } = useGetCodes({ params: { classCd: 'HA_ROLE_TYPE' }, queryOptions: { enabled: visible } });
   const { data: availableSystems = [] } = useGetAvailableSystems({
     params: nodeId ? { nodeId, excludeSystemId: editData?.systemId } : undefined,
     queryOptions: { enabled: !!nodeId && visible },
@@ -186,7 +186,7 @@ const HaGroupMemberDrawer = forwardRef<HaGroupMemberDrawerRef, Props>(({ haGroup
         </Form.Item>
 
         <Form.Item name="roleType" label="Role 타입" required rules={[{ required: true, message: 'Role 타입은 필수입니다' }]}>
-          <Select options={roleTypeCodes.map((c) => ({ label: c.value, value: Number(c.code) }))} disabled />
+          <Select options={ROLE_TYPE_OPTIONS} disabled />
         </Form.Item>
 
         <Form.Item

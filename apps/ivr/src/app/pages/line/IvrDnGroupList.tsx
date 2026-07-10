@@ -7,13 +7,13 @@
  *
  * ※ DN 그룹 추가/수정(IvrDnGroupSheet) 로직·백엔드 변경 없음.
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Alert, type BreadcrumbProps, Button, Col, Drawer, Empty, Form, Input, InputNumber, Row, Select } from 'antd';
-import { ChevronLeft, ChevronRight, Info, Layers, Network, Pencil, Phone, Plus, Search, Server, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Layers, Network, Pencil, Phone, Plus, Server, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IvrDnGroupSheet, { type IvrDnGroupSheetRef } from '../../features/ivr-dn-group/components/IvrDnGroupSheet';
@@ -40,7 +40,7 @@ import {
   SUB_DN_KIND_OPTIONS,
   isSubDnEligible,
 } from '../../features/ivr-dn-group/types';
-import NodeTabBar, { type NodeTabBarItem } from '@/components/custom/NodeTabBar';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -48,13 +48,6 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: 'IVR DN그룹관리', path: '/ivr/line/dn-group' }];
-
-const DIRECTION_FILTER_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'Outbound', value: '10' },
-  { label: 'Inbound', value: '20' },
-  { label: 'Both', value: '30' },
-];
 
 /** 그리드 안 상태값 배지 표준(add-grid 스킬 참조) — Record 색상 맵 + shadcn Badge. */
 const DIRECTION_BADGE_CLASS: Record<IrDnDirection, string> = {
@@ -94,8 +87,6 @@ export default function IvrDnGroupList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedSystemId, setSelectedSystemId] = useState<number | null>(null);
   const [selectedDnGroupId, setSelectedDnGroupId] = useState<number | null>(initDnGroupId);
-  const [searchText, setSearchText] = useState('');
-  const [directionFilter, setDirectionFilter] = useState('');
   const [subDnDrawerOpen, setSubDnDrawerOpen] = useState(false);
   const [subEditing, setSubEditing] = useState<IrSubDnGroup | null>(null);
   const [subFormOpen, setSubFormOpen] = useState(false);
@@ -198,22 +189,12 @@ export default function IvrDnGroupList() {
   });
 
   // ─── Derived ────────────────────────────────────────────────────────────
-  const isSearching = searchText.trim().length > 0;
-  const searchFilteredDnGroups = useMemo(() => {
-    if (!isSearching) return dnGroups;
-    const kw = searchText.trim().toLowerCase();
-    return dnGroups.filter((g) => g.dnGroupName?.toLowerCase().includes(kw) || g.endptName?.toLowerCase().includes(kw) || g.startDn?.toLowerCase().includes(kw));
-  }, [dnGroups, isSearching, searchText]);
-
   const filteredDnGroups = useMemo(() => {
-    let list = searchFilteredDnGroups;
-    if (!isSearching) {
-      if (selectedNodeId !== null) list = list.filter((g) => g.nodeId === selectedNodeId);
-      if (selectedSystemId !== null) list = list.filter((g) => g.systemId === selectedSystemId);
-    }
-    if (directionFilter) list = list.filter((g) => g.direction === directionFilter);
+    let list = dnGroups;
+    if (selectedNodeId !== null) list = list.filter((g) => g.nodeId === selectedNodeId);
+    if (selectedSystemId !== null) list = list.filter((g) => g.systemId === selectedSystemId);
     return list;
-  }, [searchFilteredDnGroups, selectedNodeId, selectedSystemId, directionFilter, isSearching]);
+  }, [dnGroups, selectedNodeId, selectedSystemId]);
 
   const dnGroupCountBySystem = useMemo(() => {
     const m = new Map<number, number>();
@@ -221,13 +202,13 @@ export default function IvrDnGroupList() {
     return m;
   }, [dnGroups]);
 
-  // 노드 선택에 따른 시스템 카드 슬라이더 노출 목록 — 검색 중이거나 "전체"면 전체 시스템 노출.
+  // 노드 선택에 따른 시스템 카드 슬라이더 노출 목록 — "전체"면 전체 시스템 노출.
   const filteredSystemUsages = useMemo(() => {
-    if (isSearching || selectedNodeId === null) return systemUsages;
+    if (selectedNodeId === null) return systemUsages;
     return systemUsages.filter((s) => s.nodeId === selectedNodeId);
-  }, [systemUsages, selectedNodeId, isSearching]);
+  }, [systemUsages, selectedNodeId]);
 
-  const nodeTabItems: NodeTabBarItem<number | 'all'>[] = useMemo(
+  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
     () => [
       { id: 'all', label: '전체', icon: Layers, count: systemUsages.length },
       ...nodes.map((node) => ({
@@ -258,15 +239,12 @@ export default function IvrDnGroupList() {
     setSelectedNodeId(nodeId);
     setSelectedSystemId(null);
     setSelectedDnGroupId(null);
-    setSearchText('');
   };
 
   const handleSystemSelect = (systemId: number) => {
     setSelectedSystemId(systemId);
     setSelectedDnGroupId(null);
   };
-
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value);
 
   const handleCreate = useCallback(() => dnGroupSheetRef.current?.open(undefined, selectedNodeId ?? nodes[0]?.nodeId), [nodes, selectedNodeId]);
   const handleEdit = useCallback((g: IrDnGroup) => dnGroupSheetRef.current?.open(g), []);
@@ -469,15 +447,14 @@ export default function IvrDnGroupList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 탭 바 박스 (노드) ===== */}
-        <NodeTabBar<number | 'all'>
+        <TabBar<number | 'all'>
           items={nodeTabItems}
-          selectedId={isSearching ? null : (selectedNodeId ?? 'all')}
+          selectedId={selectedNodeId ?? 'all'}
           onSelect={(id) => {
             if (id === 'all') {
               setSelectedNodeId(null);
               setSelectedSystemId(null);
               setSelectedDnGroupId(null);
-              setSearchText('');
             } else {
               handleNodeSelect(id);
             }
@@ -556,27 +533,11 @@ export default function IvrDnGroupList() {
             <div className="flex items-center gap-2">
               <Phone className="size-4 text-[#405189]" />
               <h3 className="text-sm font-semibold text-gray-800">
-                {isSearching ? (
-                  '검색 결과'
-                ) : (
-                  <>
-                    DN 그룹 — <span className="text-[#405189]">{selectedSystemName}</span>
-                  </>
-                )}
+                DN 그룹 — <span className="text-[#405189]">{selectedSystemName}</span>
               </h3>
               <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredDnGroups.length}개</span>
             </div>
             <div className="flex items-center gap-2">
-              <Input
-                allowClear
-                prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="DN그룹/국선/시작DN 검색"
-                value={searchText}
-                onChange={handleSearchChange}
-                style={{ width: 200 }}
-              />
-              <span className="text-sm text-gray-600">Direction</span>
-              <Select value={directionFilter} onChange={setDirectionFilter} options={DIRECTION_FILTER_OPTIONS} style={{ width: 120 }} />
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 DN 그룹 추가
               </Button>
@@ -594,7 +555,7 @@ export default function IvrDnGroupList() {
           <div className="flex-1 min-h-0 p-5">
             {filteredDnGroups.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <Empty description={isSearching ? '검색 결과가 없습니다' : '등록된 DN 그룹이 없습니다'} />
+                <Empty description="등록된 DN 그룹이 없습니다" />
               </div>
             ) : (
               <AgGridReact<IrDnGroup>
