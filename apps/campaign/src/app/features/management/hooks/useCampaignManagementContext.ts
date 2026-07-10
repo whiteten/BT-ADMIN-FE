@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/shared-util';
 import { useGetCampaignOptionList, useGetTenantOptionList } from '../../statistics/hooks/useCampaignStatisticsQueries';
+import { parseCampaignIds, toCampaignSelectionValue } from '../utils/campaignSelectionUtils';
 
 type UseCampaignManagementContextOptions = {
   withCampaign?: boolean;
@@ -27,13 +28,15 @@ export function useCampaignManagementContext({ withCampaign = false }: UseCampai
     const options: { label: string; value: string }[] = [];
     for (const c of campaignOptionList ?? []) {
       const tid = String(c.tenantId ?? '');
-      const value = `C:${tid}:${c.campaignId}`;
+      const value = toCampaignSelectionValue(tid, c.campaignId);
       if (seen.has(value)) continue;
       seen.add(value);
       options.push({ label: c.campaignName, value });
     }
     return options;
   }, [campaignOptionList]);
+
+  const campaignIds = useMemo(() => parseCampaignIds(campaignSelections), [campaignSelections]);
 
   useEffect(() => {
     if (!withCampaign) return;
@@ -65,6 +68,7 @@ export function useCampaignManagementContext({ withCampaign = false }: UseCampai
     campaignSelections,
     setCampaignSelections,
     campaignSelectOptions,
+    campaignIds,
     validateContext,
   };
 }

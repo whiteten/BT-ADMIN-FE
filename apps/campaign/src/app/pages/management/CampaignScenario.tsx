@@ -6,9 +6,11 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CampaignManagementContextHeader from '../../features/management/components/CampaignManagementContextHeader';
 import CampaignScenarioCard from '../../features/management/components/CampaignScenarioCard';
-import { MOCK_CAMPAIGN_SCENARIO_LIST } from '../../features/management/constants/campaignScenarioMockData';
 import { useCampaignManagementContext } from '../../features/management/hooks/useCampaignManagementContext';
-import type { CampaignScenarioListItem } from '../../features/management/types/campaignScenario';
+import { useGetCampaignScenarios } from '../../features/management/hooks/useCampaignQueries';
+import { toCampaignScenarioListItem } from '../../features/management/utils/campaignScenarioUtils';
+import { parseCampaignIds, toCampaignScenarioListParams } from '../../features/management/utils/campaignSelectionUtils';
+import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -20,11 +22,13 @@ const breadcrumb: BreadcrumbProps['items'] = [
 type AppliedFilters = {
   scenarioSearchValue: string;
   fileIdentifierSearchValue: string;
+  campaignIds: string[];
 };
 
 const INITIAL_APPLIED_FILTERS: AppliedFilters = {
   scenarioSearchValue: '',
   fileIdentifierSearchValue: '',
+  campaignIds: [],
 };
 
 export default function CampaignScenario() {
@@ -36,15 +40,49 @@ export default function CampaignScenario() {
   const [fileIdentifierSearchValue, setFileIdentifierSearchValue] = useState('');
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(INITIAL_APPLIED_FILTERS);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
-  const [scenarioList, setScenarioList] = useState<CampaignScenarioListItem[]>(MOCK_CAMPAIGN_SCENARIO_LIST);
-  const { tenantIds, setTenantIds, tenantSelectOptions, campaignSelections, setCampaignSelections, campaignSelectOptions, validateContext } = useCampaignManagementContext({
-    withCampaign: true,
+  const [deletedScenarioIds, setDeletedScenarioIds] = useState<Set<string>>(new Set());
+  const { tenantIds, setTenantIds, tenantSelectOptions, campaignSelections, setCampaignSelections, campaignSelectOptions, campaignIds, validateContext } =
+    useCampaignManagementContext({
+      withCampaign: true,
+    });
+
+  const scenarioListQueryParams = useMemo(() => toCampaignScenarioListParams(campaignIds), [campaignIds]);
+
+  const {
+    data: campaignScenarioMasters = [],
+    isFetching,
+    isLoading,
+  } = useGetCampaignScenarios({
+    params: scenarioListQueryParams,
+    queryOptions: { enabled: Boolean(scenarioListQueryParams?.campaignId) },
   });
+
+  const campaignNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const option of campaignSelectOptions) {
+      const [campaignId] = parseCampaignIds([option.value]);
+      if (campaignId) map.set(campaignId, option.label);
+    }
+    return map;
+  }, [campaignSelectOptions]);
+
+  useEffect(() => {
+    setDeletedScenarioIds(new Set());
+    setSelectedScenarioId(null);
+  }, [scenarioListQueryParams?.campaignId]);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
+
+  const scenarioList = useMemo(
+    () =>
+      campaignScenarioMasters
+        .map((item) => toCampaignScenarioListItem(item, campaignNameById.get(item.campaignId) ?? ''))
+        .filter((item) => !deletedScenarioIds.has(item.scenarioId)),
+    [campaignNameById, campaignScenarioMasters, deletedScenarioIds],
+  );
 
   const filteredList = useMemo(() => {
     const scenarioKeyword = appliedFilters.scenarioSearchValue.trim().toLowerCase();
@@ -63,12 +101,15 @@ export default function CampaignScenario() {
     });
   }, [appliedFilters, scenarioList]);
 
+  const isListLoading = Boolean(scenarioListQueryParams?.campaignId) && (isLoading || isFetching);
+
   const handleSearch = () => {
     if (!validateContext()) return;
 
     setAppliedFilters({
       scenarioSearchValue,
       fileIdentifierSearchValue,
+      campaignIds,
     });
     setSelectedScenarioId(null);
   };
@@ -97,7 +138,7 @@ export default function CampaignScenario() {
   const handleDelete = (scenarioId: string) => {
     modal.confirm.delete({
       onOk: () => {
-        setScenarioList((prev) => prev.filter((item) => item.scenarioId !== scenarioId));
+        setDeletedScenarioIds((prev) => new Set(prev).add(scenarioId));
         setSelectedScenarioId((prev) => (prev === scenarioId ? null : prev));
         toast.success('캠페인 시나리오가 삭제되었습니다.');
       },
@@ -160,7 +201,11 @@ export default function CampaignScenario() {
           </Button>
         </div>
       </div>
-      {filteredList.length ? (
+      {isListLoading ? (
+        <div className="flex items-center justify-center w-full h-full bg-white bt-shadow">
+          <FallbackSpinner />
+        </div>
+      ) : filteredList.length ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(480px,1fr))] gap-4 w-full overflow-y-auto">
           {filteredList.map((scenario) => (
             <CampaignScenarioCard
