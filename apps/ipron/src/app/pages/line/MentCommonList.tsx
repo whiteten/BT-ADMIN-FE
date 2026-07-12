@@ -1,28 +1,31 @@
 /**
  * 교환기 공용멘트 관리 (시스템 관리자 전용).
  *
- * 멘트 관리(MentMgmtList)와 동일한 노드 탭 + 그리드 + 등록/수정/삭제/미리듣기/동기화지만,
- * 스코프를 공통(TENANT_ID=0) 으로 고정한다. 테넌트 카드 슬라이더 없음.
+ * 상단 노드 Select(전체 포함) + 그리드 + 등록/수정/삭제/미리듣기/동기화.
+ * 스코프는 공통(TENANT_ID=0) 으로 고정한다. 테넌트 카드 슬라이더 없음.
  *
  * 공용멘트(TENANT_ID=0)는 전 테넌트가 공유하는 멘트로, SHARED_POOL 규칙상
  * 시스템 관리자만 생성/수정 가능(BE TenantGuard). 메뉴도 시스템관리자 role 에만 노출.
  *
  * 재사용: ment-mgmt feature (MentTable / MentFormDrawer / useMentQueries / mentApi).
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
+import { Button, Input, Select } from 'antd';
+import { Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { mentApi } from '../../features/ment-mgmt/api/mentApi';
 import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/components/MentFormDrawer';
 import MentTable from '../../features/ment-mgmt/components/MentTable';
-import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
+import { mentQueryKeys, useDeleteMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const COMMON_TENANT_ID = 0;
+/** 전 노드 공용 멘트(NODE_ID=0) — BE search 가 (nodeId = :nodeId or nodeId = 0) 범위로 조회. */
+const ALL_NODE_ID = 0;
 
 const breadcrumb = [
   { title: '미디어 관리', path: '/ipron/ment-common' },
@@ -47,20 +50,36 @@ export default function MentCommonList() {
   const [drawer, setDrawer] = useState<MentDrawerState>({ open: false });
   const [playingMentId, setPlayingMentId] = useState<number | null>(null);
 
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const hasInitializedNodeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
-  // 선택 노드의 공통(TENANT_ID=0) 멘트만 조회.
-  const { data: rows = [], isLoading } = useGetMents({
-    params: selectedNodeId != null ? { nodeId: selectedNodeId, tenantId: COMMON_TENANT_ID } : undefined,
-    queryOptions: { enabled: selectedNodeId != null },
+  const { data: nodes = [], isLoading: isNodesLoading } = useGetDnProfileNodes();
+
+  // BE 목록 API 는 nodeId 필수(@RequestParam Long nodeId) → 노드별로 조회 후 병합.
+  // 노드 Select 의 '전체' 선택 시 전 노드의 공용멘트를 한 그리드에 표시하기 위함.
+  const nodeMentQueries = useQueries({
+    queries: nodes.map((node) => ({
+      queryKey: mentQueryKeys.getList({ nodeId: node.nodeId, tenantId: COMMON_TENANT_ID }).queryKey,
+      queryFn: () => mentApi.getList({ nodeId: node.nodeId, tenantId: COMMON_TENANT_ID }),
+    })),
   });
 
-  // ─── Auto-select 첫 노드 탭 ───────────────────────────────────────────────────
+  const isLoading = isNodesLoading || nodeMentQueries.some((q) => q.isLoading);
+
+  // BE search 범위가 (nodeId = :nodeId or nodeId = 0) 이라 전 노드 공용(NODE_ID=0) 행이
+  // 노드별 응답마다 중복 포함됨 → ieMentId 기준 dedupe.
+  const allRows = Array.from(
+    new Map(
+      nodeMentQueries
+        .flatMap((q) => q.data ?? [])
+        .filter((r) => r.tenantId === COMMON_TENANT_ID)
+        .map((r) => [r.ieMentId, r] as const),
+    ).values(),
+  );
+
+  // ─── Auto-select 첫 노드 ─────────────────────────────────────────────────────
   useEffect(() => {
     if (nodes.length > 0 && !hasInitializedNodeRef.current && selectedNodeId == null) {
       hasInitializedNodeRef.current = true;
@@ -68,21 +87,32 @@ export default function MentCommonList() {
     }
   }, [nodes, selectedNodeId]);
 
-  // ─── 그리드 표시용 행 (공통만 + 텍스트 검색) ─────────────────────────────────────
-  const rowsForGrid = useMemo(() => {
-    let list = rows.filter((r) => r.tenantId === COMMON_TENANT_ID);
-    const kw = searchText.trim().toLowerCase();
-    if (kw) list = list.filter((r) => [r.mentName, r.fileName, r.mentDesc].some((f) => f != null && String(f).toLowerCase().includes(kw)));
-    return list;
-  }, [rows, searchText]);
+  // ─── 그리드 표시용 행 (텍스트 검색 → 노드 필터) ────────────────────────────────
+  const isSearching = searchText.trim().length > 0;
+  const kw = searchText.trim().toLowerCase();
+  const searchFilteredRows = isSearching
+    ? allRows.filter((r) => [r.mentName, r.fileName, r.mentDesc, r.nodeName].some((f) => f != null && String(f).toLowerCase().includes(kw)))
+    : allRows;
 
-  const ctxNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
+  // 검색 중이거나 '전체' 선택이면 노드 필터 미적용. 노드 선택 시 해당 노드 + 전 노드 공용(NODE_ID=0).
+  const rowsForGrid = isSearching || selectedNodeId == null ? searchFilteredRows : searchFilteredRows.filter((r) => r.nodeId === selectedNodeId || r.nodeId === ALL_NODE_ID);
+
+  // ─── Derived data ───────────────────────────────────────────────────────────
+  const selectedNodeName = selectedNodeId == null ? null : (nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null);
+  const gridHeaderText = `${selectedNodeName ?? '전체'} 교환기 공용멘트 목록 (${rowsForGrid.length.toLocaleString()}건)`;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
-  const handleTabSelect = useCallback((nodeId: number) => {
+  const handleNodeChange = (nodeId: number | null) => {
     setSelectedNodeId(nodeId);
-    setSearchText('');
-  }, []);
+  };
+
+  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setSearchText(e.target.value);
+    if (e.target.value.trim().length > 0) {
+      // 검색 시작 시 노드 필터 자동 해제 → 전체 결과 표시
+      setSelectedNodeId(null);
+    }
+  };
 
   const { mutate: deleteMents, isPending: isDeleting } = useDeleteMents({
     mutationOptions: {
@@ -113,7 +143,7 @@ export default function MentCommonList() {
       return;
     }
     // 공용멘트 = 공통(0) 고정.
-    setDrawer({ open: true, mode: 'create', nodeId: selectedNodeId, nodeName: ctxNodeName, tenantId: COMMON_TENANT_ID, tenantName: '공통' });
+    setDrawer({ open: true, mode: 'create', nodeId: selectedNodeId, nodeName: selectedNodeName, tenantId: COMMON_TENANT_ID, tenantName: '공통' });
   };
 
   const handleEdit = (row: MentResponse) => {
@@ -199,65 +229,37 @@ export default function MentCommonList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 박스A: 노드 탭바 ===== */}
+        {/* ===== 상단: 노드 Select + 요약 + 검색 + 동기화 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <div className="flex-shrink-0 flex flex-col items-center justify-center w-[44px] border-r border-gray-200" title="공용멘트: 노드 단위 구성">
-              <Network size={14} className="text-blue-600" />
-              <span className="text-[8px] font-bold mt-0.5 text-blue-600">노드</span>
+          <div className="flex items-center px-4 h-[56px] gap-3">
+            {/* 노드 선택 (공용멘트는 노드 단위 구성) */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
+                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
             </div>
 
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {nodes.map((node) => {
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] w-[140px] flex-shrink-0 transition-colors ${
-                      isActive ? 'bg-blue-50 text-blue-700 border-b-current' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleTabSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                  </button>
-                );
-              })}
+            {/* 요약 — 총 공용멘트 (노드 필터 적용 기준) */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 공용멘트 <b className="text-gray-800 font-semibold">{rowsForGrid.length.toLocaleString()}</b>
+              </span>
             </div>
 
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+            <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
                 placeholder="멘트명 / 파일명 검색"
                 value={searchText}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
+                onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
               <Button
@@ -265,7 +267,7 @@ export default function MentCommonList() {
                 onClick={handleSync}
                 loading={isSyncing}
                 disabled={selectedNodeId == null}
-                title="선택 노드의 모든 MS그룹에 멘트파일 동기화"
+                title={selectedNodeId == null ? '노드를 선택하세요' : '선택 노드의 모든 MS그룹에 멘트파일 동기화'}
               >
                 멘트파일 동기화
               </Button>
@@ -273,13 +275,11 @@ export default function MentCommonList() {
           </div>
         </div>
 
-        {/* ===== 박스B: 공용멘트 목록 ag-Grid ===== */}
+        {/* ===== 하단: 공용멘트 목록 ag-Grid ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">교환기 공용멘트 목록</span>
-            <span className="text-xs text-gray-500">
-              총 {rowsForGrid.length.toLocaleString()}건{selectedRows.length > 0 ? ` · 선택 ${selectedRows.length}건` : ''}
-            </span>
+            <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
+            {selectedRows.length > 0 && <span className="text-xs text-gray-500">선택 {selectedRows.length}건</span>}
             <div className="ml-auto flex items-center gap-2">
               <Button
                 danger
