@@ -20,7 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
-import { ArrowLeftRight, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
@@ -75,7 +75,6 @@ export default function DodTransList() {
   const [searchText, setSearchText] = useState('');
   const [numPatternSearch, setNumPatternSearch] = useState('');
   const [selectedItems, setSelectedItems] = useState<DodTransItem[]>([]);
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const masterDrawerRef = useRef<DodTransMasterDrawerRef>(null);
@@ -134,13 +133,14 @@ export default function DodTransList() {
   // ─── Options — 노드/테넌트 셀렉트 소스 (기존 탭이 쓰던 목록 그대로) ─────────────
   // 노드: 전체 노드 목록(byNode 탭이 쓰던 것)
   // 테넌트: 마스터에 존재하는 테넌트(byTenant 탭이 쓰던 것)
-  const assignedTenants = useMemo(() => {
-    const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const m of masters) {
-      if (!map.has(m.tenantId)) map.set(m.tenantId, { tenantId: m.tenantId, tenantName: m.tenantName ?? `테넌트 ${m.tenantId}` });
-    }
-    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [masters]);
+  // 테넌트: 공통 소스(토큰의 접근가능 테넌트). masters 에서 뽑으면 "마스터가 있는 테넌트"만 나와
+  // 데이터 없는 테넌트로는 신규 등록조차 못 하므로, 접근 가능한 전체 테넌트를 노출한다.
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
+  const assignedTenants = useMemo(
+    () =>
+      (availableTenants ?? []).map((t) => ({ tenantId: t.tenantId, tenantName: t.tenantName ?? `테넌트 ${t.tenantId}` })).sort((a, b) => a.tenantName.localeCompare(b.tenantName)),
+    [availableTenants],
+  );
 
   // ─── Derived — 노드/테넌트/검색 클라이언트 필터 ─────────────────────────────────
   const filteredMasters = useMemo(() => {
@@ -185,11 +185,6 @@ export default function DodTransList() {
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
-  };
-
-  const handleCardSelect = (master: DodTransMaster) => {
-    setSelectedMasterId(master.dodTransId);
-    setNumPatternSearch('');
   };
 
   const handleCreateMaster = useCallback(() => {
@@ -395,6 +390,30 @@ export default function DodTransList() {
               if (!operatorMode) return nodeFilterEl;
               return tenantFirst ? [tenantFilterEl, swapBtnEl, nodeFilterEl] : [nodeFilterEl, swapBtnEl, tenantFilterEl];
             })()}
+            {/* 변환(마스터) 선택 — 카드 슬라이더 대체. 카드에 있던 수정/삭제 메뉴는 옆 ⋮ 로 이설 */}
+            <div className="inline-flex items-center gap-0.5 h-8 pl-2 pr-1 rounded-md border border-gray-200 bg-white">
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedMasterId ?? undefined}
+                onChange={(v) => setSelectedMasterId(v == null ? null : Number(v))}
+                options={filteredMasters.map((m) => ({
+                  value: m.dodTransId,
+                  label: `${m.dodTransName}${m.itemCount > 0 ? ` (${m.itemCount})` : ''}`,
+                }))}
+                placeholder="변환 선택"
+                style={{ width: 200 }}
+                popupMatchSelectWidth={false}
+                notFoundContent={<span className="text-xs text-gray-400">등록된 변환이 없습니다</span>}
+              />
+              {selectedMaster && (
+                <Dropdown menu={{ items: getCardMenuItems(selectedMaster) }} trigger={['click']} placement="bottomRight">
+                  <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0" title="변환 수정/삭제">
+                    <MoreVertical className="size-3.5 text-gray-400" />
+                  </button>
+                </Dropdown>
+              )}
+            </div>
             {/* 요약 — 총 변환/패턴 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
               <span className="text-gray-500">
@@ -417,86 +436,6 @@ export default function DodTransList() {
                 추가
               </Button>
             </div>
-          </div>
-        </div>
-
-        {/* ===== 박스2: 마스터(변환) 선택 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center h-[170px] px-4 py-3">
-            {filteredMasters.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 40 }} />
-                <span className="text-sm">{searchText.trim().length > 0 ? '검색 결과가 없습니다' : '등록된 DOD DNIS 변환이 없습니다'}</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                  {filteredMasters.map((master) => {
-                    const isCardSelected = selectedMasterId === master.dodTransId;
-                    return (
-                      <div
-                        key={master.dodTransId}
-                        id={`dod-trans-card-${master.dodTransId}`}
-                        className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[180px] h-[130px] flex-shrink-0 flex flex-col ${
-                          isCardSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          handleCardSelect(master);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
-                        onDoubleClick={() => handleEditMaster(master)}
-                      >
-                        {/* Card header */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-semibold text-gray-800 truncate">{master.dodTransName}</span>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <Dropdown menu={{ items: getCardMenuItems(master) }} trigger={['click']} placement="bottomRight">
-                              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors flex-shrink-0">
-                                <MoreVertical className="size-3.5 text-gray-400" />
-                              </button>
-                            </Dropdown>
-                          </div>
-                        </div>
-
-                        {/* Card info */}
-                        <div className="text-xs text-gray-500 space-y-0.5">
-                          <div className="flex items-center gap-1">
-                            <Network className="size-3 text-gray-400" />
-                            <span className="truncate">{master.nodeName ?? `노드 ${master.nodeId}`}</span>
-                          </div>
-                          <div className="truncate">{master.tenantName ?? '-'}</div>
-                        </div>
-
-                        {/* 패턴 건수 태그 */}
-                        <div className="flex flex-wrap gap-1 mt-auto">
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
-                              master.itemCount > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
-                            }`}
-                          >
-                            {master.itemCount > 0 ? `패턴 ${master.itemCount}건` : '패턴 미등록'}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
           </div>
         </div>
 

@@ -73,18 +73,16 @@ export default function CallScreenList() {
   const { data: callScreens = [], isLoading } = useGetCallScreenList({ params: listParams });
 
   // ─── Derived data ───────────────────────────────────────────────────────────
-  // 테넌트 옵션 — 로드된 rows 에서 distinct 테넌트로 구성(운영자 ScopeSelect 용).
+  // 테넌트 옵션 — 공통 소스(토큰의 접근가능 테넌트). rows 에서 뽑으면 "데이터 있는 테넌트"만 나와
+  // 데이터가 없는 테넌트로는 신규 등록조차 못 하므로, 접근 가능한 전체 테넌트를 노출하고 건수만 덧씌운다.
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
   const tenantOptions = useMemo(() => {
-    const map = new Map<number, { name: string; count: number }>();
-    for (const cs of callScreens) {
-      const cur = map.get(cs.tenantId);
-      if (cur) cur.count += 1;
-      else map.set(cs.tenantId, { name: cs.tenantName ?? String(cs.tenantId), count: 1 });
-    }
-    return Array.from(map.entries())
-      .map(([id, v]) => ({ id, name: v.name, count: v.count }))
+    const counts = new Map<number, number>();
+    for (const cs of callScreens) counts.set(cs.tenantId, (counts.get(cs.tenantId) ?? 0) + 1);
+    return (availableTenants ?? [])
+      .map((t) => ({ id: t.tenantId, name: t.tenantName ?? String(t.tenantId), count: counts.get(t.tenantId) ?? 0 }))
       .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
-  }, [callScreens]);
+  }, [availableTenants, callScreens]);
 
   const selectedTenantName = useMemo(
     () =>
@@ -93,7 +91,8 @@ export default function CallScreenList() {
   );
 
   // 헤더 요약 — 총 차단번호 / (운영자만) 테넌트 수
-  const summary = useMemo(() => ({ total: callScreens.length, tenant: tenantOptions.length }), [callScreens, tenantOptions]);
+  // 테넌트 수는 "데이터가 있는 테넌트" 기준 (옵션 목록은 접근가능 전체라 별도 계산)
+  const summary = useMemo(() => ({ total: callScreens.length, tenant: new Set(callScreens.map((c) => c.tenantId)).size }), [callScreens]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const invalidateList = useCallback(() => {
