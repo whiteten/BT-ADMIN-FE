@@ -12,17 +12,23 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
  * 해당 탭이 하나라도 열려 있으면 어떤 탭이 닫히는지 알리고 확인을 받은 뒤에만 전환한다.
  */
 
-/** 운영자 전용 메뉴의 path 목록 — 네비게이션 원본 트리(필터 이전) 기준. */
+/**
+ * 운영자 전용 메뉴의 절대 경로 목록 — 네비게이션 원본 트리(필터 이전) 기준.
+ * 메뉴 path 는 앱 상대 경로('line/endpoint')이므로 appId 를 붙여 탭 url('/ipron/line/endpoint') 형식으로 맞춘다.
+ */
 function collectOperatorPaths(apps: NaviApp[]): string[] {
   const paths: string[] = [];
-  const walk = (items: NaviMenuItem[], inheritedOperator: boolean) => {
+  const walk = (items: NaviMenuItem[], appId: string, inheritedOperator: boolean) => {
     for (const m of items) {
       const isOperator = inheritedOperator || m.featureFlag === 'operator';
-      if (isOperator && m.path) paths.push(m.path);
-      if (m.children?.length) walk(m.children, isOperator);
+      if (isOperator && m.path) {
+        const rel = m.path.replace(/^\/+/, '');
+        paths.push(rel.startsWith(`${appId}/`) ? `/${rel}` : `/${appId}/${rel}`);
+      }
+      if (m.children?.length) walk(m.children, appId, isOperator);
     }
   };
-  for (const app of apps) walk(app.menus, false);
+  for (const app of apps) walk(app.menus, app.appId, false);
   return paths;
 }
 
