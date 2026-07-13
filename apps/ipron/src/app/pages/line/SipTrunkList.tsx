@@ -19,7 +19,7 @@ import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/share
 import { toast } from '@/shared-util';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import SipGdnDrawer, { type SipGdnDrawerRef } from '../../features/sip-trunk/components/SipGdnDrawer';
 import SipTrunkAssignDrawer from '../../features/sip-trunk/components/SipTrunkAssignDrawer';
 import SipTrunkDrawer, { type SipTrunkDrawerRef } from '../../features/sip-trunk/components/SipTrunkDrawer';
@@ -83,7 +83,8 @@ export default function SipTrunkList() {
   const trunkDrawerRef = useRef<SipTrunkDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: nodeSummaries = [] } = useGetSipTrunkNodes({ params: { tenantScope: 'tenant' } });
 
@@ -141,6 +142,13 @@ export default function SipTrunkList() {
       setSelectedNodeId(assignedNodes[0].nodeId);
     }
   }, [assignedNodes, selectedNodeId]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // 그룹DN 목록 변경 시 선택 무효화만 (자동 선택 제거 — 사용자가 클릭 선택)
   useEffect(() => {

@@ -51,6 +51,7 @@ import {
   MEDIA_SKILL_FIELD_MAP,
 } from '../../features/cti-queue/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -132,7 +133,8 @@ export default function CtiQueueList() {
   const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: rows = [], isLoading } = useGetCtiQueues();
   const { data: groupOptions = [] } = useGetCtiQueueGroupOptions(selectedTenantId);

@@ -28,7 +28,7 @@ import { useDeleteAcdGdns, useGetAcdGdnMembersPool, useGetAcdGdns, useSaveAcdGdn
 import { ACD_TYPE_OPTIONS, type GdnMemberItem, type GdnMemberPoolParams, type GdnMemberResponse, type GdnResponse, getAcdTypeName, getYnName } from '../../features/acd-gdn/types';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -82,7 +82,8 @@ export default function AcdGdnList() {
   const memberDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: gdns = [], isLoading: isGdnsLoading } = useGetAcdGdns();
@@ -152,6 +153,13 @@ export default function AcdGdnList() {
     }
     return { total: gdnsForGrid.length, acdActive, blocked };
   }, [gdnsForGrid]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // 스코프(노드/테넌트) 변경 시 잠금/선택 초기화
   useEffect(() => {

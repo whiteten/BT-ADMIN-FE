@@ -35,7 +35,7 @@ import DnTable from '../../features/dn/components/DnTable';
 import { dnQueryKeys, useDeleteDns, useGetDnOptions, useGetDns } from '../../features/dn/hooks/useDnQueries';
 import type { DnResponse } from '../../features/dn/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { nodeScopeQueryKeys, useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { nodeScopeQueryKeys, useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -81,7 +81,8 @@ export default function DnList() {
   const [freeDnLoading, setFreeDnLoading] = useState(false);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: nodeTenants = [] } = useGetNodeTenants();
 
@@ -159,6 +160,13 @@ export default function DnList() {
     }
     return { total: dnsForGrid.length, active, inactive };
   }, [dnsForGrid]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   const invalidateDns = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });

@@ -42,7 +42,7 @@ import {
   useUpdateProfile,
 } from '../../features/access-profile/hooks/useAccessProfileQueries';
 import type { AccessCode, AccessProfile } from '../../features/access-profile/types';
-import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -87,7 +87,8 @@ export default function AccessProfileManage() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: profiles = [] } = useGetProfiles();
   const { data: tenants = [] } = useGetTenants();
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: nodeTenants = [] } = useGetNodeTenants();
 
   // 노드-테넌트에 할당된 노드만 (노드 셀렉트 옵션)
@@ -139,6 +140,13 @@ export default function AccessProfileManage() {
   const { data: routesForSelectedNode = [], isLoading: isRoutesLoading } = useGetRoutesByNode(selectedProfile?.nodeId ?? null);
 
   const routeOptionsForSelectedNode = useMemo(() => routesForSelectedNode.map((r) => ({ label: r.routeName, value: r.routeId })), [routesForSelectedNode]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // ─── Auto-select ────────────────────────────────────────────────────────────
   // 필터된 목록에서 프로파일 자동 선택 (선택 항목이 필터에서 빠지면 첫 항목으로)

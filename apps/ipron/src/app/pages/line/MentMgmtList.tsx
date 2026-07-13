@@ -21,6 +21,7 @@ import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/c
 import MentTable from '../../features/ment-mgmt/components/MentTable';
 import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -62,7 +63,8 @@ export default function MentMgmtList() {
   const audioUrlRef = useRef<string | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: rows = [], isLoading } = useGetMents({
     params: selectedNodeId != null ? { nodeId: selectedNodeId } : undefined,
     queryOptions: { enabled: selectedNodeId != null },
@@ -73,6 +75,13 @@ export default function MentMgmtList() {
     if (nodes.length > 0 && !hasInitializedNodeRef.current && selectedNodeId == null) {
       hasInitializedNodeRef.current = true;
       setSelectedNodeId(nodes[0].nodeId);
+    }
+  }, [nodes, selectedNodeId]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
     }
   }, [nodes, selectedNodeId]);
 

@@ -37,6 +37,7 @@ import {
   useUpdateProfile,
 } from '../../features/emerg-profile/hooks/useEmergProfileQueries';
 import type { EmergCode, EmergProfile } from '../../features/emerg-profile/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -76,7 +77,8 @@ export default function EmergProfileManage() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: profiles = [] } = useGetProfiles();
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  const nodes = useScopedNodes(allNodes);
   const { data: codes = [], isLoading: isCodesLoading } = useGetCodes({
     params: selectedProfileId ? { profileId: selectedProfileId, ...codeSearchParams } : undefined,
     queryOptions: { enabled: !!selectedProfileId },
@@ -116,6 +118,13 @@ export default function EmergProfileManage() {
       setSelectedProfileId(filteredProfiles[0].emergencyCodeProfileId);
     }
   }, [filteredProfiles, selectedProfileId]);
+
+  // 노드 스코프가 바뀌어 선택 노드가 스코프 밖이면 전체(null)로 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleNodeSelect = useCallback((nodeId: number | null) => {

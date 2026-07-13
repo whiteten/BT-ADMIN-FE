@@ -27,7 +27,7 @@ import DeviceImportDrawer from '../../features/device/components/DeviceImportDra
 import { deviceQueryKeys, useGetDeviceTypes, useGetDevices, useUpdateFirmwareUse } from '../../features/device/hooks/useDeviceQueries';
 import type { DevMasterResponse } from '../../features/device/types';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -71,7 +71,8 @@ export default function DeviceList() {
   const { data: devicesResult, isLoading: isDevicesLoading, isError: isDevicesError } = useGetDevices();
   const devices = useMemo(() => devicesResult?.items ?? [], [devicesResult]);
 
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: deviceTypes = [] } = useGetDeviceTypes();
 
@@ -132,6 +133,13 @@ export default function DeviceList() {
     }
     return { total: devicesForGrid.length, firmUpd, provSuccess };
   }, [devicesForGrid]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   const invalidateDevices = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: deviceQueryKeys.list._def });

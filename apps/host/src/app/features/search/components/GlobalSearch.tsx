@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Loader2, Search, X } from 'lucide-react';
-import { useMenuStore } from '@/shared-store';
+import { useMenuStore, useOperatorScopeStore } from '@/shared-store';
 import SearchAutocomplete from './SearchAutocomplete';
 import SearchRecentList from './SearchRecentList';
 import SearchResults from './SearchResults';
@@ -13,10 +13,13 @@ import type { DocSearchResult, MenuSearchResult } from '../types/search';
 import { buildMenuSuggestions, collectMenuLeaves, findPathByMenuKey, searchMenus } from '../utils/menuSearch';
 import { Command } from '@/components/ui/command';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 type SearchMode = 'hidden' | 'recent' | 'autocomplete' | 'results';
 
 export default function GlobalSearch() {
+  // 운영자 모드: 검색창을 더 어두운 차콜(#0F172A)로 — 헤더와 입체감/일체감.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(''); // 보이는 값(타이핑)
   const [submittedQuery, setSubmittedQuery] = useState(''); // 실행된 검색어(결과 SoT)
@@ -131,7 +134,12 @@ export default function GlobalSearch() {
         <PopoverAnchor asChild>
           <div
             ref={anchorRef}
-            className="group relative flex h-10 w-full items-center gap-3 rounded-full border border-white/20 bg-white/15 pl-5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 hover:border-white/40 hover:bg-white/25 focus-within:border-white/40 focus-within:bg-white/25"
+            className={cn(
+              'group relative flex h-10 w-full items-center gap-3 rounded-full border pl-5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200',
+              operatorMode
+                ? 'border-white/10 bg-[#0F172A] hover:border-amber-300/40 hover:bg-[#0b1220] focus-within:border-amber-300/40 focus-within:bg-[#0b1220]'
+                : 'border-white/20 bg-white/15 hover:border-white/40 hover:bg-white/25 focus-within:border-white/40 focus-within:bg-white/25',
+            )}
           >
             <Search className="size-4 shrink-0 text-white/70 transition-colors group-hover:text-white group-focus-within:text-white" />
             <CommandPrimitive.Input
