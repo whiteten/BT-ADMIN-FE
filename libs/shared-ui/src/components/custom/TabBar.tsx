@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export interface NodeTabBarItem<T extends string | number> {
+export interface TabBarItem<T extends string | number> {
   id: T;
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -9,8 +9,8 @@ export interface NodeTabBarItem<T extends string | number> {
   count?: number;
 }
 
-interface NodeTabBarProps<T extends string | number> {
-  items: NodeTabBarItem<T>[];
+interface TabBarProps<T extends string | number> {
+  items: TabBarItem<T>[];
   selectedId: T | null;
   onSelect: (id: T) => void;
   /** 탭 우측 검색 Input·버튼 등. 있을 때만 컨테이너에 pr-5가 붙는다. */
@@ -21,7 +21,7 @@ interface NodeTabBarProps<T extends string | number> {
  * 노드/카테고리 탭 바(좌우 스크롤 화살표 + 가로 스크롤 탭 스트립).
  * "탭바 + 카드 슬라이더 + 하단 그리드" 3단 목록 화면의 1단 — .claude/skills/add-tab-bar/SKILL.md 표준 마크업을 컴포넌트화한 것.
  */
-export default function NodeTabBar<T extends string | number>({ items, selectedId, onSelect, rightContent }: NodeTabBarProps<T>) {
+export default function TabBar<T extends string | number>({ items, selectedId, onSelect, rightContent }: TabBarProps<T>) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   return (

@@ -22,7 +22,7 @@ import IvrAinDnisSheet, { type IvrAinDnisSheetRef } from '../../features/ivr-ain
 import { ivrAinDnisQueryKeys, useDeleteAin, useExportAinDnis, useGetAinList, useGetTenants, useImportAinDnis } from '../../features/ivr-ain-dnis/hooks/useIvrAinDnisQueries';
 import { type ExcelImportResult, type IrAinMaster, TELCO_KIND_LABELS, type TelcoKindCode } from '../../features/ivr-ain-dnis/types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
-import NodeTabBar, { type NodeTabBarItem } from '@/components/custom/NodeTabBar';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -82,7 +82,7 @@ export default function IvrAinDnis() {
   const selectedTenant = useMemo(() => tenants.find((t) => t.tenantId === selectedTenantId) ?? null, [tenants, selectedTenantId]);
 
   // 테넌트별 건수를 한 번에 집계하는 API가 없어(선택된 테넌트 것만 조회) count 없이 표시.
-  const tenantTabItems: NodeTabBarItem<number>[] = useMemo(() => tenants.map((tenant) => ({ id: tenant.tenantId, label: tenant.tenantName, icon: Building2 })), [tenants]);
+  const tenantTabItems: TabBarItem<number>[] = useMemo(() => tenants.map((tenant) => ({ id: tenant.tenantId, label: tenant.tenantName, icon: Building2 })), [tenants]);
 
   const filteredRows = useMemo(() => {
     if (!isSearching) return rows;
@@ -317,7 +317,7 @@ export default function IvrAinDnis() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단 박스: 테넌트 탭 바 + 4버튼 ===== */}
-        <NodeTabBar<number>
+        <TabBar<number>
           items={tenantTabItems}
           selectedId={selectedTenantId}
           onSelect={handleTenantSelect}

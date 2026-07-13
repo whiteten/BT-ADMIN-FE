@@ -17,21 +17,28 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import HaGroupDrawer, { type HaGroupDrawerRef } from '../../features/ha-group/components/HaGroupDrawer';
 import HaGroupMemberDrawer, { type HaGroupMemberDrawerRef } from '../../features/ha-group/components/HaGroupMemberDrawer';
-import { useGetCodes } from '../../features/ha-group/hooks/useCommonQueries';
 import { haGroupQueryKeys, useDeleteHaGroup, useDeleteHaGroupMember, useGetHaGroupMembers, useGetHaGroups, useGetNodes } from '../../features/ha-group/hooks/useHaGroupQueries';
-import { HA_ROLE_STATUS_KIND, HA_ROLE_TYPE_KIND, type HaGroup, type HaGroupMember } from '../../features/ha-group/types';
-import NodeTabBar, { type NodeTabBarItem } from '@/components/custom/NodeTabBar';
+import {
+  HA_GROUP_MODE_KIND_LABELS,
+  HA_ROLE_STATUS_KIND,
+  HA_ROLE_STATUS_KIND_LABELS,
+  HA_ROLE_TYPE_KIND,
+  HA_ROLE_TYPE_KIND_LABELS,
+  type HaGroup,
+  type HaGroupMember,
+} from '../../features/ha-group/types';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-/** Role 타입 배지 색상 — 라벨은 공통코드(HA_ROLE_TYPE)에서, 색상은 값 기준 고정. */
+/** Role 타입 배지 색상 — 라벨은 FE 상수(HA_ROLE_TYPE_KIND_LABELS, BE enum 고정값 이식)에서, 색상은 값 기준 고정. */
 const ROLE_TYPE_BADGE_CLASS: Record<number, string> = {
   [HA_ROLE_TYPE_KIND.BACKUP]: 'text-gray-500 bg-gray-100',
   [HA_ROLE_TYPE_KIND.SERVICE]: 'text-blue-600 bg-blue-50',
 };
-/** Role 상태 배지 색상 — 라벨은 공통코드(HA_ROLE_STATUS)에서, 색상은 값 기준 고정. */
+/** Role 상태 배지 색상 — 라벨은 FE 상수(HA_ROLE_STATUS_KIND_LABELS, BE enum 고정값 이식)에서, 색상은 값 기준 고정. */
 const ROLE_STATUS_BADGE_CLASS: Record<number, string> = {
   [HA_ROLE_STATUS_KIND.WAITING]: 'text-gray-500 bg-gray-100',
   [HA_ROLE_STATUS_KIND.ACTIVE]: 'text-blue-600 bg-blue-50',
@@ -73,13 +80,6 @@ export default function HaGroupList() {
     params: selectedHaGroupId ? { id: selectedHaGroupId } : undefined,
     queryOptions: { enabled: !!selectedHaGroupId, refetchInterval: autoRefresh ? refreshSeconds * 1000 : false },
   });
-  const { data: groupModeCodes = [] } = useGetCodes({ params: { classCd: 'HA_GROUP_MODE' } });
-  const { data: roleTypeCodes = [] } = useGetCodes({ params: { classCd: 'HA_ROLE_TYPE' } });
-  const { data: roleStatusCodes = [] } = useGetCodes({ params: { classCd: 'HA_ROLE_STATUS' } });
-
-  const groupModeLabelMap = useMemo(() => new Map(groupModeCodes.map((c) => [Number(c.code), c.value])), [groupModeCodes]);
-  const roleTypeLabelMap = useMemo(() => new Map(roleTypeCodes.map((c) => [Number(c.code), c.value])), [roleTypeCodes]);
-  const roleStatusLabelMap = useMemo(() => new Map(roleStatusCodes.map((c) => [Number(c.code), c.value])), [roleStatusCodes]);
 
   useEffect(() => {
     if (selectedNodeId === null && nodes.length > 0) setSelectedNodeId(nodes[0].nodeId);
@@ -100,7 +100,7 @@ export default function HaGroupList() {
   const selectedHaGroup = useMemo(() => haGroups.find((g) => g.haGroupId === selectedHaGroupId) ?? null, [haGroups, selectedHaGroupId]);
 
   // HA 그룹은 노드별로만 조회 가능(전체 집계 API 없음) — count 없이 표시.
-  const nodeTabItems: NodeTabBarItem<number>[] = useMemo(() => nodes.map((node) => ({ id: node.nodeId, label: node.nodeName, icon: Network })), [nodes]);
+  const nodeTabItems: TabBarItem<number>[] = useMemo(() => nodes.map((node) => ({ id: node.nodeId, label: node.nodeName, icon: Network })), [nodes]);
 
   // ─── Invalidation ───────────────────────────────────────────────────────
   const invalidateHaGroups = () => queryClient.invalidateQueries({ queryKey: haGroupQueryKeys.getHaGroups._def });
@@ -184,7 +184,9 @@ export default function HaGroupList() {
         field: 'roleType',
         width: 110,
         cellRenderer: (p: ICellRendererParams<HaGroupMember>) =>
-          p.data ? <Badge className={cn(BADGE_CLASS, ROLE_TYPE_BADGE_CLASS[p.data.roleType] ?? DEFAULT_BADGE_CLASS)}>{roleTypeLabelMap.get(p.data.roleType) ?? '-'}</Badge> : null,
+          p.data ? (
+            <Badge className={cn(BADGE_CLASS, ROLE_TYPE_BADGE_CLASS[p.data.roleType] ?? DEFAULT_BADGE_CLASS)}>{HA_ROLE_TYPE_KIND_LABELS[p.data.roleType] ?? '-'}</Badge>
+          ) : null,
       },
       { headerName: 'ROLE 별칭', field: 'roleAlias', flex: 1, minWidth: 100 },
       { headerName: 'HA IP', field: 'haIpaddr', flex: 1, minWidth: 120 },
@@ -197,7 +199,7 @@ export default function HaGroupList() {
         width: 120,
         cellRenderer: (p: ICellRendererParams<HaGroupMember>) =>
           p.data?.roleStatus != null ? (
-            <Badge className={cn(BADGE_CLASS, ROLE_STATUS_BADGE_CLASS[p.data.roleStatus] ?? DEFAULT_BADGE_CLASS)}>{roleStatusLabelMap.get(p.data.roleStatus) ?? '-'}</Badge>
+            <Badge className={cn(BADGE_CLASS, ROLE_STATUS_BADGE_CLASS[p.data.roleStatus] ?? DEFAULT_BADGE_CLASS)}>{HA_ROLE_STATUS_KIND_LABELS[p.data.roleStatus] ?? '-'}</Badge>
           ) : (
             '-'
           ),
@@ -245,14 +247,14 @@ export default function HaGroupList() {
           ) : null,
       },
     ],
-    [roleTypeLabelMap, roleStatusLabelMap, handleDeleteMember],
+    [handleDeleteMember],
   );
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 탭 바 박스 (노드) ===== */}
-        <NodeTabBar<number>
+        <TabBar<number>
           items={nodeTabItems}
           selectedId={selectedNodeId}
           onSelect={handleNodeSelect}
@@ -317,7 +319,7 @@ export default function HaGroupList() {
                         className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
                         style={{ color: '#722ed1', backgroundColor: '#f9f0ff', borderColor: '#d3adf7' }}
                       >
-                        {groupModeLabelMap.get(g.haGroupMode) ?? g.haGroupMode}
+                        {HA_GROUP_MODE_KIND_LABELS[g.haGroupMode] ?? g.haGroupMode}
                       </span>
                       {g.activateYn === '0' && (
                         <span
