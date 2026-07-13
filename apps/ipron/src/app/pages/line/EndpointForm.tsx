@@ -30,6 +30,7 @@ import {
   TRANSPORT_OPTIONS,
 } from '../../features/endpoint/types';
 import { msGroupApi } from '../../features/ms-group/api/msGroupApi';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { type MentOption, type WorktimeOption, routeApi } from '../../features/route/api/routeApi';
 import { useGetSipProfiles } from '../../features/sip-profile/hooks/useSipProfileQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -106,7 +107,10 @@ export default function EndpointForm() {
   const watchedDrnodeId = Form.useWatch('drnodeId', form);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
+  const scopedNodes = useScopedNodes(allNodes);
+  const nodes = isEditMode ? allNodes : scopedNodes;
   const { data: sipProfiles = [] } = useGetSipProfiles();
   const { data: countries = [] } = useGetCountries();
   const { data: endpointDetail, isFetching } = useGetEndpointDetail({

@@ -24,6 +24,7 @@ import {
 import { BLOCK_CONTROL_LABELS, BLOCK_CONTROL_OPTIONS, DID_ROUTE_FORM_STEPS, DID_ROUTE_INITIAL_VALUES, type DidRouteCreateRequest } from '../../features/did-route/types';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../features/did-trans/components/NumPatternDrawer';
 import { useGetMentOptions } from '../../features/ment-mgmt/hooks/useMentQueries';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -56,7 +57,10 @@ export default function DidRouteForm() {
   });
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
+  const scopedNodes = useScopedNodes(allNodes);
+  const nodes = isEditMode ? allNodes : scopedNodes;
   const { data: routeDetail, isFetching } = useGetDidRouteDetail({
     params: didrouteId ? { id: didrouteId } : undefined,
     queryOptions: { enabled: !!didrouteId },

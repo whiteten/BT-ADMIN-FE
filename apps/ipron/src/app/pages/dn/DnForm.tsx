@@ -44,7 +44,7 @@ import { dnQueryKeys, useCreateDn, useDeleteDns, useGetDnCosEffect, useGetDnDeta
 import { DN_INITIAL_VALUES, type DnCreateRequest, type DnUpdateRequest } from '../../features/dn/types';
 import { ADN_DEFAULT_STATE_OPTIONS, DN_STATUS_OPTIONS, DN_TYPE_OPTIONS_PRIMARY, IP_VERSION_OPTIONS, TRANSPORT_TYPE_OPTIONS } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -194,7 +194,10 @@ export default function DnForm() {
   const isExtIpUpdateDisabled = isFixedIp;
 
   // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
+  const scopedNodes = useScopedNodes(allNodes);
+  const nodes = isEditMode ? allNodes : scopedNodes;
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: dnDetail, isFetching } = useGetDnDetail(dnId);
