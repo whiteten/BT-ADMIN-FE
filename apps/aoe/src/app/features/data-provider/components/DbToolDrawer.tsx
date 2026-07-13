@@ -1,11 +1,11 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Drawer, Form, Input, Select } from 'antd';
+import { Button, Drawer, Form, Input, Select, Switch } from 'antd';
 import { Minus, Plus } from 'lucide-react';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { dataProviderQueryKeys, useCreateDbTool, useDeleteDbTool, useGetDbConnectionList, useUpdateDbTool } from '../hooks/useDataProviderQueries';
-import { type DbTool, type DbToolCreateDatas, type DbToolParam, PARAM_TYPE_OPTIONS } from '../types';
+import { ACTIVE_YN, type DbTool, type DbToolCreateDatas, type DbToolParam, PARAM_TYPE_OPTIONS } from '../types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export interface DbToolDrawerRef {
@@ -25,6 +25,7 @@ interface FormValues {
   dbConnId: string;
   sqlSentence: string;
   parameters?: ParamRow[];
+  activeYn: boolean;
 }
 
 const DbToolDrawer = forwardRef<DbToolDrawerRef>((_, ref) => {
@@ -90,6 +91,7 @@ const DbToolDrawer = forwardRef<DbToolDrawerRef>((_, ref) => {
             paramType: p.paramType,
             paramDescription: p.paramDescription ?? undefined,
           })),
+          activeYn: (t.activeYn ?? ACTIVE_YN.ACTIVE) === ACTIVE_YN.ACTIVE,
         });
       } else {
         form.resetFields();
@@ -119,6 +121,7 @@ const DbToolDrawer = forwardRef<DbToolDrawerRef>((_, ref) => {
       dbConnId: values.dbConnId,
       sqlSentence: values.sqlSentence,
       parameters,
+      activeYn: values.activeYn ? ACTIVE_YN.ACTIVE : ACTIVE_YN.INACTIVE,
     };
 
     if (isEdit && tool) {
@@ -181,6 +184,9 @@ const DbToolDrawer = forwardRef<DbToolDrawerRef>((_, ref) => {
           extra="예: select * from t where name like %CustName%"
         >
           <Input.TextArea placeholder="SQL 질의문을 입력하세요." autoSize={{ minRows: 4, maxRows: 8 }} />
+        </Form.Item>
+        <Form.Item name="activeYn" label="활성 여부" valuePropName="checked" initialValue={true}>
+          <Switch checkedChildren="활성" unCheckedChildren="비활성" />
         </Form.Item>
 
         {/* 파라미터 (반복) */}
