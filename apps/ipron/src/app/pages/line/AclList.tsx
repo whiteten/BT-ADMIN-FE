@@ -222,52 +222,28 @@ export default function AclList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 카테고리 탭 + 노드 Select + 검색 + 추가 ===== */}
+        {/* ===== 상단: 노드 Select + 검색 + 추가 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Header: 카테고리 탭 + 노드 Select + 추가 버튼 */}
-          <div className="flex items-stretch bg-white border-b border-gray-200 pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
-            {(Object.keys(CATEGORY_STYLES) as AclCategory[]).map((cat) => {
-              const style = CATEGORY_STYLES[cat];
-              const Icon = style.icon;
-              const isActive = category === cat;
-              const total = cat === 'pbx' ? allPbxAcls.length : allCtiAcls.length;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] transition-colors ${
-                    isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                  }`}
-                  onClick={() => handleCategorySelect(cat)}
-                >
-                  <Icon className="size-3.5" />
-                  <span>{style.label}</span>
-                  <span className="text-[11px] text-gray-400">({total})</span>
-                </button>
-              );
-            })}
+          <div className="flex items-center px-4 h-[56px] gap-3">
+            {/* 노드 선택 */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
+                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
 
-            {/* 노드 선택 + 요약 */}
-            <div className="flex items-center gap-3 px-4">
-              <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-                <Network className="size-3.5 shrink-0 text-blue-600" />
-                <Select
-                  size="small"
-                  variant="borderless"
-                  value={selectedNodeId ?? '__all__'}
-                  onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                  options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                  style={{ width: 150 }}
-                  popupMatchSelectWidth={false}
-                />
-              </div>
-
-              {/* 요약 — 총 ACL (노드 필터 적용 기준) */}
-              <div className="flex items-center gap-4 text-[13px] pl-3 border-l border-gray-200">
-                <span className="text-gray-500">
-                  총 ACL <b className="text-gray-800 font-semibold">{acls.length.toLocaleString()}</b>
-                </span>
-              </div>
+            {/* 요약 — 총 ACL (노드 필터 적용 기준) */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 ACL <b className="text-gray-800 font-semibold">{acls.length.toLocaleString()}</b>
+              </span>
             </div>
 
             <div className="ml-auto flex items-center gap-2">
@@ -286,11 +262,31 @@ export default function AclList() {
           </div>
         </div>
 
-        {/* ===== 하단: ACL 그리드 ===== */}
+        {/* ===== 하단: ACL 그리드 (헤더에 PBX/CTI 탭) ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
-            <div className="ml-auto">
+          <div className="flex items-stretch border-b border-gray-200 pr-5 flex-shrink-0 h-[48px]">
+            {(Object.keys(CATEGORY_STYLES) as AclCategory[]).map((cat) => {
+              const style = CATEGORY_STYLES[cat];
+              const Icon = style.icon;
+              const isActive = category === cat;
+              const total = cat === 'pbx' ? allPbxAcls.length : allCtiAcls.length;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`flex items-center justify-center gap-2 px-5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] transition-colors ${
+                    isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
+                  }`}
+                  onClick={() => handleCategorySelect(cat)}
+                >
+                  <Icon className="size-3.5" />
+                  <span>{style.label}</span>
+                  <span className="text-[11px] text-gray-400">({total})</span>
+                </button>
+              );
+            })}
+            <span className="flex items-center pl-4 ml-1 text-[13px] text-gray-500">{gridHeaderText}</span>
+            <div className="ml-auto flex items-center">
               <Button
                 danger
                 icon={<Trash2 className="size-3.5" />}

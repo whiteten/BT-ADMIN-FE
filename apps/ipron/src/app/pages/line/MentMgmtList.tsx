@@ -76,18 +76,22 @@ export default function MentMgmtList() {
     }
   }, [nodes, selectedNodeId]);
 
-  // ─── 테넌트 필터 옵션 (공통[0] 제외 — 공용멘트는 별도 시스템관리자 메뉴) ──────────────
+  // ─── 테넌트 필터 옵션 ────────────────────────────────────────────────────────
+  // 공통 소스(토큰의 접근가능 테넌트 = host TenantChip 과 동일 SSOT).
+  // 로드된 rows 에서 뽑으면 "멘트가 있는 테넌트"만 나와 신규 등록 대상 테넌트를 고를 수 없다.
+  // 건수는 rows 기준으로 덧씌운다. 공통(0)은 '교환기 공용멘트 관리'에서 관리하므로 제외.
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
   const tenantOptions = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; count: number }>();
+    const counts = new Map<number, number>();
     for (const r of rows) {
-      if (r.tenantId == null || r.tenantId === 0) continue; // 공통(0)은 '교환기 공용멘트 관리'에서 관리
-      if (!map.has(r.tenantId)) {
-        map.set(r.tenantId, { id: r.tenantId, name: r.tenantName ?? `테넌트 ${r.tenantId}`, count: 0 });
-      }
-      map.get(r.tenantId)!.count += 1;
+      if (r.tenantId == null || r.tenantId === 0) continue;
+      counts.set(r.tenantId, (counts.get(r.tenantId) ?? 0) + 1);
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows]);
+    return (availableTenants ?? [])
+      .filter((t) => t.tenantId !== 0)
+      .map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: counts.get(t.tenantId) ?? 0 }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [availableTenants, rows]);
 
   // ─── 헤더 요약 (총 멘트 — 공통 제외) ─────────────────────────────────────────────
   const summary = useMemo(() => ({ total: rows.filter((r) => r.tenantId !== 0).length }), [rows]);
