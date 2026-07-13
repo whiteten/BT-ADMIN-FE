@@ -18,7 +18,8 @@ import { Cable, LayoutGrid, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
-import { useGetDnProfileNodeTenants, useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import SipGdnDrawer, { type SipGdnDrawerRef } from '../../features/sip-trunk/components/SipGdnDrawer';
 import SipTrunkAssignDrawer from '../../features/sip-trunk/components/SipTrunkAssignDrawer';
 import SipTrunkDrawer, { type SipTrunkDrawerRef } from '../../features/sip-trunk/components/SipTrunkDrawer';
@@ -83,7 +84,7 @@ export default function SipTrunkList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetDnProfileNodes();
-  const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: nodeSummaries = [] } = useGetSipTrunkNodes({ params: { tenantScope: 'tenant' } });
 
   const gdnListParams = useMemo(() => {

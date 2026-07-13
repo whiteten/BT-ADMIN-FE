@@ -168,21 +168,6 @@ export interface DnResponse {
 }
 
 /**
- * 노드-테넌트 매핑 (할당된 테넌트)
- * GET /api/ipron/dns/node-tenants
- */
-export interface NodeTenantItem {
-  nodeId: number;
-  nodeName: string;
-  tenantId: number;
-  tenantName: string;
-  /** 계약 수량 (maxDnCnt) */
-  maxDnCnt: number | null;
-  /** 현재 DN 수 */
-  curDnCnt: number | null;
-}
-
-/**
  * 계약 수량 응답 (curDnCnt / maxDnCnt)
  * GET /api/ipron/dns/count
  */

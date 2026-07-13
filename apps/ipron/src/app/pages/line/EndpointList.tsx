@@ -49,7 +49,7 @@ import {
   getEndpointStatusInfo,
   getEndpointTagList,
 } from '../../features/endpoint/types';
-import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -101,6 +101,8 @@ export default function EndpointList() {
   const { data: allNodes = [] } = useGetNodes();
   // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
   const nodes = useScopedNodes(allNodes);
+  // 공통 노드-테넌트 매핑(전체). 선택 국선의 노드로 클라이언트 필터하여 테넌트 옵션 구성.
+  const { data: allNodeTenants = [] } = useGetNodeTenants();
 
   const { data: members = [], isLoading: isMembersLoading } = useGetMembers({
     params: selectedEndpointId ? { id: selectedEndpointId } : undefined,
@@ -218,19 +220,15 @@ export default function EndpointList() {
     return endpoints.find((ep) => ep.endptId === selectedEndpointId) ?? null;
   }, [endpoints, selectedEndpointId]);
 
-  // 선택된 국선의 노드 테넌트 목록 조회
+  // 선택된 국선의 노드 테넌트 목록 — 공통 매핑에서 nodeId 로 클라이언트 필터
   useEffect(() => {
-    if (selectedEndpoint?.nodeId) {
-      endpointApi
-        .getNodeTenants({ nodeId: selectedEndpoint.nodeId })
-        .then((list) => {
-          setTenantOptions(list.map((t) => ({ label: t.tenantName, value: t.tenantId })));
-        })
-        .catch(() => setTenantOptions([]));
+    const nodeId = selectedEndpoint?.nodeId;
+    if (nodeId) {
+      setTenantOptions(allNodeTenants.filter((nt) => nt.nodeId === nodeId).map((t) => ({ label: t.tenantName, value: t.tenantId })));
     } else {
       setTenantOptions([]);
     }
-  }, [selectedEndpoint?.nodeId]);
+  }, [selectedEndpoint?.nodeId, allNodeTenants]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeChange = (nodeId: number | null | undefined) => {

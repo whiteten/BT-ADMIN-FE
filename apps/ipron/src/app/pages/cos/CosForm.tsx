@@ -11,7 +11,7 @@ import { Button, Col, Divider, Form, Input, Modal, Row, Select, Steps, Switch } 
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { cosApi } from '../../features/cos/api/cosApi';
-import { cosQueryKeys, useCreateCos, useDeleteCos, useGetCosDetail, useGetDodLimits, useGetNodeTenants, useUpdateCos } from '../../features/cos/hooks/useCosQueries';
+import { cosQueryKeys, useCreateCos, useDeleteCos, useGetCosDetail, useGetDodLimits, useUpdateCos } from '../../features/cos/hooks/useCosQueries';
 import {
   COS_INITIAL_VALUES,
   type CosCreateRequest,
@@ -24,6 +24,7 @@ import {
   type ServiceFlag,
 } from '../../features/cos/types';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../features/did-trans/components/NumPatternDrawer';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 

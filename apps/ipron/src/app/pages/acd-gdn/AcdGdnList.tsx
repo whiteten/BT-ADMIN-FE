@@ -27,7 +27,8 @@ import AcdGdnMemberGrid from '../../features/acd-gdn/components/AcdGdnMemberGrid
 import { useDeleteAcdGdns, useGetAcdGdnMembersPool, useGetAcdGdns, useSaveAcdGdnMembers } from '../../features/acd-gdn/hooks/useAcdGdnQueries';
 import { ACD_TYPE_OPTIONS, type GdnMemberItem, type GdnMemberPoolParams, type GdnMemberResponse, type GdnResponse, getAcdTypeName, getYnName } from '../../features/acd-gdn/types';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
-import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -83,7 +84,7 @@ export default function AcdGdnList() {
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetDnProfileNodes();
   const { data: tenants = [] } = useGetDnProfileTenants();
-  const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: gdns = [], isLoading: isGdnsLoading } = useGetAcdGdns();
 
   // 멤버 풀 — 선택 그룹DN 기준. 배정상태 필터는 서버 위임, keyword 는 클라이언트 quickFilter.

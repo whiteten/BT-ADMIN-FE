@@ -32,9 +32,10 @@ import DnBulkDeleteModal from '../../features/dn/components/DnBulkDeleteModal';
 import DnCopyDrawer from '../../features/dn/components/DnCopyDrawer';
 import DnImportDrawer from '../../features/dn/components/DnImportDrawer';
 import DnTable from '../../features/dn/components/DnTable';
-import { dnQueryKeys, useDeleteDns, useGetDnNodeTenants, useGetDnOptions, useGetDns } from '../../features/dn/hooks/useDnQueries';
+import { dnQueryKeys, useDeleteDns, useGetDnOptions, useGetDns } from '../../features/dn/hooks/useDnQueries';
 import type { DnResponse } from '../../features/dn/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { nodeScopeQueryKeys, useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -82,7 +83,7 @@ export default function DnList() {
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetDnProfileNodes();
   const { data: tenants = [] } = useGetDnProfileTenants();
-  const { data: nodeTenants = [] } = useGetDnNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
 
   // 목록 조회 파라미터 — 노드만 서버 필터(nodeId). "전체 노드"는 nodeId 미전달.
   // 테넌트 + 텍스트 검색은 클라이언트 필터.
@@ -161,7 +162,7 @@ export default function DnList() {
 
   const invalidateDns = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
-    queryClient.invalidateQueries({ queryKey: dnQueryKeys.getNodeTenants.queryKey });
+    queryClient.invalidateQueries({ queryKey: nodeScopeQueryKeys.getNodeTenants.queryKey });
   }, [queryClient]);
 
   // ─── Mutations ────────────────────────────────────────────────────────────

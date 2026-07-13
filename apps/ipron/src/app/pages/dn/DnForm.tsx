@@ -43,7 +43,8 @@ import DnSummaryPanel from '../../features/dn/components/DnSummaryPanel';
 import { dnQueryKeys, useCreateDn, useDeleteDns, useGetDnCosEffect, useGetDnDetail, useGetDnOptions, useUpdateDn } from '../../features/dn/hooks/useDnQueries';
 import { DN_INITIAL_VALUES, type DnCreateRequest, type DnUpdateRequest } from '../../features/dn/types';
 import { ADN_DEFAULT_STATE_OPTIONS, DN_STATUS_OPTIONS, DN_TYPE_OPTIONS_PRIMARY, IP_VERSION_OPTIONS, TRANSPORT_TYPE_OPTIONS } from '../../features/dn/utils/dnEnums';
-import { useGetDnProfileNodeTenants, useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -195,7 +196,7 @@ export default function DnForm() {
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetDnProfileNodes();
   const { data: tenants = [] } = useGetDnProfileTenants();
-  const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: dnDetail, isFetching } = useGetDnDetail(dnId);
 
   // 갭11: SNR/SCA 탭은 EDN(dnType='11') 수정 모드에서만 표시

@@ -23,25 +23,34 @@ export const useGetNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantI
 };
 
 /**
- * 운영자 스코프에 맞춘 노드 목록.
- * - 운영자 모드(operatorMode=true)  → 전달받은 nodes 그대로 (전체 노드)
- * - 일반 테넌트 모드(false)         → 로그인 테넌트에 매핑된 노드만
- * - 매핑 로딩 중이면 nodes 그대로 반환(깜빡임 방지)
+ * 노드-테넌트 스코프에 맞춘 노드 목록. 모든 IPRON 노드 셀렉트가 공유하는 단일 규칙.
+ *
+ * - **일반 테넌트 모드**(operatorMode=false): 항상 **로그인 테넌트에 매핑된 노드만**.
+ * - **운영자 모드**(operatorMode=true):
+ *   - `operatorTenantId` 가 지정되면 → **그 테넌트에 매핑된 노드만** (운영자가 테넌트를 고른 경우).
+ *   - `operatorTenantId` 가 null/미지정(전체) → 전달받은 nodes 그대로 (전체 노드).
+ * - 매핑 로딩 중이면 nodes 그대로 반환(깜빡임 방지).
+ *
+ * @param nodes 원본 노드 목록
+ * @param operatorTenantId 운영자 모드에서 선택한 테넌트(없으면 전체). 일반 모드에서는 무시됨.
  */
-export function useScopedNodes<T extends { nodeId: number }>(nodes: T[]): T[] {
+export function useScopedNodes<T extends { nodeId: number }>(nodes: T[], operatorTenantId?: number | null): T[] {
   const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   const authTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
-  // 운영자 모드면 전체 노드를 보므로 매핑 자체가 불필요 → 호출하지 않음
+  // 스코프 기준 테넌트: 일반 모드=로그인 테넌트, 운영자 모드=선택 테넌트(없으면 전체=null)
+  const scopeTenantId = operatorMode ? (operatorTenantId ?? null) : authTenantId;
+
+  // 필터할 테넌트가 있을 때만 매핑을 조회(전체 노드면 매핑 불필요)
   const { data: nodeTenants = [], isLoading } = useGetNodeTenants({
-    queryOptions: { enabled: !operatorMode },
+    queryOptions: { enabled: scopeTenantId != null },
   });
 
-  if (operatorMode || authTenantId == null || isLoading) return nodes;
+  if (scopeTenantId == null || isLoading) return nodes;
 
-  const allowedNodeIds = new Set(nodeTenants.filter((nt) => nt.tenantId === authTenantId).map((nt) => nt.nodeId));
+  const allowedNodeIds = new Set(nodeTenants.filter((nt) => nt.tenantId === scopeTenantId).map((nt) => nt.nodeId));
   return nodes.filter((n) => allowedNodeIds.has(n.nodeId));
 }

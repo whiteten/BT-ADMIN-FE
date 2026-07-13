@@ -25,17 +25,9 @@ import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/share
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../../features/dod-trans/components/DodTransMasterDrawer';
-import {
-  dodTransQueryKeys,
-  useDeleteItemBatch,
-  useDeleteMaster,
-  useGetItemList,
-  useGetMasterList,
-  useGetNodeTenants,
-  useGetNodes,
-} from '../../features/dod-trans/hooks/useDodTransQueries';
+import { dodTransQueryKeys, useDeleteItemBatch, useDeleteMaster, useGetItemList, useGetMasterList, useGetNodes } from '../../features/dod-trans/hooks/useDodTransQueries';
 import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../features/dod-trans/types';
-import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

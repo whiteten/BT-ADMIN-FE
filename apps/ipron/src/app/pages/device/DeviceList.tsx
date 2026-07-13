@@ -26,8 +26,8 @@ import DeviceFormDrawer, { type DeviceFormDrawerRef } from '../../features/devic
 import DeviceImportDrawer from '../../features/device/components/DeviceImportDrawer';
 import { deviceQueryKeys, useGetDeviceTypes, useGetDevices, useUpdateFirmwareUse } from '../../features/device/hooks/useDeviceQueries';
 import type { DevMasterResponse } from '../../features/device/types';
-import { useGetDnNodeTenants } from '../../features/dn/hooks/useDnQueries';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -72,7 +72,7 @@ export default function DeviceList() {
   const devices = useMemo(() => devicesResult?.items ?? [], [devicesResult]);
 
   const { data: nodes = [] } = useGetDnProfileNodes();
-  const { data: nodeTenants = [] } = useGetDnNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: deviceTypes = [] } = useGetDeviceTypes();
 
   // ─── Derived: 노드/테넌트 옵션 ───────────────────────────────────────────────

@@ -21,13 +21,6 @@ export interface DodLimitOption {
   name: string;
 }
 
-export interface NodeTenantItem {
-  nodeId: number;
-  nodeName: string;
-  tenantId: number;
-  tenantName: string;
-}
-
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const cosApi = {
@@ -97,15 +90,6 @@ export const cosApi = {
       params: { id: cosId },
     });
     return response.data?.data?.value ?? 0;
-  },
-
-  /**
-   * 노드-테넌트 매핑 목록 (테넌트 탭 구성용, DOD DNIS 재사용)
-   * @flow ipron-dod-trans-node-tenants
-   */
-  getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return response.data?.data?.value ?? [];
   },
 
   /**

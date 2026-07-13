@@ -15,16 +15,7 @@
  * - manager-node-list:             GET    노드 목록 조회 (cross-service)
  */
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type {
-  DnProfile,
-  DnProfileCreateRequest,
-  DnProfileOptionsResponse,
-  DnProfileResponse,
-  DnProfileUpdateRequest,
-  NodeSimpleResponse,
-  NodeTenantItem,
-  TenantSimpleResponse,
-} from '../types';
+import type { DnProfile, DnProfileCreateRequest, DnProfileOptionsResponse, DnProfileResponse, DnProfileUpdateRequest, NodeSimpleResponse, TenantSimpleResponse } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -89,15 +80,6 @@ export const dnProfileApi = {
    */
   deleteBatch: async (profileIds: number[]): Promise<void> => {
     await apiClient.post('/ipron-dn-profile-delete-batch', { profileIds });
-  },
-
-  /**
-   * 노드-테넌트 매핑 조회
-   * @flow ipron-dn-profile-node-tenants
-   */
-  getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dn-profile-node-tenants');
-    return response.data?.data?.value ?? [];
   },
 
   /**

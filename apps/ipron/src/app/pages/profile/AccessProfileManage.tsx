@@ -34,7 +34,6 @@ import {
   useDeleteCode,
   useDeleteProfile,
   useGetCodes,
-  useGetNodeTenants,
   useGetNodes,
   useGetProfiles,
   useGetRoutesByNode,
@@ -43,6 +42,7 @@ import {
   useUpdateProfile,
 } from '../../features/access-profile/hooks/useAccessProfileQueries';
 import type { AccessCode, AccessProfile } from '../../features/access-profile/types';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';

@@ -22,15 +22,9 @@ import { toast } from '@/shared-util';
 import { dnQueryKeys } from '../../features/dn/hooks/useDnQueries';
 import DnAssignDialog from '../../features/dn-profile/components/DnAssignDialog';
 import DnProfileTable from '../../features/dn-profile/components/DnProfileTable';
-import {
-  dnProfileQueryKeys,
-  useDeleteDnProfile,
-  useDeleteDnProfileBatch,
-  useGetDnProfileNodeTenants,
-  useGetDnProfileNodes,
-  useGetDnProfiles,
-} from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { dnProfileQueryKeys, useDeleteDnProfile, useDeleteDnProfileBatch, useGetDnProfileNodes, useGetDnProfiles } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import type { DnProfile } from '../../features/dn-profile/types';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -68,7 +62,7 @@ export default function DnProfileList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: profiles = [], isLoading: isProfilesLoading } = useGetDnProfiles();
   const { data: nodes = [] } = useGetDnProfileNodes();
-  const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
 
   // 노드-테넌트에 할당된 노드만 (노드 셀렉트 옵션)
   const assignedNodes = useMemo(() => {

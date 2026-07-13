@@ -9,7 +9,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input } from 'antd';
+import { Button, Empty, Input, Select } from 'antd';
 import { ChevronDown, Layers, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -25,14 +25,6 @@ const breadcrumb = [
   { title: '미디어 관리', path: '/ipron/line/mcs-dnis' },
   { title: 'DNIS관리(MCS)', path: '/ipron/line/mcs-dnis' },
 ];
-
-// 통신사 탭 색상
-const CARRIER_TAB_STYLE: Record<NetworkOperator, { activeBg: string; activeText: string }> = {
-  '0': { activeBg: 'bg-blue-50', activeText: 'text-blue-700' },
-  '1': { activeBg: 'bg-orange-50', activeText: 'text-orange-700' },
-  '2': { activeBg: 'bg-emerald-50', activeText: 'text-emerald-700' },
-  '3': { activeBg: 'bg-rose-50', activeText: 'text-rose-700' },
-};
 
 export default function McsDnis() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -92,16 +84,6 @@ export default function McsDnis() {
     if (selectedOp !== null) list = list.filter((g) => g.networkOp === selectedOp);
     return list;
   }, [gdnList, matchedGdnNoSet, selectedOp]);
-
-  // 통신사별 GDN 개수 (검색 결과 기준)
-  const gdnCountByOp = useMemo(() => {
-    const baseList = matchedGdnNoSet ? gdnList.filter((g) => matchedGdnNoSet.has(g.mcsdGdnNo)) : gdnList;
-    const map: Record<NetworkOperator, number> = { '0': 0, '1': 0, '2': 0, '3': 0 };
-    for (const g of baseList) map[g.networkOp] = (map[g.networkOp] ?? 0) + 1;
-    return map;
-  }, [gdnList, matchedGdnNoSet]);
-
-  const totalGdnCount = useMemo(() => (matchedGdnNoSet ? gdnList.filter((g) => matchedGdnNoSet.has(g.mcsdGdnNo)).length : gdnList.length), [gdnList, matchedGdnNoSet]);
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
@@ -287,42 +269,29 @@ export default function McsDnis() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 탭 바 박스 (통신사 탭) ===== */}
+        {/* ===== 상단: 통신사 Select + 검색 + 추가 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Header: 전체 + 통신사 탭 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
-            {/* 전체 탭 */}
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] transition-colors ${
-                selectedOp === null ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-              }`}
-              onClick={() => setSelectedOp(null)}
-            >
-              <Layers className="size-3.5" />
-              <span>전체</span>
-              <span className="text-[11px] text-gray-400">({totalGdnCount})</span>
-            </button>
+          <div className="flex items-center px-4 h-[56px] gap-3">
+            {/* 통신사 선택 */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Layers className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedOp ?? '__all__'}
+                onChange={(v) => setSelectedOp(v === '__all__' ? null : (v as NetworkOperator))}
+                options={[{ value: '__all__', label: '전체' }, ...NETWORK_OPERATOR_OPTIONS]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
 
-            {/* 통신사 탭 4개 */}
-            {NETWORK_OPERATOR_OPTIONS.map((opt) => {
-              const op = opt.value as NetworkOperator;
-              const style = CARRIER_TAB_STYLE[op];
-              const isActive = selectedOp === op;
-              return (
-                <button
-                  key={op}
-                  type="button"
-                  className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] transition-colors ${
-                    isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                  }`}
-                  onClick={() => setSelectedOp(op)}
-                >
-                  <span>{NETWORK_OPERATOR_LABELS[op]}</span>
-                  <span className="text-[11px] text-gray-400">({gdnCountByOp[op]})</span>
-                </button>
-              );
-            })}
+            {/* 요약 — 총 대표번호 */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 대표번호 <b className="text-gray-800 font-semibold">{filteredGdnList.length.toLocaleString()}</b>
+              </span>
+            </div>
 
             <div className="ml-auto flex items-center gap-2">
               <Input
