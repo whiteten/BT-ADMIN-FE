@@ -15,9 +15,10 @@ export interface ChannelStatusItem {
 }
 
 export interface SttChatSentence {
-  speaker: number; // 0: 왼쪽(고객), 1: 오른쪽(상담사)
+  offset: number;
+  time: string; // yyyyMMddHHmmss
   text: string;
-  stime: string;
+  speaker: 'TX' | 'RX'; // TX: 오른쪽(상담사), RX: 왼쪽(고객)
 }
 
 export interface RealtimeSentenceDrawerInfo {
