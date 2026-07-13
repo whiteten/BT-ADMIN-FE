@@ -3,6 +3,7 @@ import { Building2, Check, ChevronsUpDown, LogOut, ShieldCheck } from 'lucide-re
 import { type TenantSummary, useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { authApi } from '../features/auth/api/authApi';
+import { useOperatorTabGuard } from '../features/layout/hooks/useOperatorTabGuard';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -19,6 +20,7 @@ export default function TenantChip() {
   const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   const enterOperator = useOperatorScopeStore((s) => s.enter);
   const exitOperator = useOperatorScopeStore((s) => s.exit);
+  const { withOperatorTabCleanup } = useOperatorTabGuard();
 
   const availableTenants = userInfo?.availableTenants ?? [];
   const isMultiTenant = availableTenants.length > 1;
@@ -26,8 +28,18 @@ export default function TenantChip() {
   const currentTenantId = userInfo?.tenant ?? '';
   const tenantName = userInfo?.tenantName?.trim() ? userInfo.tenantName : userInfo?.tenant ? `테넌트 ${userInfo.tenant}` : '-';
 
-  // 테넌트 선택: (운영자 모드였다면 해제 후) 세션 전환 → 리로드로 새 토큰 반영
-  const handleTenantSelect = async (tenant: TenantSummary) => {
+  // 운영자 모드 해제: 열려 있는 운영자 전용 탭이 있으면 확인 후 모두 닫고 해제
+  const handleExitOperator = () => {
+    withOperatorTabCleanup(() => exitOperator());
+  };
+
+  // 테넌트 선택: (운영자 모드였다면 전용 탭 정리 + 해제 후) 세션 전환 → 리로드로 새 토큰 반영
+  const handleTenantSelect = (tenant: TenantSummary) => {
+    // 전환 직후 리로드하므로 탭을 닫은 뒤 별도 navigate 는 하지 않는다.
+    withOperatorTabCleanup(() => void switchTenant(tenant), false);
+  };
+
+  const switchTenant = async (tenant: TenantSummary) => {
     try {
       exitOperator();
       await authApi.switchTenant(tenant.tenantId);
@@ -70,7 +82,7 @@ export default function TenantChip() {
       <DropdownMenuContent align="end" sideOffset={6} className="w-60 rounded-lg">
         {isSystemAdmin &&
           (operatorMode ? (
-            <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => exitOperator()}>
+            <DropdownMenuItem className="hover:cursor-pointer" onSelect={() => handleExitOperator()}>
               <LogOut className="text-gray-500" />
               일반 콘솔로 나가기
             </DropdownMenuItem>
