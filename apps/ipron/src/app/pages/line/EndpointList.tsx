@@ -49,6 +49,7 @@ import {
   getEndpointStatusInfo,
   getEndpointTagList,
 } from '../../features/endpoint/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -97,7 +98,9 @@ export default function EndpointList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: endpoints = [] } = useGetEndpoints();
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
 
   const { data: members = [], isLoading: isMembersLoading } = useGetMembers({
     params: selectedEndpointId ? { id: selectedEndpointId } : undefined,
@@ -195,6 +198,13 @@ export default function EndpointList() {
     () => (isFiltering || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
     [searchFilteredEndpoints, selectedNodeId, isFiltering],
   );
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // Auto-select: 진입 시 첫 번째 endpoint 카드 자동 선택
   useEffect(() => {

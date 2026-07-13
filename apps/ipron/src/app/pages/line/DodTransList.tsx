@@ -35,6 +35,7 @@ import {
   useGetNodes,
 } from '../../features/dod-trans/hooks/useDodTransQueries';
 import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../features/dod-trans/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -83,8 +84,17 @@ export default function DodTransList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: masters = [] } = useGetMasterList();
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
   const { data: nodeTenants = [] } = useGetNodeTenants();
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
   const itemListParams = useMemo(() => {
     if (!selectedMasterId) return undefined;
     const p: Record<string, unknown> = { dodTransId: selectedMasterId };

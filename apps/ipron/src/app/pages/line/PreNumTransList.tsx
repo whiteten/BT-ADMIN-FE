@@ -20,6 +20,7 @@ import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import PreNumTransDrawer, { type PreNumTransDrawerRef } from '../../features/pre-num-trans/components/PreNumTransDrawer';
 import { preNumTransQueryKeys, useDeletePreNumTransBatch, useGetNodes, useGetPreNumTransList } from '../../features/pre-num-trans/hooks/usePreNumTransQueries';
 import { EDIT_OPT_LABELS, type PreNumTrans, TRANS_ACTION_LABELS } from '../../features/pre-num-trans/types';
@@ -50,7 +51,16 @@ export default function PreNumTransList() {
   const drawerRef = useRef<PreNumTransDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // 서버사이드 검색 파라미터 — dnisPattern LIKE 검색은 BE로 위임 (SWAT IPR20S1045 기준)
   // 검색어가 있으면 dnisPattern 파라미터를 전달, 노드 선택과 함께 전달 가능

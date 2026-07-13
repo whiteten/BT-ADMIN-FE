@@ -21,6 +21,7 @@ import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/c
 import MentTable from '../../features/ment-mgmt/components/MentTable';
 import { mentQueryKeys, useDeleteMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const COMMON_TENANT_ID = 0;
@@ -55,7 +56,10 @@ export default function MentCommonList() {
   const audioUrlRef = useRef<string | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [], isLoading: isNodesLoading } = useGetDnProfileNodes();
+  const { data: allNodes = [], isLoading: isNodesLoading } = useGetDnProfileNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  // (스코프 밖 노드는 아래 useQueries 에서 아예 조회하지 않음)
+  const nodes = useScopedNodes(allNodes);
 
   // BE 목록 API 는 nodeId 필수(@RequestParam Long nodeId) → 노드별로 조회 후 병합.
   // 노드 Select 의 '전체' 선택 시 전 노드의 공용멘트를 한 그리드에 표시하기 위함.
@@ -84,6 +88,13 @@ export default function MentCommonList() {
     if (nodes.length > 0 && !hasInitializedNodeRef.current && selectedNodeId == null) {
       hasInitializedNodeRef.current = true;
       setSelectedNodeId(nodes[0].nodeId);
+    }
+  }, [nodes, selectedNodeId]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
     }
   }, [nodes, selectedNodeId]);
 

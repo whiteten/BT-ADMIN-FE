@@ -23,6 +23,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { didRouteQueryKeys, useDeleteDidRouteBatch, useGetDidRouteList, useGetNodes } from '../../features/did-route/hooks/useDidRouteQueries';
 import { type DidRoute, getRoutingDisplayText } from '../../features/did-route/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -48,7 +49,16 @@ export default function DidRouteList() {
   const [selectedRows, setSelectedRows] = useState<DidRoute[]>([]);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // 노드별 카운트용으로 전체 목록을 한 번 가져와서 클라이언트에서 필터링
   const listParams = useMemo(() => undefined, []);

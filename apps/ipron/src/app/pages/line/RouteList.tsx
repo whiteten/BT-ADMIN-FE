@@ -13,6 +13,7 @@ import { Ban, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Tr
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ENDPOINT_TYPE_LABELS } from '../../features/endpoint/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import RoutePointDialog, { type RoutePointDialogRef } from '../../features/route/components/RoutePointDialog';
 import { routeQueryKeys, useDeleteRoute, useDeleteRoutePointsBatch, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
 import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../../features/route/types';
@@ -50,7 +51,9 @@ export default function RouteList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: routes = [] } = useGetRoutes();
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
 
   const { data: routePoints = [], isLoading: isPointsLoading } = useGetRoutePoints({
     params: selectedRouteId ? { id: selectedRouteId } : undefined,
@@ -109,6 +112,13 @@ export default function RouteList() {
     if (!selectedRouteId) return null;
     return routes.find((r) => r.routeId === selectedRouteId) ?? null;
   }, [routes, selectedRouteId]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // ─── Auto-select first route when none selected ──────────────────────────
   useEffect(() => {

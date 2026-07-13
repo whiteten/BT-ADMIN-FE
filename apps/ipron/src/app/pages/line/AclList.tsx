@@ -23,6 +23,7 @@ import { toast } from '@/shared-util';
 import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclDrawer';
 import { aclQueryKeys, useDeleteAclBatch, useDeleteCtiAclBatch, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
 import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -58,7 +59,16 @@ export default function AclList() {
   const aclDrawerRef = useRef<AclDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // PBX/CTI 전체 ACL을 한 번에 가져와서 클라이언트에서 필터링/카운트
   const { data: allPbxAcls = [], isLoading: isPbxLoading } = useGetAcls({ params: undefined });

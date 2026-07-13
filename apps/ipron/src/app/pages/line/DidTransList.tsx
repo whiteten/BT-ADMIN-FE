@@ -33,6 +33,7 @@ import {
   useGetNodes,
 } from '../../features/did-trans/hooks/useDidTransQueries';
 import { type DidTrans, type DidTransCategory, EDIT_OPT_LABELS } from '../../features/did-trans/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -67,7 +68,16 @@ export default function DidTransList() {
   const didTransDrawerRef = useRef<DidTransDrawerRef>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
 
   // 양 카테고리 전체 데이터를 한 번에 가져와서 클라이언트 필터링/카운트
   const { data: allDnisTransList = [], isLoading: isDnisLoading } = useGetDnisTransList({ params: undefined });
