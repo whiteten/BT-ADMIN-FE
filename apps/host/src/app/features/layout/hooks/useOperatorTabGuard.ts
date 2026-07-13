@@ -49,12 +49,13 @@ export function useOperatorTabGuard() {
    * 운영자 전용 탭이 열려 있으면 확인을 받고 모두 닫은 뒤 `proceed` 실행.
    * 열려 있지 않으면 확인 없이 바로 실행.
    *
+   * 운영자 전용 화면을 보고 있었다면 홈('/')으로 이동시킨 뒤 닫는다. 테넌트 전환처럼
+   * 곧바로 리로드하는 경우에도 이동이 먼저라 리로드 대상 url 이 홈이 된다.
+   *
    * @param proceed 실제 전환 동작(운영자 모드 해제 / 테넌트 전환)
-   * @param navigateAfterClose 탭을 닫은 뒤 활성 탭이 사라졌을 때 이동할지 여부.
-   *        테넌트 전환처럼 곧바로 리로드하는 경우에는 false.
    */
   const withOperatorTabCleanup = useCallback(
-    (proceed: () => void, navigateAfterClose = true) => {
+    (proceed: () => void) => {
       const operatorPaths = collectOperatorPaths(apps);
       const operatorTabs = tabs.filter((t) => isOperatorUrl(t.url, operatorPaths));
 
@@ -66,13 +67,19 @@ export function useOperatorTabGuard() {
       const labels = operatorTabs.map((t) => t.label).join(', ');
       modal.confirm.execute({
         onOk: () => {
-          let nextPath: string | null = null;
-          for (const t of operatorTabs) {
-            const result = closeTab(t.id);
-            if (result.nextPath) nextPath = result.nextPath;
-          }
+          const ids = operatorTabs.map((t) => t.id);
+          const activeId = useOpenTabsStore.getState().activeId;
+          const activeIsOperator = activeId != null && ids.includes(activeId);
+
+          // ⚠️ 순서 주의 — 이동이 먼저다.
+          // 운영자 경로에 머문 채로 탭을 닫으면 활성 탭이 사라지고, useTabSync 가 "활성 탭 없음"으로 보고
+          // 현재(운영자) 경로에 대해 탭을 새로 부트스트랩한다(닫은 탭이 곧바로 되살아남).
+          // 따라서 홈으로 먼저 이동하고(= 탭으로 추적하지 않는 위치), 이동이 커밋된 뒤에 닫는다.
+          if (activeIsOperator) navigate('/', { replace: true });
           proceed();
-          if (navigateAfterClose && nextPath) navigate(nextPath);
+          setTimeout(() => {
+            for (const id of ids) closeTab(id);
+          }, 0);
         },
         options: {
           title: '운영자 전용 화면 닫기',

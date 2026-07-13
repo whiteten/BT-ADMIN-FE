@@ -35,8 +35,7 @@ export default function TenantChip() {
 
   // 테넌트 선택: (운영자 모드였다면 전용 탭 정리 + 해제 후) 세션 전환 → 리로드로 새 토큰 반영
   const handleTenantSelect = (tenant: TenantSummary) => {
-    // 전환 직후 리로드하므로 탭을 닫은 뒤 별도 navigate 는 하지 않는다.
-    withOperatorTabCleanup(() => void switchTenant(tenant), false);
+    withOperatorTabCleanup(() => void switchTenant(tenant));
   };
 
   const switchTenant = async (tenant: TenantSummary) => {
