@@ -57,7 +57,6 @@ export default function MsGroupList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(initGroupId);
   const [searchText, setSearchText] = useState('');
-  const [cardExpanded, setCardExpanded] = useState(false);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
@@ -428,17 +427,8 @@ export default function MsGroupList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 접기/펼치기 토글 헤더 */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setCardExpanded((v) => !v)}
-          >
-            <span>MS그룹 선택</span>
-            {cardExpanded ? <ChevronsUp className="size-4" /> : <ChevronsDown className="size-4" />}
-          </button>
-          {/* Card slider body — 기본 접힘 */}
-          {cardExpanded && (
+          {/* Card slider body — 항상 펼침 */}
+          {
             <div className="flex items-center px-4 py-3 h-[180px]">
               {filteredMsGroups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
@@ -542,7 +532,7 @@ export default function MsGroupList() {
                 </div>
               )}
             </div>
-          )}
+          }
         </div>
 
         {/* ===== 하단: 미디어서버 ag-Grid ===== */}

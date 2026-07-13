@@ -44,7 +44,6 @@ export default function McsDnis() {
   const [selectedOp, setSelectedOp] = useState<NetworkOperator | null>(null);
   const [selectedGdnNo, setSelectedGdnNo] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [sliderOpen, setSliderOpen] = useState(false);
   const [selectedDnis, setSelectedDnis] = useState<McsdDnis[]>([]);
 
   // ─── Refs ───────────────────────────────────────────────────────────────
@@ -311,25 +310,15 @@ export default function McsDnis() {
 
         {/* ===== 카드 슬라이더 박스 (GDN) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 접기/펼치기 토글 헤더 */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setSliderOpen((v) => !v)}
-          >
-            <span>대표번호 선택</span>
-            <ChevronDown className={`size-4 transition-transform ${sliderOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {sliderOpen && (
-            <GdnCardSlider
-              gdnList={filteredGdnList}
-              isLoading={isGdnLoading}
-              selectedGdnNo={selectedGdnNo}
-              onSelect={setSelectedGdnNo}
-              onEdit={handleEditGdn}
-              onDelete={handleDeleteGdn}
-            />
-          )}
+          {/* 대표번호 카드 — 항상 펼침 */}
+          <GdnCardSlider
+            gdnList={filteredGdnList}
+            isLoading={isGdnLoading}
+            selectedGdnNo={selectedGdnNo}
+            onSelect={setSelectedGdnNo}
+            onEdit={handleEditGdn}
+            onDelete={handleDeleteGdn}
+          />
         </div>
 
         {/* ===== 하단: DNIS 그리드 ===== */}
