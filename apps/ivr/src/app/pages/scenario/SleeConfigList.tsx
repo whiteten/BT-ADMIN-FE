@@ -705,6 +705,7 @@ export default function SleeConfigList() {
                   getRowId={(params) => `${params.data.category}::${params.data.property}`}
                   defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
                   rowSelection="multiple"
+                  suppressRowClickSelection
                   onSelectionChanged={(e) => handlePropertySelectionChanged(e.api)}
                   onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
                 />

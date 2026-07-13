@@ -1,9 +1,9 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type CtiAgentRow, type CtiGroupRow, type CtiMediaTypeRow, type CtiQueueRow, ctiRedisApi } from '../api/ctiRedisApi';
+import { type RedisKeyDefinitionsResponse, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
-import type { DbQueryDef, DbQueryParam, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
+import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
@@ -123,7 +123,10 @@ export const useGetDbQueryDefList = ({ queryOptions }: QueryHookWithParamsOption
 
 export const useCreateDbQueryDef = ({
   mutationOptions,
-}: MutationHookOptions<any, { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }> = {}) => {
+}: MutationHookOptions<
+  any,
+  { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[]; redisKeys?: DbQueryRedisKeyEntry[]; placeholderName?: string }
+> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.createDbQueryDef,
     ...mutationOptions,
@@ -132,7 +135,19 @@ export const useCreateDbQueryDef = ({
 
 export const useUpdateDbQueryDef = ({
   mutationOptions,
-}: MutationHookOptions<any, { dbQueryId: number; tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }> = {}) => {
+}: MutationHookOptions<
+  any,
+  {
+    dbQueryId: number;
+    tenantId: string;
+    queryName: string;
+    description?: string;
+    sqlText: string;
+    params?: DbQueryParam[];
+    redisKeys?: DbQueryRedisKeyEntry[];
+    placeholderName?: string;
+  }
+> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.updateDbQueryDef,
     ...mutationOptions,
@@ -244,54 +259,14 @@ export const useDeleteNotice = ({ mutationOptions }: MutationHookOptions<any, nu
 // ── CTI Redis 실시간 데이터 훅 ────────────────────────────────────────────────
 
 export const ctiRedisQueryKeys = createQueryKeys('cti-redis', {
-  queueList: () => [{}],
-  agentList: () => [{}],
-  groupList: () => [{}],
-  mediaTypeList: () => [{}],
   hashKeys: () => [{}],
   hashColumns: () => [{}],
   hashEntries: (hashKey: string) => [{ hashKey }],
+  keyDefinitions: () => [{}],
 });
 
-/** 큐 리스트 (TB_IC_CTIQMASTER via Redis) — 5초 자동 갱신 */
-export const useGetCtiQueueList = ({ queryOptions }: QueryHookWithParamsOptions<CtiQueueRow[]> = {}) => {
-  return useQuery({
-    queryKey: ctiRedisQueryKeys.queueList().queryKey,
-    queryFn: () => ctiRedisApi.getCtiQueueList(),
-    refetchInterval: 5000,
-    ...queryOptions,
-  });
-};
-
-/** 상담사 리스트 (TB_IC_AGENTMASTER via Redis) — 5초 자동 갱신 */
-export const useGetCtiAgentList = ({ queryOptions }: QueryHookWithParamsOptions<CtiAgentRow[]> = {}) => {
-  return useQuery({
-    queryKey: ctiRedisQueryKeys.agentList().queryKey,
-    queryFn: () => ctiRedisApi.getCtiAgentList(),
-    refetchInterval: 5000,
-    ...queryOptions,
-  });
-};
-
-/** 상담그룹 리스트 (TB_IC_GROUPMASTER via Redis) — 5초 자동 갱신 */
-export const useGetCtiGroupList = ({ queryOptions }: QueryHookWithParamsOptions<CtiGroupRow[]> = {}) => {
-  return useQuery({
-    queryKey: ctiRedisQueryKeys.groupList().queryKey,
-    queryFn: () => ctiRedisApi.getCtiGroupList(),
-    refetchInterval: 5000,
-    ...queryOptions,
-  });
-};
-
-/** 미디어타입 리스트 (TB_IC_MEDIA_USAGE) — 자동 갱신 없음 (정적 마스터) */
-export const useGetCtiMediaTypeList = ({ queryOptions }: QueryHookWithParamsOptions<CtiMediaTypeRow[]> = {}) => {
-  return useQuery({
-    queryKey: ctiRedisQueryKeys.mediaTypeList().queryKey,
-    queryFn: () => ctiRedisApi.getCtiMediaTypeList(),
-    staleTime: 10 * 60 * 1000,
-    ...queryOptions,
-  });
-};
+// [삭제 2026-07-10] useGetCtiQueueList/AgentList/GroupList/MediaTypeList — IC 전용 TB_IC_* 직결 목록 훅.
+// 큐/상담사/상담그룹/미디어타입은 이제 데이터소스관리(useGetDbQueryDefList/useGetDbQueryDefOptions)로 조회한다.
 
 /** Redis Hash 타입 키 목록 조회 (서버 기동 시 캐시된 목록) */
 export const useGetRedisHashKeys = ({ queryOptions }: QueryHookWithParamsOptions<string[]> = {}) => {
@@ -337,6 +312,19 @@ export const useGetRedisHashEntries = (hashKey: string, { queryOptions }: QueryH
     queryKey: ctiRedisQueryKeys.hashEntries(hashKey).queryKey,
     queryFn: () => ctiRedisApi.getRedisHashEntries(hashKey),
     enabled: !!hashKey,
+    ...queryOptions,
+  });
+};
+
+/**
+ * Redis BASE KEY → 실제 HASH KEY 매핑 메타데이터(application-redis-key-map.yml). BE 재시작 전엔 안 바뀌는
+ * 정적 데이터라 staleTime을 길게 둔다.
+ */
+export const useGetRedisKeyDefinitions = ({ queryOptions }: QueryHookWithParamsOptions<RedisKeyDefinitionsResponse> = {}) => {
+  return useQuery({
+    queryKey: ctiRedisQueryKeys.keyDefinitions().queryKey,
+    queryFn: () => ctiRedisApi.getRedisKeyDefinitions(),
+    staleTime: 10 * 60 * 1000,
     ...queryOptions,
   });
 };

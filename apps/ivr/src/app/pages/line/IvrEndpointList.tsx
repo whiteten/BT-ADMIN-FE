@@ -17,18 +17,32 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IvrEndpointMasterSheet, { type IvrEndpointMasterSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMasterSheet';
 import IvrEndpointMemberSheet, { type IvrEndpointMemberSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMemberSheet';
 import { ivrEndpointQueryKeys, useDeleteMaster, useDeleteMember, useGetMasters, useGetMembers, useGetNodes } from '../../features/ivr-endpoint/hooks/useIvrEndpointQueries';
 import { ALLOC_METHOD_LABELS, CONN_TYPE_LABELS, type IvrEndpointMaster, type IvrEndpointMember, LINE_TYPE_LABELS, getMasterTagList } from '../../features/ivr-endpoint/types';
-import { IconTrash } from '@/components/custom/Icons';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: 'IVR End Point 관리', path: '/ivr/line/endpoint' }];
+
+/** 블럭여부 배지 색상 — 1=설정(차단, red) / 0=해제(정상, emerald). */
+const BLOCK_STATE_BADGE_CLASS: Record<number, string> = {
+  1: 'text-red-600 bg-red-50',
+  0: 'text-emerald-600 bg-emerald-50',
+};
+/** ID/PW 유형 배지 색상 — '10'=공통(blue), 그 외=개별(기본 회색). */
+const REG_TYPE_BADGE_CLASS: Record<string, string> = {
+  '10': 'text-blue-600 bg-blue-50',
+};
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 export default function IvrEndpointList() {
   const [searchParams] = useSearchParams();
@@ -51,7 +65,6 @@ export default function IvrEndpointList() {
   const [selectedEndpointId, setSelectedEndpointId] = useState<number | null>(initEndptId);
   const [searchText, setSearchText] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   // 신규 등록 직후 그 카드로 스크롤하기 위한 대기 id (목록 갱신 후 1회 사용)
   const pendingFocusIdRef = useRef<number | null>(null);
 
@@ -141,6 +154,19 @@ export default function IvrEndpointList() {
     if (!selectedEndpointId) return null;
     return endpoints.find((ep) => ep.endptId === selectedEndpointId) ?? null;
   }, [endpoints, selectedEndpointId]);
+
+  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
+    () => [
+      { id: 'all', label: '전체', icon: Layers, count: searchFilteredEndpoints.length },
+      ...nodes.map((node) => ({
+        id: node.nodeId,
+        label: node.nodeName,
+        icon: Network,
+        count: searchFilteredEndpoints.filter((ep) => ep.nodeId === node.nodeId).length,
+      })),
+    ],
+    [nodes, searchFilteredEndpoints],
+  );
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeSelect = (nodeId: number) => {
@@ -269,15 +295,8 @@ export default function IvrEndpointList() {
         minWidth: 70,
         cellRenderer: (params: ICellRendererParams<IvrEndpointMember>) => {
           if (!params.data) return null;
-          return params.data.blockState === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              설정
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-              해제
-            </span>
-          );
+          const blockState = params.data.blockState === 1 ? 1 : 0;
+          return <Badge className={cn(BADGE_CLASS, BLOCK_STATE_BADGE_CLASS[blockState] ?? DEFAULT_BADGE_CLASS)}>{blockState === 1 ? '설정' : '해제'}</Badge>;
         },
       },
       {
@@ -287,15 +306,8 @@ export default function IvrEndpointList() {
         minWidth: 90,
         cellRenderer: (params: ICellRendererParams<IvrEndpointMember>) => {
           if (!params.data) return null;
-          return params.data.regType === '10' ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#e6f4ff', color: '#1677ff' }}>
-              공통
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f5f5f5', color: '#595959' }}>
-              개별
-            </span>
-          );
+          const regType = params.data.regType;
+          return <Badge className={cn(BADGE_CLASS, REG_TYPE_BADGE_CLASS[regType ?? ''] ?? DEFAULT_BADGE_CLASS)}>{regType === '10' ? '공통' : '개별'}</Badge>;
         },
       },
       {
@@ -337,7 +349,7 @@ export default function IvrEndpointList() {
                 handleMemberDelete(params.data!);
               }}
             >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
             </button>
           );
         },
@@ -351,73 +363,20 @@ export default function IvrEndpointList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 (별도 박스) ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
-                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
-                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedNodeId(null);
-                  setSearchText('');
-                  setSelectedEndpointId(null);
-                }}
-              >
-                <Layers className="size-3.5" />
-                <span>전체</span>
-                <span className="text-[11px] text-gray-400">({searchFilteredEndpoints.length})</span>
-              </button>
-
-              {nodes.map((node) => {
-                const nodeEps = searchFilteredEndpoints.filter((ep) => ep.nodeId === node.nodeId);
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeEps.length})</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+        <TabBar<number | 'all'>
+          items={nodeTabItems}
+          selectedId={isSearching ? null : (selectedNodeId ?? 'all')}
+          onSelect={(id) => {
+            if (id === 'all') {
+              setSelectedNodeId(null);
+              setSearchText('');
+              setSelectedEndpointId(null);
+            } else {
+              handleNodeSelect(id);
+            }
+          }}
+          rightContent={
+            <>
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -429,9 +388,9 @@ export default function IvrEndpointList() {
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
               </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* ===== 카드 슬라이더 박스 (별도 박스) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
@@ -530,29 +489,24 @@ export default function IvrEndpointList() {
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {selectedEndpoint ? (
             <div className="flex flex-col flex-1 min-h-0">
-              {/* Bottom header: selected endpoint name */}
-              <div className="px-5 py-2 flex items-center gap-3 flex-shrink-0">
-                <span className="text-sm font-semibold text-gray-800">{selectedEndpoint.endptName}</span>
-              </div>
-
-              {/* Tab bar + 추가 버튼 */}
-              <div className="flex items-center border-b-2 border-gray-200 flex-shrink-0 pr-3">
-                <button
-                  type="button"
-                  className="px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[2px] transition-colors text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]"
-                >
-                  멤버 ({members.length})
-                </button>
-                <div className="ml-auto">
-                  <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => memberSheetRef.current?.open()}>
-                    멤버 추가
-                  </Button>
+              {/* Bottom header: 선택된 EndPoint명 + 멤버 카운트 */}
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Users className="size-4 text-[#405189]" />
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    멤버 — <span className="text-[#405189]">{selectedEndpoint.endptName}</span>
+                  </h3>
+                  <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{members.length}개</span>
                 </div>
+                <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => memberSheetRef.current?.open()}>
+                  멤버 추가
+                </Button>
               </div>
+              <div className="border-t border-gray-200" />
 
               {/* Tab content */}
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1">
+                <div className="flex-1 p-5">
                   <AgGridReact<IvrEndpointMember>
                     rowData={members}
                     columnDefs={memberColumnDefs}

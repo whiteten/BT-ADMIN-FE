@@ -2,7 +2,7 @@ import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-que
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
-import type { LatestRecogGroup, RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetSearchItem } from '../types';
+import type { LatestRecogGroup, RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetListItem, RecogTargetSearchItem } from '../types';
 
 export const recogQueryKeys = createQueryKeys('recog', {
   getRecogGroupList: (params?: Record<string, unknown>) => [params],
@@ -51,11 +51,15 @@ export const useGetRecogTargetSearch = ({ params, queryOptions }: { params?: Rec
   });
 };
 
-export const useGetRecogTargetList = (params: { groupCode: string; engineCode?: string } | undefined) => {
+export const useGetRecogTargetList = ({
+  params,
+  queryOptions,
+}: { params?: { groupCode?: string; engineCode?: string }; queryOptions?: UseQueryOptions<RecogTargetListItem[]> } = {}) => {
   return useQuery({
     queryKey: recogQueryKeys.getRecogTargetList(params).queryKey,
     queryFn: () => recogApi.getRecogTargetList(params as { groupCode: string; engineCode?: string }),
     enabled: !!params?.groupCode,
+    ...queryOptions,
   });
 };
 

@@ -2,27 +2,27 @@ import { useContext } from 'react';
 import { AnimatedTableCell } from './AnimatedTableCell';
 import { ChartWidget, buildChartDataFromRows } from './ChartWidget';
 import { TableColumnResizeContext, handleColumnResizePointerDown } from './TableColumnGapContext';
+import type { RedisKeyDefinitionsResponse } from '../api/ctiRedisApi';
 import type { CtiWsDataByHashKey, CtiWsSubscription } from '../hooks/useCtiqWebSocket';
-import { useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
+import { useGetDbQueryDefOptionsMulti, useGetRedisHashKeys, useGetRedisKeyDefinitions } from '../hooks/useTaskboardQueries';
 import type { DroppedWidget, TableColumn } from '../types/taskboard.types';
+import { extractCompositeLeadPart, isCompositeFieldKey, matchKeyDefinition } from '../utils/redisKeyDefinitions';
 import { extractSystemIdSegment, findSiblingKeys } from '../utils/redisKeyPattern';
 import {
   buildGroupReasonHashKeys,
   evaluateFormula,
-  extractGroupIdFromGroupReasonKey,
-  extractSystemIdFromCompositeFieldKey,
+  extractNameValueItems,
   findGroupReasonKeys,
   groupSumRedisHashEntries,
-  isSystemNodeCompositeFieldKey,
   mergeCompositeNodeEntries,
   mergeWsSubscriptions,
   parseGroupReasonHashKey,
 } from '../utils/redisValue';
 
 /** 이 컴포넌트(RedisTableWidget)로 렌더해야 하는 위젯 id 목록 — 범용 'table-redis'와, 같은 엔진을 그대로
- * 재사용하는 사전 구성 프리셋(예: 그룹별 이석사유 현황 'table-group-reason'), JOIN 테이블('table-join')을
+ * 재사용하는 사전 구성 프리셋(예: 그룹별/스킬별 이석사유 현황 'table-group-reason'/'table-skill-reason'), JOIN 테이블('table-join')을
  * 함께 둔다. */
-const REDIS_TABLE_WIDGET_IDS = new Set(['table-redis', 'table-group-reason', 'table-join']);
+const REDIS_TABLE_WIDGET_IDS = new Set(['table-redis', 'table-group-reason', 'table-skill-reason', 'table-join']);
 
 /** 위젯이 "Redis 테이블"(임의 해시키 1개를 통째로 테이블로 보여주는 위젯)인지 판별 */
 export function isRedisTableWidget(widget: DroppedWidget): boolean {
@@ -62,19 +62,23 @@ function collectNeededColumns(columns: TableColumn[], groupBy?: { byKey: string;
 /**
  * redisKeyPattern==='keyed'면 형제 키(시스템ID별 키)까지, 아니면 자기 자신 1개만 — 조회해야 할 hashKey 목록.
  *
- * IC:GROUP:REASON:{groupId}:{mediaType}(GROUP_REASON_HASH_PREFIX) 패밀리는 자동 분기 — targetGroupIds가
- * 있으면(실제 디스플레이 화면) 디스플레이가 선택한 그룹들의 키만 정확히 만들어 쓴다(뷰그룹에 없는 그룹은
- * 절대 섞이지 않음). targetGroupIds가 없으면(에디터 미리보기 등 디스플레이 컨텍스트가 없는 화면) 기존
- * 'keyed' 형제탐색으로 대체해 실제 존재하는 그룹들을 보여준다.
+ * REASON 패밀리(그룹/스킬처럼 엔티티마다 키가 따로 있는 IC:GROUP:REASON/IC:SKILL:REASON 등)는 자동 분기 —
+ * targetIdsByPrefix에 그 키의 basePrefix(예: "IC:GROUP:", "IC:SKILL:")에 대응하는 선택값이 있으면(실제
+ * 디스플레이 화면) 디스플레이가 선택한 엔티티들의 키만 정확히 만들어 쓴다(뷰그룹에 없는 엔티티는 절대
+ * 섞이지 않음 — 그룹 REASON은 그룹 선택값만, 스킬 REASON은 스킬 선택값만 써야 한다. 예전엔 단일
+ * targetGroupIds를 모든 REASON 패밀리에 그대로 썼다가 스킬 REASON에 그룹ID가 들어가는 버그가 있었음).
+ * 선택값이 없으면(에디터 미리보기 등 디스플레이 컨텍스트가 없는 화면) 기존 'keyed' 형제탐색으로 대체해
+ * 실제 존재하는 엔티티들을 보여준다.
  */
-function resolveCategoryKeys(hashKey: string, pattern: 'fields' | 'keyed', allHashKeys: string[], targetGroupIds: string[] = []): string[] {
+function resolveCategoryKeys(hashKey: string, pattern: 'fields' | 'keyed', allHashKeys: string[], targetIdsByPrefix: Record<string, string[]> = {}): string[] {
   if (!hashKey) return [];
   const groupReason = parseGroupReasonHashKey(hashKey);
   if (groupReason) {
-    // 디스플레이가 선택한 그룹 목록이 있으면 그것을 우선 사용
-    if (targetGroupIds.length > 0) return buildGroupReasonHashKeys(groupReason.mediaType, targetGroupIds);
+    // 디스플레이가 선택한 엔티티 목록(그 REASON 패밀리에 대응하는 것)이 있으면 그것을 우선 사용
+    const targetIds = targetIdsByPrefix[groupReason.basePrefix] ?? [];
+    if (targetIds.length > 0) return buildGroupReasonHashKeys(groupReason.prefix, groupReason.mediaType, targetIds);
     // 없으면 allHashKeys에서 같은 mediaType의 실제 그룹 키를 모두 찾아 사용
-    const actualGroupKeys = findGroupReasonKeys(groupReason.mediaType, allHashKeys);
+    const actualGroupKeys = findGroupReasonKeys(groupReason.prefix, groupReason.mediaType, allHashKeys);
     if (actualGroupKeys.length > 0) return actualGroupKeys;
     // 실제 키가 아직 없으면(미리보기 초기 등) 입력값 그대로 → BE 와일드카드 확장에 의존
     return [hashKey];
@@ -98,12 +102,12 @@ function isGroupByValueWidget(widget: DroppedWidget): boolean {
  * 이 함수가 반환하는 구독을 그 단일 연결의 subscriptions 배열에 합쳐서 같은 소켓으로 받아야 한다
  * (개발자 도구 Network 탭에 같은 이름의 소켓이 여러 개 뜨는 것을 방지 — 위젯이 N개여도 소켓은 화면당 1개).
  */
-export function collectRedisTableWsSubscriptions(widgets: DroppedWidget[], allHashKeys: string[], targetGroupIds: string[] = []): CtiWsSubscription[] {
+export function collectRedisTableWsSubscriptions(widgets: DroppedWidget[], allHashKeys: string[], targetIdsByPrefix: Record<string, string[]> = {}): CtiWsSubscription[] {
   const tableSubs = widgets.filter(isRedisTableWidget).flatMap((widget) => {
     const hashKey = widget.item.redisHashKey ?? '';
     if (!hashKey) return [];
     const pattern = widget.item.redisKeyPattern ?? 'fields';
-    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetGroupIds);
+    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
     // PIVOT 모드(rowKey+colKey 모두 설정)일 때는 컬럼 필터 없이 전체 수신.
     // IC:GROUP:REASON 계열은 PIVOT 미설정 시에도 전체 수신(entry JSON 구조가 복잡해 필터가 오인식될 수 있음).
     const isPivotMode = !!(widget.item.tableConfig?.pivot?.rowKey && widget.item.tableConfig?.pivot?.colKey);
@@ -119,7 +123,7 @@ export function collectRedisTableWsSubscriptions(widgets: DroppedWidget[], allHa
   const groupByValueSubs = widgets.filter(isGroupByValueWidget).flatMap((widget) => {
     const hashKey = widget.item.redisHashKey!;
     const pattern = widget.item.redisKeyPattern ?? 'fields';
-    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetGroupIds);
+    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
     const { byKey, aggKey } = widget.item.groupBy!;
     return categoryKeys.map((key) => ({ hashKey: key, ids: ['*'], columns: [byKey, aggKey] }));
   });
@@ -154,22 +158,26 @@ export function RedisTableWidget({
   fontScale = 1,
   editable = false,
   dataByHashKey,
-  targetGroupIds = [],
+  targetIdsByPrefix = {},
 }: {
   widget: DroppedWidget;
   fontScale?: number;
   editable?: boolean;
   /** 화면 단일 WS 연결에서 받은 전체 데이터 — {@link collectRedisTableWsSubscriptions}로 모은 구독의 응답. */
   dataByHashKey: CtiWsDataByHashKey;
-  /** IC:GROUP:REASON 패밀리 전용 — 디스플레이가 선택한 그룹ID 목록(없으면 에디터 미리보기처럼 컨텍스트 없음). */
-  targetGroupIds?: string[];
+  /** REASON 패밀리(그룹/스킬 등) 전용 — basePrefix별 디스플레이 선택 엔티티 ID 목록(없으면 에디터 미리보기처럼
+   * 컨텍스트 없음). buildReasonFamilyTargetIdsByPrefix로 만든다. */
+  targetIdsByPrefix?: Record<string, string[]>;
 }) {
   const setColumnWidth = useContext(TableColumnResizeContext);
   const hashKey = widget.item.redisHashKey ?? '';
   const pattern = widget.item.redisKeyPattern ?? 'fields';
   const { data: allHashKeys = [] } = useGetRedisHashKeys();
+  const { data: redisKeyDefs } = useGetRedisKeyDefinitions();
+  const defs: RedisKeyDefinitionsResponse = redisKeyDefs ?? { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
+  const compositeFieldDefinitionName = matchKeyDefinition(hashKey, defs)?.name;
   const groupReason = parseGroupReasonHashKey(hashKey);
-  const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetGroupIds);
+  const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
   let columns = widget.item.tableConfig?.columns ?? [];
   const groupBy = widget.item.tableConfig?.groupBy;
   const showTitle = widget.showTitle !== false;
@@ -187,6 +195,14 @@ export function RedisTableWidget({
       }
     }
   }
+
+  // 컬럼에 nameLookupDbQueryId가 설정돼 있으면(예: 이석사유 코드 → 사유명), 그 데이터소스의 VALUE→NAME
+  // 매핑을 미리 조회해둔다 — 코드값 그대로 보여주지 않고 등록된 이름으로 치환할 때 쓴다.
+  const nameLookupDbQueryIds = [...new Set(columns.map((c) => c.nameLookupDbQueryId).filter((id): id is number => !!id))];
+  const nameLookupResults = useGetDbQueryDefOptionsMulti(nameLookupDbQueryIds);
+  const nameLookupMaps = new Map<number, Map<string, string>>(
+    nameLookupDbQueryIds.map((id, idx) => [id, new Map(extractNameValueItems(nameLookupResults[idx]?.data ?? []).map((i) => [i.id, i.name]))]),
+  );
 
   if (!hashKey) {
     return (
@@ -395,6 +411,8 @@ export function RedisTableWidget({
       return Math.round(result * 10 ** decimals) / 10 ** decimals;
     }
     // parsed가 객체가 아닌 경우(plain string/number — JSON 미파싱 해시값) 원시값을 그대로 반환
+    // (이름 매핑(nameLookupDbQueryId)은 여기서 하지 않는다 — groupBy/JOIN/시스템ID 태그 등 resolveCell을 안 거치는
+    //  행 생성 경로가 있어서, 최종 rows에 일괄 적용하는 후처리에서 처리한다)
     if (col.key !== ROW_ID_COLUMN_KEY && (parsed === null || typeof parsed !== 'object')) {
       return parsed != null ? String(parsed) : '';
     }
@@ -416,10 +434,10 @@ export function RedisTableWidget({
     // SYSTEM_ID(10)+NODE_ID(6) 합성 필드 키 해시(예: IC:GROUP:{mediaType})는 노드별로 행이 중복돼 보이므로
     // SYSTEM_ID로 묶어 1행으로 합친다(숫자 컬럼은 노드 합계) — 다른 해시(필드 키가 이 모양이 아님)는
     // 영향 없음. 필드가 하나도 없거나 전부 이 모양이 아니면 기존처럼 field 1개=행 1개로 그대로 둔다.
-    if (entryList.length > 0 && entryList.every(([id]) => isSystemNodeCompositeFieldKey(id))) {
+    if (entryList.length > 0 && entryList.every(([id]) => isCompositeFieldKey(id, compositeFieldDefinitionName, defs))) {
       const bySystemId = new Map<string, Record<string, unknown>[]>();
       entryList.forEach(([id, parsed]) => {
-        const systemId = extractSystemIdFromCompositeFieldKey(id);
+        const systemId = extractCompositeLeadPart(id, compositeFieldDefinitionName, defs);
         const list = bySystemId.get(systemId) ?? [];
         list.push(parsed);
         bySystemId.set(systemId, list);
@@ -503,6 +521,25 @@ export function RedisTableWidget({
 
   // 정렬/limit까지 반영된 최종 순서 기준 1부터 번호 매김 — ROW_NUMBER_COLUMN_KEY 컬럼을 추가했을 때만 의미 있음
   rows = rows.map((row, i) => ({ ...row, [ROW_NUMBER_COLUMN_KEY]: i + 1 }));
+
+  // 이름 매핑(nameLookupDbQueryId) — 모든 행 생성 경로(일반/groupBy 합계/복합필드 병합/JOIN/시스템ID 태그)를
+  // 거친 최종 rows에 일괄 적용한다. resolveCell 안에서 하면 groupBy·JOIN처럼 resolveCell을 안 거치는 경로가
+  // 빠지므로 반드시 여기서. 정렬/빈행숨김은 이미 원본 코드값 기준으로 끝난 뒤라 표시값만 바뀐다.
+  // 매핑 데이터가 아직 로딩 전(map 비어있음)이면 원본 코드값을 그대로 보여준다.
+  const nameLookupCols = columns.flatMap((c) => {
+    const map = c.nameLookupDbQueryId ? nameLookupMaps.get(c.nameLookupDbQueryId) : undefined;
+    return map && map.size > 0 ? [{ key: c.key, map }] : [];
+  });
+  if (nameLookupCols.length > 0) {
+    rows = rows.map((row) => {
+      const mapped = { ...row };
+      nameLookupCols.forEach(({ key, map }) => {
+        const raw = row[key];
+        if (raw != null && raw !== '') mapped[key] = map.get(String(raw)) ?? raw;
+      });
+      return mapped;
+    });
+  }
 
   const visibleColumns = columns.filter((c) => !c.hidden);
 

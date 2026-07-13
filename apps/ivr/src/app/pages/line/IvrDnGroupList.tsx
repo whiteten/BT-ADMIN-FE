@@ -1,19 +1,19 @@
 /**
  * IVR DN 그룹 관리 페이지 (IPR20S6012) — IPRON DNIS관리(MCS) UI 패턴 적용.
  *
- * 상단: 노드 탭 박스(첫 노드 자동선택) + 시스템 카드 슬라이더 박스(접기/펼치기, 첫 시스템 자동선택)
+ * 상단: 노드 탭 박스(전체 포함) + 시스템 카드 슬라이더 박스(첫 시스템 자동선택)
  * 하단: DN 그룹 그리드 박스 — 행 더블클릭 = 수정(IvrDnGroupSheet). Direction 필터 + [Sub DN 관리] 버튼.
  * Sub DN: Drawer 안에서 그리드 + 인라인 추가/수정 (DnShortDialDrawer 패턴).
  *
  * ※ DN 그룹 추가/수정(IvrDnGroupSheet) 로직·백엔드 변경 없음.
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Alert, type BreadcrumbProps, Button, Col, Drawer, Empty, Form, Input, InputNumber, Row, Select } from 'antd';
-import { ChevronDown, ChevronLeft, ChevronRight, Info, Network, Pencil, Plus, Search, Server } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Layers, Network, Pencil, Phone, Plus, Server, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IvrDnGroupSheet, { type IvrDnGroupSheetRef } from '../../features/ivr-dn-group/components/IvrDnGroupSheet';
@@ -30,6 +30,7 @@ import {
   useUpdateSubDnGroup,
 } from '../../features/ivr-dn-group/hooks/useIvrDnGroupQueries';
 import {
+  DIRECTION_LABELS,
   type IrDnDirection,
   type IrDnGroup,
   type IrSubDnGroup,
@@ -37,31 +38,33 @@ import {
   REG_KIND_LABELS,
   SUB_DN_KIND_LABELS,
   SUB_DN_KIND_OPTIONS,
-  getDirectionTag,
   isSubDnEligible,
 } from '../../features/ivr-dn-group/types';
-import { IconTrash } from '@/components/custom/Icons';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: 'IVR DN그룹관리', path: '/ivr/line/dn-group' }];
 
-const DIRECTION_FILTER_OPTIONS = [
-  { label: '전체', value: '' },
-  { label: 'Outbound', value: '10' },
-  { label: 'Inbound', value: '20' },
-  { label: 'Both', value: '30' },
-];
+/** 그리드 안 상태값 배지 표준(add-grid 스킬 참조) — Record 색상 맵 + shadcn Badge. */
+const DIRECTION_BADGE_CLASS: Record<IrDnDirection, string> = {
+  '10': 'text-teal-600 bg-teal-50', // Outbound
+  '20': 'text-blue-600 bg-blue-50', // Inbound
+  '30': 'text-purple-600 bg-purple-50', // Both
+};
+const ACS_BADGE_CLASS = 'text-emerald-600 bg-emerald-50';
+const SUB_DN_KIND_BADGE_CLASS: Record<string, string> = {
+  '1': 'text-blue-600 bg-blue-50', // 일반
+};
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 /** Direction 배지 — 라벨 고정 너비로 In/Out/Both 크기 통일. */
 function DirectionBadge({ direction }: { direction: IrDnDirection }) {
-  const t = getDirectionTag(direction);
-  return (
-    <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[11px] font-bold w-[76px]" style={{ color: t.color, backgroundColor: t.bgColor }}>
-      {t.label}
-    </span>
-  );
+  return <Badge className={cn(BADGE_CLASS, 'w-[76px] justify-center', DIRECTION_BADGE_CLASS[direction] ?? DEFAULT_BADGE_CLASS)}>{DIRECTION_LABELS[direction]}</Badge>;
 }
 
 export default function IvrDnGroupList() {
@@ -84,13 +87,9 @@ export default function IvrDnGroupList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedSystemId, setSelectedSystemId] = useState<number | null>(null);
   const [selectedDnGroupId, setSelectedDnGroupId] = useState<number | null>(initDnGroupId);
-  const [searchText, setSearchText] = useState('');
-  const [directionFilter, setDirectionFilter] = useState('');
-  const [sliderOpen, setSliderOpen] = useState(true);
   const [subDnDrawerOpen, setSubDnDrawerOpen] = useState(false);
   const [subEditing, setSubEditing] = useState<IrSubDnGroup | null>(null);
   const [subFormOpen, setSubFormOpen] = useState(false);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const sysScrollRef = useRef<HTMLDivElement>(null);
   const [subForm] = Form.useForm();
 
@@ -99,9 +98,10 @@ export default function IvrDnGroupList() {
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: dnGroups = [] } = useGetDnGroups();
   const { data: nodes = [] } = useGetNodes();
+  // 모든 시스템을 한 번에 가져옴(IvrMedia와 동일 패턴) — 노드 탭 카운트와 "전체" 카드 노출을 클라이언트에서 일괄 계산
   const { data: systemUsages = [] } = useGetSystemUsage({
-    params: selectedNodeId ? { nodeId: selectedNodeId } : undefined,
-    queryOptions: { enabled: !!selectedNodeId },
+    params: {},
+    queryOptions: { enabled: true },
   });
   const { data: subDnGroups = [], isLoading: isSubLoading } = useGetSubDnGroups({
     params: selectedDnGroupId ? { id: selectedDnGroupId } : undefined,
@@ -189,22 +189,12 @@ export default function IvrDnGroupList() {
   });
 
   // ─── Derived ────────────────────────────────────────────────────────────
-  const isSearching = searchText.trim().length > 0;
-  const searchFilteredDnGroups = useMemo(() => {
-    if (!isSearching) return dnGroups;
-    const kw = searchText.trim().toLowerCase();
-    return dnGroups.filter((g) => g.dnGroupName?.toLowerCase().includes(kw) || g.endptName?.toLowerCase().includes(kw) || g.startDn?.toLowerCase().includes(kw));
-  }, [dnGroups, isSearching, searchText]);
-
   const filteredDnGroups = useMemo(() => {
-    let list = searchFilteredDnGroups;
-    if (!isSearching) {
-      if (selectedNodeId !== null) list = list.filter((g) => g.nodeId === selectedNodeId);
-      if (selectedSystemId !== null) list = list.filter((g) => g.systemId === selectedSystemId);
-    }
-    if (directionFilter) list = list.filter((g) => g.direction === directionFilter);
+    let list = dnGroups;
+    if (selectedNodeId !== null) list = list.filter((g) => g.nodeId === selectedNodeId);
+    if (selectedSystemId !== null) list = list.filter((g) => g.systemId === selectedSystemId);
     return list;
-  }, [searchFilteredDnGroups, selectedNodeId, selectedSystemId, directionFilter, isSearching]);
+  }, [dnGroups, selectedNodeId, selectedSystemId]);
 
   const dnGroupCountBySystem = useMemo(() => {
     const m = new Map<number, number>();
@@ -212,13 +202,28 @@ export default function IvrDnGroupList() {
     return m;
   }, [dnGroups]);
 
-  useEffect(() => {
-    if (selectedNodeId === null && !isSearching && nodes.length > 0) setSelectedNodeId(nodes[0].nodeId);
-  }, [nodes, selectedNodeId, isSearching]);
+  // 노드 선택에 따른 시스템 카드 슬라이더 노출 목록 — "전체"면 전체 시스템 노출.
+  const filteredSystemUsages = useMemo(() => {
+    if (selectedNodeId === null) return systemUsages;
+    return systemUsages.filter((s) => s.nodeId === selectedNodeId);
+  }, [systemUsages, selectedNodeId]);
+
+  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
+    () => [
+      { id: 'all', label: '전체', icon: Layers, count: systemUsages.length },
+      ...nodes.map((node) => ({
+        id: node.nodeId,
+        label: node.nodeName,
+        icon: Network,
+        count: systemUsages.filter((s) => s.nodeId === node.nodeId).length,
+      })),
+    ],
+    [nodes, systemUsages],
+  );
 
   useEffect(() => {
-    if (selectedSystemId === null && systemUsages.length > 0) setSelectedSystemId(systemUsages[0].systemId);
-  }, [selectedSystemId, systemUsages]);
+    if (selectedSystemId === null && filteredSystemUsages.length > 0) setSelectedSystemId(filteredSystemUsages[0].systemId);
+  }, [selectedSystemId, filteredSystemUsages]);
 
   // DN 그룹은 자동 선택하지 않음 — Sub DN 관리는 사용자가 행을 직접 선택해야 활성화.
   // 단, 선택한 행이 필터로 사라지면 선택 해제.
@@ -234,15 +239,12 @@ export default function IvrDnGroupList() {
     setSelectedNodeId(nodeId);
     setSelectedSystemId(null);
     setSelectedDnGroupId(null);
-    setSearchText('');
   };
 
   const handleSystemSelect = (systemId: number) => {
     setSelectedSystemId(systemId);
     setSelectedDnGroupId(null);
   };
-
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value);
 
   const handleCreate = useCallback(() => dnGroupSheetRef.current?.open(undefined, selectedNodeId ?? nodes[0]?.nodeId), [nodes, selectedNodeId]);
   const handleEdit = useCallback((g: IrDnGroup) => dnGroupSheetRef.current?.open(g), []);
@@ -353,13 +355,7 @@ export default function IvrDnGroupList() {
         sortable: false,
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p: ICellRendererParams<IrDnGroup>) =>
-          p.data?.outchUsetype === '5' ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-              ACS
-            </span>
-          ) : (
-            <span className="text-gray-300">-</span>
-          ),
+          p.data?.outchUsetype === '5' ? <Badge className={cn(BADGE_CLASS, ACS_BADGE_CLASS)}>ACS</Badge> : <span className="text-gray-300">-</span>,
       },
       {
         headerName: '',
@@ -378,7 +374,7 @@ export default function IvrDnGroupList() {
                 handleDelete(p.data!);
               }}
             >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
             </button>
           ) : null,
       },
@@ -396,9 +392,7 @@ export default function IvrDnGroupList() {
         width: 90,
         cellRenderer: (p: ICellRendererParams<IrSubDnGroup>) =>
           p.data ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#e6f4ff', color: '#1677ff' }}>
-              {SUB_DN_KIND_LABELS[p.data.subDnGroupKind] ?? '-'}
-            </span>
+            <Badge className={cn(BADGE_CLASS, SUB_DN_KIND_BADGE_CLASS[p.data.subDnGroupKind] ?? DEFAULT_BADGE_CLASS)}>{SUB_DN_KIND_LABELS[p.data.subDnGroupKind] ?? '-'}</Badge>
           ) : null,
         ...codeFilter<IrSubDnGroup>('subDnGroupKind', SUB_DN_KIND_LABELS),
       },
@@ -434,7 +428,7 @@ export default function IvrDnGroupList() {
                   handleSubDelete(p.data!);
                 }}
               >
-                <IconTrash className="size-4 text-red-500 hover:cursor-pointer" />
+                <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
               </button>
             </div>
           ) : null,
@@ -443,140 +437,110 @@ export default function IvrDnGroupList() {
     [handleSubDelete, openSubEditForm],
   );
 
-  const gridHeaderText = useMemo(() => {
-    if (isSearching) return `검색 결과 (${filteredDnGroups.length}건)`;
-    const sysName = selectedSystemId ? systemUsages.find((s) => s.systemId === selectedSystemId)?.systemName : null;
-    return `${sysName ? `${sysName} ` : ''}DN 그룹 (${filteredDnGroups.length}건)`;
-  }, [isSearching, filteredDnGroups.length, selectedSystemId, systemUsages]);
+  const selectedSystemName = useMemo(
+    () => (selectedSystemId ? (systemUsages.find((s) => s.systemId === selectedSystemId)?.systemName ?? '') : ''),
+    [selectedSystemId, systemUsages],
+  );
 
   // ─── Render (IPRON McsDnis UI 패턴) ────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 탭 바 박스 (노드) ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 divide-x divide-gray-200 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-            <div ref={tabScrollRef} className="flex items-stretch max-w-[820px] min-w-0 overflow-x-auto divide-x divide-gray-200" style={{ scrollbarWidth: 'none' }}>
-              {nodes.map((node) => {
-                const cnt = dnGroups.filter((g) => g.nodeId === node.nodeId).length;
-                const isActive = selectedNodeId === node.nodeId && !isSearching;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] flex-shrink-0 transition-colors ${isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'}`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({cnt})</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-            <div className="ml-auto flex items-center gap-2">
-              <Input
-                allowClear
-                prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="DN그룹/국선/시작DN 검색"
-                value={searchText}
-                onChange={handleSearchChange}
-                style={{ width: 200 }}
-              />
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                DN 그룹 추가
-              </Button>
-            </div>
-          </div>
-        </div>
+        <TabBar<number | 'all'>
+          items={nodeTabItems}
+          selectedId={selectedNodeId ?? 'all'}
+          onSelect={(id) => {
+            if (id === 'all') {
+              setSelectedNodeId(null);
+              setSelectedSystemId(null);
+              setSelectedDnGroupId(null);
+            } else {
+              handleNodeSelect(id);
+            }
+          }}
+        />
 
-        {/* ===== 카드 슬라이더 박스 (시스템, 접기/펼치기) ===== */}
+        {/* ===== 카드 슬라이더 박스 (시스템) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setSliderOpen((v) => !v)}
-          >
-            <span>시스템 선택{selectedSystemId ? ` — ${systemUsages.find((s) => s.systemId === selectedSystemId)?.systemName ?? ''}` : ''}</span>
-            <ChevronDown className={`size-4 transition-transform ${sliderOpen ? 'rotate-180' : ''}`} />
-          </button>
-          {sliderOpen && (
-            <div className="flex items-center gap-2 px-4 py-3 h-[150px]">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => sysScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={sysScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none' }}>
-                {systemUsages.map((sys) => {
-                  const sel = selectedSystemId === sys.systemId;
-                  return (
-                    <div
-                      key={sys.systemId}
-                      className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[120px] flex-shrink-0 flex flex-col ${sel ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'}`}
-                      onClick={(e) => {
-                        handleSystemSelect(sys.systemId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Server className="size-3.5 text-[#405189]" />
-                        <span className="text-[14px] font-bold text-gray-800 truncate" title={sys.systemName}>
-                          {sys.systemName}
-                        </span>
-                      </div>
-                      <div className="mt-2 text-[12px] text-gray-500 space-y-0.5">
-                        <div>
-                          DN 그룹 <b className="text-gray-700">{dnGroupCountBySystem.get(sys.systemId) ?? 0}개</b>
-                        </div>
-                        <div>
-                          DN 사용{' '}
-                          <b className="text-gray-700">
-                            {sys.usedDnCount}/{sys.maxDnCount}
-                          </b>{' '}
-                          (잔여 {sys.availableDnCount})
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {selectedNodeId !== null && systemUsages.length === 0 && <div className="flex items-center text-sm text-gray-400 px-4">이 노드에 시스템이 없습니다</div>}
+          <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100">
+            <Server className="size-4 text-[#405189]" />
+            <span className="text-sm font-semibold text-gray-800">시스템</span>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredSystemUsages.length}개</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-3 h-[150px]">
+            {filteredSystemUsages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
+                <Empty description={false} styles={{ image: { height: 40 } }} />
+                <span className="text-sm">{selectedNodeId !== null ? '이 노드에 시스템이 없습니다' : '등록된 시스템이 없습니다'}</span>
               </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => sysScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-            </div>
-          )}
+            ) : (
+              <>
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => sysScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={sysScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none' }}>
+                  {filteredSystemUsages.map((sys) => {
+                    const sel = selectedSystemId === sys.systemId;
+                    return (
+                      <div
+                        key={sys.systemId}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[120px] flex-shrink-0 flex flex-col ${sel ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'}`}
+                        onClick={(e) => {
+                          handleSystemSelect(sys.systemId);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Server className="size-3.5 text-[#405189]" />
+                          <span className="text-[14px] font-bold text-gray-800 truncate" title={sys.systemName}>
+                            {sys.systemName}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-[12px] text-gray-500 space-y-0.5">
+                          <div>
+                            DN 그룹 <b className="text-gray-700">{dnGroupCountBySystem.get(sys.systemId) ?? 0}개</b>
+                          </div>
+                          <div>
+                            DN 사용{' '}
+                            <b className="text-gray-700">
+                              {sys.usedDnCount}/{sys.maxDnCount}
+                            </b>{' '}
+                            (잔여 {sys.availableDnCount})
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => sysScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </>
+            )}
+          </div>
         </div>
 
         {/* ===== 하단: DN 그룹 그리드 박스 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Direction</span>
-              <Select value={directionFilter} onChange={setDirectionFilter} options={DIRECTION_FILTER_OPTIONS} style={{ width: 120 }} />
+              <Phone className="size-4 text-[#405189]" />
+              <h3 className="text-sm font-semibold text-gray-800">
+                DN 그룹 — <span className="text-[#405189]">{selectedSystemName}</span>
+              </h3>
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredDnGroups.length}개</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                DN 그룹 추가
+              </Button>
               <Button
                 onClick={openSubDnDrawer}
                 disabled={!subDnAllowed}
@@ -587,10 +551,11 @@ export default function IvrDnGroupList() {
               </Button>
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="border-t border-gray-200" />
+          <div className="flex-1 min-h-0 p-5">
             {filteredDnGroups.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <Empty description={isSearching ? '검색 결과가 없습니다' : '등록된 DN 그룹이 없습니다'} />
+                <Empty description="등록된 DN 그룹이 없습니다" />
               </div>
             ) : (
               <AgGridReact<IrDnGroup>

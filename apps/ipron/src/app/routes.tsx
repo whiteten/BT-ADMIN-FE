@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { createPageVariantSocket } from '@/components/custom/DynamicElement';
+import { skillAssignVariants } from './pages/skill-assign/SkillAssignList.variants';
+import DynamicElement, { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { NotFound } from '@/components/custom/NotFound';
 
 // profile
@@ -64,14 +65,14 @@ const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
 // media-type (미디어타입 관리 — SWAT IPR10S6060, 상담사 관리 > 코드 관리 하위)
 const MediaTypeList = React.lazy(() => import('./pages/media-type/MediaTypeList'));
 
-// skill-assign (스킬배정)
-const SkillAssignList = React.lazy(() => import('./pages/skill-assign/SkillAssignList'));
-
 // skillset-master (스킬셋 관리 — SWAT IPR20S5010)
 const SkillsetMasterList = React.lazy(() => import('./pages/skillset-master/SkillsetMasterList'));
 
 // agent-schedule (상담사/상담그룹 스케줄 관리 — SWAT IPR20S4010/IPR20S4020 스케줄 탭 통합)
 const AgentScheduleList = React.lazy(() => import('./pages/agent-schedule/AgentScheduleList'));
+
+// worktime (교환기 업무시간관리 — SWAT IPR30S4022 의 IE 분리분. IVR 분리분은 apps/ivr)
+const IeWorktimeList = React.lazy(() => import('./pages/pbx-worktime/IeWorktimeList'));
 
 // device (단말기관리 — SWAT IPR20S2110 + IPR20S2130, 단말모델관리 — IPR20S2120)
 const DeviceList = React.lazy(() => import('./pages/device/DeviceList'));
@@ -248,7 +249,7 @@ export const routes = [
       },
       {
         path: 'skill-assign',
-        element: pv('skill-assign', SkillAssignList),
+        element: <DynamicElement variants={skillAssignVariants} />,
       },
       {
         path: 'agent-adn',
@@ -261,6 +262,10 @@ export const routes = [
       {
         path: 'agent-schedule',
         element: pv('agent-schedule', AgentScheduleList),
+      },
+      {
+        path: 'pbx-worktime',
+        element: pv('pbx-worktime', IeWorktimeList),
       },
       {
         path: 'device',

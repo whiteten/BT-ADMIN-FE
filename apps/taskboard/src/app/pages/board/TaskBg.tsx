@@ -2,6 +2,7 @@ import { type ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardQueryKeys, useCreateTaskboardBg, useDeleteTaskboardBg, useGetTaskboardBg } from '../../features/board/hooks/useTaskboardQueries';
 import type { LayoutTemplate, LayoutZone, TaskboardBg } from '../../features/board/types/taskboard.types';
@@ -385,7 +386,16 @@ const renameCellNode = (node: CellNode, targetId: string, label: string): CellNo
   return { ...node, split: { ...node.split, a: renameCellNode(node.split.a, targetId, label), b: renameCellNode(node.split.b, targetId, label) } };
 };
 
+const breadcrumb = [{ title: '전광판 관리' }, { title: '배경 관리', path: '/taskboard/board/task-bg' }];
+
 export default function TaskBg() {
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb(breadcrumb);
+    return () => clearBreadcrumb();
+  }, [setBreadcrumb, clearBreadcrumb]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRes, setSelectedRes] = useState<ResolutionKey>('FHD');
   const [, setUploadedFile] = useState<File | null>(null);
@@ -520,8 +530,6 @@ export default function TaskBg() {
         tenantId: '2000000001',
         pageId: 0,
         pageName: `직접 업로드 ${Date.now().toString().slice(-4)}`,
-        authorName: 'admin',
-        authRole: 'MASTER',
         genType: 'DIRECT',
         useYn: 'Y',
         regDt: new Date().toISOString(),
@@ -628,92 +636,229 @@ export default function TaskBg() {
       const [hue, ciSat] = rgbToHsl(r, g, b);
       const themeSat = Math.max(0.35, Math.min(0.75, ciSat));
 
-      // 5가지 배경 테마 × 4가지 존 스타일 = 20종 (CI 색조 기반 동적 생성)
+      // ── 방송 전광판 스타일 공통 헬퍼 — 해상도 무관 두께/반경 스케일(FHD 기준 1.0, 4K 2.0)
+      const scale = w / 1920;
+      const zoneRadius = Math.max(8, 12 * scale);
+
+      /** 모서리를 어둡게(비네트) — 화면 중앙으로 시선을 모아 깊이감을 만든다 */
+      const vignette = (ctx: CanvasRenderingContext2D, strength: number) => {
+        const grd = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.45, w / 2, h / 2, Math.max(w, h) * 0.78);
+        grd.addColorStop(0, 'rgba(0,0,0,0)');
+        grd.addColorStop(1, `rgba(0,0,0,${strength})`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+      };
+
+      /** 색이 번지는 원형 글로우(스튜디오 조명 느낌) — 배경에 여러 개 겹쳐 오로라 효과 */
+      const glow = (ctx: CanvasRenderingContext2D, cx: number, cy: number, radius: number, rgb: [number, number, number], alpha: number) => {
+        const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+        grd.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`);
+        grd.addColorStop(1, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+      };
+
+      /** 미세 도트 그리드 — 방송 세트 배경의 LED 질감 */
+      const dotGrid = (ctx: CanvasRenderingContext2D, color: string, step: number) => {
+        ctx.fillStyle = color;
+        const s = step * scale;
+        const dotR = Math.max(1, 1.2 * scale);
+        for (let py = s / 2; py < h; py += s) {
+          for (let px = s / 2; px < w; px += s) {
+            ctx.beginPath();
+            ctx.arc(px, py, dotR, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      };
+
+      /** 대각선 라이트 스윕 — 화면을 가로지르는 은은한 빛줄기(생동감 포인트) */
+      const lightSweep = (ctx: CanvasRenderingContext2D, alpha: number) => {
+        const grd = ctx.createLinearGradient(0, h, w, 0);
+        grd.addColorStop(0.35, 'rgba(255,255,255,0)');
+        grd.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+        grd.addColorStop(0.65, 'rgba(255,255,255,0)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, w, h);
+      };
+
+      // 5가지 배경 테마 × 4가지 존 스타일 = 20종 (CI 색조 기반, 조명/깊이감 포함)
       const bgThemes = [
-        // 0: CI 색조 기반 다크 (명도 7%, 채도 60%)
+        // 0: 오로라 글로우 다크 — CI 색조 + 인접 색조 조명 2~3개를 겹쳐 스튜디오 배경처럼
         (ctx: CanvasRenderingContext2D) => {
-          const [dr, dg, db] = hslToRgb(hue, themeSat * 0.6, 0.07);
+          const [dr, dg, db] = hslToRgb(hue, themeSat * 0.5, 0.06);
           ctx.fillStyle = `rgb(${dr},${dg},${db})`;
           ctx.fillRect(0, 0, w, h);
+          glow(ctx, w * 0.18, h * 0.08, w * 0.5, hslToRgb(hue, themeSat, 0.42), 0.22);
+          glow(ctx, w * 0.88, h * 0.95, w * 0.55, hslToRgb((hue + 40) % 360, themeSat, 0.38), 0.18);
+          glow(ctx, w * 0.72, h * 0.12, w * 0.28, hslToRgb((hue + 320) % 360, themeSat * 0.8, 0.5), 0.09);
+          vignette(ctx, 0.38);
         },
-        // 1: CI 색조 기반 딥 블랙 (명도 4%, 채도 낮음)
+        // 1: 스포트라이트 딥 블랙 — 상단 중앙에서 CI 색 조명이 내려오는 무대 느낌 + LED 도트 질감
         (ctx: CanvasRenderingContext2D) => {
-          const [dr, dg, db] = hslToRgb(hue, themeSat * 0.15, 0.04);
+          const [dr, dg, db] = hslToRgb(hue, themeSat * 0.2, 0.035);
           ctx.fillStyle = `rgb(${dr},${dg},${db})`;
           ctx.fillRect(0, 0, w, h);
+          glow(ctx, w * 0.5, -h * 0.18, w * 0.65, hslToRgb(hue, themeSat * 0.9, 0.5), 0.26);
+          dotGrid(ctx, 'rgba(255,255,255,0.022)', 26);
+          vignette(ctx, 0.42);
         },
-        // 2: CI 색조 기반 라이트 (명도 96%, 채도 15%)
+        // 2: 라이트 스튜디오 — 밝은 베이스에 CI 틴트 조명을 은은하게(라이트 모드 전광판)
         (ctx: CanvasRenderingContext2D) => {
-          const [lr, lg, lb] = hslToRgb(hue, 0.15, 0.96);
+          const [lr, lg, lb] = hslToRgb(hue, 0.12, 0.97);
           ctx.fillStyle = `rgb(${lr},${lg},${lb})`;
           ctx.fillRect(0, 0, w, h);
+          glow(ctx, w * 0.15, h * 0.05, w * 0.55, hslToRgb(hue, themeSat, 0.55), 0.13);
+          glow(ctx, w * 0.9, h * 0.95, w * 0.5, hslToRgb((hue + 30) % 360, themeSat * 0.7, 0.6), 0.09);
+          dotGrid(ctx, `rgba(${r},${g},${b},0.03)`, 30);
         },
-        // 3: CI 브랜드 컬러 그라디언트
+        // 3: 브랜드 그라디언트 + 라이트 스윕 — CI 컬러 전면 + 대각선 빛줄기
         (ctx: CanvasRenderingContext2D) => {
           const grd = ctx.createLinearGradient(0, 0, w, h);
           grd.addColorStop(0, `rgb(${r},${g},${b})`);
-          grd.addColorStop(1, `rgb(${Math.max(0, r - 60)},${Math.max(0, g - 60)},${Math.max(0, b - 60)})`);
+          grd.addColorStop(1, `rgb(${Math.max(0, r - 70)},${Math.max(0, g - 70)},${Math.max(0, b - 70)})`);
           ctx.fillStyle = grd;
           ctx.fillRect(0, 0, w, h);
+          lightSweep(ctx, 0.08);
+          glow(ctx, w * 0.85, h * 0.05, w * 0.4, [255, 255, 255], 0.08);
+          vignette(ctx, 0.3);
         },
-        // 4: CI 색조 +30° 딥 그라디언트 (보색 계열)
+        // 4: 딥 듀얼톤 — CI 색조 + 40° 인접 색조 대각 그라디언트, 하단 글로우
         (ctx: CanvasRenderingContext2D) => {
-          const deepHue = (hue + 30) % 360;
-          const [d1r, d1g, d1b] = hslToRgb(deepHue, themeSat * 0.8, 0.07);
+          const deepHue = (hue + 40) % 360;
+          const [d1r, d1g, d1b] = hslToRgb(deepHue, themeSat * 0.8, 0.08);
           const [d2r, d2g, d2b] = hslToRgb(hue, themeSat * 0.5, 0.04);
           const grd = ctx.createLinearGradient(0, 0, w, h);
           grd.addColorStop(0, `rgb(${d1r},${d1g},${d1b})`);
           grd.addColorStop(1, `rgb(${d2r},${d2g},${d2b})`);
           ctx.fillStyle = grd;
           ctx.fillRect(0, 0, w, h);
+          glow(ctx, w * 0.5, h * 1.05, w * 0.6, hslToRgb(hue, themeSat, 0.4), 0.16);
+          lightSweep(ctx, 0.045);
+          vignette(ctx, 0.34);
         },
       ];
 
+      /** 헤더 역할 존 판정 — 프리셋 id가 header거나, 최상단 전폭(y=0·너비 90%+·높이 25% 이하) 존 */
+      const isHeaderZone = (zone: LayoutZone) => zone.id.toLowerCase().includes('header') || (zone.y <= 2 && zone.width >= 90 && zone.height <= 25);
+
+      /** 헤더 존 공통 마감 — CI 컬러 수평 스윕 + 하단 발광 언더라인(방송 타이틀바 느낌) */
+      const finishHeaderZone = (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number) => {
+        drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+        const sweep = ctx.createLinearGradient(zx, zy, zx + zw, zy);
+        if (bgIdx === 3) {
+          // 브랜드 그라디언트 배경 위에서는 흰색 스윕이 더 살아남
+          sweep.addColorStop(0, 'rgba(255,255,255,0.28)');
+          sweep.addColorStop(1, 'rgba(255,255,255,0.02)');
+        } else {
+          sweep.addColorStop(0, `rgba(${r},${g},${b},0.85)`);
+          sweep.addColorStop(0.55, `rgba(${r},${g},${b},0.45)`);
+          sweep.addColorStop(1, `rgba(${r},${g},${b},0.1)`);
+        }
+        ctx.fillStyle = sweep;
+        ctx.fill();
+        // 하단 발광 언더라인 — 헤더와 본문 영역을 확실히 구분해주는 포인트
+        ctx.save();
+        ctx.shadowColor = bgIdx === 3 ? 'rgba(255,255,255,0.9)' : `rgb(${r},${g},${b})`;
+        ctx.shadowBlur = 12 * scale;
+        ctx.fillStyle = bgIdx === 3 ? 'rgba(255,255,255,0.95)' : `rgba(${Math.min(255, r + 70)},${Math.min(255, g + 70)},${Math.min(255, b + 70)},0.95)`;
+        ctx.fillRect(zx, zy + zh - Math.max(3, 3 * scale), zw * 0.42, Math.max(3, 3 * scale));
+        ctx.restore();
+      };
+
       const zoneFills = [
-        // A: 솔리드 CI 색상
-        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number) => {
-          const zoneColor = bgIdx === 2 ? `rgb(${Math.max(0, r - 20)},${Math.max(0, g - 20)},${Math.max(0, b - 20)})` : `rgb(${r},${g},${b})`;
-          drawRoundedZone(ctx, zx, zy, zw, zh);
-          ctx.fillStyle = zoneColor;
+        // A: 글래스 패널 — 반투명 + 그림자 + 상단 하이라이트(유리 질감)
+        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number, header: boolean) => {
+          if (header) return finishHeaderZone(ctx, zx, zy, zw, zh, bgIdx);
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.35)';
+          ctx.shadowBlur = 20 * scale;
+          ctx.shadowOffsetY = 6 * scale;
+          drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+          ctx.fillStyle = bgIdx === 2 ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.07)';
           ctx.fill();
+          ctx.restore();
+          // 상단에서 비치는 빛(하이라이트) — 유리 패널의 핵심 디테일
+          drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+          const hl = ctx.createLinearGradient(zx, zy, zx, zy + zh * 0.4);
+          hl.addColorStop(0, bgIdx === 2 ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.09)');
+          hl.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = hl;
+          ctx.fill();
+          ctx.strokeStyle = bgIdx === 2 ? `rgba(${r},${g},${b},0.28)` : 'rgba(255,255,255,0.14)';
+          ctx.lineWidth = Math.max(1, 1.2 * scale);
+          ctx.stroke();
         },
-        // B: 그라디언트 fill
-        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number) => {
-          drawRoundedZone(ctx, zx, zy, zw, zh);
-          const grd = ctx.createLinearGradient(zx, zy, zx + zw, zy + zh);
+        // B: 엘리베이티드 카드 — 위가 살짝 밝은 수직 그라디언트 + 그림자(떠 있는 카드)
+        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number, header: boolean) => {
+          if (header) return finishHeaderZone(ctx, zx, zy, zw, zh, bgIdx);
+          ctx.save();
+          ctx.shadowColor = 'rgba(0,0,0,0.4)';
+          ctx.shadowBlur = 24 * scale;
+          ctx.shadowOffsetY = 8 * scale;
+          drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+          const grd = ctx.createLinearGradient(zx, zy, zx, zy + zh);
           if (bgIdx === 2) {
-            grd.addColorStop(0, `rgb(${r},${g},${b})`);
-            grd.addColorStop(1, `rgb(${Math.max(0, r - 50)},${Math.max(0, g - 50)},${Math.max(0, b - 50)})`);
-          } else if (bgIdx === 3) {
-            grd.addColorStop(0, 'rgba(255,255,255,0.9)');
-            grd.addColorStop(1, 'rgba(255,255,255,0.4)');
+            grd.addColorStop(0, 'rgba(255,255,255,0.95)');
+            grd.addColorStop(1, `rgba(${r},${g},${b},0.1)`);
           } else {
-            grd.addColorStop(0, `rgb(${r},${g},${b})`);
-            grd.addColorStop(1, `rgba(${r},${g},${b},0.4)`);
+            const [t1r, t1g, t1b] = hslToRgb(hue, themeSat * 0.45, 0.17);
+            const [t2r, t2g, t2b] = hslToRgb(hue, themeSat * 0.5, 0.1);
+            grd.addColorStop(0, `rgba(${t1r},${t1g},${t1b},0.92)`);
+            grd.addColorStop(1, `rgba(${t2r},${t2g},${t2b},0.92)`);
           }
           ctx.fillStyle = grd;
           ctx.fill();
-        },
-        // C: 아웃라인 (얇은 테두리만)
-        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number) => {
-          drawRoundedZone(ctx, zx, zy, zw, zh);
-          const fillAlpha = bgIdx === 2 ? `rgba(${r},${g},${b},0.08)` : 'rgba(255,255,255,0.06)';
-          ctx.fillStyle = fillAlpha;
-          ctx.fill();
-          const strokeColor = bgIdx === 2 ? `rgb(${r},${g},${b})` : `rgba(255,255,255,0.6)`;
-          ctx.strokeStyle = strokeColor;
-          ctx.lineWidth = 2;
+          ctx.restore();
+          drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+          ctx.strokeStyle = bgIdx === 2 ? `rgba(${r},${g},${b},0.2)` : 'rgba(255,255,255,0.1)';
+          ctx.lineWidth = Math.max(1, 1.2 * scale);
           ctx.stroke();
         },
-        // D: 카드 + 상단 컬러 바
-        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number) => {
-          drawRoundedZone(ctx, zx, zy, zw, zh);
-          const cardBg = bgIdx === 2 ? 'rgba(15,91,158,0.1)' : 'rgba(0,0,0,0.35)';
-          ctx.fillStyle = cardBg;
+        // C: 네온 엣지 — CI 색 발광 테두리(shadowBlur 글로우), 어두운 배경에서 가장 화려함
+        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number, header: boolean) => {
+          if (header) return finishHeaderZone(ctx, zx, zy, zw, zh, bgIdx);
+          drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+          ctx.fillStyle = bgIdx === 2 ? `rgba(${r},${g},${b},0.06)` : 'rgba(0,0,0,0.3)';
           ctx.fill();
-          const barColor = bgIdx === 3 ? 'rgba(255,255,255,0.85)' : `rgb(${r},${g},${b})`;
-          ctx.fillStyle = barColor;
-          ctx.fillRect(zx, zy, zw, Math.max(4, zh * 0.045));
+          ctx.save();
+          const neonColor = bgIdx === 3 ? 'rgba(255,255,255,0.85)' : `rgba(${Math.min(255, r + 50)},${Math.min(255, g + 50)},${Math.min(255, b + 50)},0.9)`;
+          ctx.shadowColor = neonColor;
+          ctx.shadowBlur = 14 * scale;
+          drawRoundedZone(ctx, zx, zy, zw, zh, zoneRadius);
+          ctx.strokeStyle = neonColor;
+          ctx.lineWidth = Math.max(1.5, 2 * scale);
+          ctx.stroke();
+          ctx.restore();
+        },
+        // D: 방송 HUD — 코너 브래킷 + 좌측 액센트 바(뉴스/스포츠 중계 그래픽 느낌)
+        (ctx: CanvasRenderingContext2D, zx: number, zy: number, zw: number, zh: number, bgIdx: number, header: boolean) => {
+          if (header) return finishHeaderZone(ctx, zx, zy, zw, zh, bgIdx);
+          drawRoundedZone(ctx, zx, zy, zw, zh, Math.max(4, 4 * scale));
+          ctx.fillStyle = bgIdx === 2 ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.32)';
+          ctx.fill();
+          const accent = bgIdx === 3 ? 'rgba(255,255,255,0.9)' : `rgb(${r},${g},${b})`;
+          // 좌측 액센트 바
+          ctx.fillStyle = accent;
+          ctx.fillRect(zx, zy + zh * 0.08, Math.max(3, 4 * scale), zh * 0.84);
+          // 코너 브래킷(4개 모서리 ㄱ자) — HUD 그래픽의 시그니처
+          const bl = Math.min(zw, zh) * 0.12;
+          const lw = Math.max(1.5, 2 * scale);
+          ctx.strokeStyle = accent;
+          ctx.lineWidth = lw;
+          const corners: [number, number, number, number][] = [
+            [zx + bl, zy, zx, zy], // 좌상
+            [zx + zw - bl, zy, zx + zw, zy], // 우상
+            [zx + bl, zy + zh, zx, zy + zh], // 좌하
+            [zx + zw - bl, zy + zh, zx + zw, zy + zh], // 우하
+          ];
+          for (const [hx, hy, cx2, cy2] of corners) {
+            ctx.beginPath();
+            ctx.moveTo(hx, hy);
+            ctx.lineTo(cx2, cy2);
+            ctx.lineTo(cx2, cy2 + (hy === zy ? bl : -bl));
+            ctx.stroke();
+          }
         },
       ];
 
@@ -730,20 +875,12 @@ export default function TaskBg() {
 
         bgThemes[bgIdx](ctx);
 
-        // 미묘한 노이즈/패턴 추가로 배경 질감 차별화
-        if (bgIdx === 0 || bgIdx === 1 || bgIdx === 4) {
-          ctx.fillStyle = 'rgba(255,255,255,0.015)';
-          for (let py = 0; py < h; py += 4) {
-            ctx.fillRect(0, py, w, 1);
-          }
-        }
-
         for (const zone of selectedLayout.zones) {
           const zx = (zone.x / 100) * w,
             zy = (zone.y / 100) * h;
           const zw = (zone.width / 100) * w,
             zh = (zone.height / 100) * h;
-          zoneFills[styleIdx](ctx, zx, zy, zw, zh, bgIdx);
+          zoneFills[styleIdx](ctx, zx, zy, zw, zh, bgIdx, isHeaderZone(zone));
         }
 
         // CI 로고
@@ -877,7 +1014,7 @@ export default function TaskBg() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs text-slate-500 pt-3 border-t border-slate-100">
-                  <span className="font-medium">{item.authorName ?? '시스템'}</span>
+                  <span className="font-medium">{item.createUserLoginId ?? '시스템'}</span>
                   <span>{dayjs(item.regDt).format('YYYY.MM.DD HH:mm')}</span>
                 </div>
               </div>
@@ -1093,8 +1230,6 @@ export default function TaskBg() {
                                                 tenantId: '2000000001',
                                                 pageId: 0,
                                                 pageName: `자동생성_${selectedLayout.name}_${preview.res}_${Date.now().toString().slice(-4)}`,
-                                                authorName: 'admin',
-                                                authRole: 'MASTER',
                                                 genType: 'AI',
                                                 useYn: 'Y',
                                                 regDt: new Date().toISOString(),

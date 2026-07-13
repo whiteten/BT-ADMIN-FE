@@ -5,8 +5,9 @@ import { UNSAFE_NavigationContext, useLocation, useNavigate } from 'react-router
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { Lock, Pipette, Search, Unlock } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
-import { fuzzyScore, toast } from '@/shared-util';
+import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { toast } from '@/shared-util';
+import type { RedisKeyDefinitionsResponse } from '../../features/board/api/ctiRedisApi';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
 import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
@@ -20,15 +21,18 @@ import {
   isRedisTableWidget,
 } from '../../features/board/components/RedisTableWidget';
 import { TableColumnResizeContext, handleColumnResizePointerDown } from '../../features/board/components/TableColumnGapContext';
+import { WebEmbedWidget, isWebEmbedWidget } from '../../features/board/components/WebEmbedWidget';
 import { type CtiWsDataByHashKey, useCtiqWebSocket } from '../../features/board/hooks/useCtiqWebSocket';
 import {
   taskboardQueryKeys,
   useCreateTaskboardLayout,
-  useGetCtiMediaTypeList,
+  useGetDbQueryDefList,
+  useGetDbQueryDefOptionsMulti,
   useGetNoticeList,
   useGetRedisHashColumns,
   useGetRedisHashEntries,
   useGetRedisHashKeys,
+  useGetRedisKeyDefinitions,
   useRefreshRedisHashKeys,
   useUpdateLayout,
 } from '../../features/board/hooks/useTaskboardQueries';
@@ -48,8 +52,18 @@ import type {
   WidgetThresholdRule,
 } from '../../features/board/types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
-import { MEDIA_TYPE_LABELS, detectRedisKeyPattern, findSiblingKeys } from '../../features/board/utils/redisKeyPattern';
-import { CALC_WIDGET_ITEM, GROUP_REASON_HASH_PREFIX, getCalcDisplayValue, validateFormula } from '../../features/board/utils/redisValue';
+import { collapseIcVariableSegment, maskEntitySegment } from '../../features/board/utils/redisKeyDefinitions';
+import { type RedisKeyNode, detectRedisKeyPattern, extractIcGroupIdSegment, filterRedisTree, findSiblingKeys, groupRedisKeys } from '../../features/board/utils/redisKeyPattern';
+import {
+  CALC_WIDGET_ITEM,
+  GROUP_REASON_HASH_PREFIX,
+  SKILL_REASON_HASH_PREFIX,
+  deriveEntityIdPlaceholderName,
+  extractNameValueItems,
+  findEntitySelectionDbQueryIdsByPrefix,
+  getCalcDisplayValue,
+  validateFormula,
+} from '../../features/board/utils/redisValue';
 import {
   DESIGN_WIDTH,
   SHADOW_PRESETS,
@@ -375,120 +389,31 @@ function TableWidget({ widget }: { widget: DroppedWidget }) {
 }
 
 // ─── Redis Hash 탐색기 — HashKey별 아이템 (필드를 DraggableSourceItem으로 렌더) ──
-// ─── Redis Hash 탐색기 — 트리 데이터 구조 ──────────────────────────────────────
-interface RedisKeyNode {
-  label: string;
-  fullKey?: string; // 실제 Redis Hash 키 (리프 노드)
-  children: RedisKeyNode[];
-  leafCount: number;
-}
-
-const REDIS_TREE_MAX_DEPTH = 3;
-
-function groupRedisKeys(keys: string[], prefix: string, depth: number): RedisKeyNode[] {
-  // 최대 깊이 도달 시 나머지를 플랫 리프로 처리
-  if (depth >= REDIS_TREE_MAX_DEPTH) {
-    return keys
-      .slice()
-      .sort()
-      .map((key) => ({
-        label: key,
-        fullKey: prefix ? `${prefix}:${key}` : key,
-        children: [],
-        leafCount: 1,
-      }));
-  }
-
-  const segMap = new Map<string, { isLeaf: boolean; childKeys: string[] }>();
-  for (const key of keys) {
-    const idx = key.indexOf(':');
-    if (idx === -1) {
-      const e = segMap.get(key) ?? { isLeaf: false, childKeys: [] };
-      e.isLeaf = true;
-      segMap.set(key, e);
-    } else {
-      const seg = key.slice(0, idx);
-      const rest = key.slice(idx + 1);
-      const e = segMap.get(seg) ?? { isLeaf: false, childKeys: [] };
-      e.childKeys.push(rest);
-      segMap.set(seg, e);
-    }
-  }
-
-  return Array.from(segMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([seg, { isLeaf, childKeys }]) => {
-      const fullKey = prefix ? `${prefix}:${seg}` : seg;
-      const children = childKeys.length > 0 ? groupRedisKeys(childKeys, fullKey, depth + 1) : [];
-      return {
-        label: seg,
-        fullKey: isLeaf || children.length === 0 ? fullKey : undefined,
-        children,
-        leafCount: (isLeaf ? 1 : 0) + children.reduce((s, c) => s + c.leafCount, 0),
-      };
-    });
-}
-
-/**
- * Redis 해시키 트리를 검색어로 필터링 — 키 경로(fullKey)뿐 아니라, fieldIndex(미리 색인해 둔 해시키별
- * 필드명 목록)가 있으면 필드명(예: SUM_CONN_CNT)으로도 매치한다. 리프가 매치하면 그 조상 노드들은
- * children을 매치된 것만으로 추려서 그대로 남긴다(검색 결과로 가는 경로를 보여주기 위해).
- */
-function filterRedisTree(nodes: RedisKeyNode[], query: string, fieldIndex: Record<string, string[]> | null): RedisKeyNode[] {
-  const q = query.trim();
-  if (!q) return nodes;
-
-  const leafMatches = (node: RedisKeyNode): boolean => {
-    if (!node.fullKey) return false;
-    if (fuzzyScore(q, node.fullKey) >= 0) return true;
-    const fields = fieldIndex?.[node.fullKey];
-    return fields?.some((f) => fuzzyScore(q, f) >= 0) ?? false;
-  };
-
-  const walk = (node: RedisKeyNode): RedisKeyNode | null => {
-    if (node.children.length === 0) {
-      return leafMatches(node) ? node : null;
-    }
-    const filteredChildren = node.children.map(walk).filter((n): n is RedisKeyNode => n !== null);
-    if (filteredChildren.length === 0) return null;
-    return { ...node, children: filteredChildren, leafCount: filteredChildren.reduce((s, c) => s + c.leafCount, 0) };
-  };
-
-  return nodes.map(walk).filter((n): n is RedisKeyNode => n !== null);
-}
-
-/**
- * IC 계열 Redis 키의 가변 그룹ID 세그먼트를 트리에서 숨기고 미디어타입 레벨까지만 표시한다.
- * IC 섹션에만 적용 — 다른 데이터(BT, FC 등)는 null 반환으로 원본 키 그대로 사용.
- *
- * IC:AGENT:{GROUP_ID}:{MEDIA_TYPE}       → IC:AGENT:{MEDIA_TYPE}
- * IC:GROUP:REASON:{GROUP_ID}:{MEDIA_TYPE} → IC:GROUP:REASON:{MEDIA_TYPE}
- */
-function collapseIcGroupSegment(key: string): string | null {
-  const segs = key.split(':');
-  if (segs[0] !== 'IC') return null;
-  if (segs.length === 4 && segs[1] === 'AGENT' && segs[3] in MEDIA_TYPE_LABELS) {
-    return `IC:AGENT:${segs[3]}`;
-  }
-  if (segs.length === 5 && segs[1] === 'GROUP' && segs[2] === 'REASON' && segs[4] in MEDIA_TYPE_LABELS) {
-    return `IC:GROUP:REASON:${segs[4]}`;
-  }
-  return null;
-}
+// 트리 데이터 구조(RedisKeyNode)와 groupRedisKeys/filterRedisTree는
+// features/board/utils/redisKeyPattern.ts로 이동(DataSourceQueryTab의 키 피커와 공용).
 
 /** 축약된 IC 트리 키 → 같은 미디어타입의 실제 Redis 키 목록 (그룹ID별). RedisHashFieldItems 에서 실제 키를 참조할 때 사용 */
 const IcActualKeyContext = createContext<Map<string, string[]>>(new Map());
+
+/** application-redis-key-map.yml 로드 결과 — RedisHashFieldItems가 드래그 위젯의 redisHashKey를
+ * `{groupId}` 같은 마스킹 토큰으로 저장할지 판단할 때 사용(maskEntitySegment). */
+const RedisKeyDefsContext = createContext<RedisKeyDefinitionsResponse>({ mediaType: {}, prefixMap: {}, keyDefinitions: {} });
 
 // ─── Redis Hash 탐색기 — JSON 필드 드래그 아이템 ────────────────────────────
 // "해시그룹"(예: IC:GROUP:0처럼 한 hashKey 안에 compositeKey가 여러 개, 값이 각각 JSON인 구조)이어도
 // 디자인 시점에는 "어떤 메트릭(JSON 컬럼)"을 쓸지만 고르면 되고, "어떤 그룹"을 보여줄지는 디스플레이
 // 설정에서 결정한다 — 그래서 compositeKey 선택 UI는 두지 않고 첫 번째 entry를 컬럼 목록 샘플로만 사용한다.
-function RedisHashFieldItems({ hashKey, siblingKeys }: { hashKey: string; siblingKeys?: string[] }) {
+function RedisHashFieldItems({ hashKey }: { hashKey: string }) {
   const icActualKeyMap = useContext(IcActualKeyContext);
+  const redisKeyDefs = useContext(RedisKeyDefsContext);
   // 축약 키(예: IC:AGENT:0)인 경우 실제 Redis 키(예: IC:AGENT:2024001062:0)를 조회에 사용
   const actualHashKey = icActualKeyMap.get(hashKey)?.[0] ?? hashKey;
-  // hashSiblingKeys: 축약 키면 같은 미디어타입의 모든 그룹 실제 키, 일반 키면 원래 siblingKeys
-  const resolvedSiblingKeys = icActualKeyMap.has(hashKey) ? icActualKeyMap.get(hashKey) : siblingKeys?.length ? siblingKeys : undefined;
+  // hashSiblingKeys: 축약 키면 같은 미디어타입의 모든 그룹 실제 키
+  const resolvedSiblingKeys = icActualKeyMap.get(hashKey);
+  // 위젯에 저장할 redisHashKey — 진짜 groupId 등이 그대로 화면/DB에 노출되지 않도록, YAML에 등록된 IC
+  // 정의와 매치되면 엔티티 세그먼트만 `{groupId}` 같은 토큰으로 마스킹한다. 매치 안 되면(YAML 미등록
+  // 카테고리) 기존처럼 실제 키 그대로 — 이 경우도 hashSiblingKeys가 있으면 런타임 조회는 그쪽을 우선 쓴다.
+  const maskedHashKey = maskEntitySegment(actualHashKey, redisKeyDefs) ?? actualHashKey;
 
   const { data: hashEntries = {}, isLoading } = useGetRedisHashEntries(actualHashKey, {
     queryOptions: { enabled: true },
@@ -527,14 +452,14 @@ function RedisHashFieldItems({ hashKey, siblingKeys }: { hashKey: string; siblin
     <div className="ml-4 border-l-2 border-rose-100 pl-0 py-1.5 flex flex-col gap-1">
       {displayItems.map(({ field, col, sampleValue }) => {
         const callItem: CallDataItem = {
-          id: `redis-${actualHashKey}-${field}-${col}`,
+          id: `redis-${maskedHashKey}-${field}-${col}`,
           category: 'Redis',
           label: col,
           unit: '',
           sampleValue,
           color: '#e11d48',
           isRealtime: true,
-          redisHashKey: actualHashKey,
+          redisHashKey: maskedHashKey,
           redisField: field,
           redisJsonField: col !== field ? col : undefined,
           hashSiblingKeys: resolvedSiblingKeys?.length ? resolvedSiblingKeys : undefined,
@@ -552,10 +477,6 @@ function RedisHashFieldItems({ hashKey, siblingKeys }: { hashKey: string; siblin
 // ─── Redis Hash 탐색기 — 트리 노드 ───────────────────────────────────────────
 function RedisTreeNode({ node, depth, forceExpand }: { node: RedisKeyNode; depth: number; forceExpand?: boolean }) {
   const [isExpandedState, setIsExpandedState] = useState(false);
-  // 해시그룹의 "전체 합계" 필드 아이템은 펼침과 별개로, 사용자가 명시적으로 눌렀을 때만 보여준다 —
-  // 그룹을 펼치자마자 자동으로 합계 컬럼이 로딩→표시되면 방금 본 개별 키 목록이 컬럼값으로
-  // 갑자기 바뀐 것처럼 보여 혼란을 준다는 피드백 반영.
-  const [showAggregate, setShowAggregate] = useState(false);
   // 검색 중(forceExpand)에는 사용자가 직접 접었어도 결과 경로를 보여주기 위해 강제로 펼친 채로 둔다.
   const isExpanded = isExpandedState || !!forceExpand;
   const hasChildren = node.children.length > 0;
@@ -564,7 +485,6 @@ function RedisTreeNode({ node, depth, forceExpand }: { node: RedisKeyNode; depth
   // 자식이 모두 리프 = "해시 그룹" — 가변 키를 숨기고 JSON 컬럼을 바로 표시
   const isHashGroup = hasChildren && node.children.every((c) => !!c.fullKey && c.children.length === 0);
   const representativeKey = isHashGroup ? (node.children[0]?.fullKey ?? '') : (node.fullKey ?? '');
-  const siblingKeys = isHashGroup ? node.children.map((c) => c.fullKey).filter((k): k is string => !!k) : undefined;
   const canExpand = isLeaf || hasChildren;
 
   // depth별 들여쓰기 (px)
@@ -616,28 +536,11 @@ function RedisTreeNode({ node, depth, forceExpand }: { node: RedisKeyNode; depth
         {hasChildren && !isHashGroup && <span className="flex-shrink-0 text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none">{node.leafCount}</span>}
       </button>
 
-      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시 (그룹 아님 — 혼란 없음) */}
+      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시 */}
       {isLeaf && !isHashGroup && isExpanded && representativeKey && <RedisHashFieldItems hashKey={representativeKey} />}
 
       {hasChildren && isExpanded && (
         <div className="border-l border-slate-100 ml-4">
-          {/* 해시그룹의 "전체 합계" 필드 아이템 — 별도 버튼을 눌러야만 표시(자동 표시 금지) */}
-          {isHashGroup && (
-            <button
-              onClick={() => setShowAggregate((v) => !v)}
-              title={`${node.leafCount}개 키 전체 합산 (대표: ${representativeKey})`}
-              className={`w-full flex items-center gap-2 py-1 text-left transition-all duration-100 hover:bg-amber-50 ${showAggregate ? 'bg-amber-50/60' : ''}`}
-              style={{ paddingLeft: `${indentPx + 16}px`, paddingRight: 8 }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-              <span className="text-[10px] text-amber-700 font-semibold">∑ 전체 합계</span>
-              <span className="flex-shrink-0 text-[9px] font-bold text-amber-600 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded-full leading-none">
-                {node.leafCount}개 키
-              </span>
-            </button>
-          )}
-          {isHashGroup && showAggregate && representativeKey && <RedisHashFieldItems hashKey={representativeKey} siblingKeys={siblingKeys} />}
-
           {/* 자식 재귀 — 해시그룹이어도 마지막 구분자(0, 10, IN_TOT 등) 개별 키까지 그대로 펼쳐 보여준다 */}
           {node.children.map((child) => (
             <RedisTreeNode key={child.label} node={child} depth={depth + 1} forceExpand={forceExpand} />
@@ -723,8 +626,10 @@ const GROUP_REASON_TEMPLATE_HASH_KEY = `${GROUP_REASON_HASH_PREFIX}0:0`;
 const GROUP_REASON_WIDGET_ITEMS: CallDataItem[] = [
   {
     // 그룹별 × 사유코드별 인원수를 그룹 단위로 모두 펼쳐 보여주는 테이블.
-    // IC:GROUP:REASON:{groupId}:{mediaType} 해시는 field key 자체가 사유코드(예: "001", "002")이고
-    // JSON 값에는 AGENT_CNT 등만 있다. REASON_CODE는 JSON 안에 없으므로 __id(field key 예약어)로 읽는다.
+    // IC:GROUP:REASON:{groupId}:{mediaType} 해시는 field key 자체가 NODE_ID(6자리)+REASON_CODE 복합값이고,
+    // REASON_CODE/GROUP_ID/AGENT_CNT 등은 JSON 값 안에 그대로 들어있다(field key를 파싱할 필요 없음).
+    // groupBy(REASON_CODE→AGENT_CNT 합계)로 그룹당 노드 여러 개를 사유코드 1행으로 합산해서 보여준다.
+    // 사유코드 이름(REASON_NAME) 표시가 필요하면 컬럼의 "이름 매핑 데이터소스"에서 등록된 쿼리를 고르면 됨.
     id: 'table-group-reason',
     category: 'Redis',
     label: '그룹별 이석사유 현황',
@@ -736,9 +641,10 @@ const GROUP_REASON_WIDGET_ITEMS: CallDataItem[] = [
     tableConfig: {
       columns: [
         { key: SYSTEM_ID_COLUMN_KEY, label: '그룹ID', width: '34%' },
-        { key: ROW_ID_COLUMN_KEY, label: '사유코드', width: '33%' },
+        { key: 'REASON_CODE', label: '사유코드', width: '33%' },
         { key: 'AGENT_CNT', label: '인원수', width: '33%' },
       ],
+      groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT' },
       sampleRows: [],
     },
   },
@@ -753,6 +659,45 @@ const GROUP_REASON_WIDGET_ITEMS: CallDataItem[] = [
     displayType: 'value',
     isRealtime: true,
     redisHashKey: GROUP_REASON_TEMPLATE_HASH_KEY,
+    groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT', matchValue: '' },
+  },
+];
+
+// ─── 스킬별 이석사유 현황(IC:SKILL:REASON) 프리셋 ───────────────────────────
+// 그룹별 이석사유 현황과 같은 규칙(redisHashKey의 엔티티ID 자리는 디자인 시점 placeholder(0)일 뿐이고,
+// 실제 화면에서는 디스플레이가 선택한 그룹들로 치환)이지만, 실제 키 형식은 다르다 — IC:GROUP:REASON은
+// 끝에 미디어타입이 붙지만(:{mediaType}) IC:SKILL:REASON은 미디어타입 세그먼트가 없다(엔티티ID 1세그먼트뿐,
+// redisValue.ts의 REASON_FAMILIES가 이 차이를 구분해서 처리한다). 그룹ID 컬럼도 의미가 없어 테이블에서 뺐다.
+const SKILL_REASON_TEMPLATE_HASH_KEY = `${SKILL_REASON_HASH_PREFIX}0`;
+
+const SKILL_REASON_WIDGET_ITEMS: CallDataItem[] = [
+  {
+    id: 'table-skill-reason',
+    category: 'Redis',
+    label: '스킬별 이석사유 현황',
+    sampleValue: '',
+    color: '#e11d48',
+    displayType: 'table',
+    isRealtime: true,
+    redisHashKey: SKILL_REASON_TEMPLATE_HASH_KEY,
+    tableConfig: {
+      columns: [
+        { key: 'REASON_CODE', label: '사유코드', width: '50%' },
+        { key: 'AGENT_CNT', label: '인원수', width: '50%' },
+      ],
+      groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT' },
+      sampleRows: [],
+    },
+  },
+  {
+    id: 'value-skill-reason',
+    category: 'Redis',
+    label: '이석사유 인원수(낱개)',
+    sampleValue: 0,
+    color: '#e11d48',
+    displayType: 'value',
+    isRealtime: true,
+    redisHashKey: SKILL_REASON_TEMPLATE_HASH_KEY,
     groupBy: { byKey: 'REASON_CODE', aggKey: 'AGENT_CNT', matchValue: '' },
   },
 ];
@@ -1039,6 +984,93 @@ function ExternalApiSection() {
   );
 }
 
+// ─── 웹 임베드(iframe) 위젯 섹션 ──────────────────────────────────────────────
+function WebEmbedSection() {
+  const [url, setUrl] = useState('');
+  const [label, setLabel] = useState('웹 방송');
+  const [addedItems, setAddedItems] = useState<CallDataItem[]>([]);
+
+  const handleAdd = () => {
+    if (!url.trim()) {
+      toast.warning('URL을 입력하세요.');
+      return;
+    }
+    const newItem: CallDataItem = {
+      id: `web-embed-${Date.now()}`,
+      category: 'WebEmbed',
+      label: label || '웹 방송',
+      sampleValue: '',
+      color: '#0ea5e9',
+      webEmbedUrl: url.trim(),
+    };
+    setAddedItems((prev) => [...prev, newItem]);
+    setUrl('');
+  };
+
+  const handleRemoveItem = (id: string) => setAddedItems((prev) => prev.filter((i) => i.id !== id));
+
+  return (
+    <div>
+      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">웹 임베드 (방송/페이지)</p>
+      <div className="flex flex-col gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded">
+        <div>
+          <label className="text-[9px] text-slate-400 block mb-0.5">URL (http/https/localhost)</label>
+          <input
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAdd();
+            }}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
+          />
+        </div>
+        <div className="flex gap-1 items-center">
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="위젯 이름"
+            className="flex-1 min-w-0 px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!url.trim()}
+            className="px-2 py-1 text-[9px] font-semibold rounded border bg-green-600 text-white border-green-600 hover:bg-green-700 transition-colors whitespace-nowrap disabled:opacity-40"
+          >
+            + 추가
+          </button>
+        </div>
+
+        {/* 추가된 웹 임베드 위젯 목록 — 드래그 가능 */}
+        {addedItems.length > 0 && (
+          <div className="flex flex-col gap-1 border-t border-slate-200 pt-1.5 mt-0.5">
+            <p className="text-[9px] text-slate-400">추가된 위젯 (캔버스로 드래그)</p>
+            {addedItems.map((item) => (
+              <div key={item.id} className="flex items-center gap-1">
+                <div className="flex-1 min-w-0">
+                  <DraggableSourceItem item={item} />
+                </div>
+                <button
+                  onClick={() => handleRemoveItem(item.id)}
+                  className="flex-shrink-0 w-4 h-4 flex items-center justify-center text-slate-300 hover:text-red-400 rounded transition-colors text-[10px]"
+                  title="제거"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-[9px] text-slate-400 leading-snug">
+          YouTube 시청 URL은 자동으로 음소거 임베드 플레이어로 변환됩니다. 일반 사이트는 해당 사이트가 iframe 표시를 허용해야 보입니다 (거부 시 빈 화면).
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── DB Query 전용 위젯 섹션 ──────────────────────────────────────────────────
 function DbQuerySection() {
   const [queryKey, setQueryKey] = useState<string>('custom1');
@@ -1192,6 +1224,10 @@ function DbQuerySection() {
   );
 }
 
+// ─── 데이터소스(태그) 전용 위젯 섹션 ──────────────────────────────────────────
+// task-display에 등록된 임의의 DbQueryDef(데이터 소스 관리 탭)를 "태그"로 간접 참조하는 위젯.
+// 디자인 시점엔 어느 데이터소스인지 모른다(뷰그룹마다 태그→데이터소스 매핑이 다를 수 있음) — 태그만
+// 정하고 캔버스에 놓은 뒤, 실제 필드명/컬럼은 우측 속성 패널에서 채운다.
 // ─── 오른쪽 패널: 외부 API 위젯 속성 편집 ────────────────────────────────────
 function ExternalApiWidgetProps({
   widget,
@@ -1456,10 +1492,12 @@ function DbQueryWidgetProps({
   );
 }
 
+// ─── 오른쪽 패널: 데이터소스(태그) 위젯 속성 편집 ─────────────────────────────
 function FixedItemsSection() {
   const [isOpen, setIsOpen] = useState(true);
   const { data: notices = [], isLoading: noticesLoading } = useGetNoticeList();
-  const activeNotices = notices.filter((n) => n.useYn === 'Y').sort((a, b) => a.sortOrder - b.sortOrder);
+  // activeYn(노출 여부) — useYn은 소프트삭제 플래그라 항상 'Y'(AnnouncementWidget.tsx와 동일 규칙).
+  const activeNotices = notices.filter((n) => n.activeYn === 'Y').sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
     <div className="flex-shrink-0 border-t border-slate-200 bg-white">
@@ -1515,6 +1553,18 @@ function FixedItemsSection() {
             </div>
             <p className="text-[9px] text-slate-400 px-1 mt-1">
               드롭 후 미디어타입(해시키 끝자리)·낱개는 사유코드(matchValue)를 우측 속성 패널에서 채우세요. 그룹은 디스플레이 선택값이 자동 적용됩니다.
+            </p>
+          </div>
+          {/* 스킬별 이석사유 — IC:SKILL:REASON 프리셋(그룹별 이석사유와 동일 규칙, 디스플레이 선택 그룹 자동 반영) */}
+          <div>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wide px-1 mb-1">스킬별 이석사유</p>
+            <div className="space-y-1">
+              {SKILL_REASON_WIDGET_ITEMS.map((item) => (
+                <DraggableSourceItem key={item.id} item={item} />
+              ))}
+            </div>
+            <p className="text-[9px] text-slate-400 px-1 mt-1">
+              드롭 후 낱개는 사유코드(matchValue)를 우측 속성 패널에서 채우세요. 그룹은 디스플레이 선택값이 자동 적용됩니다(미디어타입 세그먼트 없음).
             </p>
           </div>
           {/* 공지사항 키 그룹 — 같은 noticeKey의 공지 여러 건을 한 위젯에서 회전(슬라이드)해서 보여줌 */}
@@ -1599,6 +1649,7 @@ function ExternalItemsSection() {
         <div className="p-2 flex flex-col gap-3">
           <ExternalApiSection />
           <DbQuerySection />
+          <WebEmbedSection />
         </div>
       )}
     </div>
@@ -1620,20 +1671,57 @@ function RedisHashSection() {
   });
   const { mutate: refreshHashKeys, isPending: isRefreshing } = useRefreshRedisHashKeys();
 
-  // IC:AGENT/IC:GROUP:REASON 계열: 그룹ID 세그먼트를 숨기고 미디어타입 레벨만 트리에 표시
+  // application-redis-key-map.yml(BE RedisKeyMapper) 로드 결과 — IC 계열 키의 실제 형태/필드 구조
+  // 메타데이터. 로딩 중/에러면 빈 defs로 안전 폴백(트리는 collapse 없이 평평하게 보임).
+  const { data: redisKeyDefs } = useGetRedisKeyDefinitions();
+  const defs: RedisKeyDefinitionsResponse = redisKeyDefs ?? { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
+
+  // "데이터소스 관리"에 IC:{엔티티}:{mediaType} 기본 해시(IC:GROUP:0 등)를 등록해둔 엔티티ID 리스트(있으면)
+  // — 트리에서 접힌 노드(예: IC:AGENT/IC:GROUP:REASON/IC:SKILL:REASON)의 대표 미리보기·siblings 순서를
+  // Redis 스캔 캐시의 임의 순서 대신 이 등록된 목록 기준으로 정확하게 맞춘다. groupId 하나만이 아니라
+  // 등록된 모든 엔티티(스킬 등)에 대해 일반적으로 동작 — 등록이 없는 엔티티는 스캔 순서 그대로 폴백한다.
+  const { data: dbQueryDefsForOrder = [] } = useGetDbQueryDefList();
+  const entityDbQueryIdByPrefix = useMemo(() => findEntitySelectionDbQueryIdsByPrefix(dbQueryDefsForOrder), [dbQueryDefsForOrder]);
+  const dbQueryIdByVarName = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const [prefix, id] of entityDbQueryIdByPrefix) map.set(deriveEntityIdPlaceholderName(prefix), id);
+    return map;
+  }, [entityDbQueryIdByPrefix]);
+  const orderDbQueryIds = useMemo(() => [...new Set(dbQueryIdByVarName.values())], [dbQueryIdByVarName]);
+  const orderOptionsResults = useGetDbQueryDefOptionsMulti(orderDbQueryIds);
+  const registeredIdOrderByVarName = useMemo(() => {
+    const result: Record<string, string[] | null> = {};
+    for (const [varName, dbQueryId] of dbQueryIdByVarName) {
+      const idx = orderDbQueryIds.indexOf(dbQueryId);
+      const r = orderOptionsResults[idx];
+      result[varName.toLowerCase()] = !r || r.isLoading ? null : extractNameValueItems(r.data ?? []).map((i) => i.id);
+    }
+    return result;
+  }, [dbQueryIdByVarName, orderDbQueryIds, orderOptionsResults]);
+
+  // IC 계열: YAML에 등록된 모든 템플릿 변수(groupId/skillId/mediatype 등) 세그먼트를 숨기지 않고
+  // `{groupid}`/`{mediatype}` 같은 토큰으로 마스킹해 트리에 표시 — 실제 값 대신 토큰을 보여주되
+  // (maskEntitySegment), 여러 라이브 groupId·mediatype이 하나의 트리 노드로 묶이는 그룹핑은 유지된다
+  // (토큰 문자열은 실제 값과 무관하게 동일하므로). 2026-07-10부터 mediatype도 마스킹 대상 — IC:CTIQ:0/10
+  // 같은 단일변수 패턴도 하나의 노드로 합쳐지고, 드래그 시 실제 존재하는 미디어타입 전체를 합산한다.
   const { icActualKeyMap, treeHashKeys } = useMemo(() => {
     const map = new Map<string, string[]>();
+    const varNameByMasked = new Map<string, string>();
     const seen = new Set<string>();
     const treeKeys: string[] = [];
     for (const key of hashKeys) {
-      const collapsed = collapseIcGroupSegment(key);
-      if (collapsed !== null) {
-        const list = map.get(collapsed) ?? [];
+      const masked = maskEntitySegment(key, defs);
+      if (masked !== null) {
+        const list = map.get(masked) ?? [];
         list.push(key);
-        map.set(collapsed, list);
-        if (!seen.has(collapsed)) {
-          seen.add(collapsed);
-          treeKeys.push(collapsed);
+        map.set(masked, list);
+        if (!varNameByMasked.has(masked)) {
+          const varName = collapseIcVariableSegment(key, defs)?.varName;
+          if (varName) varNameByMasked.set(masked, varName);
+        }
+        if (!seen.has(masked)) {
+          seen.add(masked);
+          treeKeys.push(masked);
         }
       } else {
         if (!seen.has(key)) {
@@ -1642,109 +1730,124 @@ function RedisHashSection() {
         }
       }
     }
+    // 등록된 엔티티ID 리스트가 있으면, 대표 미리보기(map[..][0])와 siblings 순서를 그 리스트 기준(등록된
+    // 엔티티만, 등록 순서)으로 재정렬한다 — 필터링 결과가 0건이면(예: 스캔 캐시가 아직 새로고침 전이라
+    // 등록된 엔티티의 실제 키를 못 찾은 경우) "많이 보이는 쪽" 폴백으로 원래 스캔 순서를 그대로 둔다.
+    for (const [masked, list] of map) {
+      const varName = varNameByMasked.get(masked);
+      const order = varName ? registeredIdOrderByVarName[varName.toLowerCase()] : null;
+      if (!order) continue;
+      const orderIndex = new Map(order.map((id, i) => [id, i]));
+      const reordered = list
+        .filter((k) => orderIndex.has(extractIcGroupIdSegment(k, defs) ?? ''))
+        .sort((a, b) => (orderIndex.get(extractIcGroupIdSegment(a, defs) ?? '') ?? 0) - (orderIndex.get(extractIcGroupIdSegment(b, defs) ?? '') ?? 0));
+      if (reordered.length > 0) map.set(masked, reordered);
+    }
     return { icActualKeyMap: map, treeHashKeys: treeKeys };
-  }, [hashKeys]);
+  }, [hashKeys, defs, registeredIdOrderByVarName]);
 
-  // fieldIndex도 축약 키 기준으로 재매핑 — 검색 시 IC:AGENT:0 같은 축약 노드에서도 컬럼명이 매칭되도록
+  // fieldIndex도 마스킹된 키 기준으로 재매핑 — 검색 시 IC:AGENT:{groupid}:0 같은 마스킹 노드에서도 컬럼명이 매칭되도록
   const collapsedFieldIndex = useMemo(() => {
     const result: Record<string, string[]> = {};
     for (const [key, columns] of Object.entries(fieldIndex)) {
-      const collapsed = collapseIcGroupSegment(key);
-      const indexKey = collapsed ?? key;
+      const masked = maskEntitySegment(key, defs);
+      const indexKey = masked ?? key;
       result[indexKey] = [...new Set([...(result[indexKey] ?? []), ...columns])];
     }
     return result;
-  }, [fieldIndex]);
+  }, [fieldIndex, defs]);
 
   const tree = treeHashKeys.length > 0 ? groupRedisKeys(treeHashKeys, '', 0) : [];
   const isLoading = keysLoading || isRefreshing;
   const filteredTree = filterRedisTree(tree, search, collapsedFieldIndex);
 
   return (
-    <IcActualKeyContext.Provider value={icActualKeyMap}>
-      <div className="flex flex-col">
-        {/* 섹션 헤더 */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/60 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading ? 'bg-rose-300 animate-pulse' : 'bg-rose-500'}`} />
-            <span className="text-[11px] font-semibold text-slate-700">Redis</span>
-            {!isLoading && hashKeys.length > 0 && <span className="text-[9px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full font-mono">{hashKeys.length}</span>}
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => refreshHashKeys()}
-              disabled={isRefreshing}
-              title="새로고침 (Redis에서 해시 키 목록 다시 조회)"
-              className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors text-xs font-bold disabled:opacity-50"
-            >
-              <span className={isRefreshing ? 'animate-spin inline-block' : 'inline-block'}>↻</span>
-            </button>
-            <button
-              onClick={() => setIsOpen((v) => !v)}
-              className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
-            >
-              <svg
-                className={`w-3 h-3 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
-                fill="none"
-                viewBox="0 0 12 12"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
+    <RedisKeyDefsContext.Provider value={defs}>
+      <IcActualKeyContext.Provider value={icActualKeyMap}>
+        <div className="flex flex-col">
+          {/* 섹션 헤더 */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50/60 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isLoading ? 'bg-rose-300 animate-pulse' : 'bg-rose-500'}`} />
+              <span className="text-[11px] font-semibold text-slate-700">Redis</span>
+              {!isLoading && hashKeys.length > 0 && <span className="text-[9px] text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded-full font-mono">{hashKeys.length}</span>}
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => refreshHashKeys()}
+                disabled={isRefreshing}
+                title="새로고침 (Redis에서 해시 키 목록 다시 조회)"
+                className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors text-xs font-bold disabled:opacity-50"
               >
-                <path d="M2 4l4 4 4-4" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* 로딩 바 */}
-        {isLoading && (
-          <>
-            <style>{`@keyframes redis-loading-slide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}`}</style>
-            <div className="h-0.5 flex-shrink-0 bg-rose-100 overflow-hidden">
-              <div className="h-full w-1/4 bg-rose-400 rounded-full" style={{ animation: 'redis-loading-slide 1.1s ease-in-out infinite' }} />
-            </div>
-          </>
-        )}
-
-        {/* 검색 — 키 경로뿐 아니라 SUM_CONN_CNT 같은 필드명으로도 찾을 수 있다 */}
-        {isOpen && !isLoading && hashKeys.length > 0 && (
-          <div className="px-2 pt-1.5 pb-1 flex-shrink-0">
-            <div className="relative">
-              <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="키/필드명 검색 (예: SUM_CONN_CNT)"
-                className="w-full pl-6 pr-2 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:border-rose-300 bg-slate-50"
-              />
+                <span className={isRefreshing ? 'animate-spin inline-block' : 'inline-block'}>↻</span>
+              </button>
+              <button
+                onClick={() => setIsOpen((v) => !v)}
+                className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                <svg
+                  className={`w-3 h-3 transition-transform duration-200 ${isOpen ? '' : '-rotate-90'}`}
+                  fill="none"
+                  viewBox="0 0 12 12"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                >
+                  <path d="M2 4l4 4 4-4" />
+                </svg>
+              </button>
             </div>
           </div>
-        )}
 
-        {/* 트리 */}
-        {isOpen && (
-          <div className="py-1">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-8">
-                <Spinner variant="circle" size={20} className="text-rose-400" />
-                <span className="text-[10px] text-slate-400">불러오는 중...</span>
+          {/* 로딩 바 */}
+          {isLoading && (
+            <>
+              <style>{`@keyframes redis-loading-slide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}`}</style>
+              <div className="h-0.5 flex-shrink-0 bg-rose-100 overflow-hidden">
+                <div className="h-full w-1/4 bg-rose-400 rounded-full" style={{ animation: 'redis-loading-slide 1.1s ease-in-out infinite' }} />
               </div>
-            ) : filteredTree.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                  <span className="text-slate-300 text-lg">∅</span>
+            </>
+          )}
+
+          {/* 검색 — 키 경로뿐 아니라 SUM_CONN_CNT 같은 필드명으로도 찾을 수 있다 */}
+          {isOpen && !isLoading && hashKeys.length > 0 && (
+            <div className="px-2 pt-1.5 pb-1 flex-shrink-0">
+              <div className="relative">
+                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="키/필드명 검색 (예: SUM_CONN_CNT)"
+                  className="w-full pl-6 pr-2 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:border-rose-300 bg-slate-50"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 트리 */}
+          {isOpen && (
+            <div className="py-1">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-8">
+                  <Spinner variant="circle" size={20} className="text-rose-400" />
+                  <span className="text-[10px] text-slate-400">불러오는 중...</span>
                 </div>
-                <p className="text-[10px] text-slate-400 text-center">{search.trim() ? '검색 결과가 없습니다' : 'Hash 타입 키가 없습니다'}</p>
-              </div>
-            ) : (
-              filteredTree.map((node) => <RedisTreeNode key={node.label} node={node} depth={0} forceExpand={!!search.trim()} />)
-            )}
-          </div>
-        )}
-      </div>
-    </IcActualKeyContext.Provider>
+              ) : filteredTree.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                    <span className="text-slate-300 text-lg">∅</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 text-center">{search.trim() ? '검색 결과가 없습니다' : 'Hash 타입 키가 없습니다'}</p>
+                </div>
+              ) : (
+                filteredTree.map((node) => <RedisTreeNode key={node.label} node={node} depth={0} forceExpand={!!search.trim()} />)
+              )}
+            </div>
+          )}
+        </div>
+      </IcActualKeyContext.Provider>
+    </RedisKeyDefsContext.Provider>
   );
 }
 
@@ -1781,6 +1884,7 @@ function getWidgetDataSourcePath(item: CallDataItem): string | null {
   if (item.category === 'etc') return `기타 > 시계 > ${item.label}`;
   if (item.category === 'ExternalApi') return item.externalApiUrl ? `외부 API > ${item.externalApiUrl}` : '외부 API';
   if (item.category === 'DbQuery') return `DB Query > ${item.dbQueryKey ?? '?'}${item.dbQueryColumn ? ` > ${item.dbQueryColumn}` : ''}`;
+  if (item.category === 'WebEmbed') return item.webEmbedUrl ? `웹 임베드 > ${item.webEmbedUrl}` : '웹 임베드';
   // 테이블/차트 위젯은 단일 redisHashKey가 아니라 위젯의 미디어타입(item.mediaType) 설정에 따라
   // 실행 시점에 IC:XXX:{미디어타입} 해시를 구독한다 — 어느 미디어타입을 보는지 같이 표기한다.
   if (item.id === 'table-queue' || item.id === 'chart-bar-queue' || item.id === 'chart-line-trend') {
@@ -1839,6 +1943,7 @@ function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget
   if (isChart) return <ChartWidget widget={widget} />;
   if (isTable) return <TableWidget widget={widget} />;
   if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
+  if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} editable />;
 
   const thresholdColor = getThresholdColor(displayValue, widget.style);
 
@@ -2532,9 +2637,20 @@ export default function TaskCreate() {
   const bg = state?.bg;
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
+  // 데이터 소스 관리 탭에 등록된 전체 데이터소스 목록 — 테이블 컬럼의 "이름 매핑" 드롭다운에서 고를 수 있게 제공.
+  // 플레이스홀더(예: 그룹 목록 {groupId})도 VALUE/NAME 쿼리라서 이름 매핑 소스로 그대로 쓸 수 있다 —
+  // 그룹ID 컬럼을 그룹명으로 바꿔 보여주는 게 정확히 이 케이스라 제외하지 않는다.
+  const { data: nameLookupCandidateDefs = [] } = useGetDbQueryDefList();
 
   const isEditMode = !!layout?.layoutId;
   const fileName = layout?.fileName ?? bg?.fileName ?? '';
+
+  const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
+  const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
+  useEffect(() => {
+    setBreadcrumb([{ title: '전광판 관리' }, { title: isEditMode ? '전광판 편집' : '전광판 만들기', path: '/taskboard/board/task-create' }]);
+    return () => clearBreadcrumb();
+  }, [isEditMode, setBreadcrumb, clearBreadcrumb]);
 
   // ── 저장된 JSON에서 메타 복원 ──────────────────────────────────────────
   const savedMeta = (() => {
@@ -2578,8 +2694,6 @@ export default function TaskCreate() {
   const [gridMargin, setGridMargin] = useState<[number, number]>(savedMeta?.gridMargin ?? [4, 4]);
   const [containerPadding, setContainerPadding] = useState<[number, number]>(savedMeta?.containerPadding ?? [0, 0]);
 
-  // 미디어타입은 디스플레이 선택값이 아니라 위젯(테이블/차트) 단위 설정으로 옮김 — 목록만 여기서 가져와 위젯 설정 패널 옵션으로 사용
-  const { data: mediaTypeRows = [] } = useGetCtiMediaTypeList({ queryOptions: { refetchInterval: false } });
   // table-redis 위젯의 "시스템ID 위치(필드/키) 자동탐지" 패널에서 사용 — 이미 BE가 캐싱한 전체 해시키 목록을
   // 재사용하므로 새 SCAN 호출 없음(RedisHashSection도 같은 쿼리키를 쓰므로 react-query 캐시 공유)
   const { data: allRedisHashKeys = [] } = useGetRedisHashKeys();
@@ -3127,7 +3241,7 @@ export default function TaskCreate() {
     }
 
     pushUndo(droppedWidgets, guides);
-    const isLargeWidget = info.item.displayType === 'table' || info.item.displayType === 'chart';
+    const isLargeWidget = info.item.displayType === 'table' || info.item.displayType === 'chart' || info.item.category === 'WebEmbed';
 
     let finalX = Math.max(0, Math.min(99, xPct));
     let finalY = Math.max(0, Math.min(99, yPct));
@@ -3363,6 +3477,11 @@ export default function TaskCreate() {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, ...patch } } : w)));
   };
 
+  // 웹 임베드 위젯 item 필드 변경 (URL)
+  const updateWidgetWebEmbed = (id: string, patch: Partial<Pick<CallDataItem, 'webEmbedUrl'>>) => {
+    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, ...patch } } : w)));
+  };
+
   // 계산식 위젯에 새 변수(A, B, C ...) 추가 — 이미 쓰인 알파벳 다음 글자를 자동 할당
   const addCalcOperand = (id: string) => {
     setDroppedWidgets((prev) =>
@@ -3536,11 +3655,6 @@ export default function TaskCreate() {
         return { ...w, item: { ...w.item, tableConfig: { ...w.item.tableConfig, columns } } };
       }),
     );
-  };
-
-  // 미디어타입 변경 — table-queue/table-group/table-agent/chart-bar-queue/chart-line-trend 위젯이 어느 IC:XXX:{미디어타입} 해시를 볼지 결정
-  const updateWidgetMediaType = (id: string, mediaType: string) => {
-    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, mediaType } } : w)));
   };
 
   // Redis 테이블 위젯(table-redis)이 통째로 바인딩할 해시키 — 예: "IC:CTIQ:0"
@@ -3813,9 +3927,6 @@ export default function TaskCreate() {
   const selectedWidgetId = selectedWidgetIds.length === 1 ? selectedWidgetIds[0] : null;
   const selectedWidget = selectedWidgetId ? (droppedWidgets.find((w) => w.id === selectedWidgetId) ?? null) : null;
   const gridLayout = droppedWidgets.map((w) => toGridItem(w, canvasLocked));
-
-  // 드롭다운용 아이템 변환
-  const mediaTypeItems = mediaTypeRows.map((m) => ({ id: m.mediaType, name: `${m.mediaAlias} (:${m.mediaType})` }));
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -4719,258 +4830,280 @@ export default function TaskCreate() {
                     </div>
                   )}
 
-                  {/* 테이블 컬럼 — table-queue/table-group/table-agent/table-redis/table-join. 여기서 추가한 필드명이 그대로 WS 구독(또는 Redis 테이블) 컬럼으로 쓰인다. */}
-                  {['table-queue', 'table-group', 'table-agent', 'table-redis', 'table-join'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
-                        테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
-                      </label>
-                      <div className="space-y-1 mb-1.5">
-                        {selectedWidget.item.tableConfig.columns.map((col, colIdx) => (
-                          <div key={col.key} className={`bg-white border border-slate-200 rounded ${col.hidden ? 'opacity-50' : ''}`}>
-                            <div className="flex items-center gap-1.5 px-2 py-1">
-                              <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
-                              <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
-                              <button
-                                onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'up')}
-                                disabled={colIdx === 0}
-                                className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
-                                title="위로"
-                              >
-                                ▲
-                              </button>
-                              <button
-                                onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'down')}
-                                disabled={colIdx === (selectedWidget.item.tableConfig?.columns.length ?? 0) - 1}
-                                className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
-                                title="아래로"
-                              >
-                                ▼
-                              </button>
-                              <button
-                                onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { hidden: !col.hidden })}
-                                className={`text-[10px] flex-shrink-0 ${col.hidden ? 'text-slate-300 hover:text-slate-500' : 'text-[#0f5b9e]'}`}
-                                title={col.hidden ? '컬럼 사용 안 함 (클릭하면 사용)' : '컬럼 사용 중 (클릭하면 미사용)'}
-                              >
-                                {col.hidden ? '☐' : '☑'}
-                              </button>
-                              <button
-                                onClick={() => setExpandedColKey((k) => (k === col.key ? null : col.key))}
-                                className={`text-[10px] flex-shrink-0 ${expandedColKey === col.key ? 'text-[#0f5b9e]' : 'text-slate-300 hover:text-slate-500'}`}
-                                title="컬럼 스타일"
-                              >
-                                ⚙
-                              </button>
-                              {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
+                  {/* 테이블 컬럼 — table-queue/table-group/table-agent/table-redis/table-join/table-group-reason/table-skill-reason. 여기서 추가한 필드명이 그대로 WS 구독(또는 Redis 테이블) 컬럼으로 쓰인다. */}
+                  {['table-queue', 'table-group', 'table-agent', 'table-redis', 'table-join', 'table-group-reason', 'table-skill-reason'].includes(selectedWidget.item.id) &&
+                    selectedWidget.item.tableConfig && (
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">
+                          테이블 컬럼 <span className="text-slate-300 font-normal normal-case">(Redis 필드명 — 예: RTS_LOGIN)</span>
+                        </label>
+                        <div className="space-y-1 mb-1.5">
+                          {selectedWidget.item.tableConfig.columns.map((col, colIdx) => (
+                            <div key={col.key} className={`bg-white border border-slate-200 rounded ${col.hidden ? 'opacity-50' : ''}`}>
+                              <div className="flex items-center gap-1.5 px-2 py-1">
+                                <span className="text-[10px] font-mono text-slate-500 flex-shrink-0">{col.key}</span>
+                                <span className="text-[10px] text-slate-700 flex-1 min-w-0 truncate">{col.label}</span>
                                 <button
-                                  onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
-                                  className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
-                                  title="컬럼 삭제"
+                                  onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'up')}
+                                  disabled={colIdx === 0}
+                                  className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
+                                  title="위로"
                                 >
-                                  ×
+                                  ▲
                                 </button>
-                              )}
-                            </div>
-                            {expandedColKey === col.key && (
-                              <div className="px-2 pb-2 pt-1.5 border-t border-slate-100 space-y-1.5">
-                                {/* 가로 정렬 */}
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">가로</span>
-                                  {[
-                                    { value: 'left' as const, label: '좌' },
-                                    { value: 'center' as const, label: '중' },
-                                    { value: 'right' as const, label: '우' },
-                                  ].map((al) => (
-                                    <button
-                                      key={al.value}
-                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { align: al.value })}
-                                      className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
-                                        (col.align ?? 'center') === al.value
-                                          ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                                          : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                                      }`}
-                                    >
-                                      {al.label}
-                                    </button>
-                                  ))}
-                                </div>
-                                {/* 세로 정렬 — 행 간격이 커져서 행이 높아질 때 위/중간/아래 중 어디 둘지 */}
-                                <div className="flex items-center gap-1">
-                                  <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">세로</span>
-                                  {[
-                                    { value: 'top' as const, label: '위' },
-                                    { value: 'middle' as const, label: '중간' },
-                                    { value: 'bottom' as const, label: '아래' },
-                                  ].map((va) => (
-                                    <button
-                                      key={va.value}
-                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { verticalAlign: va.value })}
-                                      className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
-                                        (col.verticalAlign ?? 'middle') === va.value
-                                          ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                                          : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                                      }`}
-                                    >
-                                      {va.label}
-                                    </button>
-                                  ))}
-                                </div>
-                                {/* 천단위 콤마 */}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[9px] text-slate-400">천단위 콤마</span>
+                                <button
+                                  onClick={() => moveWidgetTableColumn(selectedWidget.id, col.key, 'down')}
+                                  disabled={colIdx === (selectedWidget.item.tableConfig?.columns.length ?? 0) - 1}
+                                  className="text-slate-300 hover:text-slate-600 text-[10px] flex-shrink-0 disabled:opacity-30 disabled:hover:text-slate-300"
+                                  title="아래로"
+                                >
+                                  ▼
+                                </button>
+                                <button
+                                  onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { hidden: !col.hidden })}
+                                  className={`text-[10px] flex-shrink-0 ${col.hidden ? 'text-slate-300 hover:text-slate-500' : 'text-[#0f5b9e]'}`}
+                                  title={col.hidden ? '컬럼 사용 안 함 (클릭하면 사용)' : '컬럼 사용 중 (클릭하면 미사용)'}
+                                >
+                                  {col.hidden ? '☐' : '☑'}
+                                </button>
+                                <button
+                                  onClick={() => setExpandedColKey((k) => (k === col.key ? null : col.key))}
+                                  className={`text-[10px] flex-shrink-0 ${expandedColKey === col.key ? 'text-[#0f5b9e]' : 'text-slate-300 hover:text-slate-500'}`}
+                                  title="컬럼 스타일"
+                                >
+                                  ⚙
+                                </button>
+                                {!['name', 'agents', 'talk', 'wait', 'status', 'count'].includes(col.key) && (
                                   <button
-                                    onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { useThousandSep: !col.useThousandSep })}
-                                    className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                    onClick={() => removeWidgetTableColumn(selectedWidget.id, col.key)}
+                                    className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0"
+                                    title="컬럼 삭제"
                                   >
-                                    <span
-                                      className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.useThousandSep ? 'translate-x-3' : 'translate-x-0'}`}
-                                    />
+                                    ×
                                   </button>
-                                </div>
-                                {/* 임계치 색상 */}
-                                <div>
+                                )}
+                              </div>
+                              {expandedColKey === col.key && (
+                                <div className="px-2 pb-2 pt-1.5 border-t border-slate-100 space-y-1.5">
+                                  {/* 가로 정렬 */}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">가로</span>
+                                    {[
+                                      { value: 'left' as const, label: '좌' },
+                                      { value: 'center' as const, label: '중' },
+                                      { value: 'right' as const, label: '우' },
+                                    ].map((al) => (
+                                      <button
+                                        key={al.value}
+                                        onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { align: al.value })}
+                                        className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                          (col.align ?? 'center') === al.value
+                                            ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                        }`}
+                                      >
+                                        {al.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* 세로 정렬 — 행 간격이 커져서 행이 높아질 때 위/중간/아래 중 어디 둘지 */}
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">세로</span>
+                                    {[
+                                      { value: 'top' as const, label: '위' },
+                                      { value: 'middle' as const, label: '중간' },
+                                      { value: 'bottom' as const, label: '아래' },
+                                    ].map((va) => (
+                                      <button
+                                        key={va.value}
+                                        onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { verticalAlign: va.value })}
+                                        className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                          (col.verticalAlign ?? 'middle') === va.value
+                                            ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                            : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                        }`}
+                                      >
+                                        {va.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                  {/* 천단위 콤마 */}
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[9px] text-slate-400">임계치 색상</span>
+                                    <span className="text-[9px] text-slate-400">천단위 콤마</span>
                                     <button
-                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { thresholdEnabled: !col.thresholdEnabled })}
-                                      className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                      onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { useThousandSep: !col.useThousandSep })}
+                                      className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.useThousandSep ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
                                     >
                                       <span
-                                        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.thresholdEnabled ? 'translate-x-3' : 'translate-x-0'}`}
+                                        className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.useThousandSep ? 'translate-x-3' : 'translate-x-0'}`}
                                       />
                                     </button>
                                   </div>
-                                  {col.thresholdEnabled && (
-                                    <div className="flex flex-col gap-1 mt-1">
-                                      {(col.thresholds ?? []).map((rule, idx) => (
-                                        <div key={idx} className="flex items-center gap-1">
-                                          <span className="text-[9px] text-slate-400 flex-shrink-0">≥</span>
-                                          <input
-                                            type="number"
-                                            value={rule.min}
-                                            onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { min: Number(e.target.value) })}
-                                            className="w-12 text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
-                                          />
-                                          <input
-                                            type="color"
-                                            value={rule.color}
-                                            onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { color: e.target.value })}
-                                            className="w-6 h-6 rounded border border-slate-200 cursor-pointer flex-shrink-0"
-                                          />
-                                          <button
-                                            onClick={() => removeColumnThresholdRule(selectedWidget.id, col.key, idx)}
-                                            className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0 ml-auto"
-                                            title="삭제"
-                                          >
-                                            ×
-                                          </button>
-                                        </div>
-                                      ))}
-                                      <button
-                                        onClick={() => addColumnThresholdRule(selectedWidget.id, col.key)}
-                                        className="text-[9px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-0.5 hover:bg-[#0f5b9e]/5 transition-colors"
-                                      >
-                                        + 기준 추가
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* 계산식 — Redis 테이블 전용. 원본 필드 대신 같은 행의 다른 필드들로 계산한 값을 표시 */}
-                                {(selectedWidget.item.id === 'table-redis' || selectedWidget.item.id === 'table-join') && (
+                                  {/* 임계치 색상 */}
                                   <div>
                                     <div className="flex items-center justify-between">
-                                      <span className="text-[9px] text-slate-400">계산식</span>
+                                      <span className="text-[9px] text-slate-400">임계치 색상</span>
                                       <button
-                                        onClick={() => toggleColumnCalcEnabled(selectedWidget.id, col.key, !col.calc)}
-                                        className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.calc ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                        onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { thresholdEnabled: !col.thresholdEnabled })}
+                                        className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.thresholdEnabled ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
                                       >
                                         <span
-                                          className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.calc ? 'translate-x-3' : 'translate-x-0'}`}
+                                          className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.thresholdEnabled ? 'translate-x-3' : 'translate-x-0'}`}
                                         />
                                       </button>
                                     </div>
-                                    {col.calc && (
-                                      <div className="flex flex-col gap-1.5 mt-1 p-2 bg-white rounded border border-slate-200">
-                                        <p className="text-[9px] text-slate-400 leading-snug">원본 필드값 대신 같은 행의 다른 필드로 계산한 값을 보여줍니다(예: A / B * 100).</p>
-                                        <input
-                                          type="text"
-                                          value={col.calc.formula}
-                                          onChange={(e) => updateColumnCalc(selectedWidget.id, col.key, { formula: e.target.value })}
-                                          placeholder="예: A + B"
-                                          className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                                        />
-                                        <div className="space-y-1">
-                                          {col.calc.operands.map((op) => (
-                                            <TableColCalcOperandDropZone
-                                              key={op.var}
-                                              widgetId={selectedWidget.id}
-                                              colKey={col.key}
-                                              operand={op}
-                                              onRemove={() => removeColumnCalcOperand(selectedWidget.id, col.key, op.var)}
+                                    {col.thresholdEnabled && (
+                                      <div className="flex flex-col gap-1 mt-1">
+                                        {(col.thresholds ?? []).map((rule, idx) => (
+                                          <div key={idx} className="flex items-center gap-1">
+                                            <span className="text-[9px] text-slate-400 flex-shrink-0">≥</span>
+                                            <input
+                                              type="number"
+                                              value={rule.min}
+                                              onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { min: Number(e.target.value) })}
+                                              className="w-12 text-[10px] border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#0f5b9e]"
                                             />
-                                          ))}
-                                        </div>
+                                            <input
+                                              type="color"
+                                              value={rule.color}
+                                              onChange={(e) => updateColumnThresholdRule(selectedWidget.id, col.key, idx, { color: e.target.value })}
+                                              className="w-6 h-6 rounded border border-slate-200 cursor-pointer flex-shrink-0"
+                                            />
+                                            <button
+                                              onClick={() => removeColumnThresholdRule(selectedWidget.id, col.key, idx)}
+                                              className="text-slate-300 hover:text-red-500 text-xs flex-shrink-0 ml-auto"
+                                              title="삭제"
+                                            >
+                                              ×
+                                            </button>
+                                          </div>
+                                        ))}
                                         <button
-                                          onClick={() => addColumnCalcOperand(selectedWidget.id, col.key)}
-                                          disabled={col.calc.operands.length >= 26}
-                                          className="py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                                          onClick={() => addColumnThresholdRule(selectedWidget.id, col.key)}
+                                          className="text-[9px] font-semibold text-[#0f5b9e] border border-dashed border-[#0f5b9e]/40 rounded py-0.5 hover:bg-[#0f5b9e]/5 transition-colors"
                                         >
-                                          + 변수 추가
+                                          + 기준 추가
                                         </button>
                                       </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                                  {/* 이름 매핑 — 코드값(예: 이석사유 코드)을 그대로 보여주지 않고 등록된 데이터소스의 VALUE→NAME으로 치환 */}
+                                  <div>
+                                    <span className="text-[9px] text-slate-400 block mb-0.5">이름 매핑 데이터소스 (선택)</span>
+                                    <select
+                                      value={col.nameLookupDbQueryId ?? ''}
+                                      onChange={(e) =>
+                                        updateWidgetTableColumn(selectedWidget.id, col.key, { nameLookupDbQueryId: e.target.value ? Number(e.target.value) : undefined })
+                                      }
+                                      className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                                    >
+                                      <option value="">사용 안 함(원본 값 그대로)</option>
+                                      {nameLookupCandidateDefs.map((def) => (
+                                        <option key={def.dbQueryId} value={def.dbQueryId}>
+                                          {def.queryName}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <p className="text-[9px] text-slate-400 leading-snug mt-0.5">
+                                      이 컬럼 값(코드)을 고른 데이터소스의 VALUE와 맞춰 NAME으로 바꿔 보여줍니다(예: 이석사유 코드 → 사유명). 매핑에 없는 값은 원본 그대로.
+                                    </p>
+                                  </div>
+                                  {/* 계산식 — Redis 테이블 전용. 원본 필드 대신 같은 행의 다른 필드들로 계산한 값을 표시 */}
+                                  {(selectedWidget.item.id === 'table-redis' || selectedWidget.item.id === 'table-join') && (
+                                    <div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[9px] text-slate-400">계산식</span>
+                                        <button
+                                          onClick={() => toggleColumnCalcEnabled(selectedWidget.id, col.key, !col.calc)}
+                                          className={`relative h-4 w-7 rounded-full transition-colors flex-shrink-0 ${col.calc ? 'bg-[#0f5b9e]' : 'bg-slate-200'}`}
+                                        >
+                                          <span
+                                            className={`absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${col.calc ? 'translate-x-3' : 'translate-x-0'}`}
+                                          />
+                                        </button>
+                                      </div>
+                                      {col.calc && (
+                                        <div className="flex flex-col gap-1.5 mt-1 p-2 bg-white rounded border border-slate-200">
+                                          <p className="text-[9px] text-slate-400 leading-snug">원본 필드값 대신 같은 행의 다른 필드로 계산한 값을 보여줍니다(예: A / B * 100).</p>
+                                          <input
+                                            type="text"
+                                            value={col.calc.formula}
+                                            onChange={(e) => updateColumnCalc(selectedWidget.id, col.key, { formula: e.target.value })}
+                                            placeholder="예: A + B"
+                                            className="w-full px-1.5 py-1 text-[10px] border border-slate-200 rounded font-mono focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                                          />
+                                          <div className="space-y-1">
+                                            {col.calc.operands.map((op) => (
+                                              <TableColCalcOperandDropZone
+                                                key={op.var}
+                                                widgetId={selectedWidget.id}
+                                                colKey={col.key}
+                                                operand={op}
+                                                onRemove={() => removeColumnCalcOperand(selectedWidget.id, col.key, op.var)}
+                                              />
+                                            ))}
+                                          </div>
+                                          <button
+                                            onClick={() => addColumnCalcOperand(selectedWidget.id, col.key)}
+                                            disabled={col.calc.operands.length >= 26}
+                                            className="py-0.5 rounded border border-dashed border-slate-300 text-[9px] text-slate-500 font-semibold hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors disabled:opacity-40"
+                                          >
+                                            + 변수 추가
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {selectedWidget.item.id === 'table-redis' && !!redisColumnIndex[selectedWidget.item.redisHashKey ?? '']?.length && (
+                          <p className="text-[9px] text-slate-400 px-1 mb-1 leading-snug">
+                            이 해시키에 실제로 존재하는 필드명만 골라 써야 데이터가 보입니다(WS가 등록한 필드명만 서버에서 필터링해 보내므로). 아래 입력에 타이핑하면 자동완성으로
+                            제안됩니다.
+                          </p>
+                        )}
+                        <datalist id="redis-table-field-suggestions">
+                          {(redisColumnIndex[selectedWidget.item.redisHashKey ?? ''] ?? []).map((field) => (
+                            <option key={field} value={field} />
+                          ))}
+                        </datalist>
+                        <div className="flex gap-1">
+                          <input
+                            type="text"
+                            list={selectedWidget.item.id === 'table-redis' ? 'redis-table-field-suggestions' : undefined}
+                            value={newColKey}
+                            onChange={(e) => setNewColKey(e.target.value)}
+                            placeholder={
+                              selectedWidget.item.id === 'table-redis'
+                                ? `필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`
+                                : '필드명 (RTS_LOGIN)'
+                            }
+                            className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                          <input
+                            type="text"
+                            value={newColLabel}
+                            onChange={(e) => setNewColLabel(e.target.value)}
+                            placeholder="표시명 (로그인)"
+                            className="w-1/2 px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                          />
+                          <button
+                            onClick={() => {
+                              if (!newColKey.trim()) return;
+                              addWidgetTableColumn(selectedWidget.id, newColKey.trim(), newColLabel.trim() || newColKey.trim());
+                              setNewColKey('');
+                              setNewColLabel('');
+                            }}
+                            className="flex-shrink-0 px-2 py-1 text-[10px] font-bold bg-[#0f5b9e] text-white rounded hover:bg-[#0c4a82]"
+                          >
+                            + 추가
+                          </button>
+                        </div>
                       </div>
-                      {selectedWidget.item.id === 'table-redis' && !!redisColumnIndex[selectedWidget.item.redisHashKey ?? '']?.length && (
-                        <p className="text-[9px] text-slate-400 px-1 mb-1 leading-snug">
-                          이 해시키에 실제로 존재하는 필드명만 골라 써야 데이터가 보입니다(WS가 등록한 필드명만 서버에서 필터링해 보내므로). 아래 입력에 타이핑하면 자동완성으로
-                          제안됩니다.
-                        </p>
-                      )}
-                      <datalist id="redis-table-field-suggestions">
-                        {(redisColumnIndex[selectedWidget.item.redisHashKey ?? ''] ?? []).map((field) => (
-                          <option key={field} value={field} />
-                        ))}
-                      </datalist>
-                      <div className="flex gap-1">
-                        <input
-                          type="text"
-                          list={selectedWidget.item.id === 'table-redis' ? 'redis-table-field-suggestions' : undefined}
-                          value={newColKey}
-                          onChange={(e) => setNewColKey(e.target.value)}
-                          placeholder={
-                            selectedWidget.item.id === 'table-redis'
-                              ? `필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`
-                              : '필드명 (RTS_LOGIN)'
-                          }
-                          className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                        />
-                        <input
-                          type="text"
-                          value={newColLabel}
-                          onChange={(e) => setNewColLabel(e.target.value)}
-                          placeholder="표시명 (로그인)"
-                          className="w-1/2 px-1.5 py-1 text-[10px] border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!newColKey.trim()) return;
-                            addWidgetTableColumn(selectedWidget.id, newColKey.trim(), newColLabel.trim() || newColKey.trim());
-                            setNewColKey('');
-                            setNewColLabel('');
-                          }}
-                          className="flex-shrink-0 px-2 py-1 text-[10px] font-bold bg-[#0f5b9e] text-white rounded hover:bg-[#0c4a82]"
-                        >
-                          + 추가
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* 표 설정 — table-queue/table-group/table-agent/table-redis. 행 간격은 숫자로, 열 너비는 캔버스 드래그로 직접 조절 */}
                   {['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
@@ -5272,27 +5405,7 @@ export default function TaskCreate() {
                     </div>
                   )}
 
-                  {/* 미디어타입 — table-queue/table-group/table-agent + 큐 차트 전용. 위젯이 볼 IC:XXX:{미디어타입} 해시를 고정한다. */}
-                  {['table-queue', 'table-group', 'table-agent', 'chart-bar-queue', 'chart-line-trend'].includes(selectedWidget.item.id) && (
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">미디어타입</label>
-                      <select
-                        value={selectedWidget.item.mediaType ?? '0'}
-                        onChange={(e) => updateWidgetMediaType(selectedWidget.id, e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
-                      >
-                        {mediaTypeItems.length === 0 ? (
-                          <option value="0">VOIP (:0)</option>
-                        ) : (
-                          mediaTypeItems.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.name}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </div>
-                  )}
+                  {/* [삭제 2026-07-10] 미디어타입 패널 — 옛 table-queue/group/agent 전용. 미디어타입은 데이터소스(placeholderName='mediatype')로 이동. */}
 
                   {/* 차트 종류 — 표시 방식이 차트일 때만 */}
                   {selectedWidget.item.tableConfig && selectedWidget.item.displayType === 'chart' && (
@@ -5828,6 +5941,26 @@ export default function TaskCreate() {
 
                   {/* DB Query 위젯 속성 */}
                   {selectedWidget.item.category === 'DbQuery' && <DbQueryWidgetProps widget={selectedWidget} onUpdate={(patch) => updateWidgetDbQuery(selectedWidget.id, patch)} />}
+
+                  {/* 웹 임베드 위젯 속성 */}
+                  {selectedWidget.item.category === 'WebEmbed' && (
+                    <div className="space-y-2">
+                      <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide">웹 임베드 설정</p>
+                      <div>
+                        <label className="text-[10px] text-slate-500 font-semibold block mb-1">URL</label>
+                        <input
+                          type="text"
+                          value={selectedWidget.item.webEmbedUrl ?? ''}
+                          onChange={(e) => updateWidgetWebEmbed(selectedWidget.id, { webEmbedUrl: e.target.value })}
+                          placeholder="https://www.youtube.com/watch?v=..."
+                          className="w-full px-2 py-1.5 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                        />
+                        <p className="text-[9px] text-slate-400 mt-0.5 leading-snug">
+                          YouTube 시청 URL은 음소거 임베드 플레이어로 자동 변환. 일반 사이트는 iframe 허용 시에만 표시됩니다.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* ── 텍스트 스타일 ── */}
                   <div className="border-t border-slate-100 pt-2">

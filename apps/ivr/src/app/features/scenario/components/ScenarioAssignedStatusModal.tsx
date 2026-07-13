@@ -7,10 +7,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Modal, Segmented, Tag } from 'antd';
+import { Modal, Segmented } from 'antd';
 import dayjs from 'dayjs';
 import { useGetScenarioAssignedHistory, useGetScenarioAssignedStatus } from '../hooks/useScenarioQueries';
-import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, RT_RESV_KIND_LABELS, type ScenarioAssignedStatusRow } from '../types';
+import { APPLY_RESULT, APPLY_RESULT_LABELS, APPLY_STATUS, APPLY_STATUS_LABELS, RT_RESV_KIND_LABELS, type ScenarioAssignedStatusRow } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
@@ -25,6 +27,36 @@ export interface ScenarioAssignedStatusModalRef {
 }
 
 type StatusTab = 'current' | 'history';
+
+// 상태별 뱃지 색 — HaGroupList.tsx의 ROLE_STATUS_BADGE_CLASS와 동일한 패턴(Record 매핑 + shadcn Badge,
+// antd Tag 대신 이 앱의 카드/그리드 배지와 동일한 컴포넌트로 통일).
+const BLUE_BADGE_CLASS = 'text-blue-600 bg-blue-50';
+const RED_BADGE_CLASS = 'text-red-600 bg-red-50';
+const AMBER_BADGE_CLASS = 'text-amber-600 bg-amber-50';
+const EMERALD_BADGE_CLASS = 'text-emerald-600 bg-emerald-50';
+const PURPLE_BADGE_CLASS = 'text-purple-600 bg-purple-50';
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+
+/** 구분(RT_RESV_KIND) — 1=즉시, 2=예약. */
+const RT_RESV_KIND_BADGE_CLASS: Record<number, string> = { 1: BLUE_BADGE_CLASS, 2: PURPLE_BADGE_CLASS };
+
+/** 적용상태(APPLY_STATUS). */
+const APPLY_STATUS_BADGE_CLASS: Record<number, string> = {
+  [APPLY_STATUS.PENDING]: AMBER_BADGE_CLASS,
+  [APPLY_STATUS.SEND_OK]: BLUE_BADGE_CLASS,
+  [APPLY_STATUS.SEND_FAIL]: RED_BADGE_CLASS,
+  [APPLY_STATUS.CMD_OK]: BLUE_BADGE_CLASS,
+  [APPLY_STATUS.CMD_FAIL]: RED_BADGE_CLASS,
+  [APPLY_STATUS.APPLIED]: EMERALD_BADGE_CLASS,
+  [APPLY_STATUS.APPLY_FAIL]: RED_BADGE_CLASS,
+};
+
+/** 결과(APPLY_RESULT) — 1=성공, 9=실패. */
+const APPLY_RESULT_BADGE_CLASS: Record<number, string> = {
+  [APPLY_RESULT.SUCCESS]: EMERALD_BADGE_CLASS,
+  [APPLY_RESULT.FAIL]: RED_BADGE_CLASS,
+};
 
 const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((_, ref) => {
   const { gridOptions } = useAggridOptions();
@@ -102,19 +134,18 @@ const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((
         width: 80,
         cellRenderer: (p: ICellRendererParams<ScenarioAssignedStatusRow>) => {
           const k = p.data?.rtResvKind;
-          return k == null ? '-' : <Tag color={k === 1 ? 'blue' : 'purple'}>{RT_RESV_KIND_LABELS[k] ?? k}</Tag>;
+          return k == null ? '-' : <Badge className={cn(BADGE_CLASS, RT_RESV_KIND_BADGE_CLASS[k] ?? DEFAULT_BADGE_CLASS)}>{RT_RESV_KIND_LABELS[k] ?? k}</Badge>;
         },
         ...codeFilter<ScenarioAssignedStatusRow>('rtResvKind', RT_RESV_KIND_LABELS),
       },
       {
         headerName: '적용상태',
         field: 'applyStatus',
-        width: 110,
+        width: 120,
         cellRenderer: (p: ICellRendererParams<ScenarioAssignedStatusRow>) => {
           const s = p.data?.applyStatus;
           if (s == null) return '-';
-          const color = s === 50 ? 'green' : s === 55 || s === 25 || s === 35 ? 'red' : s === 10 ? 'gold' : 'blue';
-          return <Tag color={color}>{APPLY_STATUS_LABELS[s] ?? s}</Tag>;
+          return <Badge className={cn(BADGE_CLASS, APPLY_STATUS_BADGE_CLASS[s] ?? DEFAULT_BADGE_CLASS)}>{APPLY_STATUS_LABELS[s] ?? s}</Badge>;
         },
         ...codeFilter<ScenarioAssignedStatusRow>('applyStatus', APPLY_STATUS_LABELS),
       },
@@ -125,7 +156,7 @@ const ScenarioAssignedStatusModal = forwardRef<ScenarioAssignedStatusModalRef>((
         cellRenderer: (p: ICellRendererParams<ScenarioAssignedStatusRow>) => {
           const r = p.data?.applyResult;
           if (r == null) return '-';
-          return <Tag color={r === 1 ? 'green' : r === 9 ? 'red' : 'default'}>{APPLY_RESULT_LABELS[r] ?? r}</Tag>;
+          return <Badge className={cn(BADGE_CLASS, APPLY_RESULT_BADGE_CLASS[r] ?? DEFAULT_BADGE_CLASS)}>{APPLY_RESULT_LABELS[r] ?? r}</Badge>;
         },
         ...codeFilter<ScenarioAssignedStatusRow>('applyResult', APPLY_RESULT_LABELS),
       },

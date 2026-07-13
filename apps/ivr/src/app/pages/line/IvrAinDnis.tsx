@@ -14,20 +14,32 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Empty, Input } from 'antd';
-import { Building2, ChevronLeft, ChevronRight, Download, Layers, Plus, Search, Upload } from 'lucide-react';
+import { Building2, Download, Phone, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IvrAinDnisImportResultModal, { type IvrAinDnisImportResultModalRef } from '../../features/ivr-ain-dnis/components/IvrAinDnisImportResultModal';
 import IvrAinDnisSheet, { type IvrAinDnisSheetRef } from '../../features/ivr-ain-dnis/components/IvrAinDnisSheet';
 import { ivrAinDnisQueryKeys, useDeleteAin, useExportAinDnis, useGetAinList, useGetTenants, useImportAinDnis } from '../../features/ivr-ain-dnis/hooks/useIvrAinDnisQueries';
-import { type ExcelImportResult, type IrAinMaster, TELCO_KIND_BADGE, TELCO_KIND_LABELS, type TelcoKindCode } from '../../features/ivr-ain-dnis/types';
+import { type ExcelImportResult, type IrAinMaster, TELCO_KIND_LABELS, type TelcoKindCode } from '../../features/ivr-ain-dnis/types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
-import { IconTrash } from '@/components/custom/Icons';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '회선관리' }, { title: '대표번호별 DNIS관리', path: '/ivr/line/ain-dnis' }];
+
+/** 통신사 배지 색상 — 그리드 안 상태값 배지 표준(add-grid 스킬 참조). */
+const TELCO_KIND_BADGE_CLASS: Record<TelcoKindCode, string> = {
+  '0': 'text-gray-600 bg-gray-100', // 공통
+  '1': 'text-amber-700 bg-amber-50', // KT
+  '2': 'text-purple-600 bg-purple-50', // SKT
+  '3': 'text-red-600 bg-red-50', // LGU+
+};
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 export default function IvrAinDnis() {
   const [searchParams] = useSearchParams();
@@ -47,7 +59,6 @@ export default function IvrAinDnis() {
   // ─── State ──────────────────────────────────────────────────────────────
   const [selectedTenantId, setSelectedTenantId] = useState<number | null>(initTenantId);
   const [searchText, setSearchText] = useState('');
-  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs (Drawers/Dialogs) ─────────────────────────────────────────────
   const sheetRef = useRef<IvrAinDnisSheetRef>(null);
@@ -69,6 +80,9 @@ export default function IvrAinDnis() {
   const isSearching = searchText.trim().length > 0;
 
   const selectedTenant = useMemo(() => tenants.find((t) => t.tenantId === selectedTenantId) ?? null, [tenants, selectedTenantId]);
+
+  // 테넌트별 건수를 한 번에 집계하는 API가 없어(선택된 테넌트 것만 조회) count 없이 표시.
+  const tenantTabItems: TabBarItem<number>[] = useMemo(() => tenants.map((tenant) => ({ id: tenant.tenantId, label: tenant.tenantName, icon: Building2 })), [tenants]);
 
   const filteredRows = useMemo(() => {
     if (!isSearching) return rows;
@@ -232,15 +246,7 @@ export default function IvrAinDnis() {
         cellRenderer: (params: ICellRendererParams<IrAinMaster>) => {
           const code = params.data?.telcoKind as TelcoKindCode | undefined;
           if (!code) return '-';
-          const badge = TELCO_KIND_BADGE[code];
-          return (
-            <span
-              className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border"
-              style={{ background: badge.bg, color: badge.color, borderColor: badge.border }}
-            >
-              {TELCO_KIND_LABELS[code]}
-            </span>
-          );
+          return <Badge className={cn(BADGE_CLASS, TELCO_KIND_BADGE_CLASS[code] ?? DEFAULT_BADGE_CLASS)}>{TELCO_KIND_LABELS[code]}</Badge>;
         },
         ...codeFilter<IrAinMaster>('telcoKind', TELCO_KIND_LABELS),
       },
@@ -297,7 +303,7 @@ export default function IvrAinDnis() {
                 handleDelete(params.data!);
               }}
             >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
             </button>
           );
         },
@@ -311,63 +317,12 @@ export default function IvrAinDnis() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단 박스: 테넌트 탭 바 + 4버튼 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {tenants.length === 0 && (
-                <div className="flex items-center justify-center px-4 text-[12px] text-gray-400 min-w-[180px]">
-                  <Layers className="size-3.5 mr-1.5" />
-                  등록된 테넌트가 없습니다
-                </div>
-              )}
-              {tenants.map((tenant) => {
-                const isActive = selectedTenantId === tenant.tenantId;
-                return (
-                  <button
-                    key={tenant.tenantId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[140px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)] bg-blue-50/40' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleTenantSelect(tenant.tenantId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({
-                        behavior: 'smooth',
-                        inline: 'center',
-                        block: 'nearest',
-                      });
-                    }}
-                  >
-                    <Building2 className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{tenant.tenantName}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3 self-center">
+        <TabBar<number>
+          items={tenantTabItems}
+          selectedId={selectedTenantId}
+          onSelect={handleTenantSelect}
+          rightContent={
+            <>
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -385,21 +340,22 @@ export default function IvrAinDnis() {
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
               </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* ===== 하단 박스: ag-Grid ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">
-              대표번호별 DNIS관리
-              <span className="text-gray-400 font-normal ml-1.5">({filteredRows.length}건)</span>
-              {selectedTenant && <span className="text-[11px] text-gray-400 ml-2 font-normal">/ 테넌트: {selectedTenant.tenantName}</span>}
-            </span>
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Phone className="size-4 text-[#405189]" />
+              <h3 className="text-sm font-semibold text-gray-800">대표번호별 DNIS관리{selectedTenant && <span className="text-[#405189]"> — {selectedTenant.tenantName}</span>}</h3>
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredRows.length}건</span>
+            </div>
           </div>
+          <div className="border-t border-gray-200" />
 
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-h-0 p-5">
             {selectedTenant === null ? (
               <div className="flex flex-1 flex-col items-center justify-center text-gray-400 gap-3">
                 <Empty description={false} />

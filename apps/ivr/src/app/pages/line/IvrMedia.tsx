@@ -29,6 +29,7 @@ import { ivrMediaQueryKeys, useDeleteMediaServer, useGetForcusSystems, useGetNod
 import SttMasterTab from '../../features/ivr-media/tabs/SttMasterTab';
 import TtsMasterTab from '../../features/ivr-media/tabs/TtsMasterTab';
 import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../../features/ivr-media/types';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type TabKey = 'media' | 'tts' | 'stt';
@@ -60,7 +61,6 @@ export default function IvrMedia() {
   const [sttCount, setSttCount] = useState(0);
 
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs (Drawers) ─────────────────────────────────────────────────────
   const mediaSheetRef = useRef<MediaServerSheetRef>(null);
@@ -114,6 +114,19 @@ export default function IvrMedia() {
     if (!selectedSystemId) return null;
     return systems.find((s) => s.systemId === selectedSystemId) ?? null;
   }, [systems, selectedSystemId]);
+
+  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
+    () => [
+      { id: 'all', label: '전체', icon: Layers, count: searchFilteredSystems.length },
+      ...nodes.map((node) => ({
+        id: node.nodeId,
+        label: node.nodeName,
+        icon: Network,
+        count: searchFilteredSystems.filter((s) => s.nodeId === node.nodeId).length,
+      })),
+    ],
+    [nodes, searchFilteredSystems],
+  );
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const { mutate: deleteMediaServer } = useDeleteMediaServer({
@@ -212,92 +225,37 @@ export default function IvrMedia() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 헤더 박스: 노드 탭 바 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 노드 탭 헤더 */}
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
-                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
-                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedNodeId(null);
-                  setSearchText('');
-                  setSelectedSystemId(null);
-                }}
-              >
-                <Layers className="size-3.5" />
-                <span>전체</span>
-                <span className="text-[11px] text-gray-400">({searchFilteredSystems.length})</span>
-              </button>
-
-              {nodes.map((node) => {
-                const nodeSystems = searchFilteredSystems.filter((s) => s.nodeId === node.nodeId);
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({
-                        behavior: 'smooth',
-                        inline: 'center',
-                        block: 'nearest',
-                      });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeSystems.length})</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3 self-center">
-              <Input
-                allowClear
-                prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="시스템 검색"
-                value={searchText}
-                onChange={handleSearchChange}
-                style={{ width: 200 }}
-              />
-            </div>
-          </div>
-        </div>
+        <TabBar<number | 'all'>
+          items={nodeTabItems}
+          selectedId={isSearching ? null : (selectedNodeId ?? 'all')}
+          onSelect={(id) => {
+            if (id === 'all') {
+              setSelectedNodeId(null);
+              setSearchText('');
+              setSelectedSystemId(null);
+            } else {
+              handleNodeSelect(id);
+            }
+          }}
+          rightContent={
+            <Input
+              allowClear
+              prefix={<Search className="size-3.5 text-gray-400" />}
+              placeholder="시스템 검색"
+              value={searchText}
+              onChange={handleSearchChange}
+              style={{ width: 200 }}
+            />
+          }
+        />
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100">
+            <Server className="size-4 text-[#405189]" />
+            <span className="text-sm font-semibold text-gray-800">시스템</span>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredSystems.length}개</span>
+          </div>
           {/* 시스템 카드 슬라이더 (IVR DN그룹 카드와 동일 형태, 220×120, h-[150]) */}
           <div className="flex items-center px-4 py-3 h-[150px]">
             {filteredSystems.length === 0 ? (
@@ -378,7 +336,7 @@ export default function IvrMedia() {
         {/* ===== 하단 박스: 탭 3개 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* 탭 헤더 */}
-          <div className="flex items-stretch border-b-2 border-gray-200 bg-white pr-3 h-[56px] flex-shrink-0">
+          <div className="flex items-stretch border-b-2 border-gray-200 bg-white pr-5 h-[56px] flex-shrink-0">
             <TabButton
               active={activeTab === 'media'}
               onClick={() => setActiveTab('media')}

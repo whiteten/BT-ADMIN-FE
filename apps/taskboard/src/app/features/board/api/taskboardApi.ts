@@ -1,8 +1,9 @@
 import ApiClient, { type ApiRequestConfig, type ApiResponse } from '@/shared-util';
-import { publicAuthHeaders } from './publicAuth';
+import { isPublicMode, publicAuthHeaders } from './publicAuth';
 import {
   type DbQueryDef,
   type DbQueryParam,
+  type DbQueryRedisKeyEntry,
   type RollingGroup,
   type TaskboardBg,
   type TaskboardDisplay,
@@ -16,11 +17,20 @@ import {
  */
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
-/** 공개 Bearer 토큰이 있으면 기존 config에 Authorization 헤더를 병합해 반환한다. */
+/**
+ * 공개 Bearer 토큰이 있으면 기존 config에 Authorization 헤더를 병합해 반환한다.
+ * 공개 모드(TaskViewPublic)면 401이 apps/host의 전역 로그인 리다이렉트를 트리거하지
+ * 않도록 apiClient의 silent 플래그도 함께 실어 보낸다.
+ */
 const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
   const auth = publicAuthHeaders();
-  if (!auth) return config;
-  return { ...config, headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } };
+  const needsSilent = isPublicMode();
+  if (!auth && !needsSilent) return config;
+  return {
+    ...config,
+    ...(auth ? { headers: { ...(config?.headers as Record<string, string> | undefined), ...auth } } : {}),
+    ...(needsSilent ? { silent: true } : {}),
+  };
 };
 
 /** BFF single-step 집계는 컨트롤러가 List를 그대로 반환한 응답을 { value: [...] }로 감싸므로 배열을 꺼낸다. */
@@ -164,7 +174,7 @@ export const taskboardApi = {
 
   // ── yml 기반 커스텀 DB 쿼리 실행 (custom1~custom10) ────────────────────────
   executeDbQuery: async (key: string): Promise<unknown[]> => {
-    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-db-query', { params: { key } });
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-db-query', withAuth({ params: { key } }));
     return unwrapListResponse(response.data?.data);
   },
 
@@ -176,11 +186,20 @@ export const taskboardApi = {
 
   // ── 저장된 DB 쿼리 정의 (뷰그룹 체크박스 옵션 소스) ────────────────────────
   listDbQueryDefs: async (): Promise<DbQueryDef[]> => {
-    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-list');
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-list', withAuth());
     return unwrapListResponse(response.data?.data);
   },
 
-  createDbQueryDef: async (payload: { tenantId: string; queryName: string; description?: string; sqlText: string; params?: DbQueryParam[] }): Promise<number> => {
+  createDbQueryDef: async (payload: {
+    tenantId: string;
+    queryName: string;
+    description?: string;
+    sqlText: string;
+    params?: DbQueryParam[];
+    redisKeys?: DbQueryRedisKeyEntry[];
+    placeholderName?: string;
+    scopeType?: 'ALL' | 'TENANT';
+  }): Promise<number> => {
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-create', payload);
     return response.data?.data ?? 0;
   },
@@ -195,6 +214,9 @@ export const taskboardApi = {
     description?: string;
     sqlText: string;
     params?: DbQueryParam[];
+    redisKeys?: DbQueryRedisKeyEntry[];
+    placeholderName?: string;
+    scopeType?: 'ALL' | 'TENANT';
   }): Promise<number> => {
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-dbquerydef-update', payload, { params: { id: dbQueryId } });
     return response.data?.data ?? 0;
@@ -206,7 +228,7 @@ export const taskboardApi = {
   },
 
   getDbQueryDefOptions: async (id: number): Promise<Record<string, unknown>[]> => {
-    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-options', { params: { id } });
+    const response = await apiClient.get<ApiResponse<unknown>>('/taskboard-dbquerydef-options', withAuth({ params: { id } }));
     return unwrapListResponse(response.data?.data);
   },
 };
