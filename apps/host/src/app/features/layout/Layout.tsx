@@ -1,11 +1,11 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { useLocation, useOutlet } from 'react-router-dom';
 import { App, ConfigProvider } from 'antd';
 import koKR from 'antd/locale/ko_KR';
 import 'dayjs/locale/ko';
 import { KeepAlive, useKeepAliveRef } from 'keepalive-for-react';
 import { Minimize2 } from 'lucide-react';
-import { useAgentChatStore, useLayoutStore, useOpenTabsStore } from '@/shared-store';
+import { useAgentChatStore, useLayoutStore, useOpenTabsStore, useOperatorScopeStore } from '@/shared-store';
 import SubHeader, { SUB_HEADER_HEIGHT } from './SubHeader';
 import TopHeader, { TOP_HEADER_HEIGHT } from './TopHeader';
 import { antdTheme } from './config/antdTheme';
@@ -28,6 +28,15 @@ export function Layout() {
   const { chromeCollapsed, toggleChrome, chromeless } = useLayoutStore();
   const pinned = useMenuPanelStore((s) => s.pinned);
   const topOffset = chromeCollapsed ? 0 : TOTAL_HEADER_HEIGHT;
+
+  // 운영자 모드 다크 테마 신호를 루트(html)에 심는다 — 드로어/포털 요소가 전역 CSS로 다크 헤더를 받도록.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (operatorMode) root.setAttribute('data-operator-theme', 'true');
+    else root.removeAttribute('data-operator-theme');
+    return () => root.removeAttribute('data-operator-theme');
+  }, [operatorMode]);
 
   const canUseAgentChat = useCanUseAgentChat();
   const chatOpen = useAgentChatStore((s) => s.open);

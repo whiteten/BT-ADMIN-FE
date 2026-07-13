@@ -32,7 +32,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Steps, Switch, Tooltip } from 'antd';
 import { Lock as LockOutlined } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnApi } from '../../features/dn/api/dnApi';
 import DnCallTransferDrawer from '../../features/dn/components/DnCallTransferDrawer';
@@ -44,7 +44,7 @@ import { dnQueryKeys, useCreateDn, useDeleteDns, useGetDnCosEffect, useGetDnDeta
 import { DN_INITIAL_VALUES, type DnCreateRequest, type DnUpdateRequest } from '../../features/dn/types';
 import { ADN_DEFAULT_STATE_OPTIONS, DN_STATUS_OPTIONS, DN_TYPE_OPTIONS_PRIMARY, IP_VERSION_OPTIONS, TRANSPORT_TYPE_OPTIONS } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -161,6 +161,13 @@ export default function DnForm() {
   const isEditMode = !!id;
   const dnId = id ? Number(id) : null;
 
+  // 운영자 모드 / 로그인 테넌트 — 테넌트 필드 노출·고정 판단
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const authTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
   // ─── Watch fields ─────────────────────────────────────────────────────────
   const watchedNodeId = Form.useWatch('nodeId', form);
   const watchedTenantId = Form.useWatch('tenantId', form);
@@ -194,10 +201,9 @@ export default function DnForm() {
   const isExtIpUpdateDisabled = isFixedIp;
 
   // ─── Queries ──────────────────────────────────────────────────────────────
-  const { data: allNodes = [] } = useGetDnProfileNodes();
-  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
-  const scopedNodes = useScopedNodes(allNodes);
-  const nodes = isEditMode ? allNodes : scopedNodes;
+  // 노드-테넌트 캐스케이드: 테넌트 → 노드 (테넌트 먼저 선택, 노드는 그 테넌트 매핑만).
+  // 일반 모드: 테넌트 필드 숨김 + 로그인 테넌트로 고정. 운영자 모드: 테넌트 Select 노출.
+  const { data: nodes = [] } = useGetDnProfileNodes();
   const { data: tenants = [] } = useGetDnProfileTenants();
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: dnDetail, isFetching } = useGetDnDetail(dnId);
@@ -210,18 +216,18 @@ export default function DnForm() {
     steps.findIndex((s) => s.key === currentTab),
   );
 
-  // 테넌트 옵션 — 선택 노드 할당된 테넌트만
+  // 테넌트 옵션 (운영자 모드에서만 노출) — 노드 매핑이 있는 테넌트 전체(노드 선택과 무관)
   const tenantOptions = useMemo(() => {
-    if (!watchedNodeId) return [];
-    const ids = new Set(nodeTenants.filter((nt) => nt.nodeId === watchedNodeId).map((nt) => nt.tenantId));
-    return tenants.filter((t) => ids.has(t.tenantId)).map((t) => ({ label: t.tenantName, value: t.tenantId }));
-  }, [watchedNodeId, tenants, nodeTenants]);
+    const withNodes = new Set(nodeTenants.map((nt) => nt.tenantId));
+    return tenants.filter((t) => withNodes.has(t.tenantId)).map((t) => ({ label: t.tenantName, value: t.tenantId }));
+  }, [tenants, nodeTenants]);
 
-  // 노드 옵션 — 할당된 노드만
+  // 노드 옵션 — 선택 테넌트에 매핑된 노드만 (테넌트 → 노드 캐스케이드)
   const nodeOptions = useMemo(() => {
-    const assignedNodeIds = new Set(nodeTenants.map((nt) => nt.nodeId));
-    return nodes.filter((n) => assignedNodeIds.has(n.nodeId)).map((n) => ({ label: n.nodeName, value: n.nodeId }));
-  }, [nodes, nodeTenants]);
+    if (!watchedTenantId) return [];
+    const nodeIds = new Set(nodeTenants.filter((nt) => nt.tenantId === watchedTenantId).map((nt) => nt.nodeId));
+    return nodes.filter((n) => nodeIds.has(n.nodeId)).map((n) => ({ label: n.nodeName, value: n.nodeId }));
+  }, [nodes, nodeTenants, watchedTenantId]);
 
   // 옵션 일괄 조회
   const optionsParams = useMemo(() => {
@@ -532,11 +538,14 @@ export default function DnForm() {
   }, [dnDetail, isEditMode, form]);
 
   // ─── Set default node/tenant (신규 등록 시) ──────────────────────────────
+  // 일반 모드: 테넌트 필드가 숨겨지므로 로그인 테넌트로 자동 세팅(제출·노드필터에 필요).
+  // 운영자 모드: URL param 으로 넘어온 값만 반영(없으면 사용자가 직접 선택).
   useEffect(() => {
     if (!isEditMode) {
       const defaults: Record<string, unknown> = {};
+      const effectiveTenant = defaultTenantId ?? (!operatorMode ? (authTenantId ?? undefined) : undefined);
+      if (effectiveTenant != null) defaults.tenantId = effectiveTenant;
       if (defaultNodeId) defaults.nodeId = defaultNodeId;
-      if (defaultTenantId) defaults.tenantId = defaultTenantId;
       if (Object.keys(defaults).length > 0) {
         form.setFieldsValue(defaults);
         setFormValues((prev: Record<string, unknown>) => ({
@@ -545,7 +554,7 @@ export default function DnForm() {
         }));
       }
     }
-  }, [isEditMode, defaultNodeId, defaultTenantId, form]);
+  }, [isEditMode, defaultNodeId, defaultTenantId, operatorMode, authTenantId, form]);
 
   // ─── Mutations ────────────────────────────────────────────────────────────
   // 등록/수정 후 목록 페이지로 돌아갈 때, 작업한 노드/테넌트 컨텍스트 유지
@@ -969,18 +978,19 @@ export default function DnForm() {
                           <Input placeholder="예: 1000" maxLength={24} disabled={isEditMode} />
                         </Form.Item>
                       </Col>
+                      {/* 테넌트 → 노드 캐스케이드. 일반 모드는 테넌트 숨김(로그인 테넌트 고정), 운영자 모드만 노출 */}
                       <Col span={6}>
-                        <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
+                        <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트는 필수입니다' }]} hidden={!operatorMode}>
                           <Select
-                            options={nodeOptions}
-                            placeholder="노드 선택"
+                            placeholder="테넌트 선택"
+                            options={tenantOptions}
                             disabled={isEditMode}
                             showSearch
                             optionFilterProp="label"
                             onChange={() => {
                               if (!isEditMode) {
                                 form.setFieldsValue({
-                                  tenantId: undefined,
+                                  nodeId: undefined,
                                   backUpNodeId: null,
                                   dnProfileId: undefined,
                                   cosId: null,
@@ -1000,16 +1010,17 @@ export default function DnForm() {
                         </Form.Item>
                       </Col>
                       <Col span={6}>
-                        <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트는 필수입니다' }]}>
+                        <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
                           <Select
-                            placeholder={watchedNodeId ? '테넌트 선택' : '노드 선택 필요'}
-                            options={tenantOptions}
-                            disabled={isEditMode || !watchedNodeId}
+                            options={nodeOptions}
+                            placeholder={watchedTenantId ? '노드 선택' : operatorMode ? '테넌트 선택 필요' : '노드 선택'}
+                            disabled={isEditMode || !watchedTenantId}
                             showSearch
                             optionFilterProp="label"
                             onChange={() => {
                               if (!isEditMode) {
                                 form.setFieldsValue({
+                                  backUpNodeId: null,
                                   dnProfileId: undefined,
                                   cosId: null,
                                   pickupGrpId: null,

@@ -291,3 +291,19 @@
   text-align: center;
   width: 100%;
 }
+
+/* 운영자 모드: 오른쪽 드로어(추가/수정)의 상단 헤더를 다크 차콜로 통일.
+   Drawer 는 body 포털로 렌더되므로 루트의 data-operator-theme 속성을 기준으로 전역 오버라이드한다. */
+:root[data-operator-theme='true'] .ant-drawer-header {
+  background: #1e293b;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+:root[data-operator-theme='true'] .ant-drawer-title {
+  color: #ffffff;
+}
+:root[data-operator-theme='true'] .ant-drawer-header .ant-drawer-close {
+  color: rgba(255, 255, 255, 0.75);
+}
+:root[data-operator-theme='true'] .ant-drawer-header .ant-drawer-close:hover {
+  color: #ffffff;
+}
