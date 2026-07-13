@@ -71,14 +71,16 @@ export default function DnProfileList() {
     return nodes.filter((n) => nodeIds.has(n.nodeId));
   }, [nodes, nodeTenants]);
 
-  // 전체 프로파일 기준 테넌트 목록 (테넌트 셀렉트 옵션)
+  // 프로파일 기준 테넌트 목록 (테넌트 셀렉트 옵션)
+  // 선택 노드가 있으면 그 노드의 프로파일이 속한 테넌트만 (양방향 필터).
   const assignedTenants = useMemo(() => {
+    const rows = selectedNodeId != null ? profiles.filter((p) => p.nodeId === selectedNodeId) : profiles;
     const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const p of profiles) {
+    for (const p of rows) {
       if (!map.has(p.tenantId)) map.set(p.tenantId, { tenantId: p.tenantId, tenantName: p.tenantName ?? '-' });
     }
     return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [profiles]);
+  }, [profiles, selectedNodeId]);
 
   // ─── Derived — 노드/테넌트/검색 클라이언트 필터 ─────────────────────────────────
   const profilesForGrid = useMemo(() => {
@@ -113,6 +115,13 @@ export default function DnProfileList() {
       setSelectedNodeId(null);
     }
   }, [nodes, selectedNodeId]);
+
+  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
+  useEffect(() => {
+    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
+      setTenantFilter(null);
+    }
+  }, [operatorMode, tenantFilter, assignedTenants]);
 
   const invalidateProfiles = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: dnProfileQueryKeys.getList().queryKey });

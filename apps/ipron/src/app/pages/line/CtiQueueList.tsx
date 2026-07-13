@@ -155,9 +155,11 @@ export default function CtiQueueList() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [rows, nodes]);
 
+  // 선택 노드가 있으면 그 노드의 큐가 속한 테넌트만 (양방향 필터).
   const assignedTenants = useMemo(() => {
+    const src = selectedNodeId != null ? rows.filter((r) => r.nodeId === selectedNodeId) : rows;
     const map = new Map<number, string>();
-    for (const r of rows) {
+    for (const r of src) {
       if (r.tenantId == null) continue;
       if (!map.has(r.tenantId)) {
         map.set(r.tenantId, r.tenantName ?? tenants.find((t) => t.tenantId === r.tenantId)?.tenantName ?? `테넌트 ${r.tenantId}`);
@@ -166,7 +168,7 @@ export default function CtiQueueList() {
     return Array.from(map.entries())
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows, tenants]);
+  }, [rows, tenants, selectedNodeId]);
 
   // 노드/테넌트 스코프로 필터링된 행 (클라이언트 2필터)
   const rowsScoped = useMemo(() => {
@@ -205,6 +207,13 @@ export default function CtiQueueList() {
   useEffect(() => {
     setMatrixDirty({});
   }, [selectedTenantId]);
+
+  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
+  useEffect(() => {
+    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.id === tenantFilter)) {
+      setTenantFilter(null);
+    }
+  }, [operatorMode, tenantFilter, assignedTenants]);
 
   // 등록 Drawer 테넌트/노드 Select 옵션 (전체 마스터)
   const tenantSelectOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenants]);

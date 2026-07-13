@@ -115,15 +115,17 @@ export default function DnList() {
   }, [nodes, nodeTenants]);
 
   // 노드-테넌트 매핑 기준 테넌트 목록 (테넌트 셀렉트 옵션)
+  // 선택 노드가 있으면 그 노드에 매핑된 테넌트만 (양방향 필터).
   const assignedTenants = useMemo(() => {
+    const rows = selectedNodeId != null ? nodeTenants.filter((nt) => nt.nodeId === selectedNodeId) : nodeTenants;
     const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const nt of nodeTenants) {
+    for (const nt of rows) {
       if (!map.has(nt.tenantId)) {
         map.set(nt.tenantId, { tenantId: nt.tenantId, tenantName: nt.tenantName });
       }
     }
     return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [nodeTenants]);
+  }, [nodeTenants, selectedNodeId]);
 
   // ─── Derived — 테넌트/검색 클라이언트 필터 ────────────────────────────────
   const dnsForGrid = useMemo(() => {
@@ -167,6 +169,13 @@ export default function DnList() {
       setSelectedNodeId(null);
     }
   }, [nodes, selectedNodeId]);
+
+  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
+  useEffect(() => {
+    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
+      setTenantFilter(null);
+    }
+  }, [operatorMode, tenantFilter, assignedTenants]);
 
   const invalidateDns = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });

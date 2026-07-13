@@ -138,12 +138,21 @@ export default function DodTransList() {
   // 테넌트: 마스터에 존재하는 테넌트(byTenant 탭이 쓰던 것)
   // 테넌트: 공통 소스(토큰의 접근가능 테넌트). masters 에서 뽑으면 "마스터가 있는 테넌트"만 나와
   // 데이터 없는 테넌트로는 신규 등록조차 못 하므로, 접근 가능한 전체 테넌트를 노출한다.
+  // 선택 노드가 있으면 그 노드에 매핑된 테넌트(nodeTenants)만 노출 (양방향 필터).
+  // 데이터가 없어도 노드에 매핑된 테넌트면 신규 등록 대상으로 남긴다.
   const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
-  const assignedTenants = useMemo(
-    () =>
-      (availableTenants ?? []).map((t) => ({ tenantId: t.tenantId, tenantName: t.tenantName ?? `테넌트 ${t.tenantId}` })).sort((a, b) => a.tenantName.localeCompare(b.tenantName)),
-    [availableTenants],
-  );
+  const assignedTenants = useMemo(() => {
+    const base = (availableTenants ?? []).map((t) => ({ tenantId: t.tenantId, tenantName: t.tenantName ?? `테넌트 ${t.tenantId}` }));
+    const scoped = selectedNodeId != null ? base.filter((t) => nodeTenants.some((nt) => nt.nodeId === selectedNodeId && nt.tenantId === t.tenantId)) : base;
+    return scoped.sort((a, b) => a.tenantName.localeCompare(b.tenantName));
+  }, [availableTenants, nodeTenants, selectedNodeId]);
+
+  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
+  useEffect(() => {
+    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
+      setTenantFilter(null);
+    }
+  }, [operatorMode, tenantFilter, assignedTenants]);
 
   // ─── Derived — 노드/테넌트/검색 클라이언트 필터 ─────────────────────────────────
   const filteredMasters = useMemo(() => {

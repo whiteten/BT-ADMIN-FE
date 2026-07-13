@@ -21,7 +21,7 @@ import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/c
 import MentTable from '../../features/ment-mgmt/components/MentTable';
 import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
-import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -65,6 +65,7 @@ export default function MentMgmtList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
   const nodes = useScopedNodes(allNodes, selectedTenantId);
+  const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: rows = [], isLoading } = useGetMents({
     params: selectedNodeId != null ? { nodeId: selectedNodeId } : undefined,
     queryOptions: { enabled: selectedNodeId != null },
@@ -96,11 +97,21 @@ export default function MentMgmtList() {
       if (r.tenantId == null || r.tenantId === 0) continue;
       counts.set(r.tenantId, (counts.get(r.tenantId) ?? 0) + 1);
     }
+    // 선택 노드가 있으면 그 노드에 매핑된 테넌트(nodeTenants)만 노출 (양방향 필터).
+    const nodeMapped = selectedNodeId != null ? new Set(nodeTenants.filter((nt) => nt.nodeId === selectedNodeId).map((nt) => nt.tenantId)) : null;
     return (availableTenants ?? [])
       .filter((t) => t.tenantId !== 0)
+      .filter((t) => nodeMapped == null || nodeMapped.has(t.tenantId))
       .map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: counts.get(t.tenantId) ?? 0 }))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [availableTenants, rows]);
+  }, [availableTenants, rows, nodeTenants, selectedNodeId]);
+
+  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
+  useEffect(() => {
+    if (operatorMode && tenantFilter != null && !tenantOptions.some((t) => t.id === tenantFilter)) {
+      setTenantFilter(null);
+    }
+  }, [operatorMode, tenantFilter, tenantOptions]);
 
   // ─── 헤더 요약 (총 멘트 — 공통 제외) ─────────────────────────────────────────────
   const summary = useMemo(() => ({ total: rows.filter((r) => r.tenantId !== 0).length }), [rows]);
