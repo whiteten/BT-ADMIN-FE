@@ -15,6 +15,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
 import { List } from 'lucide-react';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
 import type { NumPattern } from '../../did-trans/types';
@@ -53,6 +54,12 @@ interface Props {
 const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, ref) => {
   const [form] = Form.useForm();
   const modal = useModal();
+  // 운영자 모드에서만 "테넌트" 표시 필드 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<CallScreen | null>(null);
   const [tenantId, setTenantId] = useState<number | null>(null);
@@ -66,7 +73,8 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   useImperativeHandle(ref, () => ({
     open: (data?: CallScreen, initTenantId?: number, initTenantName?: string) => {
       setEditData(data ?? null);
-      setTenantId(data?.tenantId ?? initTenantId ?? null);
+      // 일반 모드: 로그인 테넌트로 고정(부모가 넘긴 값 우선, 없으면 활성 테넌트 폴백).
+      setTenantId(data?.tenantId ?? initTenantId ?? (operatorMode ? null : activeTenantId));
       setTenantName(data?.tenantName ?? initTenantName ?? '');
       setVisible(true);
     },
@@ -215,9 +223,11 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         }
       >
         <Form form={form} layout="vertical" initialValues={{ numPattern: '', screenDesc: '', dnGroupId: null }}>
-          <Form.Item label="테넌트">
-            <Input value={tenantName} disabled />
-          </Form.Item>
+          {operatorMode && (
+            <Form.Item label="테넌트">
+              <Input value={tenantName} disabled />
+            </Form.Item>
+          )}
 
           <Form.Item
             name="numPattern"

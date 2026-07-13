@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Divider, Form, Input, Modal, Row, Select, Steps, Switch } from 'antd';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { cosApi } from '../../features/cos/api/cosApi';
 import { cosQueryKeys, useCreateCos, useDeleteCos, useGetCosDetail, useGetDodLimits, useGetNodeTenants, useUpdateCos } from '../../features/cos/hooks/useCosQueries';
@@ -79,6 +79,12 @@ export default function CosForm() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const [form] = Form.useForm();
+  // 운영자 모드에서만 "테넌트" 입력 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
   const [currentStep, setCurrentStep] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [formValues, setFormValues] = useState<any>(null);
@@ -162,10 +168,13 @@ export default function CosForm() {
 
   // ─── Set default tenantId ────────────────────────────────────────────────
   useEffect(() => {
-    if (!isEditMode && defaultTenantId) {
-      form.setFieldsValue({ tenantId: defaultTenantId });
+    if (isEditMode) return;
+    // 일반 모드: 로그인 테넌트로 고정(URL 전달값 우선, 없으면 활성 테넌트 폴백).
+    const t = defaultTenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined));
+    if (t) {
+      form.setFieldsValue({ tenantId: t });
     }
-  }, [isEditMode, defaultTenantId, form]);
+  }, [isEditMode, defaultTenantId, operatorMode, activeTenantId, form]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createCos, isPending: isCreating } = useCreateCos({
@@ -450,11 +459,18 @@ export default function CosForm() {
                   <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">기본 정보</h4>
                     <Row gutter={20}>
-                      <Col span={8}>
-                        <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트는 필수입니다' }]}>
-                          <Select options={tenantOptions} placeholder="테넌트를 선택하세요" disabled={isEditMode} />
+                      {operatorMode ? (
+                        <Col span={8}>
+                          <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트는 필수입니다' }]}>
+                            <Select options={tenantOptions} placeholder="테넌트를 선택하세요" disabled={isEditMode} />
+                          </Form.Item>
+                        </Col>
+                      ) : (
+                        /* 일반 콘솔 — 테넌트 숨김(로그인 테넌트 고정). 값만 유지. */
+                        <Form.Item name="tenantId" hidden rules={[{ required: true, message: '테넌트는 필수입니다' }]}>
+                          <Input />
                         </Form.Item>
-                      </Col>
+                      )}
                       <Col span={8}>
                         <Form.Item
                           name="cosName"

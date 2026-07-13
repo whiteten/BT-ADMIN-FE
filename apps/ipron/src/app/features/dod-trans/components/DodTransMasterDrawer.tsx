@@ -9,6 +9,7 @@
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import type { NodeTenantItem } from '../api/dodTransApi';
 import { useCreateMaster, useDeleteMaster, useUpdateMaster } from '../hooks/useDodTransQueries';
@@ -34,6 +35,12 @@ interface Props {
 const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuccess, nodes, nodeTenants }, ref) => {
   const [form] = Form.useForm();
   const modal = useModal();
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<DodTransMaster | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
@@ -61,7 +68,8 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
     open: (data?: DodTransMaster, initNodeId?: number, _initNodeName?: string, initTenantId?: number, _initTenantName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
-      setTenantId(data?.tenantId ?? initTenantId ?? null);
+      // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      setTenantId(data?.tenantId ?? initTenantId ?? (operatorMode ? null : activeTenantId));
       setVisible(true);
     },
     close: () => handleClose(),
@@ -195,17 +203,19 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
       }
     >
       <Form form={form} layout="vertical">
-        <Form.Item label="테넌트" required>
-          <Select
-            placeholder="테넌트를 선택하세요"
-            options={tenantOptions}
-            value={tenantId ?? undefined}
-            onChange={(v) => setTenantId(v)}
-            disabled={isEditMode}
-            showSearch
-            optionFilterProp="label"
-          />
-        </Form.Item>
+        {operatorMode && (
+          <Form.Item label="테넌트" required>
+            <Select
+              placeholder="테넌트를 선택하세요"
+              options={tenantOptions}
+              value={tenantId ?? undefined}
+              onChange={(v) => setTenantId(v)}
+              disabled={isEditMode}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+        )}
 
         <Form.Item label="노드" required>
           <Select

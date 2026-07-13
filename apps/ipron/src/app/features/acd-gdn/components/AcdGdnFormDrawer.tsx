@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Select, Tabs } from 'antd';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { acdGdnApi } from '../api/acdGdnApi';
 import { useCreateAcdGdn, useGetAcdGdnAccessCodeProfileOptions, useGetAcdGdnMentOptions, useGetAcdGdnSkillsetOptions, useUpdateAcdGdn } from '../hooks/useAcdGdnQueries';
@@ -82,6 +83,12 @@ interface FormValues {
 export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, defaultNodeId, tenantOptions = [], nodeOptions = [], onClose, onSaved }: AcdGdnFormDrawerProps) {
   const [form] = Form.useForm<FormValues>();
   const isEdit = mode === 'edit';
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
   // 갭6: DR 노드 선택 시 globalDnYn 자동=1 + 비활성 (SWAT doDrNode_OnSelect 정합)
   const [globalDnDisabled, setGlobalDnDisabled] = useState(false);
 
@@ -123,7 +130,8 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
       };
     }
     return {
-      tenantId: defaultTenantId ?? undefined,
+      // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      tenantId: defaultTenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined)),
       nodeId: defaultNodeId ?? undefined,
       globalDnYn: 0,
       acdYn: 1,
@@ -136,7 +144,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
       huntWaitTime: 10,
       blockYn: 0,
     };
-  }, [isEdit, detail, defaultTenantId, defaultNodeId]);
+  }, [isEdit, detail, defaultTenantId, defaultNodeId, operatorMode, activeTenantId]);
 
   useEffect(() => {
     if (open) {
@@ -303,7 +311,7 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
           <section>
             <h4 className="text-xs text-gray-500 font-semibold mb-2 pb-1 border-b border-dashed border-gray-200">소속</h4>
             <div className="grid grid-cols-3 gap-x-4 gap-y-1">
-              <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트 필수' }]}>
+              <Form.Item label="테넌트" name="tenantId" hidden={!operatorMode} rules={[{ required: true, message: '테넌트 필수' }]}>
                 <Select options={tenantOptions} disabled={isEdit} placeholder="테넌트 선택" />
               </Form.Item>
               <Form.Item label="노드" name="nodeId" rules={[{ required: true, message: '노드는 필수입니다' }]}>

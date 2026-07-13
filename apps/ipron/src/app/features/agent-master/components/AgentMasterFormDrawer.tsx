@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, Radio, Row, Select, Spin, Tabs } from 'antd';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetAvailableSkillsets } from '../../skill-assign/hooks/useSkillAssignQueries';
 import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_MDA_OPT_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
@@ -58,6 +59,11 @@ function flattenGroups(tree: AgentGroupNode[], tenantId?: number): AgentGroupNod
 
 export default function AgentMasterFormDrawer({ open, mode, agentId, initialTenantId, initialGroupId, operatorMode = false, onClose }: AgentMasterFormDrawerProps) {
   const isEdit = mode === 'edit';
+  // 일반 모드(operatorMode=false)에서 대상 테넌트 폴백용 활성 테넌트.
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const [form] = Form.useForm<FormValues>();
   const [selectedTenantId, setSelectedTenantId] = useState<number | undefined>();
@@ -132,14 +138,16 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         monitorSvc: 0,
         coachingSvc: 0,
       };
-      if (initialTenantId) {
-        init.tenantId = initialTenantId;
-        setSelectedTenantId(initialTenantId);
+      // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      const createTenantId = initialTenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined));
+      if (createTenantId) {
+        init.tenantId = createTenantId;
+        setSelectedTenantId(createTenantId);
       }
       if (initialGroupId) init.groupId = initialGroupId;
       form.setFieldsValue(init);
     }
-  }, [open, isEdit, detail, form, initialTenantId, initialGroupId]);
+  }, [open, isEdit, detail, form, initialTenantId, initialGroupId, operatorMode, activeTenantId]);
 
   const tenantOptions = useMemo(() => tenantStats.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenantStats]);
 

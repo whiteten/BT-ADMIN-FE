@@ -40,8 +40,9 @@ interface FormValues {
 
 export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenantId, defaultTreeId, tenants, groups, operatorMode, onCancel, onSubmit, loading }: Props) {
   const [form] = Form.useForm<FormValues>();
-  // 테넌트 선택 노출: 운영자 모드 create(대행 테넌트 선택) 또는 edit(현재 테넌트 표시, 비활성).
-  const showTenantSelect = operatorMode || mode === 'edit';
+  // 테넌트 선택 노출: 운영자 모드에서만(create=대행 테넌트 선택, edit=현재 테넌트 표시·비활성).
+  // 일반 콘솔은 create/edit 모두 로그인 테넌트로 고정 → 숨김(값만 유지).
+  const showTenantSelect = !!operatorMode;
 
   useEffect(() => {
     if (!open) return;

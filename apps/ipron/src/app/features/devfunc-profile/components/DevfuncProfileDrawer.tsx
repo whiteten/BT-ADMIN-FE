@@ -6,6 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import type { DevfuncProfile, ProfileCreateData, ProfileUpdateData, TenantSimpleResponse } from '../types';
 
 export interface DevfuncProfileDrawerRef {
@@ -24,6 +25,12 @@ const DevfuncProfileDrawer = forwardRef<DevfuncProfileDrawerRef, DevfuncProfileD
   const [isOpen, setIsOpen] = useState(false);
   const [editProfile, setEditProfile] = useState<DevfuncProfile | null>(null);
   const [form] = Form.useForm();
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const isEditMode = !!editProfile;
 
@@ -38,8 +45,10 @@ const DevfuncProfileDrawer = forwardRef<DevfuncProfileDrawerRef, DevfuncProfileD
         });
       } else {
         setEditProfile(null);
-        if (tenantId) {
-          form.setFieldsValue({ tenantId });
+        // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+        const createTenantId = tenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined));
+        if (createTenantId) {
+          form.setFieldsValue({ tenantId: createTenantId });
         }
       }
       setIsOpen(true);
@@ -88,7 +97,7 @@ const DevfuncProfileDrawer = forwardRef<DevfuncProfileDrawerRef, DevfuncProfileD
   return (
     <Drawer open={isOpen} onClose={handleClose} title={isEditMode ? '프로파일 수정' : '프로파일 등록'} closable={{ placement: 'end' }} footer={footer} destroyOnHidden>
       <Form form={form} layout="vertical">
-        <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택해주세요' }]}>
+        <Form.Item label="테넌트" name="tenantId" hidden={!operatorMode} rules={[{ required: true, message: '테넌트를 선택해주세요' }]}>
           <Select placeholder="테넌트 선택" options={tenantOptions} disabled={isEditMode} showSearch optionFilterProp="label" />
         </Form.Item>
 
