@@ -27,57 +27,8 @@ const withAuth = (config?: ApiRequestConfig): ApiRequestConfig | undefined => {
   };
 };
 
-/** TB_IC_CTIQMASTER 큐 행 */
-export interface CtiQueueRow {
-  [key: string]: string | number | null | undefined;
-  ctiqId: string;
-  ctiqName: string;
-  gdnNo?: string | null;
-  rtsWaitCnt?: number | null;
-  totalIn?: number | null;
-  totalAnswer?: number | null;
-  totalAbandon?: number | null;
-  kpiAnswerRate?: number | null;
-  kpiAbandonRatio?: number | null;
-  avgTotwaitTime?: number | null;
-  rtsAvgwaitTime?: number | null;
-  rtsMaxwaitTime?: number | null;
-  dbUpdateTime?: string | null;
-}
-
-/** TB_IC_AGENTMASTER 상담사 행 */
-export interface CtiAgentRow {
-  [key: string]: string | number;
-  agentId: string;
-  agentName: string;
-  /** 소속 상담그룹 ID — IC:AGENT:{groupId}:{mediaType} 해시 구독 키 합성에 사용 */
-  groupId: string;
-  statusCode: string;
-  statusName: string;
-  talkCount: number;
-  talkTimeSec: number;
-}
-
-/** TB_IC_MEDIA_USAGE 미디어타입 행 */
-export interface CtiMediaTypeRow {
-  /** Redis 키 접미사 (예: "0", "10") */
-  mediaType: string;
-  /** 화면 표시 이름 (예: VOIP, 챗, 영상통화) */
-  mediaAlias: string;
-}
-
-/** TB_IC_GROUPMASTER 상담그룹 행 */
-export interface CtiGroupRow {
-  [key: string]: string | number | string[];
-  groupId: string;
-  groupName: string;
-  tenantId: string;
-  /** IC:GROUP:{groupId10}{nodeId6} 복합키 목록 (노드 수만큼) */
-  compositeKeys: string[];
-  waitCount: number;
-  talkCount: number;
-  agentCount: number;
-}
+// [삭제 2026-07-10] CtiQueueRow/CtiAgentRow/CtiMediaTypeRow/CtiGroupRow — IC 전용 마스터목록 타입.
+// 큐/상담사/상담그룹/미디어타입은 데이터소스관리(DbQueryDef)로 일반화되어 별도 타입/엔드포인트 불필요.
 
 /** application-redis-key-map.yml의 key-definitions 항목 하나 (BE RedisKeyMapper.KeyDefinition과 1:1 대응) */
 export interface RedisKeyDefinition {
@@ -99,27 +50,6 @@ export interface RedisKeyDefinitionsResponse {
 }
 
 export const ctiRedisApi = {
-  /** 큐 리스트 (TB_IC_CTIQMASTER via Redis) */
-  getCtiQueueList: async (): Promise<CtiQueueRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-queue', withAuth());
-    const list = response?.data?.data?.value ?? response?.data?.data;
-    return Array.isArray(list) ? list : [];
-  },
-
-  /** 상담사 리스트 (TB_IC_AGENTMASTER via Redis) */
-  getCtiAgentList: async (): Promise<CtiAgentRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-agent', withAuth());
-    const list = response?.data?.data?.value ?? response?.data?.data;
-    return Array.isArray(list) ? list : [];
-  },
-
-  /** 상담그룹 리스트 (TB_IC_GROUPMASTER via Redis) */
-  getCtiGroupList: async (): Promise<CtiGroupRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-group', withAuth());
-    const list = response?.data?.data?.value ?? response?.data?.data;
-    return Array.isArray(list) ? list : [];
-  },
-
   /** Redis Hash 타입 키 목록 조회. refresh=true이면 서버 캐시를 다시 SCAN하여 갱신한 뒤 반환 */
   getRedisHashKeys: async (refresh?: boolean): Promise<string[]> => {
     const response = await apiTaskboard.get<any>('/taskboard-redis-hashkeys', withAuth({ params: refresh ? { refresh: true } : undefined }));
@@ -146,13 +76,6 @@ export const ctiRedisApi = {
     const response = await apiTaskboard.get<any>('/taskboard-redis-hashentries', withAuth({ params: { hashKey } }));
     const data = response?.data?.data?.value ?? response?.data?.data;
     return data && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, string>) : {};
-  },
-
-  /** TB_IC_MEDIA_USAGE 미디어타입 목록 조회 */
-  getCtiMediaTypeList: async (): Promise<CtiMediaTypeRow[]> => {
-    const response = await apiTaskboard.get<any>('/taskboard-redis-media-type', withAuth());
-    const list = response?.data?.data?.value ?? response?.data?.data;
-    return Array.isArray(list) ? list : [];
   },
 
   /**

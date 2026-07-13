@@ -181,107 +181,6 @@ function toNumericField(hashData: Record<string, unknown> | undefined, redisFiel
 }
 
 /**
- * 마스터 리스트(큐/그룹/상담사)를 갖는 "미디어타입 해시" 접두사들 — 이 접두사로 시작하는 hashKey는
- * 디자인 시점에 고정된 id(field) 1개가 아니라, 디스플레이 선택값으로 결정된 id 목록을 합산해서 보여준다.
- * 마스터 리스트가 없는 그 외 hashKey(다른 솔루션이 적재하는 임의의 키 등)는 여기 해당하지 않아
- * 기존처럼 드래그 시점에 고정된 단일 id를 그대로 쓴다.
- */
-const GROUP_HASH_PREFIX = 'IC:GROUP:';
-const QUEUE_HASH_PREFIX = 'IC:CTIQ:';
-const AGENT_HASH_PREFIX = 'IC:AGENT:';
-
-/** buildSelectionIdsByHashKey가 마스터 리스트/선택값을 조회하기 위해 필요로 하는 컨텍스트. */
-export interface SelectionListContext {
-  queueRows: Array<{ ctiqId: string }>;
-  selectedQueueIds: string[];
-  groupRows: Array<{ groupId: string; compositeKeys?: string[] }>;
-  selectedGroupIds: string[];
-  agentRows: Array<{ agentId: string; groupId: string }>;
-  selectedAgentIds: string[];
-}
-
-/**
- * "마스터 리스트가 있는 미디어타입 해시" 1종에 대한 정의 — prefix 뒤에 extraSegments개의 세그먼트(예:
- * AGENT의 {groupId})와 mediaType 세그먼트 1개가 정확히 붙는 hashKey만 매칭한다. 새 마스터 엔티티가
- * 추가돼도 이 배열(MASTER_ENTITY_HASH_DEFS)에 객체 하나만 추가하면 되고, buildSelectionIdsByHashKey
- * 본문은 수정할 필요가 없다.
- */
-interface MasterEntityHashDef {
-  prefix: string;
-  /** prefix와 mediaType 세그먼트 사이에 오는 추가 세그먼트 수 (GROUP/QUEUE=0, AGENT의 {groupId}=1) */
-  extraSegments: number;
-  /**
-   * 선택된 id를 이 해시의 실제 field id 목록으로 변환한다. 선택값이 비어있으면(뷰그룹에서 이 카테고리를
-   * 아예 안 골랐거나 등록을 안 한 경우) "선택 없음=전체"로 마스터 리스트 전체를 반환해야 한다 — WS 구독
-   * 크기 계산(queueIdsForSub 등)이 이미 쓰는 규칙과 동일하게 맞춰서, 같은 "선택 없음" 상황에 구독은
-   * 전체인데 표시값만 0으로 나오던 불일치를 없앤다.
-   */
-  resolveFieldIds: (ctx: SelectionListContext, extraSegmentValues: string[]) => string[];
-}
-
-const MASTER_ENTITY_HASH_DEFS: MasterEntityHashDef[] = [
-  {
-    prefix: GROUP_HASH_PREFIX,
-    extraSegments: 0,
-    resolveFieldIds: (ctx) => {
-      const targetGroups = ctx.selectedGroupIds.length > 0 ? ctx.groupRows.filter((g) => ctx.selectedGroupIds.includes(g.groupId)) : ctx.groupRows;
-      return [...new Set(targetGroups.flatMap((g) => g.compositeKeys ?? []))];
-    },
-  },
-  {
-    prefix: QUEUE_HASH_PREFIX,
-    extraSegments: 0,
-    resolveFieldIds: (ctx) => (ctx.selectedQueueIds.length > 0 ? ctx.selectedQueueIds : ctx.queueRows.map((q) => q.ctiqId)),
-  },
-  {
-    prefix: AGENT_HASH_PREFIX,
-    extraSegments: 1,
-    resolveFieldIds: (ctx, [groupId]) => {
-      const agentsInGroup = ctx.agentRows.filter((a) => a.groupId === groupId);
-      return ctx.selectedAgentIds.length > 0 ? agentsInGroup.filter((a) => ctx.selectedAgentIds.includes(a.agentId)).map((a) => a.agentId) : agentsInGroup.map((a) => a.agentId);
-    },
-  },
-];
-
-/**
- * GROUP/CTIQ/AGENT(미디어타입 해시) 위젯이 보여줄 id(field) 목록을 디스플레이 선택값으로 계산한다.
- * 뷰그룹에 그 카테고리 선택값이 없으면(선택 안 함, 또는 등록 자체를 안 함) 마스터 리스트 전체를 보여준다
- * ("선택 없음=전체" — 애매한 설정보다 데이터가 더 보이는 쪽을 기본으로 함). 선택값이 있으면 그 id들만.
- */
-export function buildSelectionIdsByHashKey(widgets: DroppedWidget[], ctx: SelectionListContext): Record<string, string[]> {
-  const hashKeysInUse = new Set<string>();
-  const collect = (item: CallDataItem) => {
-    // 마스킹된 키(예: "IC:CTIQ:{mediatype}", task-create Redis 트리에서 드래그한 값 위젯)는 여기서 다루지
-    // 않는다 — "선택 없음=전체" 폴백을 가진 이 함수(MASTER_ENTITY_HASH_DEFS)를 마스킹 키에도 적용하면,
-    // 데이터소스관리에 아무 리스트도 등록 안 한 위젯까지 전체 마스터 리스트로 강제 override돼버린다
-    // (뷰그룹/데이터소스관리에 매핑된 값이 위젯의 값과 "일치할 때만" 리스트를 적용해야 한다는 설계와
-    // 어긋남). 마스킹 키의 field override는 오직 `buildDataSourceKeySelectionIds`(문자열 정확히 일치하는
-    // 등록된 데이터소스가 있을 때만 적용, 없으면 위젯이 원래 드래그된 필드 그대로 동작)로만 처리한다.
-    // 이 함수는 item.mediaType이 리터럴로 박힌 concrete 키(테이블/차트 위젯)만 대상으로 유지.
-    if (item.category === 'Redis' && item.redisHashKey && !item.redisHashKey.includes('{')) hashKeysInUse.add(item.redisHashKey);
-  };
-  widgets.forEach((w) => {
-    collect(w.item);
-    w.calc?.operands?.forEach((op) => {
-      if (op.source) collect(op.source);
-    });
-  });
-
-  const result: Record<string, string[]> = {};
-  hashKeysInUse.forEach((hashKey) => {
-    const def = MASTER_ENTITY_HASH_DEFS.find((d) => hashKey.startsWith(d.prefix));
-    if (!def) return;
-    // 단순 접두사 일치만 보면 IC:GROUP:REASON:*, IC:CTIQ:TSPEC:/WAIT:/IN_TOT 같은 "그 안에 더 들어간
-    // (nested)" 다른 데이터셋까지 오인해서 전체 마스터 id 목록을 잘못 끼워 넣게 된다 — 그래서 접두사 뒤에
-    // 남는 부분이 "extraSegments개 세그먼트 + mediaType 1개"로 정확히 떨어질 때만 매칭한다.
-    const rest = hashKey.slice(def.prefix.length).split(':');
-    if (rest.length !== def.extraSegments + 1) return;
-    result[hashKey] = def.resolveFieldIds(ctx, rest.slice(0, def.extraSegments));
-  });
-  return result;
-}
-
-/**
  * Redis 위젯의 표시값을 계산한다.
  * - hashKey가 GROUP/CTIQ/AGENT 미디어타입 해시이고 selectionIdsByHashKey에 항목이 있으면, 디자인 시점에 고정된 id
  *   대신 디스플레이 선택값으로 결정된 id들의 값을 합산해서 보여준다(1개면 그 값, 여러 개면 합산).
@@ -775,7 +674,9 @@ export function resolveGroupIdsFromSelection(selection: TaskboardDisplaySelectio
 }
 
 export function resolveQueueIdsFromSelection(selection: TaskboardDisplaySelection, dbQueryDefs: DbQueryDef[]): string[] {
-  return resolveEntityIdsFromSelection('IC:CTIQ:', selection, dbQueryDefs, selection.queueIds ?? []);
+  // [2026-07-10] 레거시 selection.queueIds(톱니바퀴 직접선택) 폴백 제거 — 큐도 그룹과 동일하게
+  // 데이터소스(IC:CTIQ:{mediatype} 등록) 선택값만 SoT로 쓴다. 등록 데이터소스 없으면 빈 배열.
+  return resolveEntityIdsFromSelection('IC:CTIQ:', selection, dbQueryDefs);
 }
 
 /**
@@ -873,8 +774,11 @@ export function buildDataSourceKeySelectionIds(
       const keyTemplate = rk.keyTemplate?.trim();
       const useKeyTemplate = !!keyTemplate && keyTemplate.toUpperCase() !== 'DEFAULT';
       const fieldIds = useKeyTemplate ? expandKeyFieldTemplate(keyTemplate, valueIds, placeholderValuesByName) : valueIds;
+      // 덮어쓰기 대신 합집합 — 같은 실제 키(예: IC:CTIQ:0)를 등록한 데이터소스가 여러 개(A센터리스트/B센터리스트 등)일 때,
+      // 나중에 도는 소스의 빈 선택이 앞 소스의 선택을 지우지 않도록 한다. 빈 선택은 아무것도 기여 안 하고,
+      // 선택된 id만 합쳐진다(전부 비면 [] 유지 → getRedisDisplayValue가 "선택 있음, 0개"로 0 표시). 원소 1개면 기존과 동일.
       expandedHashKeys.forEach((k) => {
-        result[k] = fieldIds;
+        result[k] = [...new Set([...(result[k] ?? []), ...fieldIds])];
       });
     }
   }
