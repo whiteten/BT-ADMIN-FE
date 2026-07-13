@@ -7,9 +7,26 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Checkbox, DatePicker, Drawer, Empty, Input, Radio, Tag, Tooltip } from 'antd';
+import { type BreadcrumbProps, Button, Checkbox, DatePicker, Drawer, Dropdown, Empty, Input, Radio, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Building2, ChevronLeft, ChevronRight, ClipboardList, Download, FileCog, History, Info, Search, Server, Settings, Trash2, Upload as UploadIcon } from 'lucide-react';
+import {
+  Building2,
+  CheckSquareIcon,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Download,
+  FileCog,
+  Folder,
+  History,
+  Info,
+  MoreVertical,
+  Search,
+  Server,
+  SlidersHorizontal,
+  Trash2,
+  Upload as UploadIcon,
+} from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PropertyEditDrawer, { type PropertyEditDrawerRef } from '../../features/slee-config/components/PropertyEditDrawer';
@@ -31,6 +48,7 @@ import {
   useGetSleeConfigTenants,
 } from '../../features/slee-config/hooks/useSleeConfigQueries';
 import type { SleeConfigCategory, SleeConfigFile, SleeConfigIrSystem, SleeConfigProperty } from '../../features/slee-config/types';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -65,7 +83,6 @@ export default function SleeConfigList() {
   const [reservationAt, setReservationAt] = useState<Dayjs | null>(null);
   const [checkedSystemIds, setCheckedSystemIds] = useState<Set<number>>(new Set());
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const propertyEditDrawerRef = useRef<PropertyEditDrawerRef>(null);
   const importModalRef = useRef<SleeUserconfigImportModalRef>(null);
   const historyModalRef = useRef<SleeConfigHistoryModalRef>(null);
@@ -78,6 +95,10 @@ export default function SleeConfigList() {
   const { data: rawTenants = [] } = useGetSleeConfigTenants();
   const tenants = useMemo(() => [...rawTenants].sort((a, b) => a.tenantId - b.tenantId), [rawTenants]);
   const tenantNameMap = useMemo(() => new Map(tenants.map((t) => [t.tenantId, t.tenantName])), [tenants]);
+  const tenantTabItems: TabBarItem<number>[] = useMemo(
+    () => tenants.map((tenant) => ({ id: tenant.tenantId, label: tenant.tenantName, icon: Building2, count: tenant.configFileCount })),
+    [tenants],
+  );
 
   const configFileParams = useMemo(() => (selectedTenantId ? { tenantId: selectedTenantId } : undefined), [selectedTenantId]);
   const { data: allConfigFiles = [] } = useGetSleeConfigFiles({
@@ -235,11 +256,13 @@ export default function SleeConfigList() {
   // ─── Phase 1: 환경파일 전체 삭제 ─────────────────────────────────────────
   const { mutate: deleteConfigFile } = useDeleteConfigFile({
     mutationOptions: {
-      onSuccess: (data) => {
+      onSuccess: (data, variables) => {
         toast.success(`환경파일이 삭제되었습니다. (USERCONFIG ${data.deletedRows}건 삭제${data.grantRemoved ? ' + GRANT 정리' : ''})`);
-        // 환경파일이 사라졌으니 선택 해제 + 전체 재조회
-        setSelectedConfigFile(null);
-        setSelectedCategory(null);
+        // 삭제한 카드가 현재 선택된 카드였을 때만 선택 해제 (다른 카드 삭제 시 기존 선택 유지)
+        if (selectedConfigFile === variables.configFile) {
+          setSelectedConfigFile(null);
+          setSelectedCategory(null);
+        }
         invalidateAllSleeConfig();
       },
       onError: (err: unknown) => {
@@ -250,23 +273,37 @@ export default function SleeConfigList() {
     },
   });
 
-  const handleDeleteConfigFile = useCallback(() => {
-    if (!selectedTenantId || !selectedConfigFile) return;
-    modal.confirm.delete({
-      options: {
-        title: '환경파일 전체 삭제',
-        content: (
-          <div>
-            <p>
-              환경파일 <b>"{selectedConfigFile}"</b> 의 모든 속성을 삭제합니다.
-            </p>
-            <p className="text-[12px] text-slate-500 mt-2">※ 진행 중 예약이 있으면 차단됩니다. 적용 이력/예약 기록/백업은 보존됩니다.</p>
-          </div>
-        ),
-      },
-      onOk: () => deleteConfigFile({ tenantId: selectedTenantId, configFile: selectedConfigFile }),
-    });
-  }, [modal, selectedTenantId, selectedConfigFile, deleteConfigFile]);
+  /** 카드 점세개 드롭다운의 "삭제" — 카드 선택 여부와 무관하게 해당 카드의 파일을 바로 삭제. */
+  const handleDeleteConfigFile = useCallback(
+    (file: SleeConfigFile) => {
+      modal.confirm.delete({
+        options: {
+          title: '환경파일 전체 삭제',
+          content: (
+            <div>
+              <p>
+                환경파일 <b>"{file.configFile}"</b> 의 모든 속성을 삭제합니다.
+              </p>
+              <p className="text-[12px] text-slate-500 mt-2">※ 진행 중 예약이 있으면 차단됩니다. 적용 이력/예약 기록/백업은 보존됩니다.</p>
+            </div>
+          ),
+        },
+        onOk: () => deleteConfigFile({ tenantId: file.tenantId, configFile: file.configFile }),
+      });
+    },
+    [modal, deleteConfigFile],
+  );
+
+  /** 카드 점세개 드롭다운 메뉴 (IvrEndpointList getCardMenuItems 패턴 동일). */
+  const getCardMenuItems = (file: SleeConfigFile) => [
+    {
+      key: 'delete',
+      label: '삭제',
+      icon: <Trash2 className="size-4" />,
+      danger: true,
+      onClick: () => handleDeleteConfigFile(file),
+    },
+  ];
 
   // ─── 환경변수 Export (cfg ZIP) — AS-IS IPR30S3030EX ──────────────────────
   const { mutate: exportConfig, isPending: isExporting } = useExportSleeConfig();
@@ -516,48 +553,12 @@ export default function SleeConfigList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 테넌트 탭 바 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-10 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            <div ref={tabScrollRef} className="flex items-stretch flex-1 min-w-0 overflow-x-auto divide-x divide-gray-200" style={{ scrollbarWidth: 'none' }}>
-              {tenants.map((tenant) => {
-                const isActive = selectedTenantId === tenant.tenantId;
-                return (
-                  <button
-                    key={tenant.tenantId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleTenantSelect(tenant.tenantId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Building2 className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{tenant.tenantName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({tenant.configFileCount})</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="flex-shrink-0 w-10 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+        <TabBar<number>
+          items={tenantTabItems}
+          selectedId={selectedTenantId}
+          onSelect={handleTenantSelect}
+          rightContent={
+            <>
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -566,6 +567,9 @@ export default function SleeConfigList() {
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
+              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
+                이력
+              </Button>
               <Button
                 variant="solid"
                 icon={<UploadIcon className="size-3.5" />}
@@ -577,21 +581,9 @@ export default function SleeConfigList() {
               <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} disabled={!selectedConfigFile} onClick={handleExport}>
                 Export
               </Button>
-              <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
-                파일단위 적용
-              </Button>
-              <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
-                예약 적용 결과
-              </Button>
-              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
-                이력
-              </Button>
-              <Button color="red" variant="solid" icon={<Trash2 className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleDeleteConfigFile}>
-                파일삭제
-              </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {/* ===== 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
@@ -625,7 +617,16 @@ export default function SleeConfigList() {
                           (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }}
                       >
-                        <span className="text-sm font-semibold text-gray-800 truncate mb-1.5">{file.configFile}</span>
+                        <div className="flex items-start justify-between gap-1 mb-1.5">
+                          <span className="text-sm font-semibold text-gray-800 truncate">{file.configFile}</span>
+                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                            <Dropdown menu={{ items: getCardMenuItems(file) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-3.5 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
                         <div className="text-xs text-gray-500 space-y-0.5">
                           <div className="flex items-center gap-1">
                             <Building2 className="size-3 text-gray-400" />
@@ -651,13 +652,19 @@ export default function SleeConfigList() {
         {/* ===== 하단: 카테고리(좌) + 속성(우) ===== */}
         <div className="flex flex-1 min-h-0 gap-4">
           {/* 카테고리 그리드 */}
+          {/* 카테고리는 USERCONFIG (속성) 의 컬럼일 뿐 별도 마스터 없음 → 단독 CUD 불요 (레거시 IPR30S3030 도 없음) */}
           <div className="bg-white bt-shadow flex flex-col w-[420px] flex-shrink-0 min-h-0 overflow-hidden">
-            {/* 카테고리는 USERCONFIG (속성) 의 컬럼일 뿐 별도 마스터 없음 → 단독 CUD 불요 (레거시 IPR30S3030 도 없음) */}
-            {/* 헤더 min-h-[49px] — 속성 그리드 헤더(버튼 포함) 와 높이 통일 */}
-            <div className="px-4 py-2 flex items-center flex-shrink-0 border-b border-gray-100 min-h-[49px]">
-              <span className="text-sm font-semibold text-gray-800">카테고리 ({allCategories.length})</span>
+            <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Folder className="size-4 text-[#405189]" />
+                <h3 className="text-sm font-semibold text-gray-800">
+                  카테고리 — <span className="text-[#405189]">{selectedConfigFile ?? ''}</span>
+                </h3>
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{allCategories.length}개</span>
+              </div>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="border-t border-gray-200" />
+            <div className="flex-1 min-h-0 p-5">
               {selectedConfigFile ? (
                 <AgGridReact<SleeConfigCategory>
                   rowData={allCategories}
@@ -672,9 +679,8 @@ export default function SleeConfigList() {
                   }}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
-                  <Empty description={false} styles={{ image: { height: 32 } }} />
-                  <span className="text-xs">환경파일을 선택하세요</span>
+                <div className="flex items-center justify-center h-full">
+                  <Empty description="환경파일을 선택하세요" />
                 </div>
               )}
             </div>
@@ -682,21 +688,31 @@ export default function SleeConfigList() {
 
           {/* 속성 그리드 */}
           <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className="px-4 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100 min-h-[49px]">
-              <span className="text-sm font-semibold text-gray-800">
-                {selectedCategory ? `${selectedCategory} 속성` : '속성'} ({properties.length})
-              </span>
+            <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="size-4 text-[#405189]" />
+                <h3 className="text-sm font-semibold text-gray-800">
+                  속성 — <span className="text-[#405189]">{selectedCategory ?? ''}</span>
+                </h3>
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{properties.length}개</span>
+              </div>
               <div className="flex gap-2 items-center">
-                <Button color="purple" variant="solid" icon={<Settings className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
-                  항목단위 적용 ({selectedPropertyKeys.size})
-                </Button>
-                {/* 삭제는 행별 휴지통으로 처리 (DNIS관리(MCS) 패턴 동일) */}
                 <Button type="primary" icon={<span className="text-base leading-none">+</span>} disabled={!selectedConfigFile} onClick={handleOpenPropertyCreate}>
                   속성 추가
                 </Button>
+                <Button color="purple" variant="solid" icon={<CheckSquareIcon className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
+                  항목단위 적용 ({selectedPropertyKeys.size})
+                </Button>
+                <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
+                  파일단위 적용
+                </Button>
+                <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
+                  예약 적용 결과
+                </Button>
               </div>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="border-t border-gray-200" />
+            <div className="flex-1 min-h-0 p-5">
               {selectedCategory ? (
                 <AgGridReact<SleeConfigProperty>
                   rowData={properties}
@@ -710,9 +726,8 @@ export default function SleeConfigList() {
                   onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
-                  <Empty description={false} styles={{ image: { height: 32 } }} />
-                  <span className="text-xs">카테고리를 선택하세요</span>
+                <div className="flex items-center justify-center h-full">
+                  <Empty description="카테고리를 선택하세요" />
                 </div>
               )}
             </div>

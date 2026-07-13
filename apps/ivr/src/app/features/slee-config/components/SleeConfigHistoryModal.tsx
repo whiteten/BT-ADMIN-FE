@@ -276,7 +276,7 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
         onCancel={() => setVisible(false)}
         title={
           <span>
-            환경변수 이력 — <span className="text-blue-700">{payload?.configFile ?? '-'}</span>
+            환경변수 적용이력 — <span className="text-blue-700">{payload?.configFile ?? '-'}</span>
           </span>
         }
         width={1200}

@@ -251,9 +251,6 @@ export default function MentFileList() {
               <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{rows.length}개</span>
             </div>
             <div className="flex items-center gap-2">
-              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} onClick={() => historyModalRef.current?.open({ checkedMentfileIds: checkedIds })}>
-                이력{checkedIds.length > 0 ? ` (${checkedIds.length}건 선택)` : ''}
-              </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
               </Button>
@@ -261,7 +258,10 @@ export default function MentFileList() {
                 다량추가
               </Button>
               <Button color="purple" variant="solid" icon={<UploadIcon className="size-3.5" />} disabled={checkedIds.length === 0} onClick={handleApply}>
-                일괄적용{checkedIds.length > 0 ? ` (${checkedIds.length})` : ''}
+                적용{checkedIds.length > 0 ? ` (${checkedIds.length})` : ''}
+              </Button>
+              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} onClick={() => historyModalRef.current?.open({ checkedMentfileIds: checkedIds })}>
+                적용 이력{checkedIds.length > 0 ? ` (${checkedIds.length}건 선택)` : ''}
               </Button>
               <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport}>
                 Export
