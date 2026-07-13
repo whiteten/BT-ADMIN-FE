@@ -163,11 +163,16 @@ export default function MentMgmtList() {
   });
 
   const handleCreate = () => {
-    if (selectedNodeId == null) {
-      toast.warning('노드를 먼저 선택하세요');
-      return;
-    }
-    setDrawer({ open: true, mode: 'create', nodeId: selectedNodeId, nodeName: ctxNodeName, tenantId: ctxTenantId, tenantName: ctxTenantName });
+    // 노드 미선택이면 드로어 안에서 노드를 선택 (스코프 노드 후보 전달)
+    setDrawer({
+      open: true,
+      mode: 'create',
+      nodeId: selectedNodeId,
+      nodeName: ctxNodeName,
+      tenantId: ctxTenantId,
+      tenantName: ctxTenantName,
+      nodeOptions: selectedNodeId == null ? nodes.map((n) => ({ nodeId: n.nodeId, nodeName: n.nodeName })) : undefined,
+    });
   };
 
   const handleEdit = (row: MentResponse) => {
@@ -331,8 +336,8 @@ export default function MentMgmtList() {
               type="primary"
               icon={<Plus className="size-3.5" />}
               onClick={handleCreate}
-              disabled={selectedNodeId == null}
-              title={selectedNodeId == null ? '노드를 선택하세요' : undefined}
+              disabled={nodes.length === 0}
+              title={nodes.length === 0 ? '등록 가능한 노드가 없습니다' : undefined}
             >
               멘트 등록
             </Button>

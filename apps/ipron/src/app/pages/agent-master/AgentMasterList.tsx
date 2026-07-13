@@ -409,7 +409,10 @@ export default function AgentMasterList() {
 
   const handleSelectGroup = useCallback((groupId: number | null) => {
     setSelectedGroupId(groupId);
-    if (groupId === null) setTreeTenantId(null); // "전체" 행 = 모든 테넌트/그룹 보기 (테넌트 필터 해제)
+    // 트리 선택은 상호배타 — 그룹을 고르면 테넌트 노드 하이라이트를 항상 해제한다.
+    // (안 그러면 다른 테넌트를 먼저 클릭해 둔 상태에서 그룹을 고르면 둘 다 파랗게 남음)
+    // 그룹은 groupId 만으로 유일 식별되므로 그리드 조회에 별도 테넌트 컨텍스트가 필요 없다.
+    setTreeTenantId(null);
     setSelectedRows([]);
   }, []);
 

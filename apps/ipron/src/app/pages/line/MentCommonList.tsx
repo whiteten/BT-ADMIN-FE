@@ -149,12 +149,16 @@ export default function MentCommonList() {
   });
 
   const handleCreate = () => {
-    if (selectedNodeId == null) {
-      toast.warning('노드를 먼저 선택하세요');
-      return;
-    }
-    // 공용멘트 = 공통(0) 고정.
-    setDrawer({ open: true, mode: 'create', nodeId: selectedNodeId, nodeName: selectedNodeName, tenantId: COMMON_TENANT_ID, tenantName: '공통' });
+    // 공용멘트 = 공통(0) 고정. 전체(노드 미선택)면 드로어 안에서 노드를 선택.
+    setDrawer({
+      open: true,
+      mode: 'create',
+      nodeId: selectedNodeId,
+      nodeName: selectedNodeName,
+      tenantId: COMMON_TENANT_ID,
+      tenantName: '공통',
+      nodeOptions: selectedNodeId == null ? nodes.map((n) => ({ nodeId: n.nodeId, nodeName: n.nodeName })) : undefined,
+    });
   };
 
   const handleEdit = (row: MentResponse) => {
@@ -306,8 +310,8 @@ export default function MentCommonList() {
                 type="primary"
                 icon={<Plus className="size-3.5" />}
                 onClick={handleCreate}
-                disabled={selectedNodeId == null}
-                title={selectedNodeId == null ? '노드를 선택하세요' : undefined}
+                disabled={nodes.length === 0}
+                title={nodes.length === 0 ? '등록 가능한 노드가 없습니다' : undefined}
               >
                 공용멘트 등록
               </Button>

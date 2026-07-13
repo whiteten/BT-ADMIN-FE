@@ -194,13 +194,10 @@ export default function MsGroupList() {
   };
 
   const handleCreateMsGroup = useCallback(() => {
-    if (!selectedNodeId) {
-      toast.warning('검색할 노드를 선택하십시오');
-      return;
-    }
-    const name = nodeNameMap.get(selectedNodeId) ?? '';
-    msGroupDrawerRef.current?.open(undefined, selectedNodeId, name);
-  }, [selectedNodeId, nodeNameMap]);
+    // 전체(노드 미선택)면 드로어 안에서 노드를 선택하도록 스코프 노드 목록을 넘김
+    const name = selectedNodeId ? (nodeNameMap.get(selectedNodeId) ?? '') : '';
+    msGroupDrawerRef.current?.open(undefined, selectedNodeId ?? undefined, name, selectedNodeId ? undefined : nodes);
+  }, [selectedNodeId, nodeNameMap, nodes]);
 
   const handleEditMsGroup = useCallback(
     (grp: MsGroup) => {
