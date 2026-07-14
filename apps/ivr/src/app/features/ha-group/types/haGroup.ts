@@ -19,12 +19,24 @@ export const HA_ROLE_TYPE_KIND = {
 } as const;
 export type HaRoleTypeKind = (typeof HA_ROLE_TYPE_KIND)[keyof typeof HA_ROLE_TYPE_KIND];
 
+/** 라벨은 BE HaRoleType enum(고정값, DB 미조회)과 동일 문자열로 이식. */
+export const HA_ROLE_TYPE_KIND_LABELS: Record<number, string> = {
+  [HA_ROLE_TYPE_KIND.BACKUP]: '백업장비',
+  [HA_ROLE_TYPE_KIND.SERVICE]: '서비스장비',
+};
+
 /** HA 그룹 모드 — 그룹 등록 시 기본값은 License sharing mode(20). */
 export const HA_GROUP_MODE_KIND = {
   N_PLUS_1_REDUNDANCY: 10,
   LICENSE_SHARING: 20,
 } as const;
 export type HaGroupModeKind = (typeof HA_GROUP_MODE_KIND)[keyof typeof HA_GROUP_MODE_KIND];
+
+/** 라벨은 BE HaGroupMode enum(고정값, DB 미조회)과 동일 문자열로 이식. */
+export const HA_GROUP_MODE_KIND_LABELS: Record<number, string> = {
+  [HA_GROUP_MODE_KIND.N_PLUS_1_REDUNDANCY]: 'N+1 Redundancy',
+  [HA_GROUP_MODE_KIND.LICENSE_SHARING]: 'License sharing mode',
+};
 
 /** HA Role 상태 — TB_HA_GROUP_STATUS 조인 결과(공통코드 HA_ROLE_STATUS). */
 export const HA_ROLE_STATUS_KIND = {
@@ -33,6 +45,13 @@ export const HA_ROLE_STATUS_KIND = {
   NORMAL: 30,
 } as const;
 export type HaRoleStatusKind = (typeof HA_ROLE_STATUS_KIND)[keyof typeof HA_ROLE_STATUS_KIND];
+
+/** 라벨은 BE HaRoleStatus enum(고정값, DB 미조회)과 동일 문자열로 이식. */
+export const HA_ROLE_STATUS_KIND_LABELS: Record<number, string> = {
+  [HA_ROLE_STATUS_KIND.WAITING]: '서비스 불가 상태',
+  [HA_ROLE_STATUS_KIND.ACTIVE]: '백업 상태',
+  [HA_ROLE_STATUS_KIND.NORMAL]: '서비스 상태',
+};
 
 // ─── Backend Response 타입 ─────────────────────────────────────────────────
 

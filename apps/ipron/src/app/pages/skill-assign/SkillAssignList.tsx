@@ -19,29 +19,8 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { CellClickedEvent, ColDef, GridOptions, IRowNode } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Empty, Input, InputNumber, Modal, Popover, Segmented, Spin, Tag } from 'antd';
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsDown,
-  ChevronsUp,
-  ClipboardList,
-  Eye,
-  FilterX,
-  FolderOpen,
-  Layers,
-  Package,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Pencil,
-  Plus,
-  Search,
-  Trash2,
-  Users,
-  Wrench,
-  X,
-} from 'lucide-react';
+import { Button, Input, InputNumber, Modal, Popover, Segmented, Spin, Tag } from 'antd';
+import { Check, ClipboardList, Eye, FilterX, FolderOpen, Layers, Package, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2, Users, Wrench, X } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AgentGroupTree from '../../features/agent-master/components/AgentGroupTree';
@@ -51,7 +30,6 @@ import SkillAgentChipList from '../../features/skill-assign/components/SkillAgen
 import SkillAgentEditDrawer from '../../features/skill-assign/components/SkillAgentEditDrawer';
 import SkillAssignGrantDrawer, { type GrantMapping } from '../../features/skill-assign/components/SkillAssignGrantDrawer';
 import SkillAssignStatusModal from '../../features/skill-assign/components/SkillAssignStatusModal';
-import SkillAssignTenantCard from '../../features/skill-assign/components/SkillAssignTenantCard';
 import SkillGroupApplyDrawer from '../../features/skill-assign/components/SkillGroupApplyDrawer';
 import {
   useBulkGrant,
@@ -59,7 +37,6 @@ import {
   useBulkUpdatePl,
   useGetAgentCoverage,
   useGetAgentsBySkillset,
-  useGetSkillAssignTenants,
   useGetSkillsetCoverage,
   useGetSkillsetsByAgent,
   useUpdateSkillAgent,
@@ -83,8 +60,6 @@ export default function SkillAssignList() {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
-
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Grid Refs (for quickFilter / filter reset) ──────────────────────────
   const agentGridRef1 = useRef<AgGridReactType<AgentResponse>>(null); // 모드① 좌 / 모드② 우
@@ -113,9 +88,11 @@ export default function SkillAssignList() {
   }, []);
 
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
+  // 멀티테넌트 개편(브랜치 C-2): 화면 내 "전체+테넌트" 카드 선택기 제거.
+  // 세션은 활성 테넌트로 토큰 스코프되므로 tenantId 를 넘기지 않고(BE 가 토큰 기준 스코프),
+  // 크로스테넌트 뷰는 헤더 TenantChip 전환 또는 통합운영으로 처리한다. → 항상 null 고정.
+  const selectedTenantId: number | null = null;
   const [mode, setMode] = useState<Mode>('agent');
-  const [cardExpanded, setCardExpanded] = useState(false);
 
   // 모드 ① 상담사별 (multi-select 양방향 + 트리 필터)
   const [agentSearch, setAgentSearch] = useState('');
@@ -133,8 +110,6 @@ export default function SkillAssignList() {
   // 교차테넌트 방지: row 선택 시 그 row 의 tenantId 로 상대 목록을 좁힘. 선택 해제 시 null(전체 복귀).
   const [lockedTenantId, setLockedTenantId] = useState<number | null>(null);
   const [grantDrawerOpen, setGrantDrawerOpen] = useState(false);
-  // (legacy single-select 잔재 — mode 'group' 의존성 위해 임시 유지)
-  const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [editRow, setEditRow] = useState<SkillAgentResponse | null>(null);
 
   // 툴바 P/L 기본값 입력 (항상 노출 — 배정 버튼 옆, SWAT sPriority/sSkillLevel 정합)
@@ -181,10 +156,8 @@ export default function SkillAssignList() {
   const [viewSkillsetTreeCollapsed, setViewSkillsetTreeCollapsed] = useState(false);
 
   // ─── Queries ────────────────────────────────────────────────────────────
-  const { data: tenantStats = [] } = useGetSkillAssignTenants();
-
   // 상담사 / 상담그룹 트리 / 스킬셋 / 업무그룹 트리 — 양쪽 모드 모두 필요 (좌우 반전만 다름)
-  // 카드 selectedTenantId 가 있으면 그 테넌트로 BE 조회를 필터링, null(전체) 이면 전체 조회.
+  // tenantId 미전달 → BE 가 토큰의 활성 테넌트로 스코프(브랜치 C-2).
   const { data: agents = [], isLoading: agentsLoading } = useGetAgents({
     params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
   });
@@ -291,17 +264,6 @@ export default function SkillAssignList() {
     },
   });
 
-  // 카드 전환 시 선택·잠금 초기화 (전체↔특정테넌트 전환 시 이전 선택이 잔류하지 않도록)
-  useEffect(() => {
-    setSelectedAgentIds([]);
-    setSelectedSkillsetIds([]);
-    setLockedTenantId(null);
-    agentGridRef1.current?.api?.deselectAll();
-    agentGridRef2.current?.api?.deselectAll();
-    skillsetGridRef1.current?.api?.deselectAll();
-    skillsetGridRef2.current?.api?.deselectAll();
-  }, [selectedTenantId]);
-
   // 양쪽 선택이 모두 빈 배열이 되면 lockedTenantId 를 해제.
   // onSelectionChanged 에서 empty 시 setLockedTenantId(null) 을 호출하지 않기 때문에
   // 그리드 체크박스로 전체 선택 해제했을 때 lock 이 풀리지 않는 문제를 보완한다.
@@ -329,22 +291,6 @@ export default function SkillAssignList() {
   }, [selectedSkillsetIds.length]);
 
   // ─── Derived ────────────────────────────────────────────────────────────
-  const totalStats = useMemo(() => {
-    let agentCount = 0;
-    let skillsetCount = 0;
-    let mappingCount = 0;
-    let skillGroupCount = 0;
-    let unassignedAgentCnt = 0;
-    for (const t of tenantStats) {
-      agentCount += t.agentCount;
-      skillsetCount += t.skillsetCount;
-      mappingCount += t.mappingCount;
-      skillGroupCount += t.skillGroupCount;
-      unassignedAgentCnt += t.unassignedAgentCnt;
-    }
-    return { agentCount, skillsetCount, mappingCount, skillGroupCount, unassignedAgentCnt };
-  }, [tenantStats]);
-
   const filteredAgents = useMemo(() => {
     const kw = agentSearch.trim().toLowerCase();
     if (!kw) return agents;
@@ -606,7 +552,7 @@ export default function SkillAssignList() {
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const agentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: true },
       { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
       { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
@@ -649,7 +595,7 @@ export default function SkillAssignList() {
         },
       },
     ],
-    [selectedSkillsetIds.length, agentCoverageMap, selectedSkillsetEntities, selectedTenantId, bulkRevoke],
+    [selectedSkillsetIds.length, agentCoverageMap, selectedSkillsetEntities, bulkRevoke],
   );
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — ag-Grid 34 에서 gridOptions.rowSelection 은
@@ -750,7 +696,7 @@ export default function SkillAssignList() {
   // checkboxSelection colDef 제거 — rowSelection.checkboxes:true 가 SelectionColumn 자동 생성하므로 중복 방지
   const skillsetColumnsAg = useMemo<ColDef<SkillsetResponse>[]>(
     () => [
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: true },
       { field: 'skillsetName', headerName: '스킬셋명', flex: 1, minWidth: 140 },
       {
         headerName: '보유 건수',
@@ -784,7 +730,7 @@ export default function SkillAssignList() {
         },
       },
     ],
-    [selectedAgentIds.length, coverageMap, selectedAgentEntities, selectedTenantId, bulkRevoke],
+    [selectedAgentIds.length, coverageMap, selectedAgentEntities, bulkRevoke],
   );
 
   // rowSelection 을 gridOptions 밖 직접 prop 으로 분리 — 동일 이유
@@ -877,12 +823,12 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (상담사 기준) ────────────────────
   const viewAgentColumnsAg = useMemo<ColDef<AgentResponse>[]>(
     () => [
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: true },
       { field: 'agentLoginId', headerName: '로그인ID', width: 110, tooltipField: 'agentLoginId' },
       { field: 'agentName', headerName: '이름', width: 90, tooltipField: 'agentName' },
       { field: 'groupName', headerName: '상담그룹', flex: 1, minWidth: 110, valueGetter: (p) => p.data?.groupName ?? '미배정' },
     ],
-    [selectedTenantId],
+    [],
   );
 
   const viewAgentRowSelection = useMemo(() => ({ mode: 'singleRow' as const, checkboxes: false, enableClickSelection: true }), []);
@@ -906,7 +852,7 @@ export default function SkillAssignList() {
   // ─── View 모드 — 좌측 단일선택 그리드 (스킬셋 기준) ────────────────────
   const viewSkillsetColumnsAg = useMemo<ColDef<SkillsetResponse>[]>(
     () => [
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: selectedTenantId !== null },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 140, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-', hide: true },
       { field: 'skillsetName', headerName: '스킬셋명', flex: 1, minWidth: 140 },
       {
         field: 'treeName',
@@ -925,7 +871,7 @@ export default function SkillAssignList() {
         cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>),
       },
     ],
-    [selectedTenantId],
+    [],
   );
 
   // ag-Grid 34: rowSelection 은 gridOptions 밖 직접 prop 으로 (초기 마운트 1회 제한 우회)
@@ -994,100 +940,6 @@ export default function SkillAssignList() {
             <ModeButton active={mode === 'view'} icon={<ClipboardList className="size-3.5" />} label="배정 현황" onClick={() => setMode('view')} />
           </div>
         </div>
-      </div>
-
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 — 별도 박스 (gap-4 로 헤더와 분리) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <SkillAssignTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">테넌트가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((g) => (
-                    <SkillAssignTenantCard
-                      key={g.tenantId}
-                      tenantId={g.tenantId}
-                      tenantName={g.tenantName ?? '-'}
-                      stats={{
-                        agentCount: g.agentCount,
-                        skillsetCount: g.skillsetCount,
-                        mappingCount: g.mappingCount,
-                        skillGroupCount: g.skillGroupCount,
-                        unassignedAgentCnt: g.unassignedAgentCnt,
-                      }}
-                      selected={selectedTenantId === g.tenantId}
-                      onClick={(e) => {
-                        setSelectedTenantId(g.tenantId);
-                        setSelectedAgentId(null);
-                        setViewSelectedAgentId(null);
-                        setViewSelectedSkillsetId(null);
-                        setViewAgentGroupId(null);
-                        setViewSkillsetTreeId(null);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill name="전체" count={totalStats.mappingCount} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantStats.map((g) => (
-                  <CompactTenantPill
-                    key={g.tenantId}
-                    name={g.tenantName ?? '-'}
-                    count={g.mappingCount}
-                    selected={selectedTenantId === g.tenantId}
-                    onClick={() => {
-                      setSelectedTenantId(g.tenantId);
-                      setSelectedAgentId(null);
-                      setViewSelectedAgentId(null);
-                      setViewSelectedSkillsetId(null);
-                      setViewAgentGroupId(null);
-                      setViewSkillsetTreeId(null);
-                    }}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ===== 모드 ① 상담사별 스킬배정 (A→S) — 좌(상담사 multi) + 우(스킬셋 multi, 보유율) ===== */}
@@ -2050,31 +1902,6 @@ function ModeButton({ active, icon, label, onClick }: ModeButtonProps) {
     >
       {icon}
       {label}
-    </button>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · 매핑 ${count.toLocaleString()}건`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}건</span>
     </button>
   );
 }

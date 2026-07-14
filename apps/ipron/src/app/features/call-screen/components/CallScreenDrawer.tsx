@@ -12,6 +12,17 @@
  *   [d-d](범위), [d](리터럴 1자리), [d,d,...](열거), |(OR 구분자)
  * 괄호: ^( ... )$ 형태만 허용
  */
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { Button, Drawer, Form, Input, Select } from 'antd';
+import { List } from 'lucide-react';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
+import { toast } from '@/shared-util';
+import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
+import type { NumPattern } from '../../did-trans/types';
+import { useCreateCallScreen, useDeleteCallScreen, useUpdateCallScreen } from '../hooks/useCallScreenQueries';
+import type { CallScreen, CallScreenCreateRequest, CallScreenUpdateRequest } from '../types';
+import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
 function validateNumPattern(patterns: string): boolean {
   const TOKEN_RE = /\[\d+-\d\]|X|Z|N|!|\.|\[\d+\](\d+)?|\[\d+(,\d+)*\](\d+)?|\d/g;
   const patternList = patterns.toUpperCase().split('|');
@@ -31,18 +42,8 @@ function validateNumPattern(patterns: string): boolean {
   return true;
 }
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Button, Drawer, Form, Input, Select } from 'antd';
-import { List } from 'lucide-react';
-import { toast } from '@/shared-util';
-import NumPatternDrawer, { type NumPatternDrawerRef } from '../../did-trans/components/NumPatternDrawer';
-import type { NumPattern } from '../../did-trans/types';
-import { useCreateCallScreen, useDeleteCallScreen, useUpdateCallScreen } from '../hooks/useCallScreenQueries';
-import type { CallScreen, CallScreenCreateRequest, CallScreenUpdateRequest } from '../types';
-import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
-
 export interface CallScreenDrawerRef {
-  open: (data?: CallScreen, nodeId?: number, nodeName?: string, tenantId?: number, tenantName?: string) => void;
+  open: (data?: CallScreen, tenantId?: number, tenantName?: string) => void;
   close: () => void;
 }
 
@@ -53,10 +54,14 @@ interface Props {
 const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, ref) => {
   const [form] = Form.useForm();
   const modal = useModal();
+  // 운영자 모드에서만 "테넌트" 표시 필드 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<CallScreen | null>(null);
-  const [nodeId, setNodeId] = useState<number | null>(null);
-  const [nodeName, setNodeName] = useState('');
   const [tenantId, setTenantId] = useState<number | null>(null);
   const [tenantName, setTenantName] = useState('');
   const [patternDrawerOpen, setPatternDrawerOpen] = useState(false);
@@ -66,11 +71,10 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   const isEditMode = !!editData;
 
   useImperativeHandle(ref, () => ({
-    open: (data?: CallScreen, initNodeId?: number, initNodeName?: string, initTenantId?: number, initTenantName?: string) => {
+    open: (data?: CallScreen, initTenantId?: number, initTenantName?: string) => {
       setEditData(data ?? null);
-      setNodeId(data?.nodeId ?? initNodeId ?? null);
-      setNodeName(data?.nodeName ?? initNodeName ?? '');
-      setTenantId(data?.tenantId ?? initTenantId ?? null);
+      // 일반 모드: 로그인 테넌트로 고정(부모가 넘긴 값 우선, 없으면 활성 테넌트 폴백).
+      setTenantId(data?.tenantId ?? initTenantId ?? (operatorMode ? null : activeTenantId));
       setTenantName(data?.tenantName ?? initTenantName ?? '');
       setVisible(true);
     },
@@ -129,8 +133,6 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   const handleClose = useCallback(() => {
     setVisible(false);
     setEditData(null);
-    setNodeId(null);
-    setNodeName('');
     setTenantId(null);
     setTenantName('');
     form.resetFields();
@@ -148,12 +150,12 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         };
         updateCallScreen({ id: editData.callscreenId, data: payload });
       } else {
-        if (!nodeId || !tenantId) {
-          toast.error('노드와 테넌트 정보가 필요합니다');
+        if (!tenantId) {
+          toast.error('테넌트 정보가 필요합니다');
           return;
         }
         const payload: CallScreenCreateRequest = {
-          nodeId,
+          nodeId: 0, // 수신번호차단은 노드 개념 미사용 — NODE_ID 항상 0 고정 (BE 무변경)
           tenantId,
           numPattern: values.numPattern,
           screenDesc: values.screenDesc || null,
@@ -164,7 +166,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
     } catch {
       /* validation failed */
     }
-  }, [form, isEditMode, editData, nodeId, tenantId, createCallScreen, updateCallScreen]);
+  }, [form, isEditMode, editData, tenantId, createCallScreen, updateCallScreen]);
 
   const handleDelete = useCallback(() => {
     if (!editData) return;
@@ -221,13 +223,11 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         }
       >
         <Form form={form} layout="vertical" initialValues={{ numPattern: '', screenDesc: '', dnGroupId: null }}>
-          <Form.Item label="노드">
-            <Input value={nodeName} disabled />
-          </Form.Item>
-
-          <Form.Item label="테넌트">
-            <Input value={tenantName} disabled />
-          </Form.Item>
+          {operatorMode && (
+            <Form.Item label="테넌트">
+              <Input value={tenantName} disabled />
+            </Form.Item>
+          )}
 
           <Form.Item
             name="numPattern"

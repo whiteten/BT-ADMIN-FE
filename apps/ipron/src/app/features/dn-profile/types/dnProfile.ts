@@ -87,16 +87,6 @@ export interface TenantSimpleResponse {
 }
 
 /**
- * 노드-테넌트 매핑 (활성 테넌트)
- */
-export interface NodeTenantItem {
-  nodeId: number;
-  nodeName: string;
-  tenantId: number;
-  tenantName: string;
-}
-
-/**
  * 프로파일 옵션 항목 (드롭다운용)
  */
 export interface ProfileOptionItem {

@@ -46,7 +46,6 @@ import type {
   DnSnrTodRequest,
   DnSnrTodResponse,
   DnUpdateRequest,
-  NodeTenantItem,
 } from '../types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -148,16 +147,6 @@ export const dnApi = {
   },
 
   // ─── Aux (노드/테넌트/옵션) ────────────────────────────────────────────────
-
-  /**
-   * 노드-테넌트 매핑 조회 (계약수량 포함)
-   * Backend: ApiResponse<List<NodeTenantItem>> -> BFF: data.value[]
-   * @flow ipron-dn-node-tenants
-   */
-  getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dn-node-tenants');
-    return response.data?.data?.value ?? [];
-  },
 
   /**
    * 현재 DN 수 + 계약수량 조회 (계약수량 체크용)

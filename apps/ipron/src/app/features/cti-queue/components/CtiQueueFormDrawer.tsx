@@ -20,6 +20,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Drawer, Form, Input, InputNumber, Modal, Radio, Select, Tabs } from 'antd';
 import { ArrowRight, Plus, Trash2 } from 'lucide-react';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetMentOptions } from '../../ment-mgmt/hooks/useMentQueries';
 import { ctiQueueApi } from '../api/ctiQueueApi';
@@ -132,6 +133,12 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   const navigate = useNavigate();
   const [form] = Form.useForm<FormValues>();
   const [activeTab, setActiveTab] = useState('basic');
+  // 운영자 모드에서만 "테넌트" 선택/표시 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   // async 옵션(그룹/BSR그룹/스킬셋) 기반 select 의 "실제 값" 보류 저장소 (BUG-2):
   // 옵션이 늦게 도착하면 그 전에 set 한 값이 매칭 옵션을 못 찾아 antd 가 raw ID 를 잠깐 노출.
@@ -412,7 +419,8 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
         mediaVals[skillLevelKey(mediaType)] = 0;
       }
       form.setFieldsValue({
-        tenantId: state.tenantId ?? undefined,
+        // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+        tenantId: state.tenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined)),
         nodeId: state.nodeId ?? undefined,
         gdnNo: '',
         gdnName: '',
@@ -718,6 +726,28 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
     </Radio.Group>
   );
 
+  // ─── 테넌트 필드(기본정보 탭) — 운영자 모드에서만 노출. 일반 콘솔은 숨김(로그인 테넌트 고정, 값만 유지). ───
+  let tenantBasicField: React.ReactNode;
+  if (!operatorMode) {
+    tenantBasicField = (
+      <Form.Item name="tenantId" hidden rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+        <Input />
+      </Form.Item>
+    );
+  } else if (isEdit) {
+    tenantBasicField = (
+      <Form.Item label="테넌트명">
+        <Input value={(state.open && state.tenantName) || (state.open && state.tenantId != null ? `테넌트 ${state.tenantId}` : '-')} disabled />
+      </Form.Item>
+    );
+  } else {
+    tenantBasicField = (
+      <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+        <Select options={tenantOptions} showSearch optionFilterProp="label" placeholder="테넌트 선택" />
+      </Form.Item>
+    );
+  }
+
   // ─── Tabs ─────────────────────────────────────────────────────────────────
   const tabItems = [
     {
@@ -726,15 +756,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       forceRender: true,
       children: (
         <div className="grid grid-cols-2 gap-x-6 gap-y-0 [&_.ant-form-item]:!mb-1.5">
-          {isEdit ? (
-            <Form.Item label="테넌트명">
-              <Input value={(state.open && state.tenantName) || (state.open && state.tenantId != null ? `테넌트 ${state.tenantId}` : '-')} disabled />
-            </Form.Item>
-          ) : (
-            <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
-              <Select options={tenantOptions} showSearch optionFilterProp="label" placeholder="테넌트 선택" />
-            </Form.Item>
-          )}
+          {tenantBasicField}
           {isEdit ? (
             <Form.Item label="노드">
               <Input value={state.open ? (state.nodeName ?? (state.nodeId != null ? `노드 ${state.nodeId}` : '-')) : '-'} disabled />

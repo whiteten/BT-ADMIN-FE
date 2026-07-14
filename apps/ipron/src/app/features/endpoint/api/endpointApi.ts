@@ -108,15 +108,6 @@ export const endpointApi = {
   },
 
   /**
-   * 노드 테넌트 목록 조회
-   * @flow ipron-endpoint-node-tenants
-   */
-  getNodeTenants: async (params: Record<string, unknown>): Promise<Array<{ tenantId: number; tenantName: string }>> => {
-    const response = await apiClient.get<ApiResponse<{ value: Array<{ tenantId: number; tenantName: string }> }>>('/ipron-endpoint-node-tenants', { params });
-    return response.data?.data?.value ?? [];
-  },
-
-  /**
    * 인증번호 서버 등록 요청 (IDS Command)
    * @flow ipron-endpt-regnum-register
    */

@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Spin, Tabs } from 'antd';
 import { Trash2 } from 'lucide-react';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ACTIVATE_OPTIONS, GRP_ANI_OPTIONS, MEDIA_KEY_LABELS, MEDIA_OPTION_BOUNDS } from '../constants/codes';
 import {
@@ -58,6 +59,12 @@ function flattenGroups(tree: AgentGroupNode[], tenantId?: number, excludeId?: nu
 export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenantId, initialPriorGrpId, onClose }: AgentGroupFormDrawerProps) {
   const isEdit = mode === 'edit';
   const modal = useModal();
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const [form] = Form.useForm<FormValues>();
   const [matrix, setMatrix] = useState<Matrix | null>(null);
@@ -124,14 +131,16 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
       setMatrix(detail.mediaMatrix);
     } else if (!isEdit) {
       const init: FormValues = { activateYn: 1, grpAniYn: 0 };
-      if (initialTenantId) {
-        init.tenantId = initialTenantId;
-        setSelectedTenantId(initialTenantId);
+      // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      const createTenantId = initialTenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined));
+      if (createTenantId) {
+        init.tenantId = createTenantId;
+        setSelectedTenantId(createTenantId);
       }
       if (initialPriorGrpId) init.priorGrpId = initialPriorGrpId;
       form.setFieldsValue(init);
     }
-  }, [open, isEdit, detail, form, initialTenantId, initialPriorGrpId]);
+  }, [open, isEdit, detail, form, initialTenantId, initialPriorGrpId, operatorMode, activeTenantId]);
 
   const tenantOptions = useMemo(() => tenantStats.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenantStats]);
 
@@ -248,22 +257,29 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
                   <div>
                     <SectionTitle>소속</SectionTitle>
                     <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
-                          <Select
-                            options={tenantOptions}
-                            disabled={isEdit}
-                            placeholder="테넌트 선택"
-                            onChange={(v) => {
-                              setSelectedTenantId(v);
-                              form.setFieldsValue({ priorGrpId: 0 });
-                            }}
-                            showSearch
-                            optionFilterProp="label"
-                          />
+                      {operatorMode ? (
+                        <Col span={12}>
+                          <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+                            <Select
+                              options={tenantOptions}
+                              disabled={isEdit}
+                              placeholder="테넌트 선택"
+                              onChange={(v) => {
+                                setSelectedTenantId(v);
+                                form.setFieldsValue({ priorGrpId: 0 });
+                              }}
+                              showSearch
+                              optionFilterProp="label"
+                            />
+                          </Form.Item>
+                        </Col>
+                      ) : (
+                        /* 일반 콘솔 — 테넌트 숨김(로그인 테넌트 고정). 값만 유지. */
+                        <Form.Item name="tenantId" hidden rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+                          <InputNumber />
                         </Form.Item>
-                      </Col>
-                      <Col span={12}>
+                      )}
+                      <Col span={operatorMode ? 12 : 24}>
                         <Form.Item label="상위 그룹" name="priorGrpId">
                           <Select
                             options={parentGroupOptions}

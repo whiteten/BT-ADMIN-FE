@@ -20,8 +20,8 @@ import { type ChangeEvent, createContext, useCallback, useContext, useEffect, us
 import type { CellStyle, ColDef, GridOptions, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, InputNumber, Select } from 'antd';
-import { Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Save, Search, Trash2, X } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { ChevronLeft, ChevronRight, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { GridRowColorLegend, ROW_COLOR_PALETTE } from '../../components/GridRowColorLegend';
 import BsrCtiqAssignPanel from '../../features/bsr-ctiq-mapping/components/BsrCtiqAssignPanel';
@@ -58,6 +58,7 @@ import {
 } from '../../features/bsr-group/types';
 import { useGetCtiQueueGroups } from '../../features/cti-queue/hooks/useCtiQueueQueries';
 import type { CtiQueueGroupResponse } from '../../features/cti-queue/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { TreeCaret, TreeFolderIcon, TreeLabel, TreeRow } from '@/components/custom/TreeView';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -68,49 +69,6 @@ import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTr
 // ──────────────────────────────────────────────────────────
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '라우팅 설정' }, { title: 'BSR 그룹 관리', path: '/ipron/bsr-group-manage' }];
-
-// ──────────────────────────────────────────────────────────
-//  테넌트 카드 컴포넌트 (AdnList 표준 패턴)
-// ──────────────────────────────────────────────────────────
-
-interface BsrTenantCardProps {
-  tenantId: number | null;
-  tenantName: string;
-  bsrGroupCount: number;
-  selected: boolean;
-  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
-}
-
-function BsrTenantCard({ tenantId, tenantName, bsrGroupCount, selected, onClick }: BsrTenantCardProps) {
-  const isAll = tenantId === null;
-  return (
-    <div
-      className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[240px] h-[100px] flex-shrink-0 flex flex-col ${
-        selected ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-      }`}
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-1.5 mb-1">
-        {isAll ? (
-          <span className={`text-[13px] font-semibold ${selected ? 'text-[#405189]' : 'text-gray-600'}`}>전체</span>
-        ) : (
-          <>
-            <Building2 className={`size-3.5 flex-shrink-0 ${selected ? 'text-[#405189]' : 'text-gray-500'}`} />
-            <span className={`text-[13px] font-semibold truncate ${selected ? 'text-[#405189]' : 'text-gray-800'}`} title={tenantName}>
-              {tenantName}
-            </span>
-          </>
-        )}
-      </div>
-      <div className="flex-1 flex flex-col gap-0.5 text-xs text-gray-600">
-        <div className="flex items-center justify-between">
-          <span className="text-gray-500">BSR 그룹</span>
-          <span className="font-semibold text-gray-800">{bsrGroupCount.toLocaleString()}건</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ──────────────────────────────────────────────────────────
 //  업무그룹 트리 패널 — 읽기 전용 (USER-DECISIONS §1)
@@ -469,16 +427,24 @@ export default function BsrGroupManage() {
 
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
-  const [cardExpanded, setCardExpanded] = useState(false);
   const [grpSearch, setGrpSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<BsrGroupResponse | null>(null);
   const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
@@ -508,11 +474,6 @@ export default function BsrGroupManage() {
   const [groupDrawerOpen, setGroupDrawerOpen] = useState(false);
   const [groupDrawerMode, setGroupDrawerMode] = useState<'create' | 'edit'>('create');
   const [groupDrawerData, setGroupDrawerData] = useState<BsrGroupResponse | null>(null);
-
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) setSelectedTenantId(ctxTenantId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: tenantStats = [] } = useGetBsrGroupTenants();
@@ -638,7 +599,11 @@ export default function BsrGroupManage() {
   const ctiqGridRef = useRef<import('ag-grid-react').AgGridReact<BsrCtiqMappingResponse>>(null);
 
   // ─── Derived ────────────────────────────────────────────────────────────────
-  const totalGroupCount = useMemo(() => tenantStats.reduce((s: number, t: BsrGroupTenantStat) => s + (t.bsrGroupCount ?? 0), 0), [tenantStats]);
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 총 BSR 그룹 수 (+ 전체일 때 테넌트 수).
+  const summary = useMemo(() => {
+    const rows = selectedTenantId == null ? tenantStats : tenantStats.filter((t: BsrGroupTenantStat) => t.tenantId === selectedTenantId);
+    return { total: rows.reduce((s: number, t: BsrGroupTenantStat) => s + (t.bsrGroupCount ?? 0), 0), tenantCount: rows.length };
+  }, [tenantStats, selectedTenantId]);
 
   const filteredGroups = useMemo(() => {
     const kw = grpSearch.trim().toLowerCase();
@@ -1018,107 +983,42 @@ export default function BsrGroupManage() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ─ 박스1: 헤더 ─ */}
+      {/* ─ 박스1: 헤더 (스코프 선택 + 요약) ─ */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[56px] gap-2">
-          <span className="text-sm font-semibold text-gray-700">BSR 그룹 관리</span>
-          {selectedGroup && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트:{' '}
-              <span className="font-medium text-gray-700">
-                {tenantStats.find((t: BsrGroupTenantStat) => t.tenantId === (selectedGroup.tenantId ?? selectedTenantId))?.tenantName ?? '-'}
+        <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t: BsrGroupTenantStat) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.bsrGroupCount }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedGroup(null);
+                setSelectedGroupIds([]);
+              }}
+            />
+          )}
+          {/* 요약 — 총 BSR 그룹 (+ 전체일 때 테넌트 수). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 BSR 그룹 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            {selectedTenantId == null && (
+              <span className="text-gray-500">
+                테넌트 <b className="text-[#405189] font-semibold">{summary.tenantCount.toLocaleString()}</b>
               </span>
-              {' / '}BSR 그룹: <span className="font-medium text-[#405189]">{selectedGroup.bsrGroupName}</span>
+            )}
+          </div>
+          {selectedGroup && (
+            <span className="ml-auto text-xs text-gray-500">
+              선택 그룹: <span className="font-medium text-[#405189]">{selectedGroup.bsrGroupName}</span>
             </span>
           )}
         </div>
       </div>
 
-      {/* ─ 박스2: 테넌트 카드 슬라이더 ─ */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <BsrTenantCard tenantId={null} tenantName="전체" bsrGroupCount={totalGroupCount} selected={selectedTenantId === null} onClick={() => setSelectedTenantId(null)} />
-                {tenantStats.map((t: BsrGroupTenantStat) => (
-                  <BsrTenantCard
-                    key={t.tenantId}
-                    tenantId={t.tenantId}
-                    tenantName={t.tenantName ?? '-'}
-                    bsrGroupCount={t.bsrGroupCount ?? 0}
-                    selected={selectedTenantId === t.tenantId}
-                    onClick={(e) => {
-                      setSelectedTenantId(t.tenantId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTenantId(null)}
-                  className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-                    selectedTenantId === null ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-                  }`}
-                >
-                  <span className="font-medium">전체</span>
-                  <span className={`text-[11px] ${selectedTenantId === null ? 'text-white/80' : 'text-gray-400'}`}>{totalGroupCount.toLocaleString()}</span>
-                </button>
-                {tenantStats.map((t: BsrGroupTenantStat) => (
-                  <button
-                    key={t.tenantId}
-                    type="button"
-                    onClick={() => setSelectedTenantId(t.tenantId)}
-                    className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-                      selectedTenantId === t.tenantId
-                        ? 'border-[#405189] bg-[#405189] text-white'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-                    }`}
-                  >
-                    <span className="font-medium truncate max-w-[120px]">{t.tenantName ?? '-'}</span>
-                    <span className={`text-[11px] ${selectedTenantId === t.tenantId ? 'text-white/80' : 'text-gray-400'}`}>{(t.bsrGroupCount ?? 0).toLocaleString()}</span>
-                  </button>
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ─ 박스3: 좌우 분할 ─ */}
+      {/* ─ 박스2: 좌우 분할 ─ */}
       <div ref={splitBoxRef} className="flex flex-1 min-h-0 gap-0">
         {/* 좌: BSR 그룹 목록 */}
         <div

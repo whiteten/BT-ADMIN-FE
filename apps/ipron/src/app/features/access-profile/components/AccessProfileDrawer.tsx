@@ -6,6 +6,7 @@
  */
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import type { NodeTenantItem } from '../api/accessProfileApi';
 import type { AccessProfile, NodeSimpleResponse, ProfileCreateData, ProfileUpdateData, TenantSimpleResponse } from '../types';
 
@@ -27,6 +28,12 @@ const AccessProfileDrawer = forwardRef<AccessProfileDrawerRef, AccessProfileDraw
   const [isOpen, setIsOpen] = useState(false);
   const [editProfile, setEditProfile] = useState<AccessProfile | null>(null);
   const [form] = Form.useForm();
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const isEditMode = !!editProfile;
 
@@ -43,7 +50,8 @@ const AccessProfileDrawer = forwardRef<AccessProfileDrawerRef, AccessProfileDraw
       } else {
         setEditProfile(null);
         form.setFieldsValue({
-          tenantId: tenantId ?? undefined,
+          // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+          tenantId: tenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined)),
           nodeId: nodeId ?? undefined,
         });
       }
@@ -112,13 +120,14 @@ const AccessProfileDrawer = forwardRef<AccessProfileDrawerRef, AccessProfileDraw
             showSearch
             optionFilterProp="label"
             onChange={() => {
-              // 노드 변경 시 테넌트 선택 초기화 (해당 노드에 없는 테넌트가 선택돼 있을 수 있음)
-              if (!isEditMode) form.setFieldValue('tenantId', undefined);
+              // 노드 변경 시 테넌트 선택 초기화 (해당 노드에 없는 테넌트가 선택돼 있을 수 있음).
+              // 일반 모드는 테넌트가 로그인 테넌트로 고정(숨김)이므로 그 값을 유지.
+              if (!isEditMode) form.setFieldValue('tenantId', operatorMode ? undefined : (activeTenantId ?? undefined));
             }}
           />
         </Form.Item>
 
-        <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택해주세요' }]}>
+        <Form.Item label="테넌트" name="tenantId" hidden={!operatorMode} rules={[{ required: true, message: '테넌트를 선택해주세요' }]}>
           <Select
             placeholder={watchedNodeId ? '테넌트 선택' : '노드를 먼저 선택하세요'}
             options={tenantOptions}

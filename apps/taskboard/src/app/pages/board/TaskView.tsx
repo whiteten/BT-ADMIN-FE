@@ -1,18 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useBreadcrumbStore } from '@/shared-store';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
-import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
 import { WebEmbedWidget, isWebEmbedWidget } from '../../features/board/components/WebEmbedWidget';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, useCtiqWebSocket } from '../../features/board/hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../../features/board/hooks/useResponsiveFontScale';
 import {
-  useGetCtiAgentList,
-  useGetCtiGroupList,
-  useGetCtiQueueList,
   useGetDbQueryDefList,
   useGetDbQueryDefOptionsMulti,
   useGetRedisHashKeys,
@@ -20,17 +15,16 @@ import {
   useGetTaskboardLayoutList,
 } from '../../features/board/hooks/useTaskboardQueries';
 import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnimation';
-import { type ChartConfig, type DroppedWidget, type TableColumn, type TaskboardDisplaySelection, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
+import { type DroppedWidget, type TaskboardDisplaySelection, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
-import { buildLiveChartData, buildLiveTableRows, collectTableColumns, mergeByHashKeys } from '../../features/board/utils/legacyMasterWidgets';
 import {
   buildDataSourceKeySelectionIds,
   buildGroupReasonHashKeys,
   buildReasonFamilyTargetIdsByPrefix,
-  buildSelectionIdsByHashKey,
   collectDbQueryWsSubscriptions,
   collectRedisWsSubscriptions,
   extractNameValueItems,
+  findEntitySelectionDbQueryIdsByPrefix,
   getCalcDisplayValue,
   getRedisDisplayValue,
   groupSumAcrossHashKeys,
@@ -40,7 +34,6 @@ import {
   parseGroupReasonHashKey,
   resolveGroupIdsFromSelection,
   resolveMediaTypesFromSelection,
-  resolveQueueIdsFromSelection,
   resolveValidEntityIds,
 } from '../../features/board/utils/redisValue';
 import {
@@ -57,8 +50,6 @@ import {
 /** 섹션키 → selection 맵. TaskView 섹션 모드에서 각 섹션의 뷰 그룹 선택값을 담는다. */
 type SectionSelections = Record<string, TaskboardDisplaySelection>;
 
-const CHART_VIEW_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
-
 const VIEW_GRID_COLS = 24;
 const VIEW_GRID_ROWS = 20;
 
@@ -69,172 +60,6 @@ function parseSelection(selectionJson?: string): TaskboardDisplaySelection {
   } catch {
     return {};
   }
-}
-
-// ── 테이블 위젯 렌더 ────────────────────────────────────────────────────────
-function ViewTableWidget({
-  widget,
-  liveRows,
-  columns: columnsOverride,
-  fontScale = 1,
-}: {
-  widget: DroppedWidget;
-  liveRows?: Record<string, string | number>[];
-  columns?: TableColumn[];
-  fontScale?: number;
-}) {
-  const cfg = widget.item.tableConfig;
-  if (!cfg) return null;
-  const showTitle = widget.showTitle !== false;
-  const displayTitle = widget.customTitle ?? widget.item.label;
-  const rows = liveRows && liveRows.length > 0 ? liveRows : cfg.sampleRows;
-  const columns = (columnsOverride ?? (cfg.columns as TableColumn[])).filter((c) => !c.hidden);
-  const cellBorderBottom = cfg.showBorder === false ? 'none' : `${cfg.borderWidth ?? 1}px solid ${widget.style.color}40`;
-  const cellBorderRight = cellBorderBottom;
-  const rowHeight = cfg.rowGap ?? 0;
-  return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
-      {showTitle && (
-        <div
-          className="truncate font-semibold px-1 flex-shrink-0"
-          style={{
-            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`,
-            textAlign: widget.style.titleAlign ?? 'left',
-            color: widget.style.color,
-            fontFamily: widget.style.fontFamily,
-          }}
-        >
-          {displayTitle}
-        </div>
-      )}
-      <div className="flex-1 overflow-hidden">
-        <table
-          className="w-full"
-          style={{
-            fontSize: `${Math.max(7, Math.round(widget.style.fontSize * 0.6 * fontScale))}px`,
-            color: widget.style.color,
-            fontFamily: widget.style.fontFamily,
-            borderCollapse: 'collapse',
-            tableLayout: 'fixed',
-          }}
-        >
-          <thead>
-            <tr>
-              {columns.map((col, colIdx) => (
-                <th
-                  key={col.key}
-                  style={{
-                    width: col.width,
-                    padding: cfg.hideColumnLabels ? 0 : '1px 3px',
-                    height: cfg.hideColumnLabels ? 0 : rowHeight || undefined,
-                    textAlign: col.align ?? 'center',
-                    verticalAlign: col.verticalAlign ?? 'middle',
-                    fontWeight: 600,
-                    fontFamily: widget.style.fontFamily,
-                    borderRight: colIdx < columns.length - 1 ? cellBorderRight : 'none',
-                  }}
-                >
-                  <span
-                    style={{
-                      opacity: 0.7,
-                      display: 'block',
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      ...(cfg.hideColumnLabels ? { fontSize: 0, lineHeight: 0 } : {}),
-                    }}
-                  >
-                    {!cfg.hideColumnLabels && col.label}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, ri) => (
-              <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? 'rgba(255,255,255,0.05)' : 'transparent' }}>
-                {columns.map((col, colIdx) => (
-                  <AnimatedTableCell
-                    key={col.key}
-                    value={row[col.key]}
-                    col={col}
-                    style={widget.style}
-                    align={col.align ?? 'center'}
-                    borderBottom={cellBorderBottom}
-                    borderRight={colIdx < columns.length - 1 ? cellBorderRight : 'none'}
-                    rowHeight={rowHeight}
-                  />
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// ── 차트 위젯 렌더 ───────────────────────────────────────────────────────────
-function ViewChartWidget({ widget, liveData, fontScale = 1 }: { widget: DroppedWidget; liveData: Array<{ name: string; value: number }>; fontScale?: number }) {
-  const cfg = widget.item.chartConfig as ChartConfig | undefined;
-  const chartType = cfg?.chartType ?? 'bar';
-  const data = liveData.length > 0 ? liveData : (cfg?.sampleData ?? []);
-  const showTitle = widget.showTitle !== false;
-  const displayTitle = widget.customTitle ?? widget.item.label;
-  const tickFontSize = Math.round(8 * fontScale);
-  const tooltipFontSize = Math.round(10 * fontScale);
-  return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
-      {showTitle && (
-        <div
-          className="truncate font-semibold px-1 flex-shrink-0"
-          style={{
-            fontSize: `${Math.max(8, Math.round(widget.style.fontSize * 0.65 * fontScale))}px`,
-            textAlign: widget.style.titleAlign ?? 'left',
-            color: widget.style.color,
-            fontFamily: widget.style.fontFamily,
-          }}
-        >
-          {displayTitle}
-        </div>
-      )}
-      <div className="flex-1 min-h-0">
-        <ResponsiveContainer width="100%" height="100%">
-          {chartType === 'bar' ? (
-            <BarChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
-              <YAxis tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
-              <Bar dataKey="value">
-                {data.map((_, i) => (
-                  <Cell key={i} fill={CHART_VIEW_COLORS[i % CHART_VIEW_COLORS.length]} />
-                ))}
-              </Bar>
-            </BarChart>
-          ) : chartType === 'line' ? (
-            <LineChart data={data} margin={{ top: 2, right: 4, bottom: 2, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="name" tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
-              <YAxis tick={{ fill: widget.style.color, fontSize: tickFontSize }} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
-              <Line type="monotone" dataKey="value" stroke={widget.item.color} strokeWidth={2} dot={false} />
-            </LineChart>
-          ) : (
-            <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={chartType === 'donut' ? '40%' : 0} outerRadius="70%">
-                {data.map((_, i) => (
-                  <Cell key={i} fill={CHART_VIEW_COLORS[i % CHART_VIEW_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', fontSize: tooltipFontSize }} />
-              <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: tickFontSize, color: widget.style.color }} />
-            </PieChart>
-          )}
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
 }
 
 /** DB query 결과(배열 또는 단일 행)에서 column 값을 추출. 배열이면 첫 번째 행을 사용 */
@@ -529,9 +354,7 @@ function SingleLayoutView({
 
   // 섹션 모드 시 모든 섹션의 selection을 합산해 WS 구독에 사용한다.
   const allSelections = sectionSelections ? Object.values(sectionSelections) : [selection];
-  const selectedQueueIds = [...new Set(allSelections.flatMap((s) => resolveQueueIdsFromSelection(s, dbQueryDefs)))];
   const selectedGroupIds = [...new Set(allSelections.flatMap((s) => resolveGroupIdsFromSelection(s, dbQueryDefs)))];
-  const selectedAgentIds = [...new Set(allSelections.flatMap((s) => s.agentIds ?? []))];
   // 섹션마다 미디어타입이 다를 수 있으므로(A섹션=VOIP, B섹션=SMS 등) 화면 전체 WS 구독은 합집합을 쓴다.
   // 위젯별 표시값 계산은 renderWidget의 effectiveMediaTypes(섹션 단위)를 따로 쓴다.
   const selectedMediaTypes = [...new Set(allSelections.flatMap((s) => resolveMediaTypesFromSelection(s, dbQueryDefs)))];
@@ -539,113 +362,37 @@ function SingleLayoutView({
   const mergedDbQuerySelections = mergeDbQuerySelections(allSelections.map((s) => s.dbQuerySelections));
   const widgets = rawWidgets;
 
-  // 플레이스홀더 데이터소스(예: {nodeId})의 전체 VALUE 목록 — 뷰그룹에서 선택값이 없을 때 폴백으로 쓰인다.
-  // 노드ID처럼 뷰그룹마다 고를 필요 없는 값은 여기서 항상 최신 전체 목록을 받는다(쿼리 결과라 캐시됨).
+  // 플레이스홀더 데이터소스(예: {nodeId}) + 그룹 목록 데이터소스(IC:GROUP:{mediatype} 등록)의 전체 VALUE 목록.
+  // 뷰그룹에서 선택값이 없을 때 폴백으로 쓰인다(노드ID 전체, REASON 그룹 스코프 "선택 없음=전체" 등). 쿼리 결과라 캐시됨.
   const placeholderDefs = dbQueryDefs.filter((d) => !!d.placeholderName);
-  const placeholderOptionsResults = useGetDbQueryDefOptionsMulti(placeholderDefs.map((d) => d.dbQueryId));
-  const placeholderOptionValues = Object.fromEntries(
-    placeholderDefs.map((d, idx) => [d.dbQueryId, extractNameValueItems(placeholderOptionsResults[idx]?.data ?? []).map((i) => i.id)]),
+  const groupListDbQueryId = findEntitySelectionDbQueryIdsByPrefix(dbQueryDefs).get('IC:GROUP:');
+  const optionFetchIds = [...new Set([...placeholderDefs.map((d) => d.dbQueryId), ...(groupListDbQueryId !== undefined ? [groupListDbQueryId] : [])])];
+  const optionsResults = useGetDbQueryDefOptionsMulti(optionFetchIds);
+  const optionValuesById: Record<number, string[]> = Object.fromEntries(
+    optionFetchIds.map((id, idx) => [id, extractNameValueItems(optionsResults[idx]?.data ?? []).map((i) => i.id)]),
   );
+  const placeholderOptionValues = Object.fromEntries(placeholderDefs.map((d) => [d.dbQueryId, optionValuesById[d.dbQueryId] ?? []]));
+  const validGroupIds = groupListDbQueryId !== undefined ? (optionValuesById[groupListDbQueryId] ?? []) : [];
 
-  // 큐/상담사/그룹 전체 목록 — 이름 표시 및 id↔groupId 매핑용(정적 마스터성 데이터, KPI 값 아님).
-  // 실시간 KPI는 WS로 받으므로 5초 자동폴링 끄고 마운트 시 1회만 조회.
-  const { data: queueRows = [], isLoading: queueLoading } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const { data: agentRows = [], isLoading: agentLoading } = useGetCtiAgentList({ queryOptions: { refetchInterval: false } });
-  const { data: groupRows = [], isLoading: groupLoading } = useGetCtiGroupList({ queryOptions: { refetchInterval: false } });
-  // 마스터 데이터가 모두 로드될 때까지 WS 연결을 미뤄 데이터 로드 순서에 따른 재연결을 방지한다.
-  const isMasterLoading = queueLoading || agentLoading || groupLoading || dbQueryDefsLoading || placeholderOptionsResults.some((r) => r.isLoading);
+  // 마스터 데이터(데이터소스 정의/옵션) 로딩 중에는 빈 구독 → WS 연결 미룸(로드 순서에 따른 재연결 방지)
+  const isMasterLoading = dbQueryDefsLoading || optionsResults.some((r) => r.isLoading);
 
-  // IC:GROUP:REASON 패밀리(table-redis/단일값 Redis 위젯 공용) — "선택 없음=전체"는 GROUP과 동일 규칙.
-  // 뷰그룹(디스플레이 선택 그룹)에 없는 그룹은 절대 나오지 않아야 하므로, 선택값이 있으면 그 그룹들만 쓴다.
-  const groupReasonTargetGroupIds = resolveValidEntityIds(
-    selectedGroupIds,
-    groupRows.map((g) => g.groupId),
-  );
-  // REASON 패밀리(그룹/스킬 등) 전체 화면 단위 — basePrefix별 선택 엔티티 목록. 그룹은 위 "선택 없음=전체"
-  // 폴백을 그대로 유지하고, 그 외 엔티티는 등록된 데이터소스 선택값을 그대로 쓴다.
+  // IC:GROUP:REASON 패밀리 — "선택 없음=전체"는 그룹 목록 데이터소스 전체(validGroupIds)로 폴백. 선택값이 있으면 그 그룹만.
+  const groupReasonTargetGroupIds = resolveValidEntityIds(selectedGroupIds, validGroupIds);
   const targetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, mergedDbQuerySelections);
   targetIdsByPrefix['IC:GROUP:'] = groupReasonTargetGroupIds;
 
-  // 좌측 트리에서 드래그한 임의 hashKey 단일값 Redis 위젯 — 큐/그룹/상담사 실시간 KPI와 동일한 WS 소켓으로 구독.
-  // GROUP/CTIQ/AGENT(미디어타입 해시) 위젯은 디자인 시점에 고정된 id 대신, 디스플레이 선택값으로 어떤 id들을 볼지 결정한다.
-  const selectionIdsByHashKey = {
-    ...buildSelectionIdsByHashKey(widgets, {
-      queueRows,
-      selectedQueueIds,
-      groupRows,
-      selectedGroupIds,
-      agentRows,
-      selectedAgentIds,
-    }),
-    // REASON 패밀리 등록 키(IC:GROUP:REASON:*, IC:SKILL:REASON:* 등)는 이제 buildDataSourceKeySelectionIds가
-    // 각 패밀리의 basePrefix에 대응하는 엔티티 목록 데이터소스의 선택값을 자체적으로 찾아 스코핑한다.
-    ...buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, placeholderOptionValues, { groupId: groupReasonTargetGroupIds }),
-  };
+  // Redis 값/테이블 위젯 WS 구독 — 위젯이 실제 쓰는 hashKey만 모은다. 큐/그룹/상담사 마스터목록은 이제 데이터소스
+  // 경로(buildDataSourceKeySelectionIds)가 선택값을 계산한다(옛 IC 전용 마스터해시 직접구독/직접선택 제거).
+  const selectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, placeholderOptionValues, { groupId: groupReasonTargetGroupIds });
   const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes);
-  // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다 — 따로 소켓을
-  // 열면 위젯이 있는 화면마다 ctiq 소켓이 2개로 보임(RedisTableWidget.tsx의 collectRedisTableWsSubscriptions 참고)
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
   const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix);
 
-  // 큐/그룹/상담사 실시간 KPI — WS 구독. "캔버스에 그 데이터를 실제로 쓰는 위젯이 있을 때만" 구독해서
-  // 디스플레이에 선택만 돼 있고 화면에 안 보여주는 큐/그룹/상담사까지 불필요하게 통째로 받아오는 걸 막는다.
-  // 미디어타입은 위젯 등록 시점에 고정된 값(item.mediaType)을 그대로 쓴다 — 디스플레이 단위 선택값이 아님.
-  const {
-    groupColumns,
-    queueColumns,
-    agentColumns,
-    configuredRtsCols,
-    tableGroupWidgets,
-    tableQueueWidgets,
-    tableAgentWidgets,
-    queueChartWidgets,
-    groupMediaTypes,
-    queueMediaTypes,
-    agentMediaTypes,
-  } = collectTableColumns(widgets);
-  const needsGroup = tableGroupWidgets.length > 0;
-  const needsAgent = tableAgentWidgets.length > 0;
-  const needsQueue = tableQueueWidgets.length > 0 || queueChartWidgets.length > 0;
-
-  // GROUP과 동일한 "선택 없음 = 전체" 규칙 — selectedQueueIds가 비어있으면(미선택) 마스터 큐 전체를 구독한다.
-  // (row 표시 쪽 selectedQueueIds 필터는 그대로 두고, WS 구독용 id 목록만 별도로 만든다)
-  const queueIdsForSub = needsQueue ? (selectedQueueIds.length > 0 ? selectedQueueIds : queueRows.map((q) => q.ctiqId)) : [];
-
-  const groupCompositeKeys = needsGroup
-    ? [...new Set(groupRows.filter((g) => selectedGroupIds.length === 0 || selectedGroupIds.includes(g.groupId)).flatMap((g) => g.compositeKeys ?? []))]
-    : [];
-  const targetAgents = selectedAgentIds.length > 0 ? agentRows.filter((a) => selectedAgentIds.includes(a.agentId)) : agentRows;
-  const agentIdsByGroupId = needsAgent
-    ? targetAgents.reduce<Record<string, string[]>>((acc, a) => {
-        if (!a.groupId) return acc;
-        (acc[a.groupId] ??= []).push(a.agentId);
-        return acc;
-      }, {})
-    : {};
-  const agentHashKeys = Object.keys(agentIdsByGroupId).flatMap((groupId) => agentMediaTypes.map((mt) => `IC:AGENT:${groupId}:${mt}`));
-
-  // 마스터 데이터 로딩 중에는 빈 구독 → WS 연결 미룸(로드 순서에 따른 재연결 방지)
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []
-    : mergeWsSubscriptions([
-        ...(queueIdsForSub.length > 0 ? queueMediaTypes.map((mt) => ({ hashKey: `IC:CTIQ:${mt}`, ids: queueIdsForSub, columns: queueColumns })) : []),
-        ...(groupCompositeKeys.length > 0 ? groupMediaTypes.map((mt) => ({ hashKey: `IC:GROUP:${mt}`, ids: groupCompositeKeys, columns: groupColumns })) : []),
-        ...Object.entries(agentIdsByGroupId).flatMap(([groupId, ids]) => agentMediaTypes.map((mt) => ({ hashKey: `IC:AGENT:${groupId}:${mt}`, ids, columns: agentColumns }))),
-        ...widgetRedisSubscriptions,
-        ...redisTableSubscriptions,
-        ...collectDbQueryWsSubscriptions(widgets),
-      ]);
+    : mergeWsSubscriptions([...widgetRedisSubscriptions, ...redisTableSubscriptions, ...collectDbQueryWsSubscriptions(widgets)]);
   const { dataByHashKey, isConnected: wsConnected } = useCtiqWebSocket(subscriptions);
-  const ctiqWsData = mergeByHashKeys(
-    dataByHashKey,
-    queueMediaTypes.map((mt) => `IC:CTIQ:${mt}`),
-  );
-
-  // 커스텀 컬럼 없을 때만 — 컬럼 미지정(전체) 응답에서 RTS_ 컬럼 자동 추론
-  const groupHashRtsFallback =
-    configuredRtsCols.length === 0 && tableGroupWidgets.length > 0
-      ? [...new Set(groupMediaTypes.flatMap((mt) => Object.keys(dataByHashKey?.[`IC:GROUP:${mt}`]?.[groupCompositeKeys[0] ?? ''] ?? {}).filter((k) => k.startsWith('RTS_'))))]
-      : [];
 
   useEffect(() => {
     if (!layout.fileName) return;
@@ -688,73 +435,22 @@ function SingleLayoutView({
   const renderWidget = (widget: DroppedWidget) => {
     // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. sectionKey가 없으면 합산 selection(전체 공통).
     const effectiveSelection = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
-    const effectiveQueueIds = resolveQueueIdsFromSelection(effectiveSelection, dbQueryDefs);
     const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSelection, dbQueryDefs);
     const effectiveMediaTypes = resolveMediaTypesFromSelection(effectiveSelection, dbQueryDefs);
-    const effectiveTargetGroupIds = resolveValidEntityIds(
-      effectiveGroupIds,
-      groupRows.map((g) => g.groupId),
-    );
-    // REASON 패밀리(그룹/스킬 등) 위젯 전용 — basePrefix별로 이 위젯(section)의 유효 selection에서 선택된
-    // 엔티티 목록을 계산한다. 그룹은 기존 "선택 없음=전체 CTI 그룹" 폴백(effectiveTargetGroupIds)을 그대로
-    // 유지하고, 그 외 엔티티(스킬 등)는 등록된 데이터소스의 선택값을 그대로 쓴다(선택 없으면 0 표시).
+    // REASON 패밀리(그룹/스킬 등) 위젯 전용 — 그룹은 "선택 없음=전체(그룹 데이터소스 전체)" 폴백, 그 외 엔티티는
+    // 등록 데이터소스 선택값(없으면 0 표시).
+    const effectiveTargetGroupIds = resolveValidEntityIds(effectiveGroupIds, validGroupIds);
     const effectiveTargetIdsByPrefix = buildReasonFamilyTargetIdsByPrefix(dbQueryDefs, effectiveSelection.dbQuerySelections);
     effectiveTargetIdsByPrefix['IC:GROUP:'] = effectiveTargetGroupIds;
-    // 값 위젯은 이 위젯이 속한 섹션(effectiveSelection)만의 id로 값을 계산해야 한다 — 화면 전체 합산
-    // selectionIdsByHashKey(모든 섹션 union)를 그대로 쓰면, 같은 redisHashKey를 쓰는 여러 섹션의
-    // 위젯이 전부 같은(합산된) 값을 보게 된다(예: A섹션 4 + B섹션 0인데 둘 다 4로 보임).
-    const effectiveAgentIds = effectiveSelection.agentIds ?? [];
-    const effectiveSelectionIdsByHashKey: Record<string, string[]> = {
-      ...buildSelectionIdsByHashKey([widget], {
-        queueRows,
-        selectedQueueIds: effectiveQueueIds,
-        groupRows,
-        selectedGroupIds: effectiveGroupIds,
-        agentRows,
-        selectedAgentIds: effectiveAgentIds,
-      }),
-      ...buildDataSourceKeySelectionIds(dbQueryDefs, effectiveSelection.dbQuerySelections, placeholderOptionValues, { groupId: effectiveTargetGroupIds }),
-    };
+    // 값 위젯은 이 섹션(effectiveSelection)만의 id로 값 계산(화면 전체 union을 쓰면 여러 섹션 위젯이 같은 합산값을 봄).
+    const effectiveSelectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, effectiveSelection.dbQuerySelections, placeholderOptionValues, {
+      groupId: effectiveTargetGroupIds,
+    });
 
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} />;
-    const dt = widget.item.displayType;
-    // table-redis는 표/차트 전환 모두 RedisTableWidget 내부에서 처리(실데이터 fetch가 거기 있어서)
+    // table-redis/그룹·스킬 이석사유/조인 테이블은 RedisTableWidget 내부에서 표/차트 모두 처리(실데이터 fetch가 거기 있어서)
     if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
-    if (dt === 'chart') {
-      const liveChartData = buildLiveChartData(widget.item.id, queueRows, agentRows, groupRows, ctiqWsData, effectiveQueueIds);
-      return <ViewChartWidget widget={widget} liveData={liveChartData} fontScale={fontScale} />;
-    }
-    if (dt === 'table') {
-      const cfg = widget.item.tableConfig;
-      let tableColumns = (cfg?.columns ?? []) as TableColumn[];
-      if (widget.item.id === 'table-group' && groupHashRtsFallback.length > 0) {
-        const existingKeys = new Set(tableColumns.map((c) => c.key.toUpperCase()));
-        const extraCols: TableColumn[] = groupHashRtsFallback.filter((k) => !existingKeys.has(k)).map((k) => ({ key: k.toLowerCase(), label: k }));
-        tableColumns = [...tableColumns, ...extraCols];
-      }
-      const liveRows = cfg
-        ? buildLiveTableRows(
-            widget.item.id,
-            queueRows,
-            agentRows,
-            groupRows,
-            tableColumns,
-            effectiveSelection,
-            [widget.item.mediaType ?? '0'],
-            dataByHashKey,
-            agentHashKeys,
-            {
-              key: cfg.sortKey,
-              order: cfg.sortOrder,
-              limit: cfg.limit,
-            },
-            effectiveGroupIds,
-            effectiveQueueIds,
-          )
-        : [];
-      return <ViewTableWidget widget={widget} liveRows={liveRows} columns={tableColumns} fontScale={fontScale} />;
-    }
     return (
       <ViewValueWidget
         widget={widget}

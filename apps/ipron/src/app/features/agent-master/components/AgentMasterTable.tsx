@@ -9,7 +9,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { GripVertical } from 'lucide-react';
-import { labelOfActivate, labelOfAgentGrade, labelOfJikgup, labelOfLoginStatus } from '../constants/codes';
+import { labelOfActivate, labelOfAgentGrade, labelOfJikgup } from '../constants/codes';
 import type { AgentResponse } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -23,6 +23,8 @@ export const AGENT_DRAG_MIME = 'application/x-bt-agent-ids';
 interface AgentMasterTableProps {
   rowData: AgentResponse[];
   isLoading?: boolean;
+  /** 테넌트 컬럼 표시 여부(운영자 모드 전체/대행 시에만 true). 일반 콘솔은 단일 테넌트라 숨김. */
+  showTenant?: boolean;
   onRowDoubleClicked: (agent: AgentResponse) => void;
   onDelete: (agent: AgentResponse) => void;
   onSelectionChanged?: (selected: AgentResponse[]) => void;
@@ -33,6 +35,10 @@ interface AgentMasterTableProps {
    * 보통: 선택된 행이 있으면 그 ID 들, 없으면 드래그된 단일 행만.
    */
   getDragAgentIds?: (dragRow: AgentResponse) => number[];
+  /** 드래그 시작 — 트리가 크로스테넌트 여부를 dragover 중에 판정할 수 있도록 대상 agentId 통지. */
+  onDragStartAgents?: (agentIds: number[]) => void;
+  /** 드래그 종료 — 트리 판정 상태 초기화. */
+  onDragEndAgents?: () => void;
 }
 
 function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () => void; selectedCount: number }) {
@@ -56,12 +62,15 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
 export default function AgentMasterTable({
   rowData,
   isLoading,
+  showTenant = false,
   onRowDoubleClicked,
   onDelete,
   onSelectionChanged,
   onBulkDelete,
   selectedCount = 0,
   getDragAgentIds,
+  onDragStartAgents,
+  onDragEndAgents,
 }: AgentMasterTableProps) {
   const { gridOptions } = useAggridOptions();
 
@@ -96,7 +105,9 @@ export default function AgentMasterTable({
                 const ids = getDragAgentIds?.(data) ?? [data.agentId];
                 e.dataTransfer.setData(AGENT_DRAG_MIME, JSON.stringify(ids));
                 e.dataTransfer.effectAllowed = 'move';
+                onDragStartAgents?.(ids);
               }}
+              onDragEnd={() => onDragEndAgents?.()}
               className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600"
               title="드래그하여 상담그룹 이동"
             >
@@ -105,7 +116,7 @@ export default function AgentMasterTable({
           );
         },
       },
-      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 100, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
+      { headerName: '테넌트', field: 'tenantName', flex: 1, minWidth: 100, hide: !showTenant, tooltipField: 'tenantName', valueFormatter: (p) => p.value ?? '-' },
       { headerName: '그룹', field: 'groupName', flex: 1.2, minWidth: 110, tooltipField: 'groupName', valueFormatter: (p) => p.value ?? '-' },
       {
         headerName: '로그인 ID',
@@ -166,15 +177,6 @@ export default function AgentMasterTable({
         },
       },
       {
-        headerName: '상태',
-        field: 'agentStatus',
-        flex: 0.7,
-        minWidth: 80,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueGetter: (p) => labelOfLoginStatus(p.data?.agentStatus),
-      },
-      { headerName: '작업일시', field: 'workTime', flex: 1.4, minWidth: 140, valueFormatter: (p) => p.value ?? '-' },
-      {
         headerName: '',
         maxWidth: 60,
         sortable: false,
@@ -200,7 +202,7 @@ export default function AgentMasterTable({
         },
       },
     ],
-    [onDelete, onBulkDelete, selectedCount],
+    [onDelete, onBulkDelete, selectedCount, showTenant],
   );
 
   return (

@@ -21,6 +21,8 @@ interface Props {
   defaultTreeId?: number | null; // create 시 트리에서 선택된 그룹
   tenants: TenantOption[];
   groups: SkillsetGroupResponse[]; // 평탄화된 그룹 (해당 테넌트만)
+  /** 운영자 모드 — create 시 폼에서 대행 테넌트를 직접 선택. 일반 콘솔은 테넌트 선택 숨김(활성 테넌트). */
+  operatorMode?: boolean;
   onCancel: () => void;
   onSubmit: (req: SkillsetCreateRequest | SkillsetUpdateRequest) => void;
   loading?: boolean;
@@ -36,8 +38,11 @@ interface FormValues {
   skillsetDesc?: string;
 }
 
-export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenantId, defaultTreeId, tenants, groups, onCancel, onSubmit, loading }: Props) {
+export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenantId, defaultTreeId, tenants, groups, operatorMode, onCancel, onSubmit, loading }: Props) {
   const [form] = Form.useForm<FormValues>();
+  // 테넌트 선택 노출: 운영자 모드에서만(create=대행 테넌트 선택, edit=현재 테넌트 표시·비활성).
+  // 일반 콘솔은 create/edit 모두 로그인 테넌트로 고정 → 숨김(값만 유지).
+  const showTenantSelect = !!operatorMode;
 
   useEffect(() => {
     if (!open) return;
@@ -111,15 +116,22 @@ export default function SkillsetFormDrawer({ open, mode, skillset, defaultTenant
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} requiredMark>
-        <Form.Item name="tenantId" label="테넌트" rules={[{ required: mode === 'create', message: '테넌트를 선택하세요' }]}>
-          <Select
-            disabled={mode === 'edit'}
-            placeholder="테넌트 선택"
-            options={tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? '-' }))}
-            showSearch
-            optionFilterProp="label"
-          />
-        </Form.Item>
+        {showTenantSelect ? (
+          <Form.Item name="tenantId" label="테넌트" rules={[{ required: mode === 'create', message: '테넌트를 선택하세요' }]}>
+            <Select
+              disabled={mode === 'edit'}
+              placeholder="대행할 테넌트를 선택하세요"
+              options={tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? '-' }))}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+        ) : (
+          // 일반 콘솔 create — 테넌트 선택 숨김(활성 테넌트로 자동 등록)
+          <Form.Item name="tenantId" hidden>
+            <Input />
+          </Form.Item>
+        )}
 
         <Form.Item name="treeId" label="업무그룹">
           <Select

@@ -41,6 +41,7 @@ import {
 } from '../../features/common-trunk/types';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' }];
@@ -91,7 +92,9 @@ export default function CommonTrunkList() {
   // ─── Queries ────────────────────────────────────────────────────────
   const { data: nodes = [] } = useGetCommonTrunkNodes();
   // 전체 노드 마스터 — 공용 트렁크 0건 노드도 탭으로 노출하기 위함
-  const { data: masterNodes = [] } = useGetDnProfileNodes();
+  // 일반 모드에서는 로그인 테넌트에 매핑된 노드만(운영자 모드는 전체).
+  const { data: allMasterNodes = [] } = useGetDnProfileNodes();
+  const masterNodes = useScopedNodes(allMasterNodes);
   const { data: gdns = [], isLoading: gdnsLoading } = useGetCommonGdns(selectedNodeId, gdnQuickFilter || undefined);
   // 노드 전체 트렁크 마스터 — GDN 미선택 안내 / 종류필터 join / 더블클릭 수정용
   const { data: trunks = [], isLoading: trunksLoading } = useGetCommonTrunks(selectedNodeId);
@@ -120,6 +123,13 @@ export default function CommonTrunkList() {
   useEffect(() => {
     if (selectedNodeId == null && nodeTabs.length > 0) {
       setSelectedNodeId(nodeTabs[0].nodeId as number);
+    }
+  }, [nodeTabs, selectedNodeId]);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프(nodeTabs) 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodeTabs.length > 0 && !nodeTabs.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
     }
   }, [nodeTabs, selectedNodeId]);
 

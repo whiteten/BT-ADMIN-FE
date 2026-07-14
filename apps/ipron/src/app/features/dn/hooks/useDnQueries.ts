@@ -17,13 +17,11 @@ import type {
   DnShortDialResponse,
   DnSnrResponse,
   DnSnrTodResponse,
-  NodeTenantItem,
 } from '../types';
 
 export const dnQueryKeys = createQueryKeys('dns', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
-  getNodeTenants: null,
   getCount: (params?: Record<string, unknown>) => [params],
   getOptions: (params?: Record<string, unknown>) => [params],
   getRange: (params?: Record<string, unknown>) => [params],
@@ -55,14 +53,6 @@ export const useGetDnDetail = (id: number | null | undefined, { queryOptions }: 
 };
 
 // ─── Aux Queries ───────────────────────────────────────────────────────────
-
-export const useGetDnNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {
-  return useQuery({
-    queryKey: dnQueryKeys.getNodeTenants.queryKey,
-    queryFn: () => dnApi.getNodeTenants(),
-    ...queryOptions,
-  });
-};
 
 export const useGetDnCount = (params: { tenantId: number } | null, { queryOptions }: QueryHookOptions<DnCountResponse> = {}) => {
   return useQuery({

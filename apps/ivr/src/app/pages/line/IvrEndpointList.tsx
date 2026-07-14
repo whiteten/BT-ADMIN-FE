@@ -24,7 +24,7 @@ import IvrEndpointMasterSheet, { type IvrEndpointMasterSheetRef } from '../../fe
 import IvrEndpointMemberSheet, { type IvrEndpointMemberSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMemberSheet';
 import { ivrEndpointQueryKeys, useDeleteMaster, useDeleteMember, useGetMasters, useGetMembers, useGetNodes } from '../../features/ivr-endpoint/hooks/useIvrEndpointQueries';
 import { ALLOC_METHOD_LABELS, CONN_TYPE_LABELS, type IvrEndpointMaster, type IvrEndpointMember, LINE_TYPE_LABELS, getMasterTagList } from '../../features/ivr-endpoint/types';
-import NodeTabBar, { type NodeTabBarItem } from '@/components/custom/NodeTabBar';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -155,7 +155,7 @@ export default function IvrEndpointList() {
     return endpoints.find((ep) => ep.endptId === selectedEndpointId) ?? null;
   }, [endpoints, selectedEndpointId]);
 
-  const nodeTabItems: NodeTabBarItem<number | 'all'>[] = useMemo(
+  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
     () => [
       { id: 'all', label: '전체', icon: Layers, count: searchFilteredEndpoints.length },
       ...nodes.map((node) => ({
@@ -363,7 +363,7 @@ export default function IvrEndpointList() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 상단: 노드 탭 바 (별도 박스) ===== */}
-        <NodeTabBar<number | 'all'>
+        <TabBar<number | 'all'>
           items={nodeTabItems}
           selectedId={isSearching ? null : (selectedNodeId ?? 'all')}
           onSelect={(id) => {

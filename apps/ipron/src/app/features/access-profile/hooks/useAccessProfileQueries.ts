@@ -5,7 +5,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type NodeTenantItem, accessProfileApi } from '../api/accessProfileApi';
+import { accessProfileApi } from '../api/accessProfileApi';
 import type { AccessCode, AccessProfile, NodeSimpleResponse, ProfileTreeNodeResponse, RouteSimpleResponse, TenantSimpleResponse } from '../types';
 
 export const accessProfileQueryKeys = createQueryKeys('accessProfiles', {
@@ -15,7 +15,6 @@ export const accessProfileQueryKeys = createQueryKeys('accessProfiles', {
   getCodes: (params?: Record<string, unknown>) => [params],
   getTenants: null,
   getNodes: null,
-  getNodeTenants: null,
   getRoutesByNode: (nodeId?: number) => [nodeId],
 });
 
@@ -118,14 +117,6 @@ export const useGetNodes = ({ queryOptions }: QueryHookOptions<NodeSimpleRespons
   return useQuery({
     queryKey: accessProfileQueryKeys.getNodes.queryKey,
     queryFn: () => accessProfileApi.getNodes(),
-    ...queryOptions,
-  });
-};
-
-export const useGetNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {
-  return useQuery({
-    queryKey: accessProfileQueryKeys.getNodeTenants.queryKey,
-    queryFn: () => accessProfileApi.getNodeTenants(),
     ...queryOptions,
   });
 };

@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Col, Drawer, Form, Input, Radio, Row, Select, Spin, Tabs } from 'antd';
+import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetAvailableSkillsets } from '../../skill-assign/hooks/useSkillAssignQueries';
 import { ACTIVATE_OPTIONS, AGENT_GRADE_OPTIONS, JIKGUP_OPTIONS, ON_OFF_OPTIONS, RETIRE_OPTIONS, USE_GRP_MDA_OPT_OPTIONS, USE_GRP_SKILL_OPTIONS } from '../constants/codes';
@@ -39,6 +40,8 @@ interface AgentMasterFormDrawerProps {
   agentId?: number; // edit 시
   initialTenantId?: number; // create 시 기본 테넌트
   initialGroupId?: number; // create 시 기본 그룹
+  /** 운영자 모드 여부 — true 일 때만 "테넌트" 선택 필드를 노출(대상 테넌트 지정). 일반 콘솔은 자기 테넌트 고정(숨김). */
+  operatorMode?: boolean;
   onClose: () => void;
 }
 
@@ -54,8 +57,13 @@ function flattenGroups(tree: AgentGroupNode[], tenantId?: number): AgentGroupNod
   return out;
 }
 
-export default function AgentMasterFormDrawer({ open, mode, agentId, initialTenantId, initialGroupId, onClose }: AgentMasterFormDrawerProps) {
+export default function AgentMasterFormDrawer({ open, mode, agentId, initialTenantId, initialGroupId, operatorMode = false, onClose }: AgentMasterFormDrawerProps) {
   const isEdit = mode === 'edit';
+  // 일반 모드(operatorMode=false)에서 대상 테넌트 폴백용 활성 테넌트.
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const [form] = Form.useForm<FormValues>();
   const [selectedTenantId, setSelectedTenantId] = useState<number | undefined>();
@@ -130,14 +138,16 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
         monitorSvc: 0,
         coachingSvc: 0,
       };
-      if (initialTenantId) {
-        init.tenantId = initialTenantId;
-        setSelectedTenantId(initialTenantId);
+      // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      const createTenantId = initialTenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined));
+      if (createTenantId) {
+        init.tenantId = createTenantId;
+        setSelectedTenantId(createTenantId);
       }
       if (initialGroupId) init.groupId = initialGroupId;
       form.setFieldsValue(init);
     }
-  }, [open, isEdit, detail, form, initialTenantId, initialGroupId]);
+  }, [open, isEdit, detail, form, initialTenantId, initialGroupId, operatorMode, activeTenantId]);
 
   const tenantOptions = useMemo(() => tenantStats.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenantStats]);
 
@@ -281,22 +291,29 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
                   <div>
                     <SectionTitle>소속</SectionTitle>
                     <Row gutter={16}>
-                      <Col span={12}>
-                        <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
-                          <Select
-                            options={tenantOptions}
-                            disabled={isEdit}
-                            placeholder="테넌트 선택"
-                            onChange={(v) => {
-                              setSelectedTenantId(v);
-                              form.setFieldsValue({ groupId: undefined });
-                            }}
-                            showSearch
-                            optionFilterProp="label"
-                          />
+                      {/* 테넌트 선택은 운영자 모드에서만 노출(대상 테넌트 지정). 일반 콘솔은 자기 테넌트 고정 → 숨김 필드로 값만 유지. */}
+                      {operatorMode ? (
+                        <Col span={12}>
+                          <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+                            <Select
+                              options={tenantOptions}
+                              disabled={isEdit}
+                              placeholder="테넌트 선택"
+                              onChange={(v) => {
+                                setSelectedTenantId(v);
+                                form.setFieldsValue({ groupId: undefined });
+                              }}
+                              showSearch
+                              optionFilterProp="label"
+                            />
+                          </Form.Item>
+                        </Col>
+                      ) : (
+                        <Form.Item name="tenantId" hidden>
+                          <Input />
                         </Form.Item>
-                      </Col>
-                      <Col span={12}>
+                      )}
+                      <Col span={operatorMode ? 12 : 24}>
                         <Form.Item label="상담그룹" name="groupId" rules={[{ required: true, message: '상담그룹을 선택하세요' }]}>
                           <Select
                             options={groupOptions}

@@ -1,21 +1,23 @@
 /**
  * 휴식/ACW 사유 코드 관리 페이지.
  *
- * 상단: 박스 1 헤더 + 박스 2 테넌트 카드 슬라이더 (상담사 관리/스킬셋 관리 패턴 일치)
- * 하단: 코드 타입 토글(휴식/ACW) + 사유 코드 테이블
+ * 멀티테넌트 개편(상담사 관리 정합): 상단 테넌트 카드 슬라이더 제거.
+ *   - 일반 콘솔: 테넌트 선택기 없음(토큰=활성 테넌트 스코프). 헤더에 요약(총/휴식/ACW)만.
+ *   - 운영자 모드: 헤더에 대행 테넌트 ScopeSelect(공통) + 그 옆에 요약.
+ * 하단: 코드 타입 토글(휴식/ACW) + 사유 코드 테이블.
  *
  * AS-IS SWAT IPR20S4040 마이그레이션 — 탭 2개를 Segmented 토글로 단순화.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Empty, Segmented } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CtiCodeFormDrawer, { type CtiCodeDrawerState } from '../../features/cti-code/components/CtiCodeFormDrawer';
 import CtiCodeTable from '../../features/cti-code/components/CtiCodeTable';
-import CtiCodeTenantCard from '../../features/cti-code/components/CtiCodeTenantCard';
 import { useDeleteReasonCodesBatch, useGetCtiCodeTenantStats, useGetReasonCodes } from '../../features/cti-code/hooks/useCtiCodeQueries';
 import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../../features/cti-code/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '상담사 관리' }, { title: '코드 관리' }, { title: '휴식/후처리 사유코드 관리', path: '/ipron/cti-code-mgmt' }];
@@ -28,29 +30,28 @@ export default function CtiCodeList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   const [codeType, setCodeType] = useState<number>(REASON_CODE_TYPE_REST);
   const [drawer, setDrawer] = useState<CtiCodeDrawerState>({ open: false });
-  const [cardExpanded, setCardExpanded] = useState(false);
   const [selectedRows, setSelectedRows] = useState<ReasonCodeResponse[]>([]);
-  const cardScrollRef = useRef<HTMLDivElement>(null);
   const modal = useModal();
 
-  // ctx 비동기 로드 시 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
-
-  // 테넌트별 통계 (상단 카드 슬라이더)
+  // 테넌트별 통계 — 운영자 대행 선택기 + 헤더 요약(총/휴식/ACW). view-all 로 전체 테넌트 반환.
   const { data: tenantStats = [], refetch: refetchTenants } = useGetCtiCodeTenantStats();
 
   // 사유 코드 목록
@@ -77,9 +78,17 @@ export default function CtiCodeList() {
     },
   });
 
+  const selectedTenantName = selectedTenantId == null ? null : (tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
+
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 총/휴식/ACW.
+  const summary = useMemo(() => {
+    const rows = selectedTenantId == null ? tenantStats : tenantStats.filter((t) => t.tenantId === selectedTenantId);
+    return rows.reduce((a, t) => ({ total: a.total + (t.totalCnt ?? 0), rest: a.rest + (t.restCnt ?? 0), acw: a.acw + (t.acwCnt ?? 0) }), { total: 0, rest: 0, acw: 0 });
+  }, [tenantStats, selectedTenantId]);
+
   const handleCreate = () => {
     if (selectedTenantId == null) {
-      toast.warning('테넌트를 먼저 선택하세요');
+      toast.warning('대행할 테넌트를 먼저 선택하세요');
       return;
     }
     if (reasonRows.length >= 30) {
@@ -111,19 +120,35 @@ export default function CtiCodeList() {
     });
   };
 
-  const selectedTenantName = selectedTenantId == null ? null : (tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
-
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 요약) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">휴식/후처리(ACW) 사유 현황</span>
-          {selectedTenantName && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{selectedTenantName}</span>
-            </span>
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedRows([]);
+              }}
+            />
           )}
+          {/* 요약 — 총/휴식/ACW (운영자는 선택 뒤, 일반은 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 사유코드 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              휴식 <b className="text-[#405189] font-semibold">{summary.rest.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              후처리(ACW) <b className="text-amber-600 font-semibold">{summary.acw.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <Button
               type="text"
@@ -140,81 +165,7 @@ export default function CtiCodeList() {
         </div>
       </div>
 
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 사유 코드가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((t) => (
-                    <CtiCodeTenantCard
-                      key={t.tenantId}
-                      tenantId={t.tenantId}
-                      tenantName={t.tenantName ?? '-'}
-                      stats={{ totalCnt: t.totalCnt, restCnt: t.restCnt, acwCnt: t.acwCnt }}
-                      selected={selectedTenantId === t.tenantId}
-                      onClick={(e) => {
-                        setSelectedTenantId(t.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {tenantStats.map((t) => (
-                  <CompactTenantPill
-                    key={t.tenantId}
-                    name={t.tenantName ?? '-'}
-                    count={t.totalCnt}
-                    selected={selectedTenantId === t.tenantId}
-                    onClick={() => setSelectedTenantId(t.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ===== 박스 3: 토글 + ag-Grid ===== */}
+      {/* ===== 박스 2: 토글 + ag-Grid ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="flex items-center px-4 h-[56px] border-b border-gray-100">
           <Segmented
@@ -269,29 +220,4 @@ export default function CtiCodeList() {
 function extractMessage(err: unknown): string | undefined {
   const e = err as { response?: { data?: { message?: string } } };
   return e?.response?.data?.message;
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}건`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
-    </button>
-  );
 }

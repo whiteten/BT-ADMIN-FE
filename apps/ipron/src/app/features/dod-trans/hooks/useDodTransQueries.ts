@@ -4,7 +4,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type NodeTenantItem, dodTransApi } from '../api/dodTransApi';
+import { dodTransApi } from '../api/dodTransApi';
 import type { DodTransItem, DodTransMaster } from '../types';
 
 interface NodeSimpleResponse {
@@ -16,7 +16,6 @@ export const dodTransQueryKeys = createQueryKeys('dodTrans', {
   getMasterList: (params?: Record<string, unknown>) => [params],
   getItemList: (params?: Record<string, unknown>) => [params],
   getNodes: null,
-  getNodeTenants: null,
 });
 
 // ─── Master 훅 ──────────────────────────────────────────────────────────────
@@ -124,14 +123,6 @@ export const useGetNodes = ({ queryOptions }: QueryHookOptions<NodeSimpleRespons
   return useQuery({
     queryKey: dodTransQueryKeys.getNodes.queryKey,
     queryFn: () => dodTransApi.getNodes(),
-    ...queryOptions,
-  });
-};
-
-export const useGetNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {
-  return useQuery({
-    queryKey: dodTransQueryKeys.getNodeTenants.queryKey,
-    queryFn: () => dodTransApi.getNodeTenants(),
     ...queryOptions,
   });
 };

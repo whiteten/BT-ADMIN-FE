@@ -227,6 +227,7 @@ const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStart
 ```
 
 - 헤더: 아이콘 + 기존 semibold 제목(도메인별 문구는 유지, 새로 짓지 않음) + 카운트 배지, 컨테이너 `px-5 py-3`.
+- **우측 버튼이 없는 헤더는 `py-3` 대신 `py-5`**를 쓴다. antd `Button`이 있는 헤더는 버튼 자체 높이 때문에 `py-3`이어도 충분한 높이가 나오지만, 좌측 텍스트뿐인 헤더는 `py-3`이면 더 낮아져 옆(또는 위아래)에 나란히 배치된 다른 그리드 박스 헤더와 높이가 어긋난다(예: [SleeConfigList.tsx](../../../apps/ivr/src/app/pages/scenario/SleeConfigList.tsx)의 카테고리(버튼 없음, `py-5`) + 속성(버튼 있음, `py-3`) 좌우 분할). 우측에 `<div className="flex items-center gap-2">{/* 버튼 등 */}</div>`를 실제로 렌더하는지 여부로 판정 — 버튼·Select 등 어떤 우측 요소든 있으면 `py-3`, 우측 슬롯 자체를 생략했다면 `py-5`.
 - **상위 단(1단 탭·2단 카드)에서 선택한 값이 있으면 제목에 반영**: `제목 — <span className="text-[#405189]">{선택값}</span>` 형태(em dash `—` + 브랜드 컬러 강조). 값이 없을 때(전체·미선택) 뒤 span은 빈 문자열로 비워 두거나 조건부로 아예 생략. 검색 중처럼 선택값 기준 제목이 의미 없는 상태는 "검색 결과" 등 별도 문구로 대체. 레퍼런스: `HaGroupList.tsx`의 `HA 그룹 멤버 — {haGroupName}`, `IvrDnGroupList.tsx`의 `DN 그룹 — {systemName}`.
 - **헤더 자체에 `border-b` 금지** — 헤더 바로 아래 별도 `<div className="border-t border-gray-200" />` 구분선을 둔다.
 - 그리드를 감싸는 래퍼에 **`p-5` 패딩 필수**(그리드가 박스 테두리에 바로 붙지 않도록). 기존 `flex-1 min-h-0`에 `p-5`만 추가.
@@ -263,5 +264,6 @@ const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStart
 - [ ] 테이블이 `bg-white bt-shadow` 컨테이너로 감싸져 있는가?
 - [ ] (3단 목록 화면 하단 그리드인 경우) 헤더에 `border-b` 대신 별도 `border-t` 구분선을 뒀는가, 그리드 래퍼에 `p-5`를 줬는가?
 - [ ] (3단 목록 화면 하단 그리드인 경우) 상위 단 선택값이 있으면 헤더 제목을 `제목 — {선택값}`(em dash + `text-[#405189]` 강조) 형태로 반영했는가?
+- [ ] (3단 목록 화면 하단 그리드인 경우) 헤더 우측에 버튼 등 실제 요소가 있으면 `py-3`, 없으면(우측 슬롯 생략) `py-5`로 높이를 맞췄는가?
 - [ ] (탭 변형인 경우) 탭 줄에 `pr-5`(우측 버튼 있을 때)와 `(N)` 괄호 카운트 포맷을 썼는가?
 - [ ] 파일 수정 후 `npx eslint --fix <file-path>`를 실행했는가?

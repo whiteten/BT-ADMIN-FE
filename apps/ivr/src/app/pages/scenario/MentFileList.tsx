@@ -1,18 +1,16 @@
 /**
  * IVR 멘트파일 목록 페이지 (AS-IS IPR30S3020).
  *
- * <p>레이아웃 — IvrAinDnis 패턴 복제 (테넌트 탭 제거, 다중선택 + 일괄적용 추가).</p>
- * <ul>
- *   <li>상단 박스: 제목 + 검색 + 일괄적용 + 추가</li>
- *   <li>하단 박스: ag-Grid (다중선택 체크박스 + 작업일시 + 액션 컬럼)</li>
- * </ul>
+ * <p>레이아웃 — 별도 검색 UI 없이 그리드 자체 컬럼 filter로 대체. 박스 하나로 통합
+ * (3단 목록 화면 하단 그리드 표준 — add-grid 스킬 5-1): 헤더 좌측에 아이콘+제목+카운트 배지,
+ * 우측에 이력/추가/다량추가/일괄적용/Export 액션, border-t 구분선, 그리드 래퍼 p-5.</p>
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Input, Tag } from 'antd';
-import { CheckCircle, Download, FilePlus2, History, Pause, Play, Plus, Search, Upload as UploadIcon, XCircle } from 'lucide-react';
+import { type BreadcrumbProps, Button } from 'antd';
+import { Download, FilePlus2, History, PlayCircle, Plus, StopCircle, Trash2, Upload as UploadIcon, Volume2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MentFileApplyModal, { type MentFileApplyModalRef } from '../../features/mentfile/components/MentFileApplyModal';
@@ -22,11 +20,19 @@ import MentFileSheet, { type MentFileSheetRef } from '../../features/mentfile/co
 import { useMentFilePlayer } from '../../features/mentfile/hooks/useMentFilePlayer';
 import { mentFileQueryKeys, useDeleteMentFile, useExportMentFiles, useGetMentFiles } from '../../features/mentfile/hooks/useMentFileQueries';
 import type { MentFile } from '../../features/mentfile/types';
-import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '멘트파일', path: '/ivr/scenario/mentfile' }];
+
+/** 그리드 안 상태값 배지 표준(add-grid 스킬 참조) — Record 색상 맵 + shadcn Badge. */
+const FILE_APPLY_BADGE_CLASS: Record<number, string> = {
+  1: 'text-emerald-600 bg-emerald-50',
+};
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 export default function MentFileList() {
   const queryClient = useQueryClient();
@@ -41,7 +47,6 @@ export default function MentFileList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   // ─── State ──────────────────────────────────────────────────────────────
-  const [searchText, setSearchText] = useState('');
   const [checkedIds, setCheckedIds] = useState<number[]>([]);
 
   // ─── Refs ─────────────────────────────────────────────────────────────
@@ -55,15 +60,6 @@ export default function MentFileList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: rows = [], isLoading: isListLoading } = useGetMentFiles();
-
-  // ─── Derived ────────────────────────────────────────────────────────────
-  const isSearching = searchText.trim().length > 0;
-
-  const filteredRows = useMemo(() => {
-    if (!isSearching) return rows;
-    const kw = searchText.trim().toLowerCase();
-    return rows.filter((r) => r.mentFile?.toLowerCase().includes(kw) || r.mentName?.toLowerCase().includes(kw) || (r.mentDesc ?? '').toLowerCase().includes(kw));
-  }, [rows, isSearching, searchText]);
 
   // ─── Invalidation ──────────────────────────────────────────────────────
   const invalidateList = useCallback(() => {
@@ -85,8 +81,6 @@ export default function MentFileList() {
   });
 
   // ─── Handlers ──────────────────────────────────────────────────────────
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value);
-
   const handleCreate = () => sheetRef.current?.openCreate();
   const handleBatchCreate = () => batchSheetRef.current?.open();
 
@@ -134,9 +128,9 @@ export default function MentFileList() {
   const columnDefs: ColDef<MentFile>[] = useMemo(
     () => [
       {
-        headerName: '재생',
+        headerName: '',
         colId: 'play',
-        width: 60,
+        width: 50,
         sortable: false,
         filter: false,
         suppressHeaderMenuButton: true,
@@ -153,12 +147,10 @@ export default function MentFileList() {
                 e.stopPropagation();
                 togglePlay(row.mentfileId);
               }}
-              className={`flex items-center justify-center w-6 h-6 rounded-full border ${
-                isPlaying ? 'border-[#405189] bg-[#405189] text-white' : 'border-slate-300 text-slate-600 hover:border-[#405189] hover:text-[#405189]'
-              }`}
+              className={cn('flex items-center justify-center transition-colors', isPlaying ? 'text-red-500 hover:text-red-700' : 'text-blue-500 hover:text-blue-700')}
               aria-label={isPlaying ? '정지' : '재생'}
             >
-              {isPlaying ? <Pause className="size-3" /> : <Play className="size-3 ml-[1px]" />}
+              {isPlaying ? <StopCircle size={18} /> : <PlayCircle size={18} />}
             </button>
           );
         },
@@ -185,8 +177,7 @@ export default function MentFileList() {
       {
         headerName: 'EMS 경로',
         field: 'emsFilePath',
-        flex: 1.5,
-        minWidth: 180,
+        minWidth: 160,
         tooltipField: 'emsFilePath',
       },
       {
@@ -199,16 +190,10 @@ export default function MentFileList() {
         headerName: '적용',
         field: 'fileApplyYn',
         width: 90,
-        cellRenderer: (params: ICellRendererParams<MentFile>) =>
-          params.data?.fileApplyYn === 1 ? (
-            <Tag color="green" icon={<CheckCircle className="size-3 inline" />}>
-              적용
-            </Tag>
-          ) : (
-            <Tag color="default" icon={<XCircle className="size-3 inline" />}>
-              미적용
-            </Tag>
-          ),
+        cellRenderer: (params: ICellRendererParams<MentFile>) => {
+          const yn = params.data?.fileApplyYn ?? 0;
+          return <Badge className={cn(BADGE_CLASS, FILE_APPLY_BADGE_CLASS[yn] ?? DEFAULT_BADGE_CLASS)}>{yn === 1 ? '적용' : '미적용'}</Badge>;
+        },
       },
       {
         headerName: '작업자',
@@ -238,13 +223,13 @@ export default function MentFileList() {
           return (
             <button
               type="button"
+              title="삭제"
               onClick={(e) => {
                 e.stopPropagation();
                 handleDelete(params.data!);
               }}
-              aria-label="삭제"
             >
-              <IconTrash className="size-5 text-red-500 hover:cursor-pointer" />
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
             </button>
           );
         },
@@ -257,56 +242,37 @@ export default function MentFileList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단 박스: 제목 + 검색 + 일괄적용 + 추가 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <div className="flex items-center px-5">
-              <span className="text-[14px] font-semibold text-slate-800">
-                멘트파일
-                <span className="text-[11px] text-slate-400 ml-1.5 font-normal">{rows.length}개</span>
-              </span>
+        {/* ===== ag-Grid 박스 (3단 목록 화면 하단 그리드 표준 — add-grid 스킬 5-1) ===== */}
+        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Volume2 className="size-4 text-[#405189]" />
+              <h3 className="text-sm font-semibold text-gray-800">멘트파일 목록</h3>
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{rows.length}개</span>
             </div>
-
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3 self-center">
-              <Input
-                allowClear
-                prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="멘트명/파일명/설명 검색"
-                value={searchText}
-                onChange={handleSearchChange}
-                style={{ width: 240 }}
-              />
-              <Button color="purple" variant="solid" icon={<UploadIcon className="size-3.5" />} disabled={checkedIds.length === 0} onClick={handleApply}>
-                일괄적용{checkedIds.length > 0 ? ` (${checkedIds.length})` : ''}
-              </Button>
-              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} onClick={() => historyModalRef.current?.open({ checkedMentfileIds: checkedIds })}>
-                이력{checkedIds.length > 0 ? ` (${checkedIds.length}건 선택)` : ''}
-              </Button>
-              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport}>
-                Excel
+            <div className="flex items-center gap-2">
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+                추가
               </Button>
               <Button variant="solid" icon={<FilePlus2 className="size-3.5" />} onClick={handleBatchCreate}>
                 다량추가
               </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
-                추가
+              <Button color="purple" variant="solid" icon={<UploadIcon className="size-3.5" />} disabled={checkedIds.length === 0} onClick={handleApply}>
+                적용{checkedIds.length > 0 ? ` (${checkedIds.length})` : ''}
+              </Button>
+              <Button color="blue" variant="filled" icon={<History className="size-3.5" />} onClick={() => historyModalRef.current?.open({ checkedMentfileIds: checkedIds })}>
+                적용 이력{checkedIds.length > 0 ? ` (${checkedIds.length}건 선택)` : ''}
+              </Button>
+              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} onClick={handleExport}>
+                Export
               </Button>
             </div>
           </div>
-        </div>
+          <div className="border-t border-gray-200" />
 
-        {/* ===== 하단 박스: ag-Grid ===== */}
-        <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-            <span className="text-sm font-semibold text-gray-800">
-              멘트파일 목록
-              <span className="text-gray-400 font-normal ml-1.5">({filteredRows.length}건)</span>
-            </span>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-h-0 p-5">
             <AgGridReact<MentFile>
-              rowData={filteredRows}
+              rowData={rows}
               columnDefs={columnDefs}
               gridOptions={{
                 ...gridOptions,

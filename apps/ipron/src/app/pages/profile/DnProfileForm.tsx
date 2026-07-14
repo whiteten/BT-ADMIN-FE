@@ -21,7 +21,6 @@ import {
   useCreateDnProfile,
   useDeleteDnProfile,
   useGetDnProfileDetail,
-  useGetDnProfileNodeTenants,
   useGetDnProfileNodes,
   useGetDnProfileOptions,
   useGetDnProfileTenants,
@@ -29,6 +28,7 @@ import {
 } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { DN_PROFILE_INITIAL_VALUES, type DnProfileCreateRequest, type DnProfileUpdateRequest } from '../../features/dn-profile/types';
 import { DN_PROFILE_TYPE_OPTIONS, NAT_OPTION_OPTIONS, REC_START_CALL_TYPE_OPTIONS, getRtpOptions } from '../../features/dn-profile/utils/dnProfileEnums';
+import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -75,9 +75,12 @@ export default function DnProfileForm() {
   const msGroupRequired = !isRtpDisabled;
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetDnProfileNodes();
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
+  const scopedNodes = useScopedNodes(allNodes);
+  const nodes = isEditMode ? allNodes : scopedNodes;
   const { data: tenants = [] } = useGetDnProfileTenants();
-  const { data: nodeTenants = [] } = useGetDnProfileNodeTenants();
+  const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: profileDetail, isFetching } = useGetDnProfileDetail(dnProfileId);
 
   // 노드-테넌트 매핑 기반: 해당 노드에 할당된 테넌트만

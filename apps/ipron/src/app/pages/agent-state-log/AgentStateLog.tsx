@@ -2,12 +2,16 @@
  * 상담사 상태 로그(상담사 여정) 메인 페이지
  * menuKey: ipron-tracking-agent-journey
  *
+ * 멀티테넌트 개편(상담사 관리 정합): 상단 테넌트 카드 슬라이더 제거.
+ *   - 일반 콘솔: 테넌트 선택기 없음(토큰=활성 테넌트 스코프). 헤더에 요약(총/활성)만.
+ *   - 운영자 모드: 헤더에 대행 테넌트 ScopeSelect(공통) + 그 옆에 요약.
+ *
  * 입력 체인:
- *   테넌트 카드 → 상담그룹 Select(폼 select 컨트롤) → 상담사 Select → 날짜 + 시간 범위
+ *   (스코프 테넌트) → 상담그룹 Select(폼 select 컨트롤) → 상담사 Select → 날짜 + 시간 범위
  *   → 선택된 상담사의 agentId(숫자) 로 BE POST 호출
  *
  * 재사용 API (신규 엔드포인트 없음):
- *   - agentMasterApi.getTenants()    → 테넌트 카드 (AgentTenantStat[])
+ *   - agentMasterApi.getTenants()    → 테넌트 스코프 옵션/요약 (AgentTenantStat[])
  *   - agentMasterApi.getGroupTree()  → 상담그룹 계층 (AgentGroupNode[], tenantId 필터)
  *   - agentMasterApi.getList()       → 상담사 목록 (AgentResponse[], groupId 필터)
  *
@@ -19,15 +23,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DatePicker, Select, TimePicker } from 'antd';
 import dayjs from 'dayjs';
-import { AlertCircle, Building2, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, FileText, LayoutList, Search } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { AlertCircle, FileText, LayoutList, Search } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetAgentGroupTree, useGetAgentTenants, useGetAgents } from '../../features/agent-master/hooks/useAgentMasterQueries';
-import type { AgentGroupNode, AgentResponse, AgentTenantStat } from '../../features/agent-master/types';
+import type { AgentGroupNode, AgentResponse } from '../../features/agent-master/types';
 import AgentJourneyTimeline from '../../features/agent-state-log/components/AgentJourneyTimeline';
 import { useAgentStateLog } from '../../features/agent-state-log/hooks/useAgentStateLogQueries';
 import type { AgentStateLogRequest, AgentStateLogResponse } from '../../features/agent-state-log/types';
 import NoData from '@/components/custom/NoData';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 
 const breadcrumb = [{ title: '트래킹' }, { title: '상담사 상태 로그', path: '/ipron/tracking/agent-state-log' }];
 
@@ -41,45 +46,6 @@ interface FlatGroupOption {
 
 function flattenGroupTree(nodes: AgentGroupNode[], depth = 0): FlatGroupOption[] {
   return nodes.flatMap((n) => [{ groupId: n.groupId, label: n.groupName, depth }, ...flattenGroupTree(n.children, depth + 1)]);
-}
-
-// ─── 테넌트 카드 ──────────────────────────────────────────────────────────────
-
-interface TenantCardProps {
-  tenantId: number | null;
-  tenantName: string;
-  agentCount: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function TenantCard({ tenantId, tenantName, agentCount, selected, onClick }: TenantCardProps) {
-  const isAll = tenantId === null;
-  return (
-    <div
-      className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[180px] h-[72px] flex-shrink-0 flex flex-col justify-between ${
-        selected ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-      }`}
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-1.5">
-        {isAll ? (
-          <span className={`text-[12px] font-semibold ${selected ? 'text-[#405189]' : 'text-gray-600'}`}>전체</span>
-        ) : (
-          <>
-            <Building2 className={`size-3 flex-shrink-0 ${selected ? 'text-[#405189]' : 'text-gray-500'}`} />
-            <span className={`text-[12px] font-semibold truncate ${selected ? 'text-[#405189]' : 'text-gray-800'}`} title={tenantName}>
-              {tenantName}
-            </span>
-          </>
-        )}
-      </div>
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-gray-400">상담사</span>
-        <span className="font-semibold text-gray-700">{agentCount.toLocaleString()}명</span>
-      </div>
-    </div>
-  );
 }
 
 // ─── 결과 상태 ────────────────────────────────────────────────────────────────
@@ -99,38 +65,30 @@ export default function AgentStateLog() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  // 컨텍스트 테넌트 (ROLE_ADMIN 은 null → 전체 선택)
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── 선택 상태 ──────────────────────────────────────────────────────────────
-  const [cardExpanded, setCardExpanded] = useState(false);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<number | null>(null);
   const [date, setDate] = useState<dayjs.Dayjs>(dayjs());
   const [startTime, setStartTime] = useState<dayjs.Dayjs | null>(null);
   const [endTime, setEndTime] = useState<dayjs.Dayjs | null>(null);
 
-  const cardScrollRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
-
-  // ctx 비동기 로드 후 초기 테넌트 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
-
-  // ─── 테넌트 변경 → 하위 초기화 ─────────────────────────────────────────────
-  const handleTenantSelect = useCallback((tenantId: number | null) => {
-    setSelectedTenantId(tenantId);
-    setSelectedGroupId(null);
-    setSelectedAgentId(null);
-  }, []);
 
   // ─── 그룹 변경 → 상담사 초기화 ─────────────────────────────────────────────
   const handleGroupSelect = useCallback((groupId: number | null) => {
@@ -156,17 +114,11 @@ export default function AgentStateLog() {
 
   // ─── 파생 데이터 ─────────────────────────────────────────────────────────────
 
-  const tenantCards = useMemo(() => {
-    const totalCount = tenantStats.reduce((s: number, t: AgentTenantStat) => s + t.totalCnt, 0);
-    return [
-      { tenantId: null as number | null, tenantName: '전체', agentCount: totalCount },
-      ...tenantStats.map((t: AgentTenantStat) => ({
-        tenantId: t.tenantId,
-        tenantName: t.tenantName ?? `테넌트 ${t.tenantId}`,
-        agentCount: t.totalCnt,
-      })),
-    ];
-  }, [tenantStats]);
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 총/활성 상담사 수.
+  const summary = useMemo(() => {
+    const rows = selectedTenantId == null ? tenantStats : tenantStats.filter((t) => t.tenantId === selectedTenantId);
+    return rows.reduce((a, t) => ({ total: a.total + (t.totalCnt ?? 0), active: a.active + (t.activeCnt ?? 0) }), { total: 0, active: 0 });
+  }, [tenantStats, selectedTenantId]);
 
   const groupOptions = useMemo(
     () =>
@@ -243,82 +195,32 @@ export default function AgentStateLog() {
   // ────────────────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-3 p-4 h-full">
-      {/* ── 테넌트 카드 슬라이더 ─────────────────────────────────────────── */}
-      <div className="rounded-md border border-slate-200 bg-white shadow-sm flex-shrink-0">
-        {/* 축소(pill) 모드 — skill-assign 표준 패턴과 동일 */}
-        {!cardExpanded && (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {tenantCards.map((tc) => {
-                  const isSelected = tc.tenantId === selectedTenantId;
-                  return (
-                    <button
-                      key={tc.tenantId ?? 'all'}
-                      type="button"
-                      onClick={() => handleTenantSelect(tc.tenantId)}
-                      className={`flex-shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-all whitespace-nowrap ${
-                        isSelected ? 'border-[#405189] bg-[#405189] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0]'
-                      }`}
-                    >
-                      {tc.tenantName}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => setCardExpanded(true)}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-                title="카드 펼치기"
-              >
-                <ChevronsDown size={14} />
-              </button>
-            </div>
+      {/* ── 헤더 (스코프 선택 + 요약) ─────────────────────────────────────── */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+        <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 토큰=활성 테넌트 스코프. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedGroupId(null);
+                setSelectedAgentId(null);
+              }}
+            />
+          )}
+          {/* 요약 — 총/활성 상담사 (운영자는 선택 뒤, 일반은 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 상담사 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              활성 <b className="text-green-600 font-semibold">{summary.active.toLocaleString()}</b>
+            </span>
           </div>
-        )}
-
-        {/* 확장(카드) 모드 — skill-assign 표준 패턴과 동일 */}
-        {cardExpanded && (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <button
-                type="button"
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -220, behavior: 'smooth' })}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto flex-1 py-2 px-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {tenantCards.map((tc) => (
-                  <TenantCard
-                    key={tc.tenantId ?? 'all'}
-                    tenantId={tc.tenantId}
-                    tenantName={tc.tenantName}
-                    agentCount={tc.agentCount}
-                    selected={tc.tenantId === selectedTenantId}
-                    onClick={() => handleTenantSelect(tc.tenantId)}
-                  />
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 220, behavior: 'smooth' })}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-              >
-                <ChevronRight size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setCardExpanded(false)}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-[#405189] rounded"
-                title="카드 접기"
-              >
-                <ChevronsUp size={14} />
-              </button>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* ── 검색 폼 ──────────────────────────────────────────────────────── */}

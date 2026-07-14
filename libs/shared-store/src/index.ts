@@ -7,6 +7,7 @@ export * from './lib/useLayoutStore';
 export * from './lib/useMenuStore';
 export * from './lib/useNavigationStore';
 export * from './lib/useOpenTabsStore';
+export * from './lib/useOperatorScopeStore';
 export * from './lib/usePageVariantsStore';
 export * from './lib/usePageVariantManifestStore';
 export * from './lib/useQuerySelectorsStore';

@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { SquareDashed } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { fuzzyScore } from '@/shared-util';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { MenuActionButtons } from '../components/MenuActionButtons';
@@ -9,6 +10,35 @@ import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 type LocationLike = { pathname: string; search: string };
+
+/** 운영자 전용 메뉴(featureFlag='operator') — operatorMode 시 제자리 유지 + 앰버 강조 + "운영자 전용" 배지. */
+export const isOperatorOnly = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator';
+/** 운영자 모드에서 범위/동작이 달라지는 메뉴(featureFlag='operator-aware') — 제자리 유지 + 보라 배지. */
+export const isOperatorAware = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator-aware';
+
+/** operator 전용 배지 — 운영자 모드에서만 보이는 전용 메뉴임을 알림. */
+export function OperatorOnlyBadge() {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 ring-1 ring-amber-200"
+      title="운영자 모드에서만 노출되는 전용 메뉴 (일반 모드에서는 숨김)"
+    >
+      운영자 전용
+    </span>
+  );
+}
+
+/** operator-aware 배지 — 운영자 모드에서 범위/동작이 달라짐을 알림(예: 일반=본인 테넌트, 운영자=전체 테넌트). */
+export function OperatorAwareBadge() {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-violet-100 text-violet-700 ring-1 ring-violet-200"
+      title="운영자 모드에서 범위/동작이 달라지는 메뉴 (예: 일반 모드=본인 테넌트, 운영자 모드=전체 테넌트)"
+    >
+      운영자 모드
+    </span>
+  );
+}
 
 /**
  * 메뉴 path가 현재 URL과 매치되는지 판단한다.
@@ -72,6 +102,9 @@ interface MenuLinkProps {
 /** 리프 메뉴 링크 — 패널 안에서 사용. 활성 상태 강조 + 즐겨찾기 버튼 노출 */
 export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false }: MenuLinkProps) {
   const location = useLocation();
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const opOnly = operatorMode && isOperatorOnly(item);
+  const opAware = operatorMode && isOperatorAware(item);
   const isActive = item.path ? isMenuActive(item.path, location, appId) : false;
   const showDescRow = showDesc && !!item.desc;
 
@@ -83,6 +116,9 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
         // active 상태: 1뎁스(PanelMenuRow)와 동일한 푸른 배경 + 좌측 세로 인디케이터
         isActive &&
           'bg-[var(--color-bt-primary)]/[0.08] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
+        // 운영자 전용: 앰버 / 운영자 모드 상이(operator-aware): 보라 좌측 인디케이터 (활성 아닐 때)
+        opOnly && !isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
+        opAware && !isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-violet-400',
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
@@ -96,6 +132,8 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
           </p>
         )}
       </div>
+      {opOnly && <OperatorOnlyBadge />}
+      {opAware && <OperatorAwareBadge />}
       <span className="shrink-0 ml-1" onClick={(e) => e.stopPropagation()}>
         <MenuActionButtons menuKey={item.menuKey} label={item.label} path={item.path ?? ''} appId={appId} />
       </span>
@@ -191,6 +229,9 @@ interface PanelMenuRowProps {
 export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
   const location = useLocation();
   const { activeMenuKey, mode, setActiveMenuKey, setMode } = useMenuPanelStore();
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const opOnly = operatorMode && isOperatorOnly(item);
+  const opAware = operatorMode && isOperatorAware(item);
   const Icon = item.icon;
   const isFolder = !!item.children?.length;
   const isLeaf = !!item.path && !isFolder;
@@ -215,13 +256,17 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
         'hover:bg-[#f1f3f5]',
         isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
         isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
+        opOnly && !isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
+        opAware && !isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-violet-400',
         isActiveBranch ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >
-      <span className={cn('flex items-center justify-center size-5 shrink-0', isActiveBranch ? 'text-[var(--color-bt-primary)]' : 'text-[#868e96]')}>
+      <span className={cn('flex items-center justify-center size-5 shrink-0', isActiveBranch ? 'text-[var(--color-bt-primary)]' : opOnly ? 'text-amber-500' : 'text-[#868e96]')}>
         {Icon ? <Icon className="!size-5" /> : <SquareDashed className="!size-5" />}
       </span>
       <span className="flex-1 min-w-0 truncate text-sm">{item.label}</span>
+      {opOnly && <OperatorOnlyBadge />}
+      {opAware && <OperatorAwareBadge />}
       {isFolder && (
         <svg
           xmlns="http://www.w3.org/2000/svg"

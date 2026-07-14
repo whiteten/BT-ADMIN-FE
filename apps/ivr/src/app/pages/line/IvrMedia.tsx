@@ -29,7 +29,7 @@ import { ivrMediaQueryKeys, useDeleteMediaServer, useGetForcusSystems, useGetNod
 import SttMasterTab from '../../features/ivr-media/tabs/SttMasterTab';
 import TtsMasterTab from '../../features/ivr-media/tabs/TtsMasterTab';
 import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../../features/ivr-media/types';
-import NodeTabBar, { type NodeTabBarItem } from '@/components/custom/NodeTabBar';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type TabKey = 'media' | 'tts' | 'stt';
@@ -115,7 +115,7 @@ export default function IvrMedia() {
     return systems.find((s) => s.systemId === selectedSystemId) ?? null;
   }, [systems, selectedSystemId]);
 
-  const nodeTabItems: NodeTabBarItem<number | 'all'>[] = useMemo(
+  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
     () => [
       { id: 'all', label: '전체', icon: Layers, count: searchFilteredSystems.length },
       ...nodes.map((node) => ({
@@ -225,7 +225,7 @@ export default function IvrMedia() {
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== 헤더 박스: 노드 탭 바 ===== */}
-        <NodeTabBar<number | 'all'>
+        <TabBar<number | 'all'>
           items={nodeTabItems}
           selectedId={isSearching ? null : (selectedNodeId ?? 'all')}
           onSelect={(id) => {

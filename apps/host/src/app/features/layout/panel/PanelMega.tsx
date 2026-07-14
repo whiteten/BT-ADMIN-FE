@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Input } from 'antd';
 import { Search, SquareDashed } from 'lucide-react';
-import { useMenuStore } from '@/shared-store';
+import { useMenuStore, useOperatorScopeStore } from '@/shared-store';
 import PanelControls from './PanelControls';
-import { Highlight, hasMatch, isMenuActive } from './PanelMenuPrimitives';
+import { Highlight, OperatorAwareBadge, OperatorOnlyBadge, hasMatch, isMenuActive, isOperatorAware, isOperatorOnly } from './PanelMenuPrimitives';
 import useCurrentRemote from '../../../hooks/useCurrentRemote';
 import { MenuActionButtons } from '../components/MenuActionButtons';
 import type { MenuConfig, MenuItem } from '@/libs/shared-store/src/types/menu.types';
@@ -40,11 +40,14 @@ interface TreeNodeProps {
 /** 2단계 이하 메뉴 — 커넥터 선(세로 spine + 가로 tick) + 점 + 라벨. 재귀 */
 const TreeNode = ({ item, isLast, appId, query, onNavigate }: TreeNodeProps) => {
   const location = useLocation();
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   const childItems = (item.children ?? []).filter((c) => !c.hide && (!query || hasMatch(c, query)));
   const hasChildren = childItems.length > 0;
   const isLeaf = !!item.path && !item.children?.length;
   const isEmpty = !isLeaf && !hasChildren; // path도 children도 없는 항목
   const isActive = item.path ? isMenuActive(item.path, location, appId) : false;
+  const opOnly = operatorMode && isOperatorOnly(item);
+  const opAware = operatorMode && isOperatorAware(item);
 
   return (
     <li className="relative pl-5 pb-1">
@@ -77,6 +80,8 @@ const TreeNode = ({ item, isLast, appId, query, onNavigate }: TreeNodeProps) => 
           >
             <Highlight text={item.label} query={query} />
           </span>
+          {opOnly && <OperatorOnlyBadge />}
+          {opAware && <OperatorAwareBadge />}
         </div>
         {isLeaf && <FavoriteSlot item={item} appId={appId} />}
       </div>

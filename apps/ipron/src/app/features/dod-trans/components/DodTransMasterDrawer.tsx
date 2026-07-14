@@ -9,6 +9,7 @@
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Button, Drawer, Form, Input, Select } from 'antd';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import type { NodeTenantItem } from '../api/dodTransApi';
 import { useCreateMaster, useDeleteMaster, useUpdateMaster } from '../hooks/useDodTransQueries';
@@ -34,6 +35,12 @@ interface Props {
 const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuccess, nodes, nodeTenants }, ref) => {
   const [form] = Form.useForm();
   const modal = useModal();
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<DodTransMaster | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
@@ -41,26 +48,28 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
 
   const isEditMode = !!editData;
 
-  // 노드 옵션
-  const nodeOptions = useMemo(() => nodes.map((n) => ({ label: n.nodeName, value: n.nodeId })), [nodes]);
-
-  // 선택된 노드의 테넌트 옵션
+  // 테넌트 옵션 — 노드-테넌트 매핑 기준 전체 테넌트 (운영자 대행 선택 가능)
   const tenantOptions = useMemo(() => {
-    if (!nodeId) return [];
     const map = new Map<number, string>();
     for (const nt of nodeTenants) {
-      if (nt.nodeId === nodeId && !map.has(nt.tenantId)) {
-        map.set(nt.tenantId, nt.tenantName);
-      }
+      if (!map.has(nt.tenantId)) map.set(nt.tenantId, nt.tenantName);
     }
     return Array.from(map.entries()).map(([id, name]) => ({ label: name, value: id }));
-  }, [nodeId, nodeTenants]);
+  }, [nodeTenants]);
+
+  // 노드 옵션 — 테넌트 선택 시 해당 테넌트가 속한 노드만, 미선택 시 전체
+  const nodeOptions = useMemo(() => {
+    if (!tenantId) return nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }));
+    const nodeIds = new Set(nodeTenants.filter((nt) => nt.tenantId === tenantId).map((nt) => nt.nodeId));
+    return nodes.filter((n) => nodeIds.has(n.nodeId)).map((n) => ({ label: n.nodeName, value: n.nodeId }));
+  }, [nodes, nodeTenants, tenantId]);
 
   useImperativeHandle(ref, () => ({
     open: (data?: DodTransMaster, initNodeId?: number, _initNodeName?: string, initTenantId?: number, _initTenantName?: string) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
-      setTenantId(data?.tenantId ?? initTenantId ?? null);
+      // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      setTenantId(data?.tenantId ?? initTenantId ?? (operatorMode ? null : activeTenantId));
       setVisible(true);
     },
     close: () => handleClose(),
@@ -76,13 +85,13 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
     }
   }, [visible, editData, form]);
 
-  // 노드 변경 시 테넌트가 새 노드에 없으면 초기화
+  // 테넌트 변경 시 선택된 노드가 해당 테넌트에 없으면 초기화
   useEffect(() => {
-    if (!nodeId || isEditMode) return;
-    if (tenantId === null) return;
+    if (isEditMode) return;
+    if (!tenantId || !nodeId) return;
     const exists = nodeTenants.some((nt) => nt.nodeId === nodeId && nt.tenantId === tenantId);
-    if (!exists) setTenantId(null);
-  }, [nodeId, tenantId, nodeTenants, isEditMode]);
+    if (!exists) setNodeId(null);
+  }, [tenantId, nodeId, nodeTenants, isEditMode]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createMaster, isPending: isCreating } = useCreateMaster({
@@ -194,18 +203,28 @@ const DodTransMasterDrawer = forwardRef<DodTransMasterDrawerRef, Props>(({ onSuc
       }
     >
       <Form form={form} layout="vertical">
-        <Form.Item label="노드" required>
-          <Select placeholder="노드를 선택하세요" options={nodeOptions} value={nodeId ?? undefined} onChange={(v) => setNodeId(v)} disabled={isEditMode} />
-        </Form.Item>
+        {operatorMode && (
+          <Form.Item label="테넌트" required>
+            <Select
+              placeholder="테넌트를 선택하세요"
+              options={tenantOptions}
+              value={tenantId ?? undefined}
+              onChange={(v) => setTenantId(v)}
+              disabled={isEditMode}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+        )}
 
-        <Form.Item label="테넌트" required>
+        <Form.Item label="노드" required>
           <Select
-            placeholder={nodeId ? '테넌트를 선택하세요' : '노드를 먼저 선택하세요'}
-            options={tenantOptions}
-            value={tenantId ?? undefined}
-            onChange={(v) => setTenantId(v)}
-            disabled={isEditMode || !nodeId}
-            notFoundContent={nodeId ? '이 노드에 등록된 테넌트가 없습니다' : null}
+            placeholder={tenantId ? '노드를 선택하세요' : '테넌트를 먼저 선택하거나 노드를 선택하세요'}
+            options={nodeOptions}
+            value={nodeId ?? undefined}
+            onChange={(v) => setNodeId(v)}
+            disabled={isEditMode}
+            notFoundContent={tenantId ? '이 테넌트에 연결된 노드가 없습니다' : null}
           />
         </Form.Item>
 

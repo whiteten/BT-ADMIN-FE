@@ -9,9 +9,9 @@
  *  - 별도 뷰 토글 X
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Layers, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { Button, Input } from 'antd';
+import { Layers, Plus, Search, Trash2 } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SkillGroupManageModal from '../../features/skill-assign/components/SkillGroupManageModal';
 import SkillsetFormDrawer from '../../features/skillset-master/components/SkillsetFormDrawer';
@@ -19,7 +19,6 @@ import SkillsetGroupDrawer from '../../features/skillset-master/components/Skill
 import SkillsetGroupTree from '../../features/skillset-master/components/SkillsetGroupTree';
 import SkillsetScheduleDrawer from '../../features/skillset-master/components/SkillsetScheduleDrawer';
 import SkillsetTable from '../../features/skillset-master/components/SkillsetTable';
-import SkillsetTenantCard from '../../features/skillset-master/components/SkillsetTenantCard';
 import {
   useCreateSkillset,
   useCreateSkillsetGroup,
@@ -43,34 +42,10 @@ import type {
   SkillsetResponse,
   SkillsetUpdateRequest,
 } from '../../features/skillset-master/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '라우팅 설정' }, { title: '스킬셋 관리', path: '/ipron/skillset-master' }];
-
-interface CompactPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactPill({ name, count, selected, onClick }: CompactPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}건`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
-    </button>
-  );
-}
 
 /** 트리 평탄화 (Drawer 의 group Select 옵션용) */
 function flattenGroups(nodes: SkillsetGroupResponse[], depth = 0, out: SkillsetGroupResponse[] = []): SkillsetGroupResponse[] {
@@ -96,29 +71,27 @@ export default function SkillsetMasterList() {
   // ref 를 통해 항상 최신 인스턴스에 접근하되 deps 는 안정적으로 유지한다.
   const modalRef = useRef(modal);
   modalRef.current = modal;
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<SkillsetResponse[]>([]);
-  // 카드 박스는 항상 DOM 에 있고 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
-  const [cardExpanded, setCardExpanded] = useState(false);
-
-  // ctx tenantId 가 늦게 로드되는 경우 (auth fetch 비동기) 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
@@ -249,6 +222,16 @@ export default function SkillsetMasterList() {
     return { skillsetCount, groupCount, unassignedCount };
   }, [tenantStats]);
 
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 총 스킬셋/업무그룹/미배정.
+  const summary = useMemo(() => {
+    const rows = selectedTenantId == null ? tenantStats : tenantStats.filter((t) => t.tenantId === selectedTenantId);
+    return rows.reduce((a, t) => ({ skillset: a.skillset + (t.skillsetCount ?? 0), group: a.group + (t.groupCount ?? 0), unassigned: a.unassigned + (t.unassignedCount ?? 0) }), {
+      skillset: 0,
+      group: 0,
+      unassigned: 0,
+    });
+  }, [tenantStats, selectedTenantId]);
+
   const tenantOptions = useMemo(() => tenantStats.map((t) => ({ tenantId: t.tenantId, tenantName: t.tenantName })), [tenantStats]);
   const flatGroups = useMemo(() => flattenGroups(groupTree), [groupTree]);
 
@@ -261,6 +244,7 @@ export default function SkillsetMasterList() {
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   const handleCreateOpen = useCallback(() => {
+    // 전체 보기에서도 등록 허용 — 운영자 모드면 등록 폼의 "테넌트" 필드로 대상 테넌트를 직접 고른다.
     setDrawerMode('create');
     setDrawerSkillset(null);
     setDrawerOpen(true);
@@ -306,7 +290,7 @@ export default function SkillsetMasterList() {
     (parent: SkillsetGroupResponse | null, tenantHint?: number | null) => {
       const targetTenant = parent?.tenantId ?? tenantHint ?? selectedTenantId;
       if (targetTenant == null) {
-        toast.warning('루트 그룹을 추가할 테넌트 카드를 먼저 선택하세요');
+        toast.warning('루트 그룹을 추가할 테넌트를 먼저 선택하세요 (상단 테넌트 선택)');
         return;
       }
       setGroupDrawerMode('create');
@@ -393,15 +377,34 @@ export default function SkillsetMasterList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 (타이틀 + 검색) — 별도 박스 ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 요약 + 검색) — 별도 박스 ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">스킬셋 현황</span>
-          {selectedTenantId !== null && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
-            </span>
+        <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.skillsetCount }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedTreeId(null);
+                setSelectedRows([]);
+              }}
+            />
           )}
+          {/* 요약 — 총 스킬셋/업무그룹/미배정 (운영자는 선택 뒤, 일반은 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 스킬셋 <b className="text-gray-800 font-semibold">{summary.skillset.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              업무그룹 <b className="text-[#405189] font-semibold">{summary.group.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              미배정 <b className="text-amber-600 font-semibold">{summary.unassigned.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -413,103 +416,6 @@ export default function SkillsetMasterList() {
             />
           </div>
         </div>
-      </div>
-
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 — 별도 박스 (default 접힘, 펼침 토글 가능) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <SkillsetTenantCard
-                  tenantId={null}
-                  tenantName="전체"
-                  stats={totalStats}
-                  selected={selectedTenantId === null}
-                  onClick={() => {
-                    setSelectedTenantId(null);
-                    setSelectedTreeId(null);
-                  }}
-                />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 스킬셋이 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((t) => (
-                    <SkillsetTenantCard
-                      key={t.tenantId}
-                      tenantId={t.tenantId}
-                      tenantName={t.tenantName ?? '-'}
-                      stats={{ skillsetCount: t.skillsetCount, groupCount: t.groupCount, unassignedCount: t.unassignedCount }}
-                      selected={selectedTenantId === t.tenantId}
-                      onClick={(e) => {
-                        setSelectedTenantId(t.tenantId);
-                        setSelectedTreeId(null);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactPill
-                  name="전체"
-                  count={totalStats.skillsetCount}
-                  selected={selectedTenantId === null}
-                  onClick={() => {
-                    setSelectedTenantId(null);
-                    setSelectedTreeId(null);
-                  }}
-                />
-                {tenantStats.map((t) => (
-                  <CompactPill
-                    key={t.tenantId}
-                    name={t.tenantName ?? '-'}
-                    count={t.skillsetCount}
-                    selected={selectedTenantId === t.tenantId}
-                    onClick={() => {
-                      setSelectedTenantId(t.tenantId);
-                      setSelectedTreeId(null);
-                    }}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ===== 좌(트리) + 우(ag-Grid) 박스 ===== */}
@@ -597,6 +503,7 @@ export default function SkillsetMasterList() {
         defaultTreeId={selectedTreeId && selectedTreeId > 0 ? selectedTreeId : null}
         tenants={tenantOptions}
         groups={flatGroups}
+        operatorMode={operatorMode}
         onCancel={() => setDrawerOpen(false)}
         onSubmit={handleDrawerSubmit}
         loading={isCreating || isUpdating}

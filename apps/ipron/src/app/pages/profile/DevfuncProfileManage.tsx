@@ -1,10 +1,14 @@
 /**
  * 기능코드 프로파일 관리 메인 페이지
- * Pattern: 상단 테넌트 탭 + 프로파일 카드 슬라이더 + 하단 기능코드 ag-Grid
+ * Pattern: 상단 헤더(스코프 선택 + 요약) + 프로파일 카드 슬라이더 + 하단 기능코드 ag-Grid
+ *
+ * 멀티테넌트 개편(상담사 관리 정합): 상단 테넌트 탭 바 제거.
+ *   - 일반 콘솔: 테넌트 선택기 없음(토큰=활성 테넌트 스코프). 헤더에 요약(프로파일/기능코드)만.
+ *   - 운영자 모드: 헤더에 대행 테넌트 ScopeSelect(공통) + 그 옆에 요약.
  *
  * Layout:
  * ┌──────────────────────────────────────────────────────┐
- * │ [←] [전체(n)] [T1(2)] [T2(3)] [→]  🔍[검색] [+추가]    │  ← 테넌트 탭 바
+ * │ (운영자: [테넌트 ScopeSelect]) 요약   🔍[검색] [+추가] │  ← 헤더
  * │ [Card1] [Card2] [Card3] ...                           │  ← 프로파일 카드 슬라이더
  * ├──────────────────────────────────────────────────────┤
  * │ {프로파일명} 기능코드 (n건)         [+코드 추가]      │
@@ -18,7 +22,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, Copy, Edit3, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DevfuncCodeDrawer, { type DevfuncCodeDrawerRef } from '../../features/devfunc-profile/components/DevfuncCodeDrawer';
 import DevfuncProfileCopyDialog, { type DevfuncProfileCopyDialogRef } from '../../features/devfunc-profile/components/DevfuncProfileCopyDialog';
@@ -37,6 +41,7 @@ import {
   useUpdateProfile,
 } from '../../features/devfunc-profile/hooks/useDevfuncProfileQueries';
 import type { DevfuncCode, DevfuncProfile } from '../../features/devfunc-profile/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -55,15 +60,28 @@ export default function DevfuncProfileManage() {
   const queryClient = useQueryClient();
   const modal = useModal();
 
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
+  const ctxTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t ? Number(t) : null;
+  });
+
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): 전체 테넌트 조회 / 대행(actAsTenantId=X): X 대행 스코프
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [cardCollapsed, setCardCollapsed] = useState(true);
   const [codeSearchCode, setCodeSearchCode] = useState('');
   const [codeSearchName, setCodeSearchName] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ───────────────────────────────────────────────────────────────────
   const profileDrawerRef = useRef<DevfuncProfileDrawerRef>(null);
@@ -100,13 +118,13 @@ export default function DevfuncProfileManage() {
 
   const selectedProfile = useMemo(() => profiles.find((p) => p.devfuncCodeProfileId === selectedProfileId) ?? null, [profiles, selectedProfileId]);
 
-  // ─── Auto-select ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (tenants.length > 0 && selectedTenantId === null && !isSearching) {
-      setSelectedTenantId(tenants[0].tenantId);
-    }
-  }, [tenants, selectedTenantId, isSearching]);
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 프로파일/기능코드 수.
+  const summary = useMemo(() => {
+    const scoped = selectedTenantId == null ? profiles : profiles.filter((p) => p.tenantId === selectedTenantId);
+    return scoped.reduce((a, p) => ({ profiles: a.profiles + 1, codes: a.codes + (p.codeCount ?? 0) }), { profiles: 0, codes: 0 });
+  }, [profiles, selectedTenantId]);
 
+  // ─── Auto-select ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedProfileId && filteredProfiles.length > 0) {
       setSelectedProfileId(filteredProfiles[0].devfuncCodeProfileId);
@@ -114,33 +132,18 @@ export default function DevfuncProfileManage() {
   }, [filteredProfiles, selectedProfileId]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
-  const handleTenantSelect = useCallback((tenantId: number | null) => {
-    setSelectedTenantId(tenantId);
-    setSelectedProfileId(null);
-    setSearchText('');
-    setCodeSearchCode('');
-    setCodeSearchName('');
-  }, []);
-
   const handleSearchChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
     if (e.target.value.trim()) {
-      setSelectedTenantId(null);
       setSelectedProfileId(null);
     }
   }, []);
 
-  const handleCardSelect = useCallback(
-    (profile: DevfuncProfile) => {
-      setSelectedProfileId(profile.devfuncCodeProfileId);
-      setCodeSearchCode('');
-      setCodeSearchName('');
-      if (!selectedTenantId || selectedTenantId !== profile.tenantId) {
-        setSelectedTenantId(profile.tenantId);
-      }
-    },
-    [selectedTenantId],
-  );
+  const handleCardSelect = useCallback((profile: DevfuncProfile) => {
+    setSelectedProfileId(profile.devfuncCodeProfileId);
+    setCodeSearchCode('');
+    setCodeSearchName('');
+  }, []);
 
   // ─── Invalidate helpers ─────────────────────────────────────────────────────
   const invalidateProfiles = useCallback(() => {
@@ -231,7 +234,11 @@ export default function DevfuncProfileManage() {
 
   // ─── Profile actions ───────────────────────────────────────────────────────
   const handleProfileCreate = () => {
-    profileDrawerRef.current?.open(null, selectedTenantId ?? undefined);
+    if (selectedTenantId == null) {
+      toast.warning('대행할 테넌트를 먼저 선택하세요');
+      return;
+    }
+    profileDrawerRef.current?.open(null, selectedTenantId);
   };
 
   const handleProfileEdit = (profile: DevfuncProfile) => {
@@ -332,60 +339,40 @@ export default function DevfuncProfileManage() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 테넌트 탭 바 + 프로파일 카드 슬라이더 ===== */}
+        {/* ===== 상단: 헤더(스코프 선택 + 요약) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Header: 테넌트 탭 바 + 검색 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            {/* 좌측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            {/* 탭 스크롤 컨테이너 */}
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {/* 테넌트 탭들 */}
-              {tenants.map((tenant) => {
-                const tenantProfiles = searchFilteredProfiles.filter((p) => p.tenantId === tenant.tenantId);
-                const isActive = selectedTenantId === tenant.tenantId;
-                return (
-                  <button
-                    key={tenant.tenantId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleTenantSelect(tenant.tenantId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Building2 className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{tenant.tenantName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({tenantProfiles.length})</span>
-                  </button>
-                );
-              })}
+          <div className="flex items-center px-4 h-[56px] gap-3">
+            {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+            {operatorMode && (
+              <ScopeSelect
+                kind="tenant"
+                options={tenants.map((t) => ({
+                  id: t.tenantId,
+                  name: t.tenantName ?? `테넌트 ${t.tenantId}`,
+                  count: profiles.filter((p) => p.tenantId === t.tenantId).length,
+                }))}
+                value={actAsTenantId}
+                onChange={(id) => {
+                  setActAsTenant(id);
+                  setSelectedProfileId(null);
+                  setSearchText('');
+                  setCodeSearchCode('');
+                  setCodeSearchName('');
+                }}
+              />
+            )}
+            {/* 요약 — 프로파일/기능코드 (운영자는 선택 뒤, 일반은 좌측). */}
+            <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+              <span className="text-gray-500">
+                총 프로파일 <b className="text-gray-800 font-semibold">{summary.profiles.toLocaleString()}</b>
+              </span>
+              <span className="text-gray-500">
+                기능코드 <b className="text-[#405189] font-semibold">{summary.codes.toLocaleString()}</b>
+              </span>
             </div>
 
-            {/* 우측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-
             {/* 우측: 검색 + 추가 버튼 */}
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+            <div className="ml-auto flex items-center gap-2 flex-shrink-0">
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}

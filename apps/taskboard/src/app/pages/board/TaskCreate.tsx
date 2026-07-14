@@ -26,7 +26,6 @@ import { type CtiWsDataByHashKey, useCtiqWebSocket } from '../../features/board/
 import {
   taskboardQueryKeys,
   useCreateTaskboardLayout,
-  useGetCtiMediaTypeList,
   useGetDbQueryDefList,
   useGetDbQueryDefOptionsMulti,
   useGetNoticeList,
@@ -2695,8 +2694,6 @@ export default function TaskCreate() {
   const [gridMargin, setGridMargin] = useState<[number, number]>(savedMeta?.gridMargin ?? [4, 4]);
   const [containerPadding, setContainerPadding] = useState<[number, number]>(savedMeta?.containerPadding ?? [0, 0]);
 
-  // 미디어타입은 디스플레이 선택값이 아니라 위젯(테이블/차트) 단위 설정으로 옮김 — 목록만 여기서 가져와 위젯 설정 패널 옵션으로 사용
-  const { data: mediaTypeRows = [] } = useGetCtiMediaTypeList({ queryOptions: { refetchInterval: false } });
   // table-redis 위젯의 "시스템ID 위치(필드/키) 자동탐지" 패널에서 사용 — 이미 BE가 캐싱한 전체 해시키 목록을
   // 재사용하므로 새 SCAN 호출 없음(RedisHashSection도 같은 쿼리키를 쓰므로 react-query 캐시 공유)
   const { data: allRedisHashKeys = [] } = useGetRedisHashKeys();
@@ -3660,11 +3657,6 @@ export default function TaskCreate() {
     );
   };
 
-  // 미디어타입 변경 — table-queue/table-group/table-agent/chart-bar-queue/chart-line-trend 위젯이 어느 IC:XXX:{미디어타입} 해시를 볼지 결정
-  const updateWidgetMediaType = (id: string, mediaType: string) => {
-    setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, mediaType } } : w)));
-  };
-
   // Redis 테이블 위젯(table-redis)이 통째로 바인딩할 해시키 — 예: "IC:CTIQ:0"
   const updateWidgetRedisHashKey = (id: string, redisHashKey: string) => {
     setDroppedWidgets((prev) => prev.map((w) => (w.id === id ? { ...w, item: { ...w.item, redisHashKey } } : w)));
@@ -3935,9 +3927,6 @@ export default function TaskCreate() {
   const selectedWidgetId = selectedWidgetIds.length === 1 ? selectedWidgetIds[0] : null;
   const selectedWidget = selectedWidgetId ? (droppedWidgets.find((w) => w.id === selectedWidgetId) ?? null) : null;
   const gridLayout = droppedWidgets.map((w) => toGridItem(w, canvasLocked));
-
-  // 드롭다운용 아이템 변환
-  const mediaTypeItems = mediaTypeRows.map((m) => ({ id: m.mediaType, name: `${m.mediaAlias} (:${m.mediaType})` }));
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -5416,27 +5405,7 @@ export default function TaskCreate() {
                     </div>
                   )}
 
-                  {/* 미디어타입 — table-queue/table-group/table-agent + 큐 차트 전용. 위젯이 볼 IC:XXX:{미디어타입} 해시를 고정한다. */}
-                  {['table-queue', 'table-group', 'table-agent', 'chart-bar-queue', 'chart-line-trend'].includes(selectedWidget.item.id) && (
-                    <div>
-                      <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">미디어타입</label>
-                      <select
-                        value={selectedWidget.item.mediaType ?? '0'}
-                        onChange={(e) => updateWidgetMediaType(selectedWidget.id, e.target.value)}
-                        className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e] bg-white"
-                      >
-                        {mediaTypeItems.length === 0 ? (
-                          <option value="0">VOIP (:0)</option>
-                        ) : (
-                          mediaTypeItems.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.name}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </div>
-                  )}
+                  {/* [삭제 2026-07-10] 미디어타입 패널 — 옛 table-queue/group/agent 전용. 미디어타입은 데이터소스(placeholderName='mediatype')로 이동. */}
 
                   {/* 차트 종류 — 표시 방식이 차트일 때만 */}
                   {selectedWidget.item.tableConfig && selectedWidget.item.displayType === 'chart' && (

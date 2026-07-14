@@ -5,6 +5,7 @@
  */
 import { useEffect } from 'react';
 import { Button, Drawer, Form, Input, InputNumber, Typography } from 'antd';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useCreateReasonCode, useUpdateReasonCode } from '../hooks/useCtiCodeQueries';
 import { REASON_CODE_TYPE_ACW, REASON_CODE_TYPE_REST, type ReasonCodeResponse } from '../types';
@@ -32,6 +33,12 @@ function codeTypeLabelWithCode(codeType: number): string {
 
 export default function CtiCodeFormDrawer({ state, onClose }: Props) {
   const [form] = Form.useForm();
+  // 운영자 모드에서만 "테넌트" 표시 필드 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const { mutate: createReason, isPending: isCreating } = useCreateReasonCode({
     mutationOptions: {
@@ -65,10 +72,11 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
         reasonName: state.reason.reasonName,
         reasonDesc: state.reason.reasonDesc,
       });
-    } else if (state.tenantId != null) {
-      form.setFieldsValue({ tenantIdInput: state.tenantId });
+    } else {
+      // 등록: 일반 모드는 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+      form.setFieldsValue({ tenantIdInput: state.tenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined)) });
     }
-  }, [state, form]);
+  }, [state, form, operatorMode, activeTenantId]);
 
   if (!state.open) return null;
 
@@ -137,13 +145,15 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
         <Form.Item label="코드분류">
           <Input value={codeTypeLabelWithCode(codeType)} disabled style={{ color: 'rgba(0,0,0,0.65)', backgroundColor: '#f5f5f5', cursor: 'default' }} />
         </Form.Item>
-        <Form.Item label="테넌트">
-          <div className="flex items-center px-3 py-1.5 rounded border border-gray-200 bg-gray-50 min-h-[32px]" style={{ color: 'rgba(0,0,0,0.65)', cursor: 'default' }}>
-            <Typography.Text ellipsis style={{ color: 'inherit' }}>
-              {displayTenantName || '—'}
-            </Typography.Text>
-          </div>
-        </Form.Item>
+        {operatorMode && (
+          <Form.Item label="테넌트">
+            <div className="flex items-center px-3 py-1.5 rounded border border-gray-200 bg-gray-50 min-h-[32px]" style={{ color: 'rgba(0,0,0,0.65)', cursor: 'default' }}>
+              <Typography.Text ellipsis style={{ color: 'inherit' }}>
+                {displayTenantName || '—'}
+              </Typography.Text>
+            </div>
+          </Form.Item>
+        )}
         {/* tenantIdInput hidden — 제출 시 값 유지용 */}
         <Form.Item name="tenantIdInput" hidden>
           <InputNumber />

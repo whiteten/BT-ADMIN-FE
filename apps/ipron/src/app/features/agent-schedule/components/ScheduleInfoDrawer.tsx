@@ -17,13 +17,18 @@ interface Props {
   mode: 'create' | 'edit';
   kind: ScheduleKind;
   schedule?: ScheduleInfoResponse | null;
-  tenantId: number | null; // create 시 사용
+  tenantId: number | null; // create 시 사용 (운영자 전체 보기면 null → 폼에서 선택)
+  /** 운영자 모드 — create 시 폼에서 대행 테넌트를 직접 선택 (상담사 관리 정합). */
+  operatorMode?: boolean;
+  /** 운영자 모드 테넌트 선택 옵션. */
+  tenantOptions?: { id: number; name: string }[];
   onCancel: () => void;
   onSubmit: (req: ScheduleInfoRequest) => void;
   loading?: boolean;
 }
 
 interface FormValues {
+  tenantId?: number | null;
   scheduleName: string;
   startDate?: Dayjs | null;
   startTime?: Dayjs | null;
@@ -45,21 +50,25 @@ function formatHHMM(v?: Dayjs | null): string | null {
   return v.format('HHmm');
 }
 
-export default function ScheduleInfoDrawer({ open, mode, kind, schedule, tenantId, onCancel, onSubmit, loading }: Props) {
+export default function ScheduleInfoDrawer({ open, mode, kind, schedule, tenantId, operatorMode, tenantOptions = [], onCancel, onSubmit, loading }: Props) {
   const [form] = Form.useForm<FormValues>();
   const isSkill = kind === 'skill';
+  // create 시 폼에서 고른 대행 테넌트(운영자 전체 보기 대응). 없으면 페이지 스코프 tenantId.
+  const watchedTenantId = Form.useWatch('tenantId', form);
+  const showTenantSelect = mode === 'create' && !!operatorMode;
 
-  // 스킬 Select 소스 — 선택 테넌트의 스킬셋 목록 (스킬 풀). 스킬 탭일 때만 조회.
-  const skillTenantId = mode === 'edit' ? (schedule?.tenantId ?? tenantId) : tenantId;
+  // 스킬 Select 소스 — 대상 테넌트의 스킬셋 목록. 폼 테넌트 선택 시 그 테넌트 기준으로 갱신.
+  const skillTenantId = mode === 'edit' ? (schedule?.tenantId ?? tenantId) : showTenantSelect ? (watchedTenantId ?? null) : tenantId;
   const { data: skillsets = [] } = useGetSkillsets({
     params: skillTenantId != null ? { tenantId: skillTenantId } : undefined,
-    queryOptions: { enabled: open && isSkill },
+    queryOptions: { enabled: open && isSkill && skillTenantId != null },
   });
 
   useEffect(() => {
     if (!open) return;
     if (mode === 'edit' && schedule) {
       form.setFieldsValue({
+        tenantId: schedule.tenantId,
         scheduleName: schedule.scheduleName,
         startDate: schedule.startDate ? dayjs(schedule.startDate) : null,
         startTime: parseHHMM(schedule.startTime),
@@ -69,9 +78,10 @@ export default function ScheduleInfoDrawer({ open, mode, kind, schedule, tenantI
         mediaType: schedule.mediaType ?? null,
       });
     } else {
-      form.setFieldsValue({ scheduleName: '', startDate: null, startTime: null, finishTime: null, days: [], skillId: null, mediaType: null });
+      // 특정 테넌트 대행 중이면 그 값을 기본값으로(전체=미지정 → 폼에서 선택).
+      form.setFieldsValue({ tenantId: tenantId ?? null, scheduleName: '', startDate: null, startTime: null, finishTime: null, days: [], skillId: null, mediaType: null });
     }
-  }, [open, mode, schedule, form]);
+  }, [open, mode, schedule, tenantId, form]);
 
   const handleFinish = (values: FormValues) => {
     // 시작시간 > 종료시간 교차 검증 (SWAT 정합)
@@ -85,8 +95,10 @@ export default function ScheduleInfoDrawer({ open, mode, kind, schedule, tenantI
     }
 
     const days = new Set(values.days ?? []);
+    // create: 운영자 모드면 폼 선택 테넌트, 아니면 페이지 스코프 tenantId. edit: 기존 테넌트 유지.
+    const createTenantId = showTenantSelect ? (values.tenantId ?? null) : tenantId;
     const req: ScheduleInfoRequest = {
-      tenantId: mode === 'create' ? tenantId : (schedule?.tenantId ?? tenantId),
+      tenantId: mode === 'create' ? createTenantId : (schedule?.tenantId ?? tenantId),
       scheduleName: values.scheduleName,
       startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : null,
       startTime: formatHHMM(values.startTime),
@@ -126,6 +138,17 @@ export default function ScheduleInfoDrawer({ open, mode, kind, schedule, tenantI
       }
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} requiredMark>
+        {showTenantSelect && (
+          <Form.Item name="tenantId" label="테넌트" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+            <Select
+              placeholder="대행할 테넌트를 선택하세요"
+              showSearch
+              optionFilterProp="label"
+              options={tenantOptions.map((t) => ({ value: t.id, label: t.name }))}
+              onChange={() => form.setFieldsValue({ skillId: null })}
+            />
+          </Form.Item>
+        )}
         <Form.Item
           name="scheduleName"
           label="스케줄명"

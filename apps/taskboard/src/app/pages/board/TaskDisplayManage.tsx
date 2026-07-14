@@ -6,7 +6,6 @@ import { MultiSelectDropdown } from '../../features/board/components/MultiSelect
 import {
   useCreateTaskboardDisplay,
   useDeleteTaskboardDisplay,
-  useGetCtiQueueList,
   useGetDbQueryDefList,
   useGetDbQueryDefOptionsMulti,
   useGetTaskboardDisplayList,
@@ -48,17 +47,14 @@ interface SelectionCategory {
 
 function SelectionSummary({
   selection,
-  nameMaps,
   dbQueryDefs,
   dbQueryNameMaps,
 }: {
   selection: TaskboardDisplaySelection;
-  nameMaps: { queue: Map<string, string> };
   dbQueryDefs: DbQueryDef[];
   dbQueryNameMaps: Map<number, Map<string, string>>;
 }) {
   const categories: SelectionCategory[] = [
-    { label: '큐', color: '#0891b2', ids: selection.queueIds ?? [], nameMap: nameMaps.queue },
     ...dbQueryDefs.map((def) => ({
       label: def.queryName,
       color: '#b45309',
@@ -388,11 +384,6 @@ export default function TaskDisplayManage() {
     return () => clearBreadcrumb();
   }, [activeTab, setBreadcrumb, clearBreadcrumb]);
 
-  const { data: queueRows = [] } = useGetCtiQueueList({ queryOptions: { refetchInterval: false } });
-  const nameMaps = {
-    queue: new Map(queueRows.map((q) => [q.ctiqId, q.ctiqName])),
-  };
-
   // 카드/목록 요약에 TASK-DB-QUERY 선택값도 함께 보여주기 위한 이름 매핑 (플레이스홀더 등록분은 뷰그룹 선택 대상이 아니라
   // 제외하되, 미디어타입(placeholderName='mediatype')은 뷰그룹 필수 선택값이라 요약에도 포함)
   const { data: allDbQueryDefsForSummary = [] } = useGetDbQueryDefList();
@@ -525,7 +516,7 @@ export default function TaskDisplayManage() {
                   </div>
                 </div>
                 <div className="pt-2 border-t border-slate-100">
-                  <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
+                  <SelectionSummary selection={parseSelection(d.selectionJson)} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
                 </div>
               </div>
             ))}
@@ -542,7 +533,7 @@ export default function TaskDisplayManage() {
                   <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <SelectionSummary selection={parseSelection(d.selectionJson)} nameMaps={nameMaps} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
+                  <SelectionSummary selection={parseSelection(d.selectionJson)} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
