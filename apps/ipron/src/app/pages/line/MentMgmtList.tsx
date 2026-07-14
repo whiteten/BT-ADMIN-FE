@@ -13,7 +13,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { mentApi } from '../../features/ment-mgmt/api/mentApi';
@@ -21,7 +21,7 @@ import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/c
 import MentTable from '../../features/ment-mgmt/components/MentTable';
 import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -41,18 +41,7 @@ export default function MentMgmtList() {
 
   const modal = useModal();
 
-  // ─── 운영자 모드 / 로그인 테넌트 스코프 ────────────────────────────────────────────
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const authTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
-  // 실제 스코프: 운영자=필터값, 일반=로그인 테넌트(토큰). null=전체, 0=공통
-  const selectedTenantId = operatorMode ? tenantFilter : authTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<MentResponse[]>([]);
   const [drawer, setDrawer] = useState<MentDrawerState>({ open: false });
@@ -64,8 +53,10 @@ export default function MentMgmtList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
-  const { data: nodeTenants = [] } = useGetNodeTenants();
+
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const { operatorMode, nodes, tenants: tenantOptions, selectedNodeId, setSelectedNodeId, tenantFilter, setTenantFilter, selectedTenantId } = useNodeTenantScope(allNodes);
+
   const { data: rows = [], isLoading } = useGetMents({
     params: selectedNodeId != null ? { nodeId: selectedNodeId } : undefined,
     queryOptions: { enabled: selectedNodeId != null },
@@ -77,41 +68,14 @@ export default function MentMgmtList() {
       hasInitializedNodeRef.current = true;
       setSelectedNodeId(nodes[0].nodeId);
     }
-  }, [nodes, selectedNodeId]);
+  }, [nodes, selectedNodeId, setSelectedNodeId]);
 
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
-
-  // ─── 테넌트 필터 옵션 ────────────────────────────────────────────────────────
-  // 공통 소스(토큰의 접근가능 테넌트 = host TenantChip 과 동일 SSOT).
-  // 로드된 rows 에서 뽑으면 "멘트가 있는 테넌트"만 나와 신규 등록 대상 테넌트를 고를 수 없다.
-  // 건수는 rows 기준으로 덧씌운다. 공통(0)은 '교환기 공용멘트 관리'에서 관리하므로 제외.
-  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
-  const tenantOptions = useMemo(() => {
-    const counts = new Map<number, number>();
-    for (const r of rows) {
-      if (r.tenantId == null || r.tenantId === 0) continue;
-      counts.set(r.tenantId, (counts.get(r.tenantId) ?? 0) + 1);
-    }
-    // 선택 노드가 있으면 그 노드에 매핑된 테넌트(nodeTenants)만 노출 (양방향 필터).
-    const nodeMapped = selectedNodeId != null ? new Set(nodeTenants.filter((nt) => nt.nodeId === selectedNodeId).map((nt) => nt.tenantId)) : null;
-    return (availableTenants ?? [])
-      .filter((t) => t.tenantId !== 0)
-      .filter((t) => nodeMapped == null || nodeMapped.has(t.tenantId))
-      .map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: counts.get(t.tenantId) ?? 0 }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [availableTenants, rows, nodeTenants, selectedNodeId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !tenantOptions.some((t) => t.id === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, tenantOptions]);
+  // ─── 테넌트별 멘트 건수 (ScopeSelect 뱃지) — 공통(0) 제외 ────────────────────────
+  const mentCountByTenant = new Map<number, number>();
+  for (const r of rows) {
+    if (r.tenantId == null || r.tenantId === 0) continue;
+    mentCountByTenant.set(r.tenantId, (mentCountByTenant.get(r.tenantId) ?? 0) + 1);
+  }
 
   // ─── 헤더 요약 (총 멘트 — 공통 제외) ─────────────────────────────────────────────
   const summary = useMemo(() => ({ total: rows.filter((r) => r.tenantId !== 0).length }), [rows]);
@@ -126,17 +90,20 @@ export default function MentMgmtList() {
   }, [rows, selectedTenantId, searchText]);
 
   // 등록 컨텍스트 (선택 테넌트 → 없으면 첫 테넌트)
-  const ctxTenantId = selectedTenantId ?? tenantOptions[0]?.id ?? null;
-  const ctxTenantName = tenantOptions.find((c) => c.id === ctxTenantId)?.name ?? null;
+  const ctxTenantId = selectedTenantId ?? tenantOptions[0]?.tenantId ?? null;
+  const ctxTenantName = tenantOptions.find((c) => c.tenantId === ctxTenantId)?.tenantName ?? null;
   const ctxNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
-  const handleNodeChange = useCallback((nodeId: number) => {
-    setSelectedNodeId(nodeId);
-    setTenantFilter(null);
-    setSearchText('');
-    setSelectedRows([]);
-  }, []);
+  const handleNodeChange = useCallback(
+    (nodeId: number) => {
+      setSelectedNodeId(nodeId);
+      setTenantFilter(null);
+      setSearchText('');
+      setSelectedRows([]);
+    },
+    [setSelectedNodeId, setTenantFilter],
+  );
 
   const { mutate: deleteMents, isPending: isDeleting } = useDeleteMents({
     mutationOptions: {
@@ -267,7 +234,7 @@ export default function MentMgmtList() {
           {operatorMode && (
             <ScopeSelect
               kind="tenant"
-              options={tenantOptions.map((c) => ({ id: c.id, name: c.name, count: c.count }))}
+              options={tenantOptions.map((c) => ({ id: c.tenantId, name: c.tenantName, count: mentCountByTenant.get(c.tenantId) ?? 0 }))}
               value={tenantFilter == null ? null : String(tenantFilter)}
               onChange={(id) => setTenantFilter(id == null ? null : Number(id))}
             />

@@ -24,7 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input, Modal, Select, Table } from 'antd';
 import { ArrowLeftRight, Download, Network, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnApi } from '../../features/dn/api/dnApi';
 import DnBatchDialog from '../../features/dn/components/DnBatchDialog';
@@ -34,8 +34,9 @@ import DnImportDrawer from '../../features/dn/components/DnImportDrawer';
 import DnTable from '../../features/dn/components/DnTable';
 import { dnQueryKeys, useDeleteDns, useGetDnOptions, useGetDns } from '../../features/dn/hooks/useDnQueries';
 import type { DnResponse } from '../../features/dn/types';
-import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { nodeScopeQueryKeys, useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
+import { nodeScopeQueryKeys } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -54,19 +55,7 @@ export default function DnList() {
   const queryClient = useQueryClient();
   const modal = useModal();
 
-  // 운영자 모드에서만 테넌트 필터 노출(일반 콘솔은 토큰=본인 테넌트 스코프).
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
-  // 일반 모드는 활성 테넌트(ctx)로 스코프, 운영자 모드는 필터 선택값(null=전체).
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
-  const [tenantFirst, setTenantFirst] = useState(true); // 스코프 필터 순서 — 기본 테넌트→노드, ↔ 버튼으로 스위칭
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<DnResponse[]>([]);
   const [batchOpen, setBatchOpen] = useState(false);
@@ -82,9 +71,21 @@ export default function DnList() {
 
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
-  const { data: tenants = [] } = useGetDnProfileTenants();
-  const { data: nodeTenants = [] } = useGetNodeTenants();
+
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드, ↔로 뒤집기). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    tenantFirst,
+    toggleOrder,
+    nodes: assignedNodes,
+    tenants: assignedTenants,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+    selectedTenantName,
+  } = useNodeTenantScope(allNodes);
 
   // 목록 조회 파라미터 — 노드만 서버 필터(nodeId). "전체 노드"는 nodeId 미전달.
   // 테넌트 + 텍스트 검색은 클라이언트 필터.
@@ -106,26 +107,6 @@ export default function DnList() {
   const { data: options } = useGetDnOptions(optionsParams);
   const profileOptions = useMemo(() => options?.dnProfiles ?? [], [options]);
   const cosOptions = useMemo(() => options?.cos ?? [], [options]);
-
-  // ─── Filter options ─────────────────────────────────────────────────────
-  // 노드-테넌트에 할당된 노드만 (노드 셀렉트 옵션)
-  const assignedNodes = useMemo(() => {
-    const nodeIds = new Set(nodeTenants.map((nt) => nt.nodeId));
-    return nodes.filter((n) => nodeIds.has(n.nodeId));
-  }, [nodes, nodeTenants]);
-
-  // 노드-테넌트 매핑 기준 테넌트 목록 (테넌트 셀렉트 옵션)
-  // 선택 노드가 있으면 그 노드에 매핑된 테넌트만 (양방향 필터).
-  const assignedTenants = useMemo(() => {
-    const rows = selectedNodeId != null ? nodeTenants.filter((nt) => nt.nodeId === selectedNodeId) : nodeTenants;
-    const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const nt of rows) {
-      if (!map.has(nt.tenantId)) {
-        map.set(nt.tenantId, { tenantId: nt.tenantId, tenantName: nt.tenantName });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [nodeTenants, selectedNodeId]);
 
   // ─── Derived — 테넌트/검색 클라이언트 필터 ────────────────────────────────
   const dnsForGrid = useMemo(() => {
@@ -162,20 +143,6 @@ export default function DnList() {
     }
     return { total: dnsForGrid.length, active, inactive };
   }, [dnsForGrid]);
-
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, assignedTenants]);
 
   const invalidateDns = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: dnQueryKeys.getList._def });
@@ -319,8 +286,7 @@ export default function DnList() {
     }
   };
 
-  const selectedNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
-  const selectedTenantName = tenants.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null;
+  const selectedNodeName = assignedNodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -360,7 +326,7 @@ export default function DnList() {
               <button
                 key="swap"
                 type="button"
-                onClick={() => setTenantFirst((v) => !v)}
+                onClick={toggleOrder}
                 title="테넌트/노드 순서 전환"
                 className="inline-flex items-center justify-center size-7 rounded-md border border-gray-200 text-gray-400 hover:text-[#405189] hover:border-[#c5cbe0] transition"
               >

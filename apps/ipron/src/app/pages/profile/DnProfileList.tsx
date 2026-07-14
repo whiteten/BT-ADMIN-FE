@@ -17,14 +17,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnQueryKeys } from '../../features/dn/hooks/useDnQueries';
 import DnAssignDialog from '../../features/dn-profile/components/DnAssignDialog';
 import DnProfileTable from '../../features/dn-profile/components/DnProfileTable';
 import { dnProfileQueryKeys, useDeleteDnProfile, useDeleteDnProfileBatch, useGetDnProfileNodes, useGetDnProfiles } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import type { DnProfile } from '../../features/dn-profile/types';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -43,18 +43,7 @@ export default function DnProfileList() {
   const queryClient = useQueryClient();
   const modal = useModal();
 
-  // 운영자 모드에서만 테넌트 필터 노출(일반 콘솔은 토큰=본인 테넌트 스코프).
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
-  // 일반 모드는 활성 테넌트(ctx)로 스코프, 운영자 모드는 필터 선택값(null=전체).
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedProfiles, setSelectedProfiles] = useState<DnProfile[]>([]);
   const [assignDialogProfile, setAssignDialogProfile] = useState<DnProfile | null>(null);
@@ -62,25 +51,18 @@ export default function DnProfileList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: profiles = [], isLoading: isProfilesLoading } = useGetDnProfiles();
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
-  const { data: nodeTenants = [] } = useGetNodeTenants();
 
-  // 노드-테넌트에 할당된 노드만 (노드 셀렉트 옵션)
-  const assignedNodes = useMemo(() => {
-    const nodeIds = new Set(nodeTenants.map((nt) => nt.nodeId));
-    return nodes.filter((n) => nodeIds.has(n.nodeId));
-  }, [nodes, nodeTenants]);
-
-  // 프로파일 기준 테넌트 목록 (테넌트 셀렉트 옵션)
-  // 선택 노드가 있으면 그 노드의 프로파일이 속한 테넌트만 (양방향 필터).
-  const assignedTenants = useMemo(() => {
-    const rows = selectedNodeId != null ? profiles.filter((p) => p.nodeId === selectedNodeId) : profiles;
-    const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const p of rows) {
-      if (!map.has(p.tenantId)) map.set(p.tenantId, { tenantId: p.tenantId, tenantName: p.tenantName ?? '-' });
-    }
-    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [profiles, selectedNodeId]);
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    nodes: assignedNodes,
+    tenants: assignedTenants,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+  } = useNodeTenantScope(allNodes);
 
   // ─── Derived — 노드/테넌트/검색 클라이언트 필터 ─────────────────────────────────
   const profilesForGrid = useMemo(() => {
@@ -108,20 +90,6 @@ export default function DnProfileList() {
     }
     return { total: profilesForGrid.length, dn, trunk };
   }, [profilesForGrid]);
-
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, assignedTenants]);
 
   const invalidateProfiles = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: dnProfileQueryKeys.getList().queryKey });

@@ -16,7 +16,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Input, Modal, Select, Table } from 'antd';
 import { Download, LayoutGrid, Network, Pencil, Plus, RotateCcw, Save, Search, Trash2, Upload } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ctiQueueApi } from '../../features/cti-queue/api/ctiQueueApi';
 import CtiQueueBulkUpdateModal from '../../features/cti-queue/components/CtiQueueBulkUpdateModal';
@@ -51,7 +51,7 @@ import {
   MEDIA_SKILL_FIELD_MAP,
 } from '../../features/cti-queue/types';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -85,18 +85,7 @@ export default function CtiQueueList() {
   const modal = useModal();
   const queryClient = useQueryClient();
 
-  // 운영자 모드에서만 테넌트 스코프 선택 노출. 일반 콘솔은 토큰=본인 테넌트로 고정.
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const tokenTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 전용 테넌트 필터 (null=전체)
-  // 화면 전역에서 쓰는 테넌트 스코프 — 일반=토큰 테넌트, 운영자=선택 필터(전체 가능).
-  const selectedTenantId = operatorMode ? tenantFilter : tokenTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedTreeId, setSelectedTreeId] = useState<number | null>(null); // null=전체, 0=미배정, n=실제 트리
   const [selectedRows, setSelectedRows] = useState<CtiQueueResponse[]>([]);
@@ -134,41 +123,25 @@ export default function CtiQueueList() {
 
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: tenants = [] } = useGetDnProfileTenants();
+
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    nodes,
+    tenants: assignedTenants,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+    selectedTenantName,
+  } = useNodeTenantScope(allNodes);
+
   const { data: rows = [], isLoading } = useGetCtiQueues();
   const { data: groupOptions = [] } = useGetCtiQueueGroupOptions(selectedTenantId);
   const { data: skillsetOptions = [] } = useGetCtiQueueSkillsetOptions(selectedTenantId);
   const { data: mediaOptions = [] } = useGetCtiQueueMediaOptions();
-
-  // ─── Derived: 탭 항목 (행에서 노드/테넌트 추출) ──────────────────────────────
-  const assignedNodes = useMemo(() => {
-    const map = new Map<number, string>();
-    for (const r of rows) {
-      if (r.nodeId == null) continue;
-      if (!map.has(r.nodeId)) {
-        map.set(r.nodeId, nodes.find((n) => n.nodeId === r.nodeId)?.nodeName ?? `노드 ${r.nodeId}`);
-      }
-    }
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows, nodes]);
-
-  // 선택 노드가 있으면 그 노드의 큐가 속한 테넌트만 (양방향 필터).
-  const assignedTenants = useMemo(() => {
-    const src = selectedNodeId != null ? rows.filter((r) => r.nodeId === selectedNodeId) : rows;
-    const map = new Map<number, string>();
-    for (const r of src) {
-      if (r.tenantId == null) continue;
-      if (!map.has(r.tenantId)) {
-        map.set(r.tenantId, r.tenantName ?? tenants.find((t) => t.tenantId === r.tenantId)?.tenantName ?? `테넌트 ${r.tenantId}`);
-      }
-    }
-    return Array.from(map.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [rows, tenants, selectedNodeId]);
 
   // 노드/테넌트 스코프로 필터링된 행 (클라이언트 2필터)
   const rowsScoped = useMemo(() => {
@@ -188,7 +161,7 @@ export default function CtiQueueList() {
   // 등록 폼/트리/매트릭스에 넘길 테넌트/노드 컨텍스트 — 선택된 스코프(전체면 null → Drawer 에서 직접 선택).
   const ctxTenantId = selectedTenantId;
   const ctxNodeId = selectedNodeId;
-  const ctxTenantName = assignedTenants.find((t) => t.id === ctxTenantId)?.name ?? tenants.find((t) => t.tenantId === ctxTenantId)?.tenantName ?? null;
+  const ctxTenantName = selectedTenantName || (tenants.find((t) => t.tenantId === ctxTenantId)?.tenantName ?? null);
   const ctxNodeName = nodes.find((n) => n.nodeId === ctxNodeId)?.nodeName ?? null;
 
   // ─── 매트릭스 모드 파생값 ─────────────────────────────────────────────────────
@@ -207,13 +180,6 @@ export default function CtiQueueList() {
   useEffect(() => {
     setMatrixDirty({});
   }, [selectedTenantId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.id === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, assignedTenants]);
 
   // 등록 Drawer 테넌트/노드 Select 옵션 (전체 마스터)
   const tenantSelectOptions = useMemo(() => tenants.map((t) => ({ value: t.tenantId, label: t.tenantName ?? `테넌트 ${t.tenantId}` })), [tenants]);
@@ -622,7 +588,7 @@ export default function CtiQueueList() {
                   setSelectedTreeId(null);
                   setSelectedRows([]);
                 }}
-                options={[{ value: '__all__', label: '전체 노드' }, ...assignedNodes.map((n) => ({ value: n.id, label: n.name }))]}
+                options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
                 style={{ width: 150 }}
                 popupMatchSelectWidth={false}
               />
@@ -631,7 +597,7 @@ export default function CtiQueueList() {
             {operatorMode && (
               <ScopeSelect
                 kind="tenant"
-                options={assignedTenants.map((t) => ({ id: t.id, name: t.name }))}
+                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
                 value={tenantFilter == null ? null : String(tenantFilter)}
                 onChange={(id) => {
                   setTenantFilter(id == null ? null : Number(id));

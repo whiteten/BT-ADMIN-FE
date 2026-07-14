@@ -21,7 +21,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { Copy, Edit3, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AccessCodeDrawer, { type AccessCodeDrawerRef } from '../../features/access-profile/components/AccessCodeDrawer';
 import AccessProfileCopyDialog, { type AccessProfileCopyDialogRef } from '../../features/access-profile/components/AccessProfileCopyDialog';
@@ -42,7 +42,8 @@ import {
   useUpdateProfile,
 } from '../../features/access-profile/hooks/useAccessProfileQueries';
 import type { AccessCode, AccessProfile } from '../../features/access-profile/types';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -62,17 +63,7 @@ export default function AccessProfileManage() {
   const queryClient = useQueryClient();
   const modal = useModal();
 
-  // 운영자 모드에서만 테넌트 필터 노출. 일반 콘솔은 토큰=본인 테넌트로 스코프됨.
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 전용 테넌트 필터 (null=전체)
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId; // 일반=ctx, 운영자=필터
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   // 하단 접근코드 그리드 서버사이드 검색 (SWAT IPR20S2250 sAccessCode / sAccessCodeName)
@@ -88,20 +79,11 @@ export default function AccessProfileManage() {
   const { data: profiles = [] } = useGetProfiles();
   const { data: tenants = [] } = useGetTenants();
   const { data: allNodes = [] } = useGetNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
+  // Drawer/CopyDialog 에 그대로 넘길 노드-테넌트 매핑 (스코프 훅과 별개 용도)
   const { data: nodeTenants = [] } = useGetNodeTenants();
 
-  // 노드-테넌트에 할당된 노드만 (노드 셀렉트 옵션)
-  const assignedNodes = useMemo(() => {
-    const nodeIds = new Set(nodeTenants.map((nt) => nt.nodeId));
-    return nodes.filter((n) => nodeIds.has(n.nodeId));
-  }, [nodes, nodeTenants]);
-
-  // 프로파일 보유 테넌트 목록 (테넌트 셀렉트 옵션)
-  const assignedTenants = useMemo(() => {
-    const ids = new Set(profiles.map((p) => p.tenantId));
-    return tenants.filter((t) => ids.has(t.tenantId));
-  }, [profiles, tenants]);
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const { operatorMode, nodes, tenants: assignedTenants, selectedNodeId, setSelectedNodeId, tenantFilter, setTenantFilter, selectedTenantId } = useNodeTenantScope(allNodes);
 
   const codeSearchParams = useMemo(() => {
     if (!selectedProfileId) return undefined;
@@ -140,13 +122,6 @@ export default function AccessProfileManage() {
   const { data: routesForSelectedNode = [], isLoading: isRoutesLoading } = useGetRoutesByNode(selectedProfile?.nodeId ?? null);
 
   const routeOptionsForSelectedNode = useMemo(() => routesForSelectedNode.map((r) => ({ label: r.routeName, value: r.routeId })), [routesForSelectedNode]);
-
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
 
   // ─── Auto-select ────────────────────────────────────────────────────────────
   // 필터된 목록에서 프로파일 자동 선택 (선택 항목이 필터에서 빠지면 첫 항목으로)
@@ -367,7 +342,7 @@ export default function AccessProfileManage() {
                 variant="borderless"
                 value={selectedNodeId ?? '__all__'}
                 onChange={(v) => setSelectedNodeId(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체 노드' }, ...assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
                 style={{ width: 150 }}
                 popupMatchSelectWidth={false}
               />
@@ -376,7 +351,7 @@ export default function AccessProfileManage() {
             {operatorMode && (
               <ScopeSelect
                 kind="tenant"
-                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}` }))}
+                options={assignedTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
                 value={tenantFilter == null ? null : String(tenantFilter)}
                 onChange={(id) => {
                   setTenantFilter(id == null ? null : Number(id));

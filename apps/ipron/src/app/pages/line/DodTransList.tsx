@@ -21,13 +21,14 @@ import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChanged
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../../features/dod-trans/components/DodTransMasterDrawer';
 import { dodTransQueryKeys, useDeleteItemBatch, useDeleteMaster, useGetItemList, useGetMasterList, useGetNodes } from '../../features/dod-trans/hooks/useDodTransQueries';
 import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../features/dod-trans/types';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -48,22 +49,12 @@ export default function DodTransList() {
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
 
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // URL query params for initial selection
   const initNodeId = searchParams.get('nodeId') ? Number(searchParams.get('nodeId')) : null;
   const initTenantId = searchParams.get('tenantId') ? Number(searchParams.get('tenantId')) : null;
   const initMasterId = searchParams.get('dodTransId') ? Number(searchParams.get('dodTransId')) : null;
 
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId); // null=전체 노드
-  const [tenantFilter, setTenantFilter] = useState<number | null>(initTenantId); // 운영자 전용 필터 (null=전체 테넌트)
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId; // 일반=ctx(본인 테넌트), 운영자=필터
-  const [tenantFirst, setTenantFirst] = useState(true); // 스코프 필터 순서 — 기본 테넌트→노드, ↔ 버튼으로 스위칭
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
   const [searchText, setSearchText] = useState('');
   const [numPatternSearch, setNumPatternSearch] = useState('');
@@ -77,16 +68,23 @@ export default function DodTransList() {
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: masters = [] } = useGetMasterList();
   const { data: allNodes = [] } = useGetNodes();
-  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
-  const nodes = useScopedNodes(allNodes);
   const { data: nodeTenants = [] } = useGetNodeTenants();
 
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드, ↔로 뒤집기). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    tenantFirst,
+    toggleOrder,
+    nodes,
+    tenants: assignedTenants,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+    selectedTenantName,
+  } = useNodeTenantScope(allNodes, { initialNodeId: initNodeId, initialTenantId: initTenantId });
+
   const itemListParams = useMemo(() => {
     if (!selectedMasterId) return undefined;
     const p: Record<string, unknown> = { dodTransId: selectedMasterId };
@@ -133,27 +131,6 @@ export default function DodTransList() {
     }
   }, [queryClient, selectedMasterId]);
 
-  // ─── Options — 노드/테넌트 셀렉트 소스 (기존 탭이 쓰던 목록 그대로) ─────────────
-  // 노드: 전체 노드 목록(byNode 탭이 쓰던 것)
-  // 테넌트: 마스터에 존재하는 테넌트(byTenant 탭이 쓰던 것)
-  // 테넌트: 공통 소스(토큰의 접근가능 테넌트). masters 에서 뽑으면 "마스터가 있는 테넌트"만 나와
-  // 데이터 없는 테넌트로는 신규 등록조차 못 하므로, 접근 가능한 전체 테넌트를 노출한다.
-  // 선택 노드가 있으면 그 노드에 매핑된 테넌트(nodeTenants)만 노출 (양방향 필터).
-  // 데이터가 없어도 노드에 매핑된 테넌트면 신규 등록 대상으로 남긴다.
-  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
-  const assignedTenants = useMemo(() => {
-    const base = (availableTenants ?? []).map((t) => ({ tenantId: t.tenantId, tenantName: t.tenantName ?? `테넌트 ${t.tenantId}` }));
-    const scoped = selectedNodeId != null ? base.filter((t) => nodeTenants.some((nt) => nt.nodeId === selectedNodeId && nt.tenantId === t.tenantId)) : base;
-    return scoped.sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [availableTenants, nodeTenants, selectedNodeId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, assignedTenants]);
-
   // ─── Derived — 노드/테넌트/검색 클라이언트 필터 ─────────────────────────────────
   const filteredMasters = useMemo(() => {
     let list = masters;
@@ -172,11 +149,6 @@ export default function DodTransList() {
     for (const m of filteredMasters) patterns += m.itemCount ?? 0;
     return { total: filteredMasters.length, patterns };
   }, [filteredMasters]);
-
-  const selectedTenantName = useMemo(() => {
-    if (selectedTenantId == null) return '';
-    return assignedTenants.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? '';
-  }, [assignedTenants, selectedTenantId]);
 
   const selectedMaster = useMemo(() => {
     if (!selectedMasterId) return null;
@@ -396,7 +368,7 @@ export default function DodTransList() {
                 <button
                   key="swap"
                   type="button"
-                  onClick={() => setTenantFirst((v) => !v)}
+                  onClick={toggleOrder}
                   title="테넌트/노드 순서 전환"
                   className="inline-flex items-center justify-center size-7 rounded-md border border-gray-200 text-gray-400 hover:text-[#405189] hover:border-[#c5cbe0] transition"
                 >
