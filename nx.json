@@ -18,7 +18,7 @@
       "!{projectRoot}/test-setup.[jt]s"
     ],
     "tailwindSources": ["{workspaceRoot}/apps/**/*.{js,jsx,ts,tsx,html}", "{workspaceRoot}/libs/**/*.{js,jsx,ts,tsx,html}", "{workspaceRoot}/libs/shared-ui/src/styles/global.css"],
-    "sharedGlobals": ["{workspaceRoot}/tools/webpack/**/*"]
+    "sharedGlobals": ["{workspaceRoot}/tools/webpack/**/*", { "env": "NX_CACHE_EPOCH" }]
   },
   "plugins": [
     {
