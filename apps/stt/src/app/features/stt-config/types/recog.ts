@@ -56,6 +56,8 @@ export interface RecogTargetSearchItem {
   dnNo: string;
   agentId: string;
   engineCode: string;
+  tenantId: number;
+  tenantName: string;
 }
 
 export interface RecogTargetListItem {
@@ -65,6 +67,8 @@ export interface RecogTargetListItem {
   armsoffset: number;
   rxtxKind: string;
   orgSentence: string;
+  tenantId: number;
+  tenantName: string;
   saLoadResult: number;
   loadUser: number;
   loadTime: string;

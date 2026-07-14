@@ -5,13 +5,14 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, DatePicker, Select, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download, Pause, Play, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { fileUploadApi } from '../../features/stt-config/api/fileUploadApi';
 import FileUploadDrawer, { type FileUploadDrawerRef } from '../../features/stt-config/components/FileUploadDrawer';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../../features/stt-config/components/SttSearchDetailDrawer';
 import { fileUploadQueryKeys, useDeleteFileUpload, useGetFileUploadList } from '../../features/stt-config/hooks/useFileUploadQueries';
 import type { FileUploadItem, FileUploadSearchParams, SttSearchItem } from '../../features/stt-config/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -63,6 +64,14 @@ export default function FileUploadList() {
   const modal = useModal();
   const drawerRef = useRef<FileUploadDrawerRef>(null);
   const detailDrawerRef = useRef<SttSearchDetailDrawerRef>(null);
+
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): apiClient 가 X-Act-As-Tenant 주입 → X 테넌트로 조회 스코프
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
 
   const [isExporting, setIsExporting] = useState(false);
   const [fromDate, setFromDate] = useState<Dayjs | null>(dayjs().subtract(7, 'day'));
@@ -131,7 +140,17 @@ export default function FileUploadList() {
     }
   };
 
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — 사전관리 패턴 참고.
+  const showTenantColumn = operatorMode && actAsTenantId === null;
+
   const columnDefs: ColDef<FileUploadItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     {
       headerName: '등록일',
       field: 'callDate',
@@ -172,6 +191,17 @@ export default function FileUploadList() {
       <div className="flex-1 min-h-0 bg-white bt-shadow overflow-hidden flex flex-col">
         {/* 검색 필터 */}
         <div className="flex items-center gap-4 flex-wrap px-5 py-4 shrink-0">
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                void queryClient.invalidateQueries({ queryKey: fileUploadQueryKeys.getFileUploadList._def });
+              }}
+            />
+          )}
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-sm font-medium text-[#495057] shrink-0">검색일자</span>
             <DatePicker value={fromDate} onChange={setFromDate} format="YYYY-MM-DD" allowClear={false} inputReadOnly />

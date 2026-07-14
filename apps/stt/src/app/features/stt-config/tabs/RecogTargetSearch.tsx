@@ -5,6 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle, StopCircle } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { recogQueryKeys, useCreateRecogTarget, useGetRecogTargetSearch } from '../hooks/useRecogQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
@@ -132,6 +133,11 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<RecogTargetSearchItem>>(null);
 
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — 사전관리 패턴 참고.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
+
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(DEFAULT_START_TIME);
@@ -250,6 +256,13 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
   };
 
   const columnDefs: ColDef<RecogTargetSearchItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     {
       headerName: '',
       colId: 'play',
