@@ -70,14 +70,26 @@ function collectNeededColumns(columns: TableColumn[], groupBy?: { byKey: string;
  * 선택값이 없으면(에디터 미리보기 등 디스플레이 컨텍스트가 없는 화면) 기존 'keyed' 형제탐색으로 대체해
  * 실제 존재하는 엔티티들을 보여준다.
  */
-function resolveCategoryKeys(hashKey: string, pattern: 'fields' | 'keyed', allHashKeys: string[], targetIdsByPrefix: Record<string, string[]> = {}): string[] {
+function resolveCategoryKeys(
+  hashKey: string,
+  pattern: 'fields' | 'keyed',
+  allHashKeys: string[],
+  targetIdsByPrefix: Record<string, string[]> = {},
+  // 뷰그룹 선택이 유효한 그룹으로 하나도 안 풀렸을 때(선택했는데 실제 그룹과 안 맞음, 또는 그룹 리스트
+  // 데이터소스 미등록) "서버 전체 그룹"으로 폴백할지 여부. view/rolling(실행)은 false로 넘겨 "미매칭=0"
+  // 정책을 지키고, 편집 미리보기(TaskCreate, 컨텍스트 없음)만 기본 true로 전체를 보여준다(2026-07-13).
+  allowAllGroupsFallback = true,
+): string[] {
   if (!hashKey) return [];
   const groupReason = parseGroupReasonHashKey(hashKey);
   if (groupReason) {
     // 디스플레이가 선택한 엔티티 목록(그 REASON 패밀리에 대응하는 것)이 있으면 그것을 우선 사용
     const targetIds = targetIdsByPrefix[groupReason.basePrefix] ?? [];
     if (targetIds.length > 0) return buildGroupReasonHashKeys(groupReason.prefix, groupReason.mediaType, targetIds);
-    // 없으면 allHashKeys에서 같은 mediaType의 실제 그룹 키를 모두 찾아 사용
+    // 스코프가 비었는데 실행 화면이면 전체로 새지 않고 0(빈 목록). 정상 "선택 안 함=전체"는 여기 안 옴 —
+    // 그 경우 targetIds가 validGroupIds(전체 유효그룹)로 채워져 위 buildGroupReasonHashKeys 경로를 탄다.
+    if (!allowAllGroupsFallback) return [];
+    // 편집 미리보기: allHashKeys에서 같은 mediaType의 실제 그룹 키를 모두 찾아 데이터를 보여준다
     const actualGroupKeys = findGroupReasonKeys(groupReason.prefix, groupReason.mediaType, allHashKeys);
     if (actualGroupKeys.length > 0) return actualGroupKeys;
     // 실제 키가 아직 없으면(미리보기 초기 등) 입력값 그대로 → BE 와일드카드 확장에 의존
@@ -102,12 +114,17 @@ function isGroupByValueWidget(widget: DroppedWidget): boolean {
  * 이 함수가 반환하는 구독을 그 단일 연결의 subscriptions 배열에 합쳐서 같은 소켓으로 받아야 한다
  * (개발자 도구 Network 탭에 같은 이름의 소켓이 여러 개 뜨는 것을 방지 — 위젯이 N개여도 소켓은 화면당 1개).
  */
-export function collectRedisTableWsSubscriptions(widgets: DroppedWidget[], allHashKeys: string[], targetIdsByPrefix: Record<string, string[]> = {}): CtiWsSubscription[] {
+export function collectRedisTableWsSubscriptions(
+  widgets: DroppedWidget[],
+  allHashKeys: string[],
+  targetIdsByPrefix: Record<string, string[]> = {},
+  allowAllGroupsFallback = true,
+): CtiWsSubscription[] {
   const tableSubs = widgets.filter(isRedisTableWidget).flatMap((widget) => {
     const hashKey = widget.item.redisHashKey ?? '';
     if (!hashKey) return [];
     const pattern = widget.item.redisKeyPattern ?? 'fields';
-    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
+    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix, allowAllGroupsFallback);
     // PIVOT 모드(rowKey+colKey 모두 설정)일 때는 컬럼 필터 없이 전체 수신.
     // IC:GROUP:REASON 계열은 PIVOT 미설정 시에도 전체 수신(entry JSON 구조가 복잡해 필터가 오인식될 수 있음).
     const isPivotMode = !!(widget.item.tableConfig?.pivot?.rowKey && widget.item.tableConfig?.pivot?.colKey);
@@ -123,7 +140,7 @@ export function collectRedisTableWsSubscriptions(widgets: DroppedWidget[], allHa
   const groupByValueSubs = widgets.filter(isGroupByValueWidget).flatMap((widget) => {
     const hashKey = widget.item.redisHashKey!;
     const pattern = widget.item.redisKeyPattern ?? 'fields';
-    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
+    const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix, allowAllGroupsFallback);
     const { byKey, aggKey } = widget.item.groupBy!;
     return categoryKeys.map((key) => ({ hashKey: key, ids: ['*'], columns: [byKey, aggKey] }));
   });
@@ -177,7 +194,8 @@ export function RedisTableWidget({
   const defs: RedisKeyDefinitionsResponse = redisKeyDefs ?? { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
   const compositeFieldDefinitionName = matchKeyDefinition(hashKey, defs)?.name;
   const groupReason = parseGroupReasonHashKey(hashKey);
-  const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix);
+  // 실행 화면(editable=false)은 스코프 비면 전체로 새지 않고 0. 편집 미리보기(editable=true)만 전체 표시.
+  const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix, editable);
   let columns = widget.item.tableConfig?.columns ?? [];
   const groupBy = widget.item.tableConfig?.groupBy;
   const showTitle = widget.showTitle !== false;
@@ -218,7 +236,9 @@ export function RedisTableWidget({
   if (pivotCfg?.rowKey && pivotCfg?.colKey) {
     const pivotRowKey = pivotCfg.rowKey;
     const pivotColKey = pivotCfg.colKey;
-    const pivotValueKey = pivotCfg.valueKey ?? 'AGENT_CNT';
+    // valueKey 미설정 시 하드코딩 기본값을 두지 않는다(옛 'AGENT_CNT' 제거) — 설정 안 하면 셀 값은 0.
+    // 어느 필드를 합산할지는 IC/REASON에 종속되지 않는 순수 설정값이라 특정 컬럼명을 기본값으로 박지 않는다.
+    const pivotValueKey = pivotCfg.valueKey ?? '';
 
     // 컬럼 값 = 각 entry JSON 안의 pivotColKey 필드값 (예: REASON_CODE → '0','1',...,'12')
     const uniqueCols = [

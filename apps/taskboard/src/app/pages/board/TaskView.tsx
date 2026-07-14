@@ -387,7 +387,9 @@ function SingleLayoutView({
   const selectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, placeholderOptionValues, { groupId: groupReasonTargetGroupIds });
   const widgetRedisSubscriptions = collectRedisWsSubscriptions(widgets, selectionIdsByHashKey, targetIdsByPrefix, selectedMediaTypes);
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix);
+  // allowAllGroupsFallback=false — 실행 화면에서 그룹 스코프가 비면(선택 불일치·데이터소스 미등록) 전체
+  // 그룹으로 새지 않고 0. 편집 미리보기(TaskCreate)만 전체 폴백을 쓴다.
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix, false);
 
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []

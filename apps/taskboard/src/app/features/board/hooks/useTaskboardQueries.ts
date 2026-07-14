@@ -57,9 +57,7 @@ export const useGetTaskboardLayoutList = ({ queryOptions }: QueryHookWithParamsO
   });
 };
 
-export const useCreateTaskboardLayout = ({
-  mutationOptions,
-}: MutationHookOptions<any, { pageId: number; tenantId: string; layoutName: string; layoutJson: string; authorName?: string; authRole?: string }> = {}) => {
+export const useCreateTaskboardLayout = ({ mutationOptions }: MutationHookOptions<any, { pageId: number; tenantId: string; layoutName: string; layoutJson: string }> = {}) => {
   return useMutation({
     mutationFn: taskboardApi.createLayout,
     ...mutationOptions,

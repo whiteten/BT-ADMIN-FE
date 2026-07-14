@@ -73,7 +73,7 @@ export const taskboardApi = {
     return response.data?.data?.items ?? [];
   },
 
-  createLayout: async (payload: { pageId: number; tenantId: string; layoutName: string; layoutJson: string; authorName?: string; authRole?: string }): Promise<number> => {
+  createLayout: async (payload: { pageId: number; tenantId: string; layoutName: string; layoutJson: string }): Promise<number> => {
     const formData = new FormData();
     formData.append('data', JSON.stringify(payload));
     const response = await apiClient.post<ApiResponse<number>>('/taskboard-layoutinsert', formData);

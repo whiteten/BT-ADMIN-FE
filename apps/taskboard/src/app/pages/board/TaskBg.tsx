@@ -1014,7 +1014,7 @@ export default function TaskBg() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs text-slate-500 pt-3 border-t border-slate-100">
-                  <span className="font-medium">{item.createUserLoginId ?? '시스템'}</span>
+                  <span className="font-medium">{item.createUserId ?? '시스템'}</span>
                   <span>{dayjs(item.regDt).format('YYYY.MM.DD HH:mm')}</span>
                 </div>
               </div>

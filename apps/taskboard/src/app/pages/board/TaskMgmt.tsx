@@ -21,7 +21,7 @@ import {
   useGetTaskboardLayoutList,
   useUpdateRollingGroup,
 } from '../../features/board/hooks/useTaskboardQueries';
-import { type RollingGroup, type TaskboardDisplay, type TaskboardLayout, parseLayoutSections } from '../../features/board/types/taskboard.types';
+import { type RollingGroup, type TaskboardDisplay, type TaskboardLayout, parseLayoutSections, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
 
@@ -374,11 +374,18 @@ function RunOptionsView({ group, layoutList, displayList, onStart, onCancel }: R
   const boardLayouts = parseIdArray(group.displayIds)
     .map((id, occurrenceIndex) => ({ occurrenceIndex, layout: layoutList.find((l) => l.layoutId === id) }))
     .filter((entry): entry is { occurrenceIndex: number; layout: TaskboardLayout } => entry.layout !== undefined)
-    .map(({ occurrenceIndex, layout }) => ({
-      occurrenceIndex,
-      layout,
-      sections: parseLayoutSections(layout.layoutJson), // 이 슬롯에 구역이 있는지 확인
-    }));
+    .map(({ occurrenceIndex, layout }) => {
+      // 실행 화면은 "실제 위젯이 배정된 구역"만 물어본다 — 선언만 되고 위젯이 하나도 없는 구역(구역 B의
+      // 위젯을 다 지웠거나 구역만 남은 경우)은 뷰그룹을 골라도 스코핑할 대상이 없어 무의미하므로 제외한다.
+      // (구역을 지웠는데도 실행 선택에 계속 뜨던 문제 — 미배정 위젯은 아래 '기본(__etc)'으로 처리됨.)
+      const usedSections = new Set(
+        parseLayoutWidgets(layout.layoutJson)
+          .map((w) => w.sectionKey)
+          .filter((k): k is string => !!k),
+      );
+      const sections = parseLayoutSections(layout.layoutJson).filter((s) => usedSections.has(s));
+      return { occurrenceIndex, layout, sections };
+    });
 
   const stored = loadRunOptions(group.groupId);
   const [applyAll, setApplyAll] = useState(stored.applyAll);
