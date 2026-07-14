@@ -3,13 +3,12 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type NodeTenantItem, callScreenApi } from '../api/callScreenApi';
+import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { callScreenApi } from '../api/callScreenApi';
 import type { CallScreen } from '../types';
 
 export const callScreenQueryKeys = createQueryKeys('callScreen', {
   getList: (params?: Record<string, unknown>) => [params],
-  getNodeTenants: null,
 });
 
 // ─── 조회 훅 ──────────────────────────────────────────────────────────────
@@ -21,17 +20,6 @@ export const useGetCallScreenList = ({ params, queryOptions }: QueryHookWithPara
   return useQuery({
     queryKey: callScreenQueryKeys.getList(params).queryKey,
     queryFn: () => callScreenApi.getList(params),
-    ...queryOptions,
-  });
-};
-
-/**
- * 노드-테넌트 매핑 목록 (트리 구성용)
- */
-export const useGetNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {
-  return useQuery({
-    queryKey: callScreenQueryKeys.getNodeTenants.queryKey,
-    queryFn: () => callScreenApi.getNodeTenants(),
     ...queryOptions,
   });
 };

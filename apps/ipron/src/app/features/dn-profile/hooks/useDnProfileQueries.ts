@@ -6,12 +6,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { dnProfileApi } from '../api/dnProfileApi';
-import type { DnProfile, DnProfileOptionsResponse, NodeSimpleResponse, NodeTenantItem, TenantSimpleResponse } from '../types';
+import type { DnProfile, DnProfileOptionsResponse, NodeSimpleResponse, TenantSimpleResponse } from '../types';
 
 export const dnProfileQueryKeys = createQueryKeys('dnProfiles', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
-  getNodeTenants: null,
   getTenants: null,
   getNodes: null,
   getOptions: (params?: Record<string, unknown>) => [params],
@@ -70,14 +69,6 @@ export const useDeleteDnProfileBatch = ({ mutationOptions }: MutationHookOptions
 };
 
 // ─── Node / Tenant / Options ───────────────────────────────────────────────
-
-export const useGetDnProfileNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {
-  return useQuery({
-    queryKey: dnProfileQueryKeys.getNodeTenants.queryKey,
-    queryFn: () => dnProfileApi.getNodeTenants(),
-    ...queryOptions,
-  });
-};
 
 export const useGetDnProfileTenants = ({ queryOptions }: QueryHookOptions<TenantSimpleResponse[]> = {}) => {
   return useQuery({

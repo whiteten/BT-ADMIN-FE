@@ -331,11 +331,11 @@ export default function IvrAinDnis() {
                 onChange={handleSearchChange}
                 style={{ width: 220 }}
               />
-              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} onClick={handleExport} loading={isExporting}>
-                내보내기
-              </Button>
               <Button variant="solid" icon={<Upload className="size-3.5" />} onClick={handleImport}>
-                가져오기
+                Import
+              </Button>
+              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} onClick={handleExport} loading={isExporting}>
+                Export
               </Button>
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
@@ -346,7 +346,7 @@ export default function IvrAinDnis() {
 
         {/* ===== 하단 박스: ag-Grid ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <Phone className="size-4 text-[#405189]" />
               <h3 className="text-sm font-semibold text-gray-800">대표번호별 DNIS관리{selectedTenant && <span className="text-[#405189]"> — {selectedTenant.tenantName}</span>}</h3>

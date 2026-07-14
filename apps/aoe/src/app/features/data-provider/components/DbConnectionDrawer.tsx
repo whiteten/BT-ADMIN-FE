@@ -1,10 +1,11 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Drawer, Form, Input, InputNumber, Select } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Select, Switch } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { dataProviderQueryKeys, useCreateDbConnection, useDeleteDbConnection, useUpdateDbConnection } from '../hooks/useDataProviderQueries';
-import { ACCESS_TYPE_OPTIONS, DBMS_TYPE_OPTIONS, type DbConnection, type DbConnectionCreateDatas } from '../types';
+import { dataProviderQueryKeys, useCreateDbConnection, useDeleteDbConnection, useGetDbToolList, useUpdateDbConnection } from '../hooks/useDataProviderQueries';
+import { ACCESS_TYPE_OPTIONS, ACTIVE_YN, DBMS_TYPE_OPTIONS, type DbConnection, type DbConnectionCreateDatas } from '../types';
+import { getDbConnectionDeleteConfirmOptions } from '../utils/dbConnectionDeleteConfirm';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 export interface DbConnectionDrawerRef {
@@ -22,6 +23,7 @@ interface FormValues {
   dataSource: string;
   userId: string;
   userPasswd?: string;
+  activeYn: boolean;
 }
 
 const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
@@ -32,6 +34,9 @@ const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
   const [form] = Form.useForm<FormValues>();
 
   const isEdit = !!connection;
+
+  // 삭제 확인 시 이 접속정보를 참조하는 질의도구 건수 안내용. DbToolTab 과 동일 params 로 캐시 공유.
+  const { data: dbTools = [] } = useGetDbToolList({ params: { size: 1000 }, queryOptions: { enabled: open && isEdit } });
 
   const invalidateList = () => queryClient.invalidateQueries({ queryKey: dataProviderQueryKeys.getDbConnectionList().queryKey });
 
@@ -62,6 +67,8 @@ const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
       onSuccess: () => {
         toast.success('DB 접속정보가 삭제되었습니다.');
         invalidateList();
+        // BE가 참조 중인 질의도구를 연쇄 삭제하므로 도구 목록도 갱신 (DbToolTab/DbToolDrawer 와 동일 params 키)
+        queryClient.invalidateQueries({ queryKey: dataProviderQueryKeys.getDbToolList({ size: 1000 }).queryKey });
         handleClose();
       },
       onError: (error) => Log.warn('deleteDbConnection failed', error),
@@ -84,6 +91,7 @@ const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
           userId: conn.userId,
           // 비밀번호는 서버가 항상 null 로 내려주므로 폼에 채우지 않는다.
           userPasswd: undefined,
+          activeYn: (conn.activeYn ?? ACTIVE_YN.ACTIVE) === ACTIVE_YN.ACTIVE,
         });
       } else {
         form.resetFields();
@@ -111,6 +119,7 @@ const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
       userId: values.userId,
       // 수정 시 비밀번호를 비우면 기존 값 유지 → 빈 값은 전송하지 않는다.
       userPasswd: values.userPasswd?.trim() ? values.userPasswd.trim() : undefined,
+      activeYn: values.activeYn ? ACTIVE_YN.ACTIVE : ACTIVE_YN.INACTIVE,
     };
 
     if (isEdit && connection) {
@@ -126,7 +135,9 @@ const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
 
   const handleDelete = () => {
     if (!connection) return;
+    const usedCount = dbTools.filter((tool) => tool.dbConnId === connection.connId).length;
     modal.confirm.delete({
+      options: getDbConnectionDeleteConfirmOptions(usedCount),
       onOk: () => deleteConnection({ connId: connection.connId }),
     });
   };
@@ -192,6 +203,9 @@ const DbConnectionDrawer = forwardRef<DbConnectionDrawerRef>((_, ref) => {
           extra={isEdit ? '변경 시에만 입력하세요. 비워두면 기존 비밀번호가 유지됩니다.' : undefined}
         >
           <Input.Password placeholder={isEdit ? '변경 시에만 입력' : '비밀번호를 입력하세요.'} autoComplete="new-password" />
+        </Form.Item>
+        <Form.Item name="activeYn" label="활성 여부" valuePropName="checked" initialValue={true}>
+          <Switch checkedChildren="활성" unCheckedChildren="비활성" />
         </Form.Item>
       </Form>
     </Drawer>

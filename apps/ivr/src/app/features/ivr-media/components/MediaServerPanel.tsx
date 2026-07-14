@@ -64,7 +64,7 @@ export default function MediaServerPanel({ systemId, systemName, onEdit, onDelet
   }
 
   return (
-    <div className="p-4 overflow-auto">
+    <div className="p-5 overflow-auto">
       <div className="border border-gray-200 rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #fafbff 0%, #ffffff 100%)' }}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">

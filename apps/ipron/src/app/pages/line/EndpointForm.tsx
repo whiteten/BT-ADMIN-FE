@@ -30,6 +30,7 @@ import {
   TRANSPORT_OPTIONS,
 } from '../../features/endpoint/types';
 import { msGroupApi } from '../../features/ms-group/api/msGroupApi';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { type MentOption, type WorktimeOption, routeApi } from '../../features/route/api/routeApi';
 import { useGetSipProfiles } from '../../features/sip-profile/hooks/useSipProfileQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
@@ -106,7 +107,10 @@ export default function EndpointForm() {
   const watchedDrnodeId = Form.useWatch('drnodeId', form);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
+  const scopedNodes = useScopedNodes(allNodes);
+  const nodes = isEditMode ? allNodes : scopedNodes;
   const { data: sipProfiles = [] } = useGetSipProfiles();
   const { data: countries = [] } = useGetCountries();
   const { data: endpointDetail, isFetching } = useGetEndpointDetail({
@@ -294,13 +298,21 @@ export default function EndpointForm() {
     }
   }, [watchedDrnodeId, form]);
 
+  // ─── 현재 폼 값 (요약 패널 + 단계 이동 판정 공용, 변경 전에는 초기값) ──────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentValues: any = formValues ?? { ...ENDPOINT_INITIAL_VALUES, ...(defaultNodeId ? { nodeId: defaultNodeId } : {}) };
+
   // ─── Steps ──────────────────────────────────────────────────────────────────
   const steps = [...ENDPOINT_FORM_STEPS];
   const isLastStep = currentStep === steps.length - 1;
 
-  const handleNext = async () => {
+  // 값 존재 여부 (0/false 는 채워진 값으로 취급)
+  const isFilled = (v: unknown) => v !== null && v !== undefined && v !== '';
+
+  // 단계 검증 — "다음" 버튼과 Steps 헤더 클릭 이동이 공용으로 사용
+  const validateStep = async (step: number): Promise<boolean> => {
     try {
-      if (currentStep === 0) {
+      if (step === 0) {
         const fieldsToValidate = ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn'];
         if (regUseYn === 1) {
           fieldsToValidate.push('regNum', 'regId', 'regPwd', 'regInterval');
@@ -318,25 +330,80 @@ export default function EndpointForm() {
           // 인/아웃 최대채널 min=1 검증 (SWAT line 1142-1145)
           if (currentMaxchnl < 1) {
             toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다');
-            return;
+            return false;
           }
           // OB할당채널 > 최대채널 교차 검증 (SWAT line 1137-1140)
           if (currentDodchnl > currentMaxchnl) {
             toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다');
-            return;
+            return false;
           }
         }
-      } else if (currentStep === 1) {
+      } else if (step === 1) {
         const fieldsToValidate = ['delCount', 'editOpt'];
         if (ieWorktimeId && (worktimeOpt === 2 || worktimeOpt === 4)) {
           fieldsToValidate.push('guideMentId');
         }
         await form.validateFields(fieldsToValidate);
       }
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+      return true;
     } catch {
       /* validation failed */
+      return false;
     }
+  };
+
+  const handleNext = async () => {
+    const passed = await validateStep(currentStep);
+    if (!passed) return;
+    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+  };
+
+  // Steps 헤더 disabled 판정용 — 필수값이 채워졌는지만 가볍게 확인 (실제 검증은 이동 시 validateStep)
+  const isStepRequiredFilled = (step: number) => {
+    const v = currentValues;
+    if (step === 0) {
+      const baseFilled = ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn'].every((k) => isFilled(v[k]));
+      if (!baseFilled) return false;
+      if (v.regUseYn === 1 && !['regNum', 'regId', 'regPwd', 'regInterval'].every((k) => isFilled(v[k]))) return false;
+      if (v.routingNodeId && !isFilled(v.snmpOid)) return false;
+      return true;
+    }
+    if (step === 1) {
+      if (!isFilled(v.delCount) || !isFilled(v.editOpt)) return false;
+      const worktimeOn = !!v.ieWorktimeId && v.ieWorktimeId !== 0;
+      if (worktimeOn && !isFilled(v.worktimeOpt)) return false;
+      if (worktimeOn && (v.worktimeOpt === 2 || v.worktimeOpt === 4) && !isFilled(v.guideMentId)) return false;
+      return true;
+    }
+    return true;
+  };
+
+  // 지나온 단계로는 항상 이동 가능. 앞 단계는 현재~직전 단계 필수값이 모두 채워져야 이동 가능
+  const canJumpToStep = (target: number) => {
+    if (target <= currentStep) return true;
+    for (let s = currentStep; s < target; s += 1) {
+      if (!isStepRequiredFilled(s)) return false;
+    }
+    return true;
+  };
+
+  // Steps 헤더 클릭 이동 — 앞으로 갈 때는 현재 단계부터 순차 검증(기존 "다음" 검증 로직 재사용)
+  const handleStepChange = async (target: number) => {
+    if (target === currentStep) return;
+    if (target < currentStep) {
+      setCurrentStep(target);
+      return;
+    }
+    for (let s = currentStep; s < target; s += 1) {
+      // 앞 단계가 실패하면 그 단계에 머무르며 검증 에러를 노출한다 (순차 검증이라 병렬화 불가)
+
+      const passed = await validateStep(s);
+      if (!passed) {
+        setCurrentStep(s);
+        return;
+      }
+    }
+    setCurrentStep(target);
   };
 
   const handleSubmit = async () => {
@@ -448,33 +515,38 @@ export default function EndpointForm() {
 
   // ─── Summary Panel ─────────────────────────────────────────────────────────
   function renderFormSummary() {
-    const values = formValues ?? ENDPOINT_INITIAL_VALUES;
+    const values = currentValues;
+    // 필수 항목 미입력 판정 (요약에서 빨간 "미입력" 노출용)
+    const missing = (key: string) => !isFilled(values[key]);
+    const worktimeOn = !!values.ieWorktimeId && values.ieWorktimeId !== 0;
+    const mentRequired = worktimeOn && (values.worktimeOpt === 2 || values.worktimeOpt === 4);
 
     return (
       <div className="space-y-4 text-sm">
         {/* Step 1: 기본정보 */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">1. 기본정보</div>
-          <SummaryRow label="국선명" value={displayValue(values.endptName)} />
-          <SummaryRow label="구분" value={displayValue(getLabelByValue(ENDPOINT_TYPE_OPTIONS, values.endptType))} />
-          <SummaryRow label="인/아웃 최대채널" value={displayValue(values.endptMaxchnl)} />
-          <SummaryRow label="아웃할당채널" value={displayValue(values.endptDodchnl)} />
-          <SummaryRow label="노드" value={displayValue(nodeOptions.find((n) => n.value === values.nodeId)?.label)} />
+          <SummaryRow label="국선명" required missing={missing('endptName')} value={displayValue(values.endptName)} />
+          <SummaryRow label="구분" required missing={missing('endptType')} value={displayValue(getLabelByValue(ENDPOINT_TYPE_OPTIONS, values.endptType))} />
+          <SummaryRow label="인/아웃 최대채널" required missing={missing('endptMaxchnl')} value={displayValue(values.endptMaxchnl)} />
+          <SummaryRow label="아웃할당채널" required missing={missing('endptDodchnl')} value={displayValue(values.endptDodchnl)} />
+          <SummaryRow label="노드" required missing={missing('nodeId')} value={displayValue(nodeOptions.find((n) => n.value === values.nodeId)?.label)} />
           <SummaryRow label="DR 노드" value={displayValue(drNodeOptions.find((n) => n.value === values.drnodeId)?.label)} />
           <SummaryRow label="Transport 타입" value={displayValue(getLabelByValue(TRANSPORT_OPTIONS, values.transportType))} />
-          <SummaryRow label="음성보안" value={displayValue(getLabelByValue(SRTP_OPTIONS, values.srtpYn))} />
+          <SummaryRow label="음성보안" required missing={missing('srtpYn')} value={displayValue(getLabelByValue(SRTP_OPTIONS, values.srtpYn))} />
           <SummaryRow label="SSW 벤더" value={displayValue(getLabelByValue(SSW_VENDOR_OPTIONS, values.sswVendor))} />
           <SummaryRow label="장비 등록" value={values.regUseYn === 1 ? '사용' : '미사용'} />
           {values.regUseYn === 1 && (
             <>
-              <SummaryRow label="  등록번호" value={displayValue(values.regNum)} />
-              <SummaryRow label="  등록 아이디" value={displayValue(values.regId)} />
-              <SummaryRow label="  등록 주기" value={displayValue(values.regInterval)} />
+              <SummaryRow label="  등록번호" required missing={missing('regNum')} value={displayValue(values.regNum)} />
+              <SummaryRow label="  등록 아이디" required missing={missing('regId')} value={displayValue(values.regId)} />
+              <SummaryRow label="  등록 비밀번호" required missing={missing('regPwd')} value={values.regPwd ? '••••••' : ''} />
+              <SummaryRow label="  등록 주기" required missing={missing('regInterval')} value={displayValue(values.regInterval)} />
             </>
           )}
           <SummaryRow label="장비위치" value={displayValue(nodeOptions.find((n) => n.value === values.locationNodeId)?.label)} />
           <SummaryRow label="라우팅위치" value={displayValue(nodeOptions.find((n) => n.value === values.routingNodeId)?.label)} />
-          {values.routingNodeId && <SummaryRow label="  라우팅 OID" value={displayValue(values.snmpOid)} />}
+          {values.routingNodeId && <SummaryRow label="  라우팅 OID" required missing={missing('snmpOid')} value={displayValue(values.snmpOid)} />}
           <SummaryRow label="서버 할당방식" value={displayValue(getLabelByValue(ALLOC_METHOD_OPTIONS, values.allocMethod))} />
           <SummaryRow label="등록 방식" value={displayValue(getLabelByValue(REG_METHOD_OPTIONS, values.regMethod))} />
           <SummaryRow label="도메인" value={displayValue(values.domainName)} />
@@ -494,11 +566,18 @@ export default function EndpointForm() {
           <SummaryRow label="블럭 여부" value={values.blockYn === 1 ? '설정' : '해제'} />
           <SummaryRow label="UserAgent 검사" value={values.userAgentChk === 1 ? '사용' : '미사용'} />
           {values.userAgentChk === 1 && <SummaryRow label="  UA 패턴" value={displayValue(values.userAgentRegex)} />}
-          <SummaryRow label="DNIS 편집 Digit수" value={displayValue(values.delCount)} />
+          <SummaryRow label="DNIS 편집 Digit수" required missing={missing('delCount')} value={displayValue(values.delCount)} />
           <SummaryRow label="DNIS 추가 Digit" value={displayValue(values.addDigit)} />
-          <SummaryRow label="편집 옵션" value={displayValue(getLabelByValue(EDIT_OPT_OPTIONS, values.editOpt))} />
+          <SummaryRow label="편집 옵션" required missing={missing('editOpt')} value={displayValue(getLabelByValue(EDIT_OPT_OPTIONS, values.editOpt))} />
           <SummaryRow label="업무시간 설정" value={displayValue(worktimeOptions.find((w) => w.value === values.ieWorktimeId)?.label ?? values.ieWorktimeId)} />
-          {values.ieWorktimeId && <SummaryRow label="  업무시간 외" value={displayValue(getLabelByValue(WORKTIME_OPT_OPTIONS, values.worktimeOpt))} />}
+          {worktimeOn && (
+            <>
+              <SummaryRow label="  업무시간 외" required missing={missing('worktimeOpt')} value={displayValue(getLabelByValue(WORKTIME_OPT_OPTIONS, values.worktimeOpt))} />
+              {mentRequired && (
+                <SummaryRow label="  안내멘트" required missing={missing('guideMentId')} value={displayValue(mentOptions.find((m) => m.value === values.guideMentId)?.label)} />
+              )}
+            </>
+          )}
           <SummaryRow label="국가번호" value={values.countryCodeUseYn === 1 ? '사용' : '미사용'} />
         </div>
 
@@ -509,9 +588,21 @@ export default function EndpointForm() {
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">3. 중개NAT</div>
           <SummaryRow label="중개 옵션" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.natOption))} />
           <SummaryRow label="중개 옵션(DR)" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.drnatOption))} />
-          {values.natOption !== 0 && <SummaryRow label="MS그룹" value={displayValue(msGroupOptions.find((g) => g.value === values.msGroupId)?.label ?? values.msGroupId)} />}
+          {values.natOption !== 0 && (
+            <SummaryRow
+              label="MS그룹"
+              required
+              missing={missing('msGroupId')}
+              value={displayValue(msGroupOptions.find((g) => g.value === values.msGroupId)?.label ?? values.msGroupId)}
+            />
+          )}
           {values.drnatOption !== 0 && (
-            <SummaryRow label="MS그룹(DR)" value={displayValue(drMsGroupOptions.find((g) => g.value === values.msDrgroupId)?.label ?? values.msDrgroupId)} />
+            <SummaryRow
+              label="MS그룹(DR)"
+              required
+              missing={missing('msDrgroupId')}
+              value={displayValue(drMsGroupOptions.find((g) => g.value === values.msDrgroupId)?.label ?? values.msDrgroupId)}
+            />
           )}
           <SummaryRow label="NAT 동작옵션" value={displayValue(getLabelByValue(ENAT_OPTION_OPTIONS, values.enatOption))} />
           <SummaryRow label="NAT IP 주소" value={displayValue(values.natIpAddress)} />
@@ -561,7 +652,8 @@ export default function EndpointForm() {
       <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
         <Steps
           current={currentStep}
-          items={steps.map((s) => ({ title: s.title }))}
+          items={steps.map((s, idx) => ({ title: s.title, disabled: !canJumpToStep(idx) }))}
+          onChange={handleStepChange}
           size="small"
           className="max-w-10/12 min-w-1/3"
           style={{ width: `${steps.length * 250}px` }}
@@ -590,8 +682,9 @@ export default function EndpointForm() {
                    *  Step 1: 기본정보
                    * ══════════════════════════════════════════════════════════ */}
                   <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
+                    {/* 4열 균일 그리드(span 6). 긴 텍스트 필드만 span 12 예외 */}
                     <Row gutter={20}>
-                      <Col span={8}>
+                      <Col span={12}>
                         <Form.Item
                           name="endptName"
                           label="국선명"
@@ -605,18 +698,13 @@ export default function EndpointForm() {
                           <Input placeholder="국선명 입력" maxLength={100} />
                         </Form.Item>
                       </Col>
-                      <Col span={8}>
+                      <Col span={6}>
                         <Form.Item name="endptType" label="구분" required rules={[{ required: true, message: '구분은 필수입니다' }]}>
                           <Select options={[...ENDPOINT_TYPE_OPTIONS]} />
                         </Form.Item>
                       </Col>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item name="endptMaxchnl" label="인/아웃 최대채널" required rules={[{ required: true, message: '최대채널은 필수입니다' }]}>
-                          <InputNumber min={0} className="!w-full" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={4}>
-                        <Form.Item name="endptDodchnl" label="아웃할당채널" required rules={[{ required: true, message: '아웃할당채널은 필수입니다' }]}>
                           <InputNumber min={0} className="!w-full" />
                         </Form.Item>
                       </Col>
@@ -624,18 +712,26 @@ export default function EndpointForm() {
 
                     <Row gutter={20}>
                       <Col span={6}>
+                        <Form.Item name="endptDodchnl" label="아웃할당채널" required rules={[{ required: true, message: '아웃할당채널은 필수입니다' }]}>
+                          <InputNumber min={0} className="!w-full" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={6}>
                         <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
                           <Select options={nodeOptions} placeholder="노드 선택" disabled={isEditMode} />
                         </Form.Item>
                       </Col>
-                      <Col span={6}>
-                        {/* DR 노드: endptType=4(WebRTC)이면 숨김 */}
-                        {String(endptType) !== '4' && (
+                      {/* DR 노드: endptType=4(WebRTC)이면 숨김 → 행 뒤쪽에 배치해 숨김 시에도 열이 흐트러지지 않게 함 */}
+                      {String(endptType) !== '4' && (
+                        <Col span={6}>
                           <Form.Item name="drnodeId" label="DR 노드">
                             <Select options={drNodeOptions} allowClear placeholder="선택" />
                           </Form.Item>
-                        )}
-                      </Col>
+                        </Col>
+                      )}
+                    </Row>
+
+                    <Row gutter={20}>
                       <Col span={6}>
                         <Form.Item name="transportType" label="Transport 타입">
                           <Select options={[...TRANSPORT_OPTIONS]} />
@@ -646,9 +742,6 @@ export default function EndpointForm() {
                           <Select options={[...SRTP_OPTIONS]} />
                         </Form.Item>
                       </Col>
-                    </Row>
-
-                    <Row gutter={20}>
                       <Col span={6}>
                         {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
                         <Form.Item name="sswVendor" label="SSW 벤더">
@@ -665,12 +758,12 @@ export default function EndpointForm() {
                     <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">장비 등록</h4>
 
                     <Row gutter={20}>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item name="regUseYn" label="장비 등록 사용여부" {...switchProps}>
                           <Switch />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={6}>
                         <Form.Item
                           name="regNum"
                           label="장비 등록 번호"
@@ -688,7 +781,7 @@ export default function EndpointForm() {
                           <Input placeholder="등록번호" maxLength={50} disabled={regUseYn !== 1} />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={6}>
                         <Form.Item
                           name="regId"
                           label="장비 등록 아이디"
@@ -706,12 +799,15 @@ export default function EndpointForm() {
                           <Input placeholder="등록 아이디" maxLength={20} disabled={regUseYn !== 1} />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={6}>
                         <Form.Item name="regPwd" label="장비 등록 비밀번호" rules={regUseYn === 1 ? [{ required: true, message: '등록 비밀번호는 필수입니다' }] : []}>
                           <Input.Password placeholder="비밀번호" disabled={regUseYn !== 1} />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                    </Row>
+
+                    <Row gutter={20}>
+                      <Col span={6}>
                         <Form.Item name="regInterval" label="장비 등록 주기(초)" rules={regUseYn === 1 ? [{ required: true, message: '등록 주기는 필수입니다' }] : []}>
                           <InputNumber min={0} className="!w-full" disabled={regUseYn !== 1} />
                         </Form.Item>
@@ -731,7 +827,7 @@ export default function EndpointForm() {
                           <Select options={nodeOptions} allowClear placeholder="선택" />
                         </Form.Item>
                       </Col>
-                      <Col span={6}>
+                      <Col span={12}>
                         <Form.Item
                           name="snmpOid"
                           label="라우팅 OID"
@@ -760,11 +856,14 @@ export default function EndpointForm() {
                           <Select options={[...REG_METHOD_OPTIONS]} />
                         </Form.Item>
                       </Col>
-                      <Col span={6}>
+                      <Col span={12}>
                         <Form.Item name="domainName" label="도메인">
                           <Input placeholder="도메인" maxLength={63} />
                         </Form.Item>
                       </Col>
+                    </Row>
+
+                    <Row gutter={20}>
                       <Col span={6}>
                         <Form.Item name="wanNetworkYn" label="WAN IP 사용여부" {...switchProps}>
                           <Switch />
@@ -780,28 +879,31 @@ export default function EndpointForm() {
                     <h4 className="text-xs text-gray-400 mb-2 pb-1 border-b border-gray-100">감시/추적</h4>
 
                     <Row gutter={20}>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item name="monitorYn" label="모니터링 여부" {...switchProps}>
                           <Switch />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={6}>
                         {/* SWAT IPR20S1010.jsp callProcess() line 1191-1195: 감시주기 1초 이상 */}
                         <Form.Item name="watchInterval" label="감시 주기(초)">
                           <InputNumber min={1} className="!w-full" />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={6}>
                         <Form.Item name="failCnt" label="감시실패 제한수">
                           <InputNumber min={0} className="!w-full" />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={6}>
                         <Form.Item name="msgTraceYn" label="호추적 여부" {...switchProps}>
                           <Switch />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                    </Row>
+
+                    <Row gutter={20}>
+                      <Col span={6}>
                         <Form.Item name="blockYn" label="블럭 여부" {...switchProps}>
                           <Switch />
                         </Form.Item>
@@ -811,7 +913,7 @@ export default function EndpointForm() {
                     <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">UserAgent</h4>
 
                     <Row gutter={20}>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item name="userAgentChk" label="UserAgent 검사" {...switchProps}>
                           <Switch />
                         </Form.Item>
@@ -893,18 +995,19 @@ export default function EndpointForm() {
                     <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">국가번호</h4>
 
                     <Row gutter={20}>
-                      <Col span={4}>
+                      <Col span={6}>
                         <Form.Item name="countryCodeUseYn" label="국가번호 사용" {...switchProps}>
                           <Switch />
                         </Form.Item>
                       </Col>
-                      <Col span={6}>
-                        {countryCodeUseYn === 1 && (
+                      {/* 국가번호: 사용 시에만 노출 → 행 뒤쪽 배치 */}
+                      {countryCodeUseYn === 1 && (
+                        <Col span={6}>
                           <Form.Item name="countryId" label="국가번호">
                             <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
                           </Form.Item>
-                        )}
-                      </Col>
+                        </Col>
+                      )}
                     </Row>
                   </div>
 
@@ -926,9 +1029,6 @@ export default function EndpointForm() {
                           <Select options={msGroupOptions} placeholder="미지정" disabled={!natOption || natOption === 0} allowClear />
                         </Form.Item>
                       </Col>
-                    </Row>
-
-                    <Row gutter={20}>
                       <Col span={6}>
                         <Form.Item name="drnatOption" label="중개 옵션(DR)">
                           <Select options={[...NAT_OPTION_OPTIONS]} />
@@ -959,7 +1059,7 @@ export default function EndpointForm() {
                           <Select options={[...ENAT_OPTION_OPTIONS]} />
                         </Form.Item>
                       </Col>
-                      <Col span={8}>
+                      <Col span={6}>
                         <Form.Item
                           name="natIpAddress"
                           label="NAT IP 주소"
@@ -993,11 +1093,19 @@ export default function EndpointForm() {
 }
 
 // ─── Summary Row ──────────────────────────────────────────────────────────────
-function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+// required: 해당 Form.Item 이 필수인 항목 (조건부 필수는 그 조건일 때만 required 전달)
+// missing: 필수인데 아직 값이 없는 항목 → 빨간 "미입력" 노출
+function SummaryRow({ label, value, required = false, missing = false }: { label: string; value: React.ReactNode; required?: boolean; missing?: boolean }) {
+  const isMissing = required && missing;
+  const valueClass = isMissing ? 'text-red-500 font-medium flex-1' : 'text-gray-800 font-medium flex-1';
+
   return (
     <div className="flex items-center gap-1">
-      <span className="text-gray-500 w-[140px] shrink-0">{label}</span>
-      <span className="text-gray-800 font-medium flex-1">{value}</span>
+      <span className="text-gray-500 w-[140px] shrink-0">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </span>
+      <span className={valueClass}>{isMissing ? '미입력' : value}</span>
     </div>
   );
 }

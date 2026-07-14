@@ -8,7 +8,7 @@
  */
 import { useState } from 'react';
 import { Input, Tooltip } from 'antd';
-import { ChevronsDownUp, ChevronsUpDown, FolderClosed, GripVertical, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Building2, ChevronsDownUp, ChevronsUpDown, FolderClosed, GripVertical, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { AgentGroupNode, AgentGroupReorderPosition } from '../types';
 import { AGENT_DRAG_MIME } from './AgentMasterTable';
 import { TreeCaret, TreeFolderIcon, TreeLabel, TreeRow } from '@/components/custom/TreeView';
@@ -40,6 +40,10 @@ const TOOLTIP_PROPS = {
 interface AgentGroupTreeProps {
   tree: AgentGroupNode[];
   selectedGroupId: number | null;
+  /** 운영자 전체 모드에서 보기필터로 선택된 테넌트(합성 노드 하이라이트용). */
+  selectedTenantId?: number | null;
+  /** 드래그 중인 상담사들의 소속 테넌트 집합 — 대상 그룹이 다른 테넌트면 드롭 금지(X) 표시. */
+  dragTenantIds?: Set<number> | null;
   onSelectGroup: (groupId: number | null) => void;
   onCreateChild?: (parent: AgentGroupNode | null) => void; // null = root 추가
   onEditGroup?: (group: AgentGroupNode) => void;
@@ -47,14 +51,30 @@ interface AgentGroupTreeProps {
   onAgentDrop?: (targetGroupId: number, agentIds: number[]) => void;
   /** 그룹 노드 D&D 재배치. position 은 referenceGroupId(드롭 받은 노드) 기준. */
   onGroupReorder?: (movedGroupId: number, position: AgentGroupReorderPosition, referenceGroupId: number) => void;
+  /** 운영자 전체 모드의 합성 테넌트 노드 클릭 — 그리드 보기필터만 그 테넌트로 좁힘(대행 스코프는 불변). */
+  onSelectTenant?: (tenantId: number) => void;
 }
 
-export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, onCreateChild, onEditGroup, onDeleteGroup, onAgentDrop, onGroupReorder }: AgentGroupTreeProps) {
+export default function AgentGroupTree({
+  tree,
+  selectedGroupId,
+  selectedTenantId,
+  dragTenantIds,
+  onSelectGroup,
+  onCreateChild,
+  onEditGroup,
+  onDeleteGroup,
+  onAgentDrop,
+  onGroupReorder,
+  onSelectTenant,
+}: AgentGroupTreeProps) {
   // 액션 콜백을 하나도 전달받지 않으면 read-only — 하위그룹 추가/수정/삭제 아이콘 자체를 렌더하지 않음
   // (예: 상담사 ADN 관리 화면이 그룹 트리를 필터 용도로만 재사용하는 경우)
   const readOnly = !onCreateChild && !onEditGroup && !onDeleteGroup;
   const [searchText, setSearchText] = useState('');
   const [dropTargetId, setDropTargetId] = useState<number | null>(null);
+  /** 드롭 금지(다른 테넌트) 대상 그룹 — 빨강 X 표시. */
+  const [forbidTargetId, setForbidTargetId] = useState<number | null>(null);
   /** 그룹 D&D 시각 가이드 — 노드 ID + 드롭 위치 (위/아래/안쪽). */
   const [groupDropHint, setGroupDropHint] = useState<{ id: number; pos: AgentGroupReorderPosition } | null>(null);
 
@@ -69,6 +89,8 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
   });
 
   const totalAgentCount = tree.reduce((s, n) => s + (n.agentCount ?? 0), 0);
+  // "전체" 행 강조 — 그룹 미선택 && 테넌트 보기필터도 없을 때만 (테넌트 필터 활성 시엔 테넌트 노드가 강조).
+  const allRowSelected = selectedGroupId === null && selectedTenantId == null;
 
   /**
    * 마우스 Y 좌표 기준 드롭 위치 계산.
@@ -84,14 +106,20 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
 
   const renderRow = (item: TreeViewItem<AgentGroupNode>) => {
     const node = item.node;
-    const isSelected = selectedGroupId === node.groupId;
+    const isScope = node._scopeKind === 'tenant'; // 운영자 전체 모드의 합성 테넌트 노드
+    const isSelected = isScope ? selectedTenantId === node.tenantId : selectedGroupId === node.groupId;
     const isDropTarget = dropTargetId === node.groupId;
+    const isForbidTarget = forbidTargetId === node.groupId;
+    // 드래그 중 상담사 테넌트와 이 노드 테넌트가 다르면 크로스테넌트(이동 불가).
+    const isCrossTenant = !!dragTenantIds && (dragTenantIds.size > 1 || !dragTenantIds.has(node.tenantId));
     const groupHint = groupDropHint?.id === node.groupId ? groupDropHint.pos : null;
-    const dropClass = isDropTarget
-      ? 'bg-emerald-50 border-emerald-500 outline outline-2 outline-dashed outline-emerald-500 -outline-offset-2'
-      : groupHint === 'INSIDE'
-        ? 'bg-blue-50 border-blue-500'
-        : undefined;
+    const dropClass = isForbidTarget
+      ? 'bg-red-50 border-red-400 outline outline-2 outline-dashed outline-red-400 -outline-offset-2 cursor-no-drop'
+      : isDropTarget
+        ? 'bg-emerald-50 border-emerald-500 outline outline-2 outline-dashed outline-emerald-500 -outline-offset-2'
+        : groupHint === 'INSIDE'
+          ? 'bg-blue-50 border-blue-500'
+          : undefined;
 
     return (
       <TreeRow
@@ -99,18 +127,26 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
         item={item}
         selected={isSelected}
         className={dropClass}
-        draggable={!!onGroupReorder}
-        onClick={() => onSelectGroup(node.groupId)}
+        draggable={!isScope && !!onGroupReorder}
+        onClick={() => (isScope ? onSelectTenant?.(node.tenantId) : onSelectGroup(node.groupId))}
         onDragStart={(e) => {
-          if (!onGroupReorder) return;
+          if (isScope || !onGroupReorder) return;
           e.dataTransfer.setData(GROUP_DRAG_MIME, JSON.stringify({ groupId: node.groupId }));
           e.dataTransfer.effectAllowed = 'move';
           e.stopPropagation();
         }}
         onDragOver={(e) => {
+          if (isScope) return; // 합성 테넌트 노드는 드롭 대상 아님
           const types = e.dataTransfer.types;
           if (types.includes(AGENT_DRAG_MIME) && onAgentDrop) {
             e.preventDefault();
+            if (isCrossTenant) {
+              // 다른 테넌트 그룹 — 이동 불가. 드롭 거부 + 빨강 X 표시.
+              e.dataTransfer.dropEffect = 'none';
+              setForbidTargetId(node.groupId);
+              setDropTargetId((id) => (id === node.groupId ? null : id));
+              return;
+            }
             e.dataTransfer.dropEffect = 'move';
             setDropTargetId(node.groupId);
             return;
@@ -123,14 +159,18 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
         }}
         onDragLeave={() => {
           setDropTargetId((id) => (id === node.groupId ? null : id));
+          setForbidTargetId((id) => (id === node.groupId ? null : id));
           setGroupDropHint((h) => (h?.id === node.groupId ? null : h));
         }}
         onDrop={(e) => {
+          if (isScope) return; // 합성 테넌트 노드는 드롭 대상 아님
           // 상담사 페이로드 우선
           const agentRaw = e.dataTransfer.getData(AGENT_DRAG_MIME);
           if (agentRaw && onAgentDrop) {
             e.preventDefault();
             setDropTargetId(null);
+            setForbidTargetId(null);
+            if (isCrossTenant) return; // 다른 테넌트로는 드롭 불가 (시각적으로도 X)
             try {
               const ids = JSON.parse(agentRaw) as number[];
               if (Array.isArray(ids) && ids.length > 0) {
@@ -163,22 +203,23 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
 
         <TreeCaret item={item} />
 
-        {/* drag handle hint — 항상 옅게, hover 시 진해짐 */}
-        {onGroupReorder && <GripVertical className="size-3 flex-shrink-0 text-gray-300 group-hover:text-gray-500 transition cursor-grab" aria-hidden />}
+        {/* drag handle hint — 항상 옅게, hover 시 진해짐 (합성 테넌트 노드는 제외) */}
+        {onGroupReorder && !isScope && <GripVertical className="size-3 flex-shrink-0 text-gray-300 group-hover:text-gray-500 transition cursor-grab" aria-hidden />}
 
-        <TreeFolderIcon item={item} selected={isSelected} />
+        {isScope ? <Building2 className="size-3.5 flex-shrink-0 text-amber-600" /> : <TreeFolderIcon item={item} selected={isSelected} />}
 
         <TreeLabel selected={isSelected} title={node.groupName}>
-          {node.groupName}
+          <span className={isScope ? 'font-semibold text-amber-800' : undefined}>{node.groupName}</span>
         </TreeLabel>
 
+        {isForbidTarget && <span className="text-[10px] text-red-500 font-medium">✕ 이동 불가(다른 테넌트)</span>}
         {isDropTarget && <span className="text-[10px] text-emerald-600 font-medium">↓ 여기로 이동</span>}
 
         {/* 카운트 — 맨 우측에 상시 표시 */}
         <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{node.agentCount.toLocaleString()}</span>
 
-        {/* 액션 — read-only 모드에서는 통째 생략, 상시 표시 */}
-        {!readOnly && (
+        {/* 액션 — read-only 모드 또는 합성 테넌트 노드에서는 통째 생략 */}
+        {!readOnly && !isScope && (
           <div className="flex items-center gap-0.5 flex-shrink-0">
             <Tooltip title="하위 그룹 추가" {...TOOLTIP_PROPS}>
               <button
@@ -239,14 +280,14 @@ export default function AgentGroupTree({ tree, selectedGroupId, onSelectGroup, o
             (grip 자리 size-3 + gap, folder, name, count, actions 폭 자리) */}
         <div
           className={`group flex items-center gap-1.5 px-3 py-1.5 cursor-pointer select-none border-l-[3px] transition ${
-            selectedGroupId === null ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'border-transparent hover:bg-gray-50'
+            allRowSelected ? 'bg-[var(--color-bt-primary-soft)] border-[var(--color-bt-primary)]' : 'border-transparent hover:bg-gray-50'
           }`}
           onClick={() => onSelectGroup(null)}
         >
           {/* grip 자리 placeholder — 그룹 노드와 좌측 정렬 맞춤 */}
           {onGroupReorder && <span className="size-3 flex-shrink-0" aria-hidden />}
-          <FolderClosed className={`size-3.5 flex-shrink-0 ${selectedGroupId === null ? 'text-[var(--color-bt-primary)]' : 'text-gray-500'}`} />
-          <span className={`flex-1 text-[12.5px] truncate ${selectedGroupId === null ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700'}`}>전체</span>
+          <FolderClosed className={`size-3.5 flex-shrink-0 ${allRowSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-500'}`} />
+          <span className={`flex-1 text-[12.5px] truncate ${allRowSelected ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-gray-700'}`}>전체</span>
           {/* 카운트 — 맨 우측에 상시 표시 */}
           <span className="h-5 inline-flex items-center text-[11px] text-gray-400 flex-shrink-0">{totalAgentCount.toLocaleString()}</span>
           {/* 모두 펼치기/접기 토글 — 상시 표시 */}

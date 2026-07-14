@@ -519,6 +519,8 @@ importers:
         specifier: ^0.44.0
         version: 0.44.0
 
+  apps/campaign: {}
+
   apps/custom: {}
 
   apps/fca: {}

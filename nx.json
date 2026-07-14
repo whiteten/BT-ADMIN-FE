@@ -17,12 +17,8 @@
       "!{projectRoot}/src/test-setup.[jt]s",
       "!{projectRoot}/test-setup.[jt]s"
     ],
-    "tailwindSources": [
-      "{workspaceRoot}/apps/**/*.{js,jsx,ts,tsx,html}",
-      "{workspaceRoot}/libs/**/*.{js,jsx,ts,tsx,html}",
-      "{workspaceRoot}/libs/shared-ui/src/styles/global.css"
-    ],
-    "sharedGlobals": ["{workspaceRoot}/tools/webpack/**/*"]
+    "tailwindSources": ["{workspaceRoot}/apps/**/*.{js,jsx,ts,tsx,html}", "{workspaceRoot}/libs/**/*.{js,jsx,ts,tsx,html}", "{workspaceRoot}/libs/shared-ui/src/styles/global.css"],
+    "sharedGlobals": ["{workspaceRoot}/tools/webpack/**/*", { "env": "NX_CACHE_EPOCH" }]
   },
   "plugins": [
     {
@@ -100,5 +96,6 @@
       "dependsOn": ["^build"],
       "cache": true
     }
-  }
+  },
+  "nxCloudId": "6a4da69db14c06f6684452b6"
 }

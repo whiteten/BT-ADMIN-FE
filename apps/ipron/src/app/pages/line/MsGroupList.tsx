@@ -16,8 +16,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Layers, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
+import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MediaServerDrawer, { type MediaServerDrawerRef } from '../../features/ms-group/components/MediaServerDrawer';
@@ -26,6 +26,7 @@ import MsGroupMemberDrawer, { type MsGroupMemberDrawerRef } from '../../features
 import NodeMsSettingDrawer, { type NodeMsSettingDrawerRef } from '../../features/ms-group/components/NodeMsSettingDrawer';
 import { msGroupQueryKeys, useDeleteMsGroup, useGetMediaServers, useGetMsGroupMembers, useGetMsGroups, useGetNodes } from '../../features/ms-group/hooks/useMsGroupQueries';
 import { type MediaServer, type MsGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } from '../../features/ms-group/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -56,9 +57,7 @@ export default function MsGroupList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(initGroupId);
   const [searchText, setSearchText] = useState('');
-  const [cardExpanded, setCardExpanded] = useState(false);
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const msGroupDrawerRef = useRef<MsGroupDrawerRef>(null);
@@ -68,7 +67,16 @@ export default function MsGroupList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: msGroups = [] } = useGetMsGroups();
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 운영자 모드=전체 노드, 일반 테넌트 모드=로그인 테넌트에 매핑된 노드만
+  const nodes = useScopedNodes(allNodes);
+
+  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
+  useEffect(() => {
+    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
+      setSelectedNodeId(null);
+    }
+  }, [nodes, selectedNodeId]);
   const { data: allMediaServers = [] } = useGetMediaServers({
     params: selectedNodeId ? { nodeId: selectedNodeId } : undefined,
     queryOptions: { enabled: !!selectedNodeId },
@@ -140,7 +148,6 @@ export default function MsGroupList() {
     return nodes.find((n) => n.nodeId === selectedNodeId) ?? null;
   }, [nodes, selectedNodeId]);
 
-  const selectedNodeName = selectedNode?.nodeName ?? '';
   const defaultMsGroupId = selectedNode?.msGroupId ?? null;
 
   const selectedGroup = useMemo(() => {
@@ -168,8 +175,8 @@ export default function MsGroupList() {
   }, [filteredMsGroups, selectedGroupId]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleNodeSelect = (nodeId: number) => {
-    setSelectedNodeId((prev) => (prev === nodeId ? null : nodeId));
+  const handleNodeChange = (nodeId: number | null) => {
+    setSelectedNodeId(nodeId);
     setSelectedGroupId(null);
     setSearchText('');
   };
@@ -187,13 +194,10 @@ export default function MsGroupList() {
   };
 
   const handleCreateMsGroup = useCallback(() => {
-    if (!selectedNodeId) {
-      toast.warning('검색할 노드를 선택하십시오');
-      return;
-    }
-    const name = nodeNameMap.get(selectedNodeId) ?? '';
-    msGroupDrawerRef.current?.open(undefined, selectedNodeId, name);
-  }, [selectedNodeId, nodeNameMap]);
+    // 전체(노드 미선택)면 드로어 안에서 노드를 선택하도록 스코프 노드 목록을 넘김
+    const name = selectedNodeId ? (nodeNameMap.get(selectedNodeId) ?? '') : '';
+    msGroupDrawerRef.current?.open(undefined, selectedNodeId ?? undefined, name, selectedNodeId ? undefined : nodes);
+  }, [selectedNodeId, nodeNameMap, nodes]);
 
   const handleEditMsGroup = useCallback(
     (grp: MsGroup) => {
@@ -375,83 +379,31 @@ export default function MsGroupList() {
     <div className="flex flex-col gap-4 w-full h-full">
       {/* Single column: Cards (top) + Media Server Grid (bottom) */}
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 노드 탭 바 + 카드 슬라이더 ===== */}
+        {/* ===== 상단: 노드 Select + 검색 + 추가 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Header: 노드 탭 바 + 검색 + 추가 버튼 */}
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            {/* 좌측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-
-            {/* 탭 스크롤 컨테이너 */}
-            <div
-              ref={tabScrollRef}
-              className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {/* 전체 탭 */}
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
-                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
-                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => {
-                  setSelectedNodeId(null);
-                  setSearchText('');
-                  setSelectedGroupId(null);
-                }}
-              >
-                <Layers className="size-3.5" />
-                <span>전체</span>
-                <span className="text-[11px] text-gray-400">({searchFilteredMsGroups.length})</span>
-              </button>
-
-              {/* 노드 탭들 */}
-              {nodes.map((node) => {
-                const nodeGroups = searchFilteredMsGroups.filter((g) => g.nodeId === node.nodeId);
-                const hasFault = nodesFaultMap.get(node.nodeId) ?? false;
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] max-w-[200px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      handleNodeSelect(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({nodeGroups.length})</span>
-                    {hasFault && <AlertTriangle className="size-3 text-red-500" />}
-                  </button>
-                );
-              })}
+          <div className="flex items-center px-4 h-[56px] gap-3">
+            {/* 노드 선택 (MS그룹은 노드 단위 스코프) */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
+                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
             </div>
 
-            {/* 우측 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
+            {/* 요약 — 총 MS그룹 */}
+            <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-500">
+                총 MS그룹 <b className="text-gray-800 font-semibold">{filteredMsGroups.length.toLocaleString()}</b>
+              </span>
+            </div>
 
-            {/* 우측: 검색 + 노드 기본 MS설정 + MS그룹 추가 */}
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+            <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -472,17 +424,8 @@ export default function MsGroupList() {
 
         {/* ===== 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 접기/펼치기 토글 헤더 */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-[12px] text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setCardExpanded((v) => !v)}
-          >
-            <span>MS그룹 선택</span>
-            {cardExpanded ? <ChevronsUp className="size-4" /> : <ChevronsDown className="size-4" />}
-          </button>
-          {/* Card slider body — 기본 접힘 */}
-          {cardExpanded && (
+          {/* Card slider body — 항상 펼침 */}
+          {
             <div className="flex items-center px-4 py-3 h-[180px]">
               {filteredMsGroups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
@@ -586,7 +529,7 @@ export default function MsGroupList() {
                 </div>
               )}
             </div>
-          )}
+          }
         </div>
 
         {/* ===== 하단: 미디어서버 ag-Grid ===== */}

@@ -14,6 +14,7 @@
 import { useEffect, useMemo } from 'react';
 import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { Lock, Network } from 'lucide-react';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileTenants } from '../../dn-profile/hooks/useDnProfileQueries';
 import { useAdnGrpdnOptions } from '../hooks/useAdnGrpdnOptions';
@@ -50,6 +51,12 @@ interface AdnFormValues {
 export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClose, onSaved }: AdnFormDrawerProps) {
   const isEditMode = mode === 'edit';
   const effectiveDnId = isEditMode ? (dnId ?? undefined) : undefined;
+  // 운영자 모드에서만 "테넌트" 선택 노출. 일반 콘솔은 로그인(활성) 테넌트로 고정 → 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const activeTenantId = useAuthStore((s) => {
+    const t = s.userInfo?.tenant;
+    return t != null ? Number(t) : null;
+  });
 
   const [form] = Form.useForm<AdnFormValues>();
   const { data: detail } = useGetAdnDetail(open && isEditMode ? effectiveDnId : undefined);
@@ -78,13 +85,14 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
     } else if (!isEditMode) {
       form.resetFields();
       form.setFieldsValue({
-        tenantId: defaultTenantId ?? undefined,
+        // 일반 모드: 로그인 테넌트로 고정(부모 전달값 우선, 없으면 활성 테넌트 폴백).
+        tenantId: defaultTenantId ?? (operatorMode ? undefined : (activeTenantId ?? undefined)),
         md5Auth: 0,
         adnDftState: '1' as AdnDefaultStateCode,
         extAuthtype: null,
       });
     }
-  }, [form, open, isEditMode, detail, defaultTenantId]);
+  }, [form, open, isEditMode, detail, defaultTenantId, operatorMode, activeTenantId]);
 
   const md5Auth = Form.useWatch('md5Auth', form);
   const watchedTenantId = Form.useWatch('tenantId', form);
@@ -175,17 +183,24 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
     >
       <Form form={form} layout="vertical" requiredMark>
         <Row gutter={16}>
-          <Col span={12}>
-            <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
-              {!isEditMode && tenantOptions.length === 0 ? (
-                /* 옵션 미로드 시 폴백 — 수정모드에서는 항상 Select */
-                <InputNumber style={{ width: '100%' }} disabled={isEditMode} placeholder="테넌트 ID" min={1} />
-              ) : (
-                <Select options={tenantOptions} placeholder="테넌트 선택" disabled={isEditMode} />
-              )}
+          {operatorMode ? (
+            <Col span={12}>
+              <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+                {!isEditMode && tenantOptions.length === 0 ? (
+                  /* 옵션 미로드 시 폴백 — 수정모드에서는 항상 Select */
+                  <InputNumber style={{ width: '100%' }} disabled={isEditMode} placeholder="테넌트 ID" min={1} />
+                ) : (
+                  <Select options={tenantOptions} placeholder="테넌트 선택" disabled={isEditMode} />
+                )}
+              </Form.Item>
+            </Col>
+          ) : (
+            /* 일반 콘솔 — 테넌트 숨김(로그인 테넌트 고정). 값만 유지. */
+            <Form.Item name="tenantId" hidden rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+              <InputNumber />
             </Form.Item>
-          </Col>
-          <Col span={12}>
+          )}
+          <Col span={operatorMode ? 12 : 24}>
             <Form.Item
               label="ADN 번호"
               name="dnNo"

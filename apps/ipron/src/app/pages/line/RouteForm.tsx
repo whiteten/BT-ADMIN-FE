@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Divider, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import {
   routeQueryKeys,
   useCreateRoute,
@@ -52,7 +53,10 @@ export default function RouteForm() {
   const routeId = id ? Number(id) : null;
 
   // ─── Queries ────────────────────────────────────────────────────────────────
-  const { data: nodes = [] } = useGetNodes();
+  const { data: allNodes = [] } = useGetNodes();
+  // 노드 셀렉트 스코프: 신규 등록은 일반 모드=로그인 테넌트 노드/운영자=전체, 수정은 기존 노드 표시 위해 전체.
+  const scopedNodes = useScopedNodes(allNodes);
+  const nodes = isEditMode ? allNodes : scopedNodes;
   const { data: routeDetail, isFetching } = useGetRouteDetail({
     params: routeId ? { id: routeId } : undefined,
     queryOptions: { enabled: !!routeId },

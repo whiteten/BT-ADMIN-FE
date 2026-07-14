@@ -11,9 +11,9 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Input, Modal, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { Button, Input, Modal, Select } from 'antd';
+import { Download, Plus, Save, Search, Trash2, Upload, Users } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { GridRowColorLegend } from '../../components/GridRowColorLegend';
 import { agentMasterApi } from '../../features/agent-master/api/agentMasterApi';
@@ -22,7 +22,6 @@ import AgentGroupTree from '../../features/agent-master/components/AgentGroupTre
 import AgentImportDrawer from '../../features/agent-master/components/AgentImportDrawer';
 import AgentMasterFormDrawer from '../../features/agent-master/components/AgentMasterFormDrawer';
 import AgentMasterTable from '../../features/agent-master/components/AgentMasterTable';
-import AgentMasterTenantCard from '../../features/agent-master/components/AgentMasterTenantCard';
 import AgentMediaStatusTable, { type AgentMediaStatusTableHandle, type MediaKey, type MediaOption } from '../../features/agent-master/components/AgentMediaStatusTable';
 import { MEDIA_KEY_LABELS, MEDIA_TYPE_CODE_TO_KEY } from '../../features/agent-master/constants/codes';
 import {
@@ -38,6 +37,7 @@ import {
 } from '../../features/agent-master/hooks/useAgentMasterQueries';
 import type { AgentGroupNode, AgentResponse, AgentUpdateRequest } from '../../features/agent-master/types';
 import { useGetMediaTypes } from '../../features/media-type/hooks/useMediaTypeQueries';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '상담사 관리' }, { title: '상담사' }, { title: '상담사 설정', path: '/ipron/agent-master' }];
@@ -53,26 +53,41 @@ export default function AgentMasterList() {
   const navigate = useNavigate();
   const modal = useModal();
   const queryClient = useQueryClient();
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   const invalidateAgents = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getList._def });
     queryClient.invalidateQueries({ queryKey: agentMasterQueryKeys.getTenants.queryKey });
   }, [queryClient]);
 
-  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  // 활성 테넌트 (JWT) — 멀티테넌트 개편(브랜치 C-2): 화면 내 "전체+테넌트" 선택기 제거.
+  // 세션은 활성 테넌트로 토큰 스코프되고, 등록도 활성 테넌트에 생성한다. 전환은 헤더 TenantChip.
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
+  const activeTenantName = useAuthStore((s) => s.userInfo?.tenantName ?? null);
+
+  // 운영자 모드(통합운영, 브랜치 E) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
 
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
+  // 운영자 "전체" 모드에서 좌측 트리의 테넌트 노드를 클릭했을 때의 "보기 필터" 테넌트.
+  //  - 드롭다운(actAsTenant=대행/CUD 스코프)과 분리: 트리 클릭은 그리드 조회만 좁히고 대행 상태는 안 건드린다.
+  //  - 드롭다운으로 특정 테넌트를 고르거나(opTenantId!=null) 전체로 되돌리면 이 필터는 무시/초기화된다.
+  const [treeTenantId, setTreeTenantId] = useState<number | null>(null);
+  // 그리드(상담사 목록) 조회 스코프: 운영자 전체 모드면 트리 필터, 그 외엔 대행/활성 테넌트.
+  const gridTenantId = operatorMode && opTenantId == null ? treeTenantId : selectedTenantId;
+
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<AgentResponse[]>([]);
-  // 카드 박스 default 접힘(compact pill). 권한 wrapping 일관성을 위해 hidden 토글 X.
-  const [cardExpanded, setCardExpanded] = useState(false);
   // 우측 그리드 박스 탭: 'agent'(상담사 목록) / 'media'(미디어 관리 현황 매트릭스)
   const [gridTab, setGridTab] = useState<'agent' | 'media'>('agent');
   // 미디어 탭 선택 미디어 종류 — 탭 헤더 인라인 Select 로 제어 (동적 첫 번째로 자동 초기화)
@@ -85,16 +100,16 @@ export default function AgentMasterList() {
   const [groupDeployOpen, setGroupDeployOpen] = useState(false);
   const [deployTargetGroupId, setDeployTargetGroupId] = useState<number | undefined>();
 
-  // ctx 비동기 로드 시 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
-
-  const [treeWidth, setTreeWidth] = useState(260);
+  // 상담그룹 트리 폭 — localStorage 영속(드래그한 폭 유지). 기본 420, 범위 220~600.
+  const [treeWidth, setTreeWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('agent-master-tree-width'));
+    return saved >= 220 && saved <= 600 ? saved : 420;
+  });
   const splitRef = useRef<HTMLDivElement>(null);
+
+  // 드래그 중인 상담사 ID — 트리가 dragover 중 크로스테넌트(이동 불가) 여부를 판정하는 근거.
+  // dragover 시엔 dataTransfer payload 를 못 읽으므로 드래그 시작 시점에 페이지가 통지한다.
+  const [dragAgentIds, setDragAgentIds] = useState<number[] | null>(null);
 
   // 상담그룹 Drawer (등록/수정) — 트리 액션에서 호출
   const [groupDrawer, setGroupDrawer] = useState<
@@ -111,12 +126,54 @@ export default function AgentMasterList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: agents = [], isLoading } = useGetAgents({
-    params: { tenantId: selectedTenantId ?? undefined, groupId: selectedGroupId ?? undefined },
+    params: { tenantId: gridTenantId ?? undefined, groupId: selectedGroupId ?? undefined },
   });
-  const { data: tenantStats = [] } = useGetAgentTenants();
   const { data: groupTree = [] } = useGetAgentGroupTree({
     params: { tenantId: selectedTenantId ?? undefined },
   });
+
+  // 운영자 모드 전용 — 대행 선택기용 테넌트별 상담사 통계(전체/테넌트 카운트). view-all 로 전체 테넌트 반환.
+  // 테넌트별 상담사 통계(총/활성/ADN미할당). 운영자 대행 선택기 + 헤더 요약 정보에 사용(일반 모드 포함).
+  const { data: operatorTenants = [] } = useGetAgentTenants();
+
+  // 헤더 요약 — 현재 스코프(일반=활성테넌트 / 운영자 전체=합계 / 대행·트리필터=해당 테넌트)의 총/활성/ADN미할당.
+  const summary = useMemo(() => {
+    const scopeTenant = operatorMode ? (opTenantId ?? treeTenantId ?? null) : ctxTenantId;
+    const rows = scopeTenant == null ? operatorTenants : operatorTenants.filter((t) => t.tenantId === scopeTenant);
+    return rows.reduce((a, t) => ({ total: a.total + (t.totalCnt ?? 0), active: a.active + (t.activeCnt ?? 0), unassignedAdn: a.unassignedAdn + (t.unassignedAdnCnt ?? 0) }), {
+      total: 0,
+      active: 0,
+      unassignedAdn: 0,
+    });
+  }, [operatorMode, opTenantId, treeTenantId, ctxTenantId, operatorTenants]);
+
+  // 운영자 "전체" 모드: 좌측 트리를 "테넌트 → 그룹" 2단계로 묶는다(어느 테넌트 그룹인지 명확화).
+  // 그 외(일반/특정 테넌트 대행)는 기존 그룹 트리 그대로.
+  const displayGroupTree = useMemo<AgentGroupNode[]>(() => {
+    if (!operatorMode || opTenantId != null) return groupTree;
+    const nameOf = (tid: number) => operatorTenants.find((t) => t.tenantId === tid)?.tenantName ?? `테넌트 ${tid}`;
+    const byTenant = new Map<number, AgentGroupNode[]>();
+    for (const g of groupTree) {
+      const arr = byTenant.get(g.tenantId) ?? [];
+      arr.push(g);
+      byTenant.set(g.tenantId, arr);
+    }
+    return [...byTenant.entries()]
+      .sort((a, b) => nameOf(a[0]).localeCompare(nameOf(b[0])))
+      .map(([tid, groups]) => ({
+        groupId: -1_000_000 - tid, // 합성 노드 — 실제 그룹 ID 와 충돌 안 하도록 음수
+        tenantId: tid,
+        tenantName: nameOf(tid),
+        priorGrpId: null,
+        grpDepth: 0,
+        groupName: nameOf(tid),
+        oscomId: null,
+        activateYn: 1,
+        agentCount: groups.reduce((s, g) => s + (g.agentCount ?? 0), 0),
+        children: groups,
+        _scopeKind: 'tenant' as const,
+      }));
+  }, [operatorMode, opTenantId, groupTree, operatorTenants]);
 
   // TB_IC_MEDIA_USAGE 등록·활성 미디어 목록 (동적 노출)
   const { data: mediaTypeList = [] } = useGetMediaTypes();
@@ -256,24 +313,18 @@ export default function AgentMasterList() {
     });
   }, [agents, searchText]);
 
-  const totalStats = useMemo(() => {
-    let totalCnt = 0;
-    let activeCnt = 0;
-    let unassignedAdnCnt = 0;
-    for (const t of tenantStats) {
-      totalCnt += t.totalCnt;
-      activeCnt += t.activeCnt;
-      unassignedAdnCnt += t.unassignedAdnCnt;
-    }
-    return { totalCnt, activeCnt, unassignedAdnCnt };
-  }, [tenantStats]);
+  // 드래그 중인 상담사들의 소속 테넌트 집합 — 트리 크로스테넌트 판정용(이동 불가 = X 표시).
+  const dragTenantIds = useMemo<Set<number> | null>(() => {
+    if (!dragAgentIds) return null;
+    return new Set(agents.filter((a) => dragAgentIds.includes(a.agentId)).map((a) => a.tenantId));
+  }, [dragAgentIds, agents]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
 
   const handleExcelExport = useCallback(async () => {
     try {
       const blob = await agentMasterApi.exportExcel({
-        tenantId: selectedTenantId ?? undefined,
+        tenantId: gridTenantId ?? undefined,
         groupId: selectedGroupId ?? undefined,
         keyword: searchText.trim() || undefined,
       });
@@ -287,24 +338,30 @@ export default function AgentMasterList() {
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message ?? '엑셀 내보내기 실패');
     }
-  }, [selectedTenantId, selectedGroupId, searchText]);
+  }, [gridTenantId, selectedGroupId, searchText]);
 
   const handleImportOpen = useCallback(() => {
+    if (operatorMode && opTenantId == null) {
+      toast.warning('운영자 모드 전체 보기에서는 등록할 수 없습니다. 대행할 테넌트를 먼저 선택하세요.');
+      return;
+    }
     if (!selectedGroupId) {
       toast.error('좌측 상담그룹을 먼저 선택하세요');
       return;
     }
     setImportDrawerOpen(true);
-  }, [selectedGroupId]);
+  }, [operatorMode, opTenantId, selectedGroupId]);
 
   const handleCreate = useCallback(() => {
+    // 전체 보기에서도 등록 허용 — 등록 폼의 "테넌트" 필드(필수)로 대상 테넌트를 직접 고른다.
+    // 트리에서 특정 테넌트를 필터 중이면 그 값을 기본값으로 채운다(전체=미지정 → 폼에서 선택).
     setAgentDrawer({
       open: true,
       mode: 'create',
-      tenantId: selectedTenantId ?? undefined,
+      tenantId: gridTenantId ?? undefined,
       groupId: selectedGroupId ?? undefined,
     });
-  }, [selectedTenantId, selectedGroupId]);
+  }, [gridTenantId, selectedGroupId]);
 
   const handleEdit = useCallback((a: AgentResponse) => setAgentDrawer({ open: true, mode: 'edit', agentId: a.agentId }), []);
 
@@ -350,20 +407,19 @@ export default function AgentMasterList() {
     setDeployTargetGroupId(undefined);
   }, [selectedRows, deployTargetGroupId, bulkGroupAgents]);
 
-  const handleSelectTenant = useCallback((tenantId: number | null) => {
-    setSelectedTenantId(tenantId);
-    setSelectedGroupId(null); // 테넌트 바뀌면 그룹 선택 해제
-    setSelectedRows([]);
-  }, []);
-
   const handleSelectGroup = useCallback((groupId: number | null) => {
     setSelectedGroupId(groupId);
+    // 트리 선택은 상호배타 — 그룹을 고르면 테넌트 노드 하이라이트를 항상 해제한다.
+    // (안 그러면 다른 테넌트를 먼저 클릭해 둔 상태에서 그룹을 고르면 둘 다 파랗게 남음)
+    // 그룹은 groupId 만으로 유일 식별되므로 그리드 조회에 별도 테넌트 컨텍스트가 필요 없다.
+    setTreeTenantId(null);
     setSelectedRows([]);
   }, []);
 
   // 그룹 이동 (드래그앤드롭) — 페이로드 agentIds 를 targetGroupId 로 이동
   const handleAgentDrop = useCallback(
     (targetGroupId: number, agentIds: number[]) => {
+      setDragAgentIds(null); // 드롭 완료 — 트리 판정 상태 해제
       if (!agentIds || agentIds.length === 0) return;
       const dragged = agents.filter((a) => agentIds.includes(a.agentId));
       if (dragged.length === 0) return;
@@ -377,25 +433,16 @@ export default function AgentMasterList() {
       }
       const crossTenant = target && (sourceTenantIds.size > 1 || !sourceTenantIds.has(target.tenantId));
 
-      // 드롭 그룹(target)으로 dragged 상담사 전원을 1콜 벌크 이동.
-      // crossTenant 면 확인 다이얼로그를 거친 뒤 실행(테넌트 이동 안전장치 보존).
-      const move = () => {
-        bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
-      };
-
+      // 테넌트 간 이동 금지 — 자원의 소속 테넌트는 불변(시스템 관리자도 불가). 드롭 자체를 차단.
       if (crossTenant) {
-        modal.confirm.execute({
-          onOk: () => move(),
-          options: {
-            title: '다른 테넌트로 이동',
-            content: `대상 그룹의 테넌트가 다릅니다. ${dragged.length}명의 상담사를 ${target?.tenantName ?? '대상 테넌트'} 로 이동하시겠습니까?`,
-          },
-        });
-      } else {
-        move();
+        toast.error('다른 테넌트의 그룹으로는 이동할 수 없습니다. 자원의 테넌트는 변경할 수 없습니다.');
+        return;
       }
+
+      // 같은 테넌트 내 그룹 이동 — dragged 상담사 전원을 1콜 벌크 이동.
+      bulkGroupAgents({ agentIds: dragged.map((r) => r.agentId), groupId: targetGroupId });
     },
-    [agents, groupTree, modal, bulkGroupAgents],
+    [agents, groupTree, bulkGroupAgents],
   );
 
   // ─── Splitter (트리 ↔ 그리드 리사이즈) ──────────────────────────────────
@@ -404,14 +451,16 @@ export default function AgentMasterList() {
       e.preventDefault();
       const startX = e.clientX;
       const startWidth = treeWidth;
+      let lastWidth = startWidth;
       const onMove = (ev: MouseEvent) => {
         const delta = ev.clientX - startX;
-        const next = Math.max(180, Math.min(480, startWidth + delta));
-        setTreeWidth(next);
+        lastWidth = Math.max(220, Math.min(600, startWidth + delta));
+        setTreeWidth(lastWidth);
       };
       const onUp = () => {
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
+        localStorage.setItem('agent-master-tree-width', String(lastWidth)); // 드래그한 폭 유지
       };
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
@@ -425,12 +474,32 @@ export default function AgentMasterList() {
       {/* ===== 박스 1: 헤더 (별도 박스) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">상담사 설정</span>
-          {selectedTenantId !== null && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
-            </span>
+          {/* 좌측: 운영자 모드 = 대행 테넌트 선택 드롭다운(공통 ScopeSelect). 일반 콘솔은 비움(브레드크럼이 화면명 표기). */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={operatorTenants.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.totalCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setTreeTenantId(null); // 대행 스코프 변경 시 트리 보기필터 초기화
+                setSelectedGroupId(null);
+                setSelectedRows([]);
+              }}
+            />
           )}
+          {/* 요약 정보 — 총/활성/ADN 미할당 (운영자 모드는 테넌트 선택 뒤, 일반 모드는 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'ml-3 pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 상담사 <b className="text-gray-800 font-semibold">{summary.total.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              활성 <b className="text-green-600 font-semibold">{summary.active.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              ADN 미할당 <b className="text-amber-600 font-semibold">{summary.unassignedAdn.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -450,82 +519,6 @@ export default function AgentMasterList() {
         </div>
       </div>
 
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 (별도 박스) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <AgentMasterTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => handleSelectTenant(null)} />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 상담사가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((g) => (
-                    <AgentMasterTenantCard
-                      key={g.tenantId}
-                      tenantId={g.tenantId}
-                      tenantName={g.tenantName ?? '-'}
-                      stats={{ totalCnt: g.totalCnt, activeCnt: g.activeCnt, unassignedAdnCnt: g.unassignedAdnCnt }}
-                      selected={selectedTenantId === g.tenantId}
-                      onClick={(e) => {
-                        handleSelectTenant(g.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill name="전체" count={totalStats.totalCnt} selected={selectedTenantId === null} onClick={() => handleSelectTenant(null)} />
-                {tenantStats.map((g) => (
-                  <CompactTenantPill
-                    key={g.tenantId}
-                    name={g.tenantName ?? '-'}
-                    count={g.totalCnt}
-                    selected={selectedTenantId === g.tenantId}
-                    onClick={() => handleSelectTenant(g.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* ===== 트리 ↔ ag-Grid 스플릿 ===== */}
       <div ref={splitRef} className="flex flex-1 min-h-0 gap-4">
         {/* 좌측 그룹 트리 — DN/ADN 패턴 정합으로 별도 박스 */}
@@ -534,7 +527,6 @@ export default function AgentMasterList() {
             <span className="text-sm font-semibold text-gray-700">상담그룹</span>
             <div className="ml-auto">
               <Button
-                size="small"
                 type="primary"
                 icon={<Plus className="size-3.5" />}
                 onClick={() =>
@@ -551,9 +543,17 @@ export default function AgentMasterList() {
           </div>
           <div className="flex-1 min-h-0">
             <AgentGroupTree
-              tree={groupTree}
+              tree={displayGroupTree}
               selectedGroupId={selectedGroupId}
+              selectedTenantId={treeTenantId}
+              dragTenantIds={dragTenantIds}
               onSelectGroup={handleSelectGroup}
+              onSelectTenant={(tid) => {
+                // 트리 테넌트 클릭 = 그리드 보기 필터만. 드롭다운(대행/CUD 스코프)은 건드리지 않는다.
+                setTreeTenantId(tid);
+                setSelectedGroupId(null);
+                setSelectedRows([]);
+              }}
               onCreateChild={(parent) =>
                 setGroupDrawer({
                   open: true,
@@ -604,15 +604,7 @@ export default function AgentMasterList() {
           <div className="border-b border-gray-100 flex items-center gap-2 h-[44px] pr-5 flex-shrink-0">
             <div className="flex items-stretch h-full">
               <GridTab label="상담사" active={gridTab === 'agent'} onClick={() => setGridTab('agent')} />
-              <GridTab
-                label="미디어 관리"
-                active={gridTab === 'media'}
-                onClick={() => {
-                  setGridTab('media');
-                  // 미디어 탭 활성 시 카드 compact 고정 — 세로 공간 확보
-                  setCardExpanded(false);
-                }}
-              />
+              <GridTab label="미디어 관리" active={gridTab === 'media'} onClick={() => setGridTab('media')} />
             </div>
             {/* 미디어 탭 활성 시: 미디어 종류 Select 탭 헤더 인라인 배치 (별도 40px 툴바 행 제거) */}
             {gridTab === 'media' && (
@@ -683,6 +675,7 @@ export default function AgentMasterList() {
               <AgentMasterTable
                 rowData={filteredAgents}
                 isLoading={isLoading}
+                showTenant={operatorMode}
                 onRowDoubleClicked={handleEdit}
                 onDelete={handleDelete}
                 onSelectionChanged={setSelectedRows}
@@ -694,6 +687,8 @@ export default function AgentMasterList() {
                   }
                   return [dragRow.agentId];
                 }}
+                onDragStartAgents={setDragAgentIds}
+                onDragEndAgents={() => setDragAgentIds(null)}
               />
             ) : (
               <AgentMediaStatusTable
@@ -727,6 +722,7 @@ export default function AgentMasterList() {
         agentId={agentDrawer.open && agentDrawer.mode === 'edit' ? agentDrawer.agentId : undefined}
         initialTenantId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.tenantId : undefined}
         initialGroupId={agentDrawer.open && agentDrawer.mode === 'create' ? agentDrawer.groupId : undefined}
+        operatorMode={operatorMode}
         onClose={() => setAgentDrawer({ open: false })}
       />
 
@@ -734,7 +730,7 @@ export default function AgentMasterList() {
         open={importDrawerOpen}
         tenantId={selectedTenantId}
         groupId={selectedGroupId}
-        tenantName={tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? null}
+        tenantName={activeTenantName}
         groupName={(() => {
           if (!selectedGroupId) return null;
           const findName = (nodes: AgentGroupNode[]): string | null => {
@@ -836,31 +832,6 @@ function GridTab({ label, active, onClick }: GridTabProps) {
     >
       {label}
       {active && <span className="absolute left-0 bottom-0 w-full h-0.5 bg-[#405189]" />}
-    </button>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}명`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
     </button>
   );
 }

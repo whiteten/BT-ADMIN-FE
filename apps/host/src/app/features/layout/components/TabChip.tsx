@@ -1,6 +1,6 @@
 import { type MouseEvent } from 'react';
 import { X } from 'lucide-react';
-import { type OpenTab, useMenuStore, useOpenTabsStore } from '@/shared-store';
+import { type OpenTab, useMenuStore, useOpenTabsStore, useOperatorScopeStore } from '@/shared-store';
 import TabContextMenuContent from './TabContextMenuContent';
 import { useTabActions } from '../hooks/useTabActions';
 import { resolveBreadcrumbTitles } from '../utils/openTabs';
@@ -16,6 +16,8 @@ interface TabChipProps {
 }
 
 export default function TabChip({ tab, isActive, disableTooltip }: TabChipProps) {
+  // 운영자 모드: hover 툴팁도 다크 차콜(#1E293B)로 — 헤더/탭바 테마와 일체감.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   const { activate, close } = useTabActions();
   const snapshot = useOpenTabsStore((s) => s.breadcrumbsById[tab.id]);
   const appName = useMenuStore((s) => s.menuConfigs.find((c) => c.appId === tab.appId)?.appName);
@@ -74,7 +76,11 @@ export default function TabChip({ tab, isActive, disableTooltip }: TabChipProps)
           <ContextMenuTrigger asChild>
             <TooltipTrigger asChild>{chip}</TooltipTrigger>
           </ContextMenuTrigger>
-          <TooltipContent side="bottom" sideOffset={2}>
+          <TooltipContent
+            side="bottom"
+            sideOffset={2}
+            className={cn(operatorMode && 'bg-[#1E293B] text-white [&_[data-slot=tooltip-arrow]]:bg-[#1E293B] [&_[data-slot=tooltip-arrow]]:fill-[#1E293B]')}
+          >
             {tooltipText}
           </TooltipContent>
         </Tooltip>

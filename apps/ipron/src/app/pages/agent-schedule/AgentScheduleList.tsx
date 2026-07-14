@@ -4,21 +4,23 @@
  * AS-IS: SWAT IPR20S4010(상담사 상세 스케줄 탭) / IPR20S4020(상담그룹 상세 스케줄 탭).
  * BT-ADMIN 통합 화면: 종류 3탭(미디어/근무/스킬) × 주체 토글(상담사/상담그룹).
  *
+ * 멀티테넌트 개편(상담사 관리 정합): 상단 테넌트 카드 슬라이더 제거.
+ *   - 일반 콘솔: 테넌트 선택기 없음(토큰=활성 테넌트 스코프). 헤더에 요약만.
+ *   - 운영자 모드: 헤더에 대행 테넌트 ScopeSelect(공통) + 그 옆에 요약.
+ *
  * 레이아웃 (IPRON 신규 표준 — 트리 없음):
- *  - 박스1 헤더: 검색 + 등록
- *  - 박스2 테넌트 카드 슬라이더 (A 타입 — 노드 무관)
- *  - 박스3 그리드: 탭바(3탭+토글) + 액션바(삭제/배정/등록) + ag-Grid
+ *  - 박스1 헤더: (운영자 ScopeSelect) + 요약 + 검색 + 등록
+ *  - 박스2 그리드: 탭바(3탭+토글) + 액션바(삭제/배정/등록) + ag-Grid
  *  - Drawer: 정의 등록/수정(ScheduleInfoDrawer) · 배정 관리(ScheduleAssignDrawer)
  *
  * 삭제 정책 (REQUIREMENTS §3.3): 배정행 존재 시 거부.
  *  배정>0 행은 확인 모달에서 건수 고지 후 제외, 배정0 행만 삭제.
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2, UserPlus } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, Input } from 'antd';
+import { Plus, Search, Trash2, UserPlus } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import AgentScheduleTenantCard from '../../features/agent-schedule/components/AgentScheduleTenantCard';
 import ScheduleAssignDrawer from '../../features/agent-schedule/components/ScheduleAssignDrawer';
 import ScheduleInfoDrawer from '../../features/agent-schedule/components/ScheduleInfoDrawer';
 import ScheduleInfoTable from '../../features/agent-schedule/components/ScheduleInfoTable';
@@ -31,6 +33,7 @@ import {
   type ScheduleKind,
   type ScheduleSubject,
 } from '../../features/agent-schedule/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '상담사 관리' }, { title: '스케줄', path: '/ipron/agent-schedule' }];
@@ -46,21 +49,28 @@ export default function AgentScheduleList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // ctx 테넌트 (JWT — 사용자 본인 테넌트) — 페이지 진입 시 자동 선택
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): tenantId=X 로 조회 스코프 + apiClient 가 X-Act-As-Tenant 주입 → X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
   // ─── State ──────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
   const [kind, setKind] = useState<ScheduleKind>('media');
   const [subject, setSubject] = useState<ScheduleSubject>('agent');
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<ScheduleInfoResponse[]>([]);
-  const [cardExpanded, setCardExpanded] = useState(false);
 
   const [infoDrawer, setInfoDrawer] = useState<{ open: boolean; mode: 'create' | 'edit'; schedule: ScheduleInfoResponse | null }>({
     open: false,
@@ -68,14 +78,6 @@ export default function AgentScheduleList() {
     schedule: null,
   });
   const [assignDrawer, setAssignDrawer] = useState<{ open: boolean; schedule: ScheduleInfoResponse | null }>({ open: false, schedule: null });
-
-  // ctx 비동기 로드 시 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: schedules = [], isLoading } = useGetSchedules(kind, {
@@ -122,17 +124,18 @@ export default function AgentScheduleList() {
     });
   }, [schedules, searchText]);
 
-  const totalStats = useMemo(() => {
-    let scheduleCount = 0;
-    let assignedAgentCount = 0;
-    let assignedGroupCount = 0;
-    for (const t of tenantStats) {
-      scheduleCount += t.scheduleCount ?? 0;
-      assignedAgentCount += t.assignedAgentCount ?? 0;
-      assignedGroupCount += t.assignedGroupCount ?? 0;
-    }
-    return { scheduleCount, assignedAgentCount, assignedGroupCount };
-  }, [tenantStats]);
+  // 헤더 요약 — 현재 스코프(전체=합계 / 특정 테넌트=해당)의 스케줄/배정 상담사/배정 상담그룹.
+  const summary = useMemo(() => {
+    const rows = selectedTenantId == null ? tenantStats : tenantStats.filter((t) => t.tenantId === selectedTenantId);
+    return rows.reduce(
+      (a, t) => ({
+        scheduleCount: a.scheduleCount + (t.scheduleCount ?? 0),
+        assignedAgentCount: a.assignedAgentCount + (t.assignedAgentCount ?? 0),
+        assignedGroupCount: a.assignedGroupCount + (t.assignedGroupCount ?? 0),
+      }),
+      { scheduleCount: 0, assignedAgentCount: 0, assignedGroupCount: 0 },
+    );
+  }, [tenantStats, selectedTenantId]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────
   const handleSwitchKind = useCallback((k: ScheduleKind) => {
@@ -145,12 +148,8 @@ export default function AgentScheduleList() {
     setSelectedRows([]);
   }, []);
 
-  const handleSelectTenant = useCallback((tenantId: number | null) => {
-    setSelectedTenantId(tenantId);
-    setSelectedRows([]);
-  }, []);
-
   const handleCreate = useCallback(() => {
+    // 전체 보기에서도 등록 허용 — 운영자 모드면 등록 폼의 "테넌트" 필드로 대상 테넌트를 직접 고른다.
     setAssignDrawer({ open: false, schedule: null });
     setInfoDrawer({ open: true, mode: 'create', schedule: null });
   }, []);
@@ -221,15 +220,33 @@ export default function AgentScheduleList() {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 요약 + 검색 + 등록) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[56px]">
-          <span className="text-sm font-semibold text-gray-700">스케줄 관리</span>
-          {selectedTenantId !== null && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`}</span>
-            </span>
+        <div className="flex items-center px-4 h-[56px] gap-3">
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 브레드크럼이 화면명 표기. */}
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.scheduleCount }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                setSelectedRows([]);
+              }}
+            />
           )}
+          {/* 요약 — 총 스케줄/배정 상담사/배정 상담그룹 (운영자는 선택 뒤, 일반은 좌측). */}
+          <div className={`flex items-center gap-4 text-[13px] ${operatorMode ? 'pl-3 border-l border-gray-200' : ''}`}>
+            <span className="text-gray-500">
+              총 스케줄 <b className="text-gray-800 font-semibold">{summary.scheduleCount.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              배정 상담사 <b className="text-[#405189] font-semibold">{summary.assignedAgentCount.toLocaleString()}</b>
+            </span>
+            <span className="text-gray-500">
+              배정 상담그룹 <b className="text-amber-600 font-semibold">{summary.assignedGroupCount.toLocaleString()}</b>
+            </span>
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <Input
               allowClear
@@ -246,83 +263,7 @@ export default function AgentScheduleList() {
         </div>
       </div>
 
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 (A 타입) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <AgentScheduleTenantCard tenantId={null} tenantName="전체" stats={totalStats} selected={selectedTenantId === null} onClick={() => handleSelectTenant(null)} />
-                {tenantStats.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">등록된 스케줄이 없습니다</span>
-                  </div>
-                ) : (
-                  tenantStats.map((g) => (
-                    <AgentScheduleTenantCard
-                      key={g.tenantId}
-                      tenantId={g.tenantId}
-                      tenantName={g.tenantName ?? '-'}
-                      stats={{ scheduleCount: g.scheduleCount ?? 0, assignedAgentCount: g.assignedAgentCount ?? 0, assignedGroupCount: g.assignedGroupCount ?? 0 }}
-                      selected={selectedTenantId === g.tenantId}
-                      onClick={(e) => {
-                        handleSelectTenant(g.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <CompactTenantPill name="전체" count={totalStats.scheduleCount} selected={selectedTenantId === null} onClick={() => handleSelectTenant(null)} />
-                {tenantStats.map((g) => (
-                  <CompactTenantPill
-                    key={g.tenantId}
-                    name={g.tenantName ?? '-'}
-                    count={g.scheduleCount ?? 0}
-                    selected={selectedTenantId === g.tenantId}
-                    onClick={() => handleSelectTenant(g.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ===== 박스 3: 그리드 ===== */}
+      {/* ===== 박스 2: 그리드 ===== */}
       <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* 탭바: 종류 3탭 + 주체 토글 */}
         <div className="border-b border-gray-100 flex items-center gap-2 h-[44px] pr-4 flex-shrink-0">
@@ -370,7 +311,15 @@ export default function AgentScheduleList() {
         </div>
 
         <div className="flex-1 min-h-0">
-          <ScheduleInfoTable rowData={filteredSchedules} kind={kind} subject={subject} isLoading={isLoading} onRowDoubleClicked={handleEdit} onSelectionChanged={setSelectedRows} />
+          <ScheduleInfoTable
+            rowData={filteredSchedules}
+            kind={kind}
+            subject={subject}
+            isLoading={isLoading}
+            showTenant={operatorMode}
+            onRowDoubleClicked={handleEdit}
+            onSelectionChanged={setSelectedRows}
+          />
         </div>
       </div>
 
@@ -380,6 +329,8 @@ export default function AgentScheduleList() {
         kind={kind}
         schedule={infoDrawer.schedule}
         tenantId={selectedTenantId}
+        operatorMode={operatorMode}
+        tenantOptions={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}` }))}
         onCancel={() => setInfoDrawer((p) => ({ ...p, open: false }))}
         onSubmit={handleInfoSubmit}
         loading={creating || updating}
@@ -433,31 +384,6 @@ function SubjectToggle({ label, active, onClick }: SubjectToggleProps) {
       className={`px-2.5 py-1 rounded text-xs font-medium transition ${active ? 'bg-white text-[#405189] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
     >
       {label}
-    </button>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}건`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
     </button>
   );
 }

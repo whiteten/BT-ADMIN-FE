@@ -10,8 +10,13 @@ import { toast } from '@/shared-util';
 import { useCreateMsGroup, useUpdateMsGroup } from '../hooks/useMsGroupQueries';
 import { type MsGroup, type MsGroupCreateRequest, ROUTE_TYPE_OPTIONS } from '../types';
 
+interface NodeOption {
+  nodeId: number;
+  nodeName: string;
+}
+
 export interface MsGroupDrawerRef {
-  open: (data?: MsGroup, nodeId?: number, nodeName?: string) => void;
+  open: (data?: MsGroup, nodeId?: number, nodeName?: string, nodeList?: NodeOption[]) => void;
   close: () => void;
 }
 
@@ -25,14 +30,18 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const [editData, setEditData] = useState<MsGroup | null>(null);
   const [nodeId, setNodeId] = useState<number | null>(null);
   const [nodeName, setNodeName] = useState<string>('');
+  const [nodeOptions, setNodeOptions] = useState<NodeOption[]>([]);
 
   const isEditMode = !!editData;
+  // 노드 미선택(전체) 상태로 등록 → 드로어 안에서 노드 선택
+  const isNodeSelectable = !isEditMode && !nodeId && nodeOptions.length > 0;
 
   useImperativeHandle(ref, () => ({
-    open: (data?: MsGroup, initNodeId?: number, initNodeName?: string) => {
+    open: (data?: MsGroup, initNodeId?: number, initNodeName?: string, nodeList?: NodeOption[]) => {
       setEditData(data ?? null);
       setNodeId(data?.nodeId ?? initNodeId ?? null);
       setNodeName(initNodeName ?? '');
+      setNodeOptions(nodeList ?? []);
       setVisible(true);
     },
     close: () => {
@@ -40,6 +49,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
       setEditData(null);
       setNodeId(null);
       setNodeName('');
+      setNodeOptions([]);
       form.resetFields();
     },
   }));
@@ -63,6 +73,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setEditData(null);
         setNodeId(null);
         setNodeName('');
+        setNodeOptions([]);
         form.resetFields();
         onSuccess();
       },
@@ -77,6 +88,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setEditData(null);
         setNodeId(null);
         setNodeName('');
+        setNodeOptions([]);
         form.resetFields();
         onSuccess();
       },
@@ -88,11 +100,13 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
   const handleSubmit = useCallback(async () => {
     try {
       const values = await form.validateFields();
-      if (!nodeId) return;
+      // 노드 선택 모드일 때 form 에서 nodeId 를 가져옴
+      const targetNodeId = nodeId ?? values.nodeId;
+      if (!targetNodeId) return;
 
       const payload: MsGroupCreateRequest = {
         msGroupName: values.msGroupName,
-        nodeId: nodeId,
+        nodeId: targetNodeId,
         routeType: values.routeType,
       };
 
@@ -116,6 +130,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
         setEditData(null);
         setNodeId(null);
         setNodeName('');
+        setNodeOptions([]);
         form.resetFields();
       }}
       styles={{ wrapper: { width: 420 } }}
@@ -127,6 +142,7 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
               setEditData(null);
               setNodeId(null);
               setNodeName('');
+              setNodeOptions([]);
               form.resetFields();
             }}
           >
@@ -139,9 +155,15 @@ const MsGroupDrawer = forwardRef<MsGroupDrawerRef, Props>(({ onSuccess }, ref) =
       }
     >
       <Form form={form} layout="vertical" initialValues={{ routeType: '2' }}>
-        <Form.Item label="노드">
-          <Input value={nodeName} disabled />
-        </Form.Item>
+        {isNodeSelectable ? (
+          <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드를 선택하세요' }]}>
+            <Select placeholder="노드를 선택하세요" options={nodeOptions.map((n) => ({ label: n.nodeName, value: n.nodeId }))} showSearch optionFilterProp="label" />
+          </Form.Item>
+        ) : (
+          <Form.Item label="노드">
+            <Input value={nodeName} disabled />
+          </Form.Item>
+        )}
 
         <Form.Item
           name="msGroupName"

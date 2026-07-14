@@ -14,13 +14,6 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { CallScreen, CallScreenCreateRequest, CallScreenUpdateRequest } from '../types';
 
-export interface NodeTenantItem {
-  nodeId: number;
-  nodeName: string;
-  tenantId: number;
-  tenantName: string;
-}
-
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const callScreenApi = {
@@ -77,14 +70,5 @@ export const callScreenApi = {
    */
   deleteBatch: async (callscreenIds: number[]): Promise<void> => {
     await apiClient.post('/ipron-call-screen-delete-batch', { callscreenIds });
-  },
-
-  /**
-   * 노드-테넌트 매핑 목록 (트리 구성용, DOD DNIS 재사용)
-   * @flow ipron-dod-trans-node-tenants
-   */
-  getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return response.data?.data?.value ?? [];
   },
 };

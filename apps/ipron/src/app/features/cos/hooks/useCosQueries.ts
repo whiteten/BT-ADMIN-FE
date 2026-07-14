@@ -4,14 +4,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
-import { type DodLimitOption, type NodeTenantItem, cosApi } from '../api/cosApi';
+import { type DodLimitOption, cosApi } from '../api/cosApi';
 import type { Cos } from '../types';
 
 export const cosQueryKeys = createQueryKeys('cos', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (cosId?: number) => [cosId],
   getRefCount: (cosId?: number) => [cosId],
-  getNodeTenants: null,
   getDodLimits: (tenantId?: number) => [tenantId],
 });
 
@@ -48,17 +47,6 @@ export const useGetCosRefCount = (cosId?: number, { queryOptions }: QueryHookOpt
     queryKey: cosQueryKeys.getRefCount(cosId).queryKey,
     queryFn: () => cosApi.getRefCount(cosId!),
     enabled: !!cosId,
-    ...queryOptions,
-  });
-};
-
-/**
- * 노드-테넌트 매핑 목록 (테넌트 탭 구성용)
- */
-export const useGetNodeTenants = ({ queryOptions }: QueryHookOptions<NodeTenantItem[]> = {}) => {
-  return useQuery({
-    queryKey: cosQueryKeys.getNodeTenants.queryKey,
-    queryFn: () => cosApi.getNodeTenants(),
     ...queryOptions,
   });
 };

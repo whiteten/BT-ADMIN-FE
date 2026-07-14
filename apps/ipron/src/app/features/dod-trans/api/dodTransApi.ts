@@ -130,13 +130,4 @@ export const dodTransApi = {
     const response = await apiClient.get<ApiResponse<{ items: NodeSimpleResponse[] }>>('/manager-node-list');
     return response.data?.data?.items ?? [];
   },
-
-  /**
-   * 노드-테넌트 매핑 목록 (트리 구성용)
-   * @flow ipron-dod-trans-node-tenants
-   */
-  getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return response.data?.data?.value ?? [];
-  },
 };

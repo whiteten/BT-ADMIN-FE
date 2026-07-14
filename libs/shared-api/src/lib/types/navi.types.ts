@@ -13,6 +13,8 @@ export interface NaviMenuItem {
   path?: string;
   iconKey?: string;
   desc?: string;
+  /** 기능 플래그. 'operator' = 운영자 모드일 때만 노출(사이드바가 operatorMode OFF 시 숨김). */
+  featureFlag?: string;
   permissions?: string[];
   children: NaviMenuItem[];
 }

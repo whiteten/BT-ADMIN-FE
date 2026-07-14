@@ -9,7 +9,7 @@
  * 노드/테넌트는 현재 컨텍스트(목록 선택) 고정(disabled). 경로는 테넌트 기준 자동 산출(공통=0000).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, DatePicker, Drawer, Form, Input, Modal } from 'antd';
+import { Button, DatePicker, Drawer, Form, Input, Modal, Select } from 'antd';
 import dayjs from 'dayjs';
 import { Download, Pause, Play, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -19,9 +19,24 @@ import type { MentBatchItem, MentResponse } from '../types';
 
 type Mode = 'create' | 'edit';
 
+interface NodeOption {
+  nodeId: number;
+  nodeName: string;
+}
+
 export type MentDrawerState =
   | { open: false }
-  | { open: true; mode: Mode; row?: MentResponse; nodeId: number | null; nodeName: string | null; tenantId: number | null; tenantName: string | null };
+  | {
+      open: true;
+      mode: Mode;
+      row?: MentResponse;
+      nodeId: number | null;
+      nodeName: string | null;
+      tenantId: number | null;
+      tenantName: string | null;
+      /** 노드 미선택(전체)으로 등록할 때 드로어 안에서 노드를 고르기 위한 후보 목록 */
+      nodeOptions?: NodeOption[];
+    };
 
 interface Props {
   state: MentDrawerState;
@@ -59,6 +74,12 @@ export default function MentFormDrawer({ state, onClose }: Props) {
   const tenantId = state.open ? (isEdit && state.row ? state.row.tenantId : state.tenantId) : null;
   const tenantName = state.open ? (isEdit && state.row ? state.row.tenantName : state.tenantName) : null;
   const nodeName = state.open ? state.nodeName : null;
+  const nodeOptions = state.open ? (state.nodeOptions ?? []) : [];
+
+  // 노드 미선택(전체) + 신규 등록 → 드로어 안에서 노드 선택
+  const [nodeSel, setNodeSel] = useState<number | null>(null);
+  const isNodeSelectable = state.open && !isEdit && nodeId == null && nodeOptions.length > 0;
+  const effectiveNodeId = nodeId ?? nodeSel;
 
   const path = useMemo(() => mentPath(tenantId), [tenantId]);
 
@@ -69,11 +90,13 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       setSingleFile(null);
       setMultiItems([]);
       setRegMode('single');
+      setNodeSel(null);
       return;
     }
     setRegMode('single');
     setSingleFile(null);
     setMultiItems([]);
+    setNodeSel(null);
     if (state.mode === 'edit' && state.row) {
       const r = state.row;
       form.setFieldsValue({
@@ -244,8 +267,8 @@ export default function MentFormDrawer({ state, onClose }: Props) {
   // ─── 저장 ────────────────────────────────────────────────────────────────────
   const onSubmit = async () => {
     if (!state.open) return;
-    if (nodeId == null || tenantId == null) {
-      toast.warning('노드와 테넌트가 필요합니다');
+    if (effectiveNodeId == null || tenantId == null) {
+      toast.warning(isNodeSelectable ? '노드를 선택하세요' : '노드와 테넌트가 필요합니다');
       return;
     }
 
@@ -255,7 +278,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
         toast.warning('PCM 파일을 1개 이상 선택하세요');
         return;
       }
-      createBatch({ nodeId, tenantId, items: multiItems });
+      createBatch({ nodeId: effectiveNodeId, tenantId, items: multiItems });
       return;
     }
 
@@ -268,7 +291,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       if (isEdit && state.row) {
         // 수정: 중복체크 사전 호출 (SWAT dupCallProcessForUpdate 정합)
         const isDup = await mentApi.duplicateCheck({
-          nodeId,
+          nodeId: effectiveNodeId,
           tenantId,
           mentName,
           excludeMentId: state.row.ieMentId,
@@ -308,7 +331,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
           return;
         }
         // 등록: 중복체크 사전 호출 (SWAT dupCallProcess 정합)
-        const isDup = await mentApi.duplicateCheck({ nodeId, tenantId, mentName });
+        const isDup = await mentApi.duplicateCheck({ nodeId: effectiveNodeId, tenantId, mentName });
         if (isDup) {
           Modal.confirm({
             title: '멘트명 중복',
@@ -317,7 +340,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
             cancelText: '취소',
             onOk: () =>
               create({
-                nodeId,
+                nodeId: effectiveNodeId,
                 tenantId,
                 mentName,
                 filePath: singleFile!.name,
@@ -328,7 +351,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
           return;
         }
         create({
-          nodeId,
+          nodeId: effectiveNodeId,
           tenantId,
           mentName,
           filePath: singleFile.name,
@@ -375,7 +398,19 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-4">
         <div>
           <label className="block text-[12px] font-semibold text-gray-600 mb-1">노드명</label>
-          <Input value={nodeName ?? (nodeId != null ? `노드 ${nodeId}` : '-')} disabled />
+          {isNodeSelectable ? (
+            <Select
+              className="w-full"
+              placeholder="노드를 선택하세요"
+              value={nodeSel ?? undefined}
+              onChange={setNodeSel}
+              options={nodeOptions.map((n) => ({ label: n.nodeName, value: n.nodeId }))}
+              showSearch
+              optionFilterProp="label"
+            />
+          ) : (
+            <Input value={nodeName ?? (nodeId != null ? `노드 ${nodeId}` : '-')} disabled />
+          )}
         </div>
         <div>
           <label className="block text-[12px] font-semibold text-gray-600 mb-1">테넌트명</label>

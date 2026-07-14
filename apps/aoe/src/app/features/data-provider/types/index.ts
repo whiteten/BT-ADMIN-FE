@@ -25,6 +25,13 @@ export const PARAM_TYPE_OPTIONS = [
   { label: 'Number', value: 200 },
 ] as const;
 
+/** 활성 여부 (1=활성, 0=비활성) */
+export const ACTIVE_YN = {
+  ACTIVE: 1,
+  INACTIVE: 0,
+} as const;
+export type ActiveYn = (typeof ACTIVE_YN)[keyof typeof ACTIVE_YN];
+
 /** DB 접속정보 (AoeDatabaseDto) */
 export interface DbConnection {
   connId: string;
@@ -38,6 +45,8 @@ export interface DbConnection {
   userId: string;
   /** WRITE-ONLY. 서버는 조회 시 항상 null 로 내려준다. */
   userPasswd?: string | null;
+  /** 활성 여부 (1:활성, 0:비활성) */
+  activeYn?: number;
   workTime?: string;
 }
 
@@ -53,6 +62,8 @@ export interface DbConnectionCreateDatas {
   userId: string;
   /** 생성 시 필수. 수정 시 비우면 기존 비밀번호 유지. */
   userPasswd?: string;
+  /** 활성 여부 (1:활성, 0:비활성). 생성 시 미지정이면 1 */
+  activeYn?: number;
 }
 
 /** DB 질의도구 파라미터 */
@@ -73,6 +84,8 @@ export interface DbTool {
   connName?: string | null;
   sqlSentence: string;
   parameters?: DbToolParam[];
+  /** 활성 여부 (1:활성, 0:비활성) */
+  activeYn?: number;
   workTime?: string;
 }
 
@@ -83,4 +96,6 @@ export interface DbToolCreateDatas {
   dbConnId: string;
   sqlSentence: string;
   parameters?: DbToolParam[];
+  /** 활성 여부 (1:활성, 0:비활성). 생성 시 미지정이면 1 */
+  activeYn?: number;
 }

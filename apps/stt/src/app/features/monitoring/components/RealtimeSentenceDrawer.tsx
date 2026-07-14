@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer } from 'antd';
+import dayjs from 'dayjs';
 import { Headphones, MessageSquare, User } from 'lucide-react';
 import { useGetRealtimeSentence } from '../hooks/useMonitoringQueries';
 import type { RealtimeSentenceDrawerInfo, SttChatSentence } from '../types';
@@ -12,7 +13,8 @@ export interface RealtimeSentenceDrawerRef {
 }
 
 function ChatBubble({ sentence }: { sentence: SttChatSentence }) {
-  const isAgent = sentence.speaker === 1; // 1: 상담사(오른쪽), 0: 고객(왼쪽)
+  const isAgent = sentence.speaker === 'TX'; // TX: 상담사(오른쪽), RX: 고객(왼쪽)
+  const displayTime = sentence.time ? dayjs(sentence.time, 'YYYYMMDDHHmmss').format('HH:mm:ss') : null;
 
   return (
     <div className={cn('flex max-w-[85%] items-start gap-2.5', isAgent && 'ml-auto flex-row-reverse')}>
@@ -29,7 +31,7 @@ function ChatBubble({ sentence }: { sentence: SttChatSentence }) {
             <p className="whitespace-pre-wrap break-all text-[13px] leading-relaxed text-slate-700">{sentence.text}</p>
           </div>
         </div>
-        {sentence.stime && <span className="shrink-0 pb-1 text-[10px] text-slate-400">{sentence.stime}</span>}
+        {displayTime && <span className="shrink-0 pb-1 text-[10px] text-slate-400">{displayTime}</span>}
       </div>
     </div>
   );
@@ -118,7 +120,7 @@ const RealtimeSentenceDrawer = forwardRef<RealtimeSentenceDrawerRef>((_, ref) =>
             ) : sentences.length === 0 ? (
               <NoData message="실시간 STT 내용이 없습니다." />
             ) : (
-              sentences.map((s, idx) => <ChatBubble key={`${s.stime}-${idx}`} sentence={s} />)
+              sentences.map((s) => <ChatBubble key={s.offset} sentence={s} />)
             )}
             <div ref={bottomRef} />
           </div>

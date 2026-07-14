@@ -200,15 +200,6 @@ export const accessProfileApi = {
     });
     return response.data?.data?.value ?? [];
   },
-
-  /**
-   * 노드-테넌트 매핑 조회 (DOD DNIS Flow 재사용)
-   * @flow ipron-dod-trans-node-tenants
-   */
-  getNodeTenants: async (): Promise<NodeTenantItem[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: NodeTenantItem[] }>>('/ipron-dod-trans-node-tenants');
-    return response.data?.data?.value ?? [];
-  },
 };
 
 export interface NodeTenantItem {

@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Empty, Input, Popconfirm, Tag } from 'antd';
-import { Building2, ChevronLeft, ChevronRight, Copy, Download, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, Copy, Download, Network, Phone, Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnisBatchCopyModal, { type DnisBatchCopyModalRef } from './DnisBatchCopyModal';
@@ -21,6 +21,7 @@ import { useGetTenants } from '../../ivr-ain-dnis/hooks/useIvrAinDnisQueries';
 import { useGetNodes } from '../../ivr-dn-group/hooks/useIvrDnGroupQueries';
 import { dnisQueryKeys, useDeleteDnis, useGetDnisList } from '../hooks/useDnisQueries';
 import type { DnisItem } from '../types/dnis.types';
+import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [
@@ -47,11 +48,12 @@ export default function DnisPage() {
 
   const sheetRef = useRef<DnisSheetRef>(null);
   const batchCopyRef = useRef<DnisBatchCopyModalRef>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
   const { data: nodes = [] } = useGetNodes();
   const { data: tenants = [] } = useGetTenants();
+  // DNIS는 노드별로만 조회 가능(전체 집계 API 없음) → count 없이 표시.
+  const nodeTabItems: TabBarItem<number>[] = useMemo(() => nodes.map((node) => ({ id: node.nodeId, label: node.nodeName, icon: Network })), [nodes]);
 
   // 진입 시 첫 노드 자동 선택
   useEffect(() => {
@@ -129,58 +131,22 @@ export default function DnisPage() {
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
         {/* ===== ① 노드 탭 바 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-            <div ref={tabScrollRef} className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200" style={{ scrollbarWidth: 'none' }}>
-              {nodes.map((node) => {
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-4 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[140px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={(e) => {
-                      setSelectedNodeId(node.nodeId);
-                      (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    }}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
-              <Input
-                allowClear
-                prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="서비스번호 검색"
-                value={keyword}
-                onChange={handleSearchChange}
-                onPressEnter={() => setConfirmedKeyword(keyword.trim())}
-                style={{ width: 200 }}
-              />
-            </div>
-          </div>
-        </div>
+        <TabBar<number>
+          items={nodeTabItems}
+          selectedId={selectedNodeId}
+          onSelect={setSelectedNodeId}
+          rightContent={
+            <Input
+              allowClear
+              prefix={<Search className="size-3.5 text-gray-400" />}
+              placeholder="서비스번호 검색"
+              value={keyword}
+              onChange={handleSearchChange}
+              onPressEnter={() => setConfirmedKeyword(keyword.trim())}
+              style={{ width: 200 }}
+            />
+          }
+        />
 
         {/* ===== ② 테넌트 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
@@ -236,19 +202,14 @@ export default function DnisPage() {
 
         {/* ===== ③ DNIS 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-            <div>
-              <div className="text-sm font-semibold text-gray-800">
-                서비스번호별 시나리오
-                {selectedNode && selectedTenant && (
-                  <span className="ml-2 text-[12px] font-normal text-gray-400">
-                    {selectedNode.nodeName} · {selectedTenant.tenantName}
-                  </span>
-                )}
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                총 <b>{dnisList.length}</b>건 · 선택 <b>{selectedRows.length}</b>건
-              </div>
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Phone className="size-4 text-[#405189]" />
+              <h3 className="text-sm font-semibold text-gray-800">
+                서비스번호별 시나리오 — <span className="text-[#405189]">{selectedNode && selectedTenant ? `${selectedNode.nodeName} · ${selectedTenant.tenantName}` : ''}</span>
+              </h3>
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{dnisList.length}개</span>
+              {selectedRows.length > 0 && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-blue-600 bg-blue-50">선택 {selectedRows.length}개</span>}
             </div>
             <div className="flex items-center gap-2">
               {selectedRows.length > 0 && (
@@ -270,7 +231,8 @@ export default function DnisPage() {
               </Button>
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="border-t border-gray-200" />
+          <div className="flex-1 min-h-0 p-5">
             {selectedNode && selectedTenant ? (
               <AgGridReact<DnisItem>
                 rowData={dnisList}
@@ -284,9 +246,8 @@ export default function DnisPage() {
                 onRowDoubleClicked={(e) => e.data && sheetRef.current?.openEdit(e.data)}
               />
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
-                <Empty description={false} />
-                <span className="text-sm">상단에서 노드와 테넌트를 선택하세요</span>
+              <div className="flex items-center justify-center h-full">
+                <Empty description="상단에서 노드와 테넌트를 선택하세요" />
               </div>
             )}
           </div>
