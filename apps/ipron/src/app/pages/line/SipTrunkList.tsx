@@ -2,7 +2,8 @@
  * SIP 트렁크(테넌트) 관리 페이지 (SWAT IPR20S3030, GDN_TYPE=18).
  *
  * 멀티테넌트 개편(상담사 관리 정합): 노드 탭바 + 테넌트 카드 슬라이더 → 노드 Select + 테넌트 ScopeSelect + 요약.
- *  - 박스A: 헤더 — 노드 Select(필수) + 테넌트 ScopeSelect(공통[0] 포함, 클라이언트 필터) + 요약(그룹DN/트렁크/채널).
+ *  - 박스A: 헤더 — 노드 Select(필수) + 테넌트 ScopeSelect(클라이언트 필터) + 요약(그룹DN/트렁크/채널).
+ *    ※ 공용 트렁크(테넌트 0)는 이 화면 대상이 아니다 — 별도 화면(CommonTrunkList, /ipron/line/common-trunk)이 담당.
  *  - 박스B: 메인 2-패널 (좌 그룹DN 단일선택 / 우 SIP 트렁크 다중선택 — N:N 데이터, 1:N 행위)
  *  - floating bulk-bar: 그룹DN 1 × 트렁크 N → 배정 / 해제 / 선택 해제
  *

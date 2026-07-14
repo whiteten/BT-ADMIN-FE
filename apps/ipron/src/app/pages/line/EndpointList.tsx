@@ -20,7 +20,7 @@ import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChanged
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
 import EndpointMemberDrawer, { type EndpointMemberDrawerRef } from '../../features/endpoint/components/EndpointMemberDrawer';
@@ -51,6 +51,7 @@ import {
 } from '../../features/endpoint/types';
 import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -82,6 +83,8 @@ export default function EndpointList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedEndpointId, setSelectedEndpointId] = useState<number | null>(initEndptId);
+  // 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 고정(변경 시 사용자 선택 초기화됨).
+  const [viewMode, setViewMode] = useViewMode('ipron-endpoint');
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
   const [filterEndptType, setFilterEndptType] = useState<number | null>(null);
@@ -648,14 +651,80 @@ export default function EndpointList() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 (항상 펼침) ===== */}
+        {/* ===== 국선 목록 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body — 높이 고정 */}
-          <div className="flex items-center px-4 py-3 h-[185px]">
+          {/* 목록 헤더: 타이틀 + 건수 / 우측 표기방식 토글 */}
+          <div className="flex items-center gap-2 px-4 h-[44px] border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">국선</span>
+            <span className="text-xs text-gray-400">{filteredEndpoints.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 세로 스크롤 */}
+          <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[185px]' : 'h-[240px]'}`}>
             {filteredEndpoints.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
                 <Empty description={false} imageStyle={{ height: 40 }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
+              </div>
+            ) : viewMode === VIEW_MODE.LIST ? (
+              <div className="flex flex-col w-full h-full overflow-y-auto divide-y divide-gray-100">
+                {filteredEndpoints.map((ep) => {
+                  const isRowSelected = selectedEndpointId === ep.endptId;
+                  const tags = getEndpointTagList(ep);
+                  const status = getEndpointStatusInfo(ep);
+                  return (
+                    <div
+                      key={ep.endptId}
+                      id={`ep-row-${ep.endptId}`}
+                      className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+                        isRowSelected ? 'bg-[#405189]/5 border-l-2 border-l-[#405189]' : 'border-l-2 border-l-transparent hover:bg-gray-50'
+                      }`}
+                      onClick={() => handleCardSelect(ep)}
+                      onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
+                    >
+                      {ep.epStatus !== 1 && (
+                        <span
+                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                          style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
+                        >
+                          {status.label}
+                        </span>
+                      )}
+                      <span className="text-sm font-semibold text-gray-800 truncate w-[180px] flex-shrink-0">{ep.endptName}</span>
+                      <span className="flex items-center gap-1 text-xs text-gray-500 w-[120px] flex-shrink-0 truncate">
+                        <Network className="size-3 text-gray-400 flex-shrink-0" />
+                        <span className="truncate">{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
+                      </span>
+                      <span className="text-xs text-gray-500 w-[160px] flex-shrink-0 truncate">프로파일: {ep.sipProfileName ?? '-'}</span>
+                      <span className="text-xs text-gray-500 w-[140px] flex-shrink-0">
+                        채널: {ep.endptMaxchnl ?? 0} (OB {ep.endptDodchnl ?? 0})
+                      </span>
+                      <span className="text-xs text-gray-500 w-[110px] flex-shrink-0 truncate">할당: {ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
+                      <span className="text-xs text-gray-500 w-[110px] flex-shrink-0 truncate">등록: {REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
+                      <span className="flex items-center gap-1 flex-1 min-w-0">
+                        {tags.slice(0, 2).map((tag) => (
+                          <span
+                            key={tag.label}
+                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border flex-shrink-0"
+                            style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
+                          >
+                            {tag.label}
+                          </span>
+                        ))}
+                      </span>
+                      <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 ml-auto">
+                        <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
+                          <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                            <MoreVertical className="size-3.5 text-gray-400" />
+                          </button>
+                        </Dropdown>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">
