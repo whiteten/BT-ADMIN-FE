@@ -158,9 +158,9 @@ export default function AcsServicePage() {
 
   const masterColumnDefs: ColDef<AcsService>[] = useMemo(
     () => [
-      { headerName: '시나리오 이름', field: 'serviceName', flex: 0.7, minWidth: 110 },
-      { headerName: 'ACS ID', field: 'acsId', width: 100 },
-      { headerName: 'ACS 서비스명', field: 'acsServiceName', flex: 0.7, minWidth: 110 },
+      { headerName: '시나리오 이름', field: 'serviceName', flex: 0.5, minWidth: 95 },
+      { headerName: 'ACS ID', field: 'acsId', width: 125 },
+      { headerName: 'ACS 서비스명', field: 'acsServiceName', flex: 0.5, minWidth: 95 },
       {
         headerName: 'ACS Type',
         field: 'acsType',
@@ -173,7 +173,7 @@ export default function AcsServicePage() {
       },
       { headerName: '중복 실행', field: 'dupYn', width: 110, valueFormatter: (p) => (p.value === 1 ? '사용' : '미사용') },
       { headerName: '최대 요청 건수', field: 'maxObReqCnt', width: 135 },
-      { headerName: '제어 타입', field: 'controlType', width: 90, valueFormatter: (p) => CONTROL_TYPE_LABELS[p.value as number] ?? String(p.value ?? '') },
+      { headerName: '제어 타입', field: 'controlType', width: 110, valueFormatter: (p) => CONTROL_TYPE_LABELS[p.value as number] ?? String(p.value ?? '') },
       { headerName: '동작주기', field: 'acsPeriod', width: 90 },
       { headerName: '시작일자', field: 'startDate', width: 110 },
       { headerName: '종료일자', field: 'finishDate', width: 110 },

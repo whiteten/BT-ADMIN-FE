@@ -105,9 +105,6 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
         </div>
       }
     >
-      <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
-        💡 <b>시나리오 이름 / ACS Type</b> 은 시나리오 관리에 종속되어 변경할 수 없습니다 (AS-IS 동일)
-      </div>
       <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark>
         <Form.Item label="시나리오 이름">
           <Input disabled value={editing?.serviceName ?? ''} />
