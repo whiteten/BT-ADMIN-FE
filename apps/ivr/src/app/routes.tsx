@@ -19,6 +19,8 @@ const ScenarioMenuControlList = React.lazy(() => import('./pages/scenario/Scenar
 const IrWorktimeList = React.lazy(() => import('./pages/worktime/IrWorktimeList'));
 // ha (HA 다중화 구성 — SWAT IPR20S8080. 모니터링/수동전환·할당 관리 팝업은 스코프 제외)
 const HaGroupList = React.lazy(() => import('./pages/ha/HaGroupList'));
+// acs (ACS 서비스 관리 — SWAT IPR35S5010. 콜리스트(5020)·캠페인(5050)은 별도 화면으로 후속 마이그레이션)
+const AcsServiceList = React.lazy(() => import('./pages/acs/AcsServiceList'));
 
 // 변형 소켓 — path 인자는 화면 식별 키(라우트 경로 그대로, 동적 세그먼트 포함)
 const pv = createPageVariantSocket('ivr');
@@ -71,6 +73,14 @@ export const routes = [
         children: [
           { index: true, element: <Navigate to="group" replace /> },
           { path: 'group', element: pv('ha/group', HaGroupList) },
+        ],
+      },
+      {
+        path: 'acs',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="service" replace /> },
+          { path: 'service', element: pv('acs/service', AcsServiceList) },
         ],
       },
     ],
