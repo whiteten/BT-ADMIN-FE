@@ -61,6 +61,25 @@ type BottomTab = 'member' | 'regnum';
 
 const TRANSPORT_LABELS: Record<number, string> = Object.fromEntries(TRANSPORT_OPTIONS.map((o) => [o.value, o.label]));
 
+/**
+ * 리스트형 표기의 컬럼 정의. 헤더와 데이터 행이 같은 폭 클래스를 참조해야 열이 어긋나지 않는다.
+ * 장비위치·라우팅위치는 대부분 미설정(N/A)이라 목록에서 제외했다 — 상세/수정 화면에서 확인.
+ */
+const LIST_COLUMNS: { key: string; label: string; width: string; align?: string }[] = [
+  { key: 'name', label: '국선명', width: 'w-[180px]' },
+  { key: 'type', label: '구분', width: 'w-[90px]' },
+  { key: 'profile', label: 'SIP 프로파일', width: 'w-[120px]' },
+  { key: 'node', label: '노드', width: 'w-[80px]' },
+  { key: 'maxchnl', label: '최대채널', width: 'w-[70px]', align: 'text-right' },
+  { key: 'obchnl', label: 'O/B채널', width: 'w-[70px]', align: 'text-right' },
+  { key: 'vendor', label: 'SSW 벤더', width: 'w-[100px]' },
+  { key: 'alloc', label: '서버 할당방식', width: 'w-[110px]' },
+  { key: 'reg', label: 'REG 방식', width: 'w-[110px]' },
+  { key: 'monitor', label: '모니터링', width: 'w-[70px]', align: 'text-center' },
+  { key: 'block', label: '블럭여부', width: 'w-[70px]', align: 'text-center' },
+  { key: 'status', label: '상태', width: 'w-[70px]', align: 'text-center' },
+];
+
 export default function EndpointList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -670,61 +689,64 @@ export default function EndpointList() {
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
               </div>
             ) : viewMode === VIEW_MODE.LIST ? (
-              <div className="flex flex-col w-full h-full overflow-y-auto divide-y divide-gray-100">
-                {filteredEndpoints.map((ep) => {
-                  const isRowSelected = selectedEndpointId === ep.endptId;
-                  const tags = getEndpointTagList(ep);
-                  const status = getEndpointStatusInfo(ep);
-                  return (
-                    <div
-                      key={ep.endptId}
-                      id={`ep-row-${ep.endptId}`}
-                      className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
-                        isRowSelected ? 'bg-[#405189]/5 border-l-2 border-l-[#405189]' : 'border-l-2 border-l-transparent hover:bg-gray-50'
-                      }`}
-                      onClick={() => handleCardSelect(ep)}
-                      onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
-                    >
-                      {ep.epStatus !== 1 && (
-                        <span
-                          className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                          style={{ color: status.color, backgroundColor: status.bgColor, borderColor: status.color + '40' }}
-                        >
-                          {status.label}
-                        </span>
-                      )}
-                      <span className="text-sm font-semibold text-gray-800 truncate w-[180px] flex-shrink-0">{ep.endptName}</span>
-                      <span className="flex items-center gap-1 text-xs text-gray-500 w-[120px] flex-shrink-0 truncate">
-                        <Network className="size-3 text-gray-400 flex-shrink-0" />
-                        <span className="truncate">{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
-                      </span>
-                      <span className="text-xs text-gray-500 w-[160px] flex-shrink-0 truncate">프로파일: {ep.sipProfileName ?? '-'}</span>
-                      <span className="text-xs text-gray-500 w-[140px] flex-shrink-0">
-                        채널: {ep.endptMaxchnl ?? 0} (OB {ep.endptDodchnl ?? 0})
-                      </span>
-                      <span className="text-xs text-gray-500 w-[110px] flex-shrink-0 truncate">할당: {ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
-                      <span className="text-xs text-gray-500 w-[110px] flex-shrink-0 truncate">등록: {REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
-                      <span className="flex items-center gap-1 flex-1 min-w-0">
-                        {tags.slice(0, 2).map((tag) => (
+              // 리스트형 — 헤더 + 표 형태. 컬럼 폭은 헤더와 행이 같은 상수를 써서 어긋나지 않게 한다.
+              // 장비위치·라우팅위치는 대부분 N/A 라 목록에서 제외(상세/수정 화면에서 확인).
+              <div className="flex flex-col w-full h-full min-w-0">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-y border-gray-200 text-[11px] font-semibold text-gray-500 flex-shrink-0">
+                  {LIST_COLUMNS.map((c) => (
+                    <span key={c.key} className={`${c.width} flex-shrink-0 ${c.align ?? ''}`}>
+                      {c.label}
+                    </span>
+                  ))}
+                  <span className="w-6 flex-shrink-0" />
+                </div>
+                <div className="flex flex-col overflow-y-auto divide-y divide-gray-100">
+                  {filteredEndpoints.map((ep) => {
+                    const isRowSelected = selectedEndpointId === ep.endptId;
+                    const status = getEndpointStatusInfo(ep);
+                    return (
+                      <div
+                        key={ep.endptId}
+                        id={`ep-row-${ep.endptId}`}
+                        className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors text-xs ${isRowSelected ? 'bg-[#405189]/5' : 'hover:bg-gray-50'}`}
+                        onClick={() => handleCardSelect(ep)}
+                        onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
+                      >
+                        <span className="w-[180px] flex-shrink-0 truncate text-sm font-semibold text-gray-800">{ep.endptName}</span>
+                        <span className="w-[90px] flex-shrink-0 truncate text-gray-600">{ENDPOINT_TYPE_LABELS[ep.endptType] ?? '-'}</span>
+                        <span className="w-[120px] flex-shrink-0 truncate text-gray-600">{ep.sipProfileName ?? '-'}</span>
+                        <span className="w-[80px] flex-shrink-0 truncate text-gray-600">{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
+                        <span className="w-[70px] flex-shrink-0 text-right text-gray-600">{ep.endptMaxchnl ?? 0}</span>
+                        <span className="w-[70px] flex-shrink-0 text-right text-gray-600">{ep.endptDodchnl ?? 0}</span>
+                        <span className="w-[100px] flex-shrink-0 truncate text-gray-600">{ep.sswVendor != null ? (SSW_VENDOR_LABELS[ep.sswVendor] ?? '-') : '-'}</span>
+                        <span className="w-[110px] flex-shrink-0 truncate text-gray-600">{ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
+                        <span className="w-[110px] flex-shrink-0 truncate text-gray-600">{REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
+                        <span className="w-[70px] flex-shrink-0 text-center text-gray-600">{ep.monitorYn === 1 ? 'ON' : 'OFF'}</span>
+                        <span className="w-[70px] flex-shrink-0 text-center">
                           <span
-                            key={tag.label}
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border flex-shrink-0"
-                            style={{ color: tag.color, backgroundColor: tag.bgColor, borderColor: tag.borderColor }}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              ep.blockYn === 1 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'
+                            }`}
                           >
-                            {tag.label}
+                            {ep.blockYn === 1 ? '설정' : '해제'}
                           </span>
-                        ))}
-                      </span>
-                      <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 ml-auto">
-                        <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
-                          <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
-                            <MoreVertical className="size-3.5 text-gray-400" />
-                          </button>
-                        </Dropdown>
+                        </span>
+                        <span className="w-[70px] flex-shrink-0 text-center">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ color: status.color, backgroundColor: status.bgColor }}>
+                            {status.label}
+                          </span>
+                        </span>
+                        <div onClick={(e) => e.stopPropagation()} className="w-6 flex-shrink-0 ml-auto">
+                          <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
+                            <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                              <MoreVertical className="size-3.5 text-gray-400" />
+                            </button>
+                          </Dropdown>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">
