@@ -1,0 +1,114 @@
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
+import { NotFound } from '@/components/custom/NotFound';
+
+const CampaignDashboard = React.lazy(() => import('./pages/dashboard/CampaignDashboard'));
+const CampaignResultStatistics = React.lazy(() => import('./pages/statistics/CampaignResultStatistics'));
+const CampaignIndividualResultStatistics = React.lazy(() => import('./pages/statistics/CampaignIndividualResultStatistics'));
+const CampaignAchievementStatistics = React.lazy(() => import('./pages/statistics/CampaignAchievementStatistics'));
+const CampaignList = React.lazy(() => import('./pages/management/CampaignList'));
+const CampaignCreate = React.lazy(() => import('./pages/management/CampaignCreate'));
+const CampaignDetail = React.lazy(() => import('./pages/management/CampaignDetail'));
+const ScheduleManagement = React.lazy(() => import('./pages/schedule/ScheduleManagement'));
+const ScheduleCreate = React.lazy(() => import('./pages/schedule/ScheduleCreate'));
+const ScheduleDetail = React.lazy(() => import('./pages/schedule/ScheduleDetail'));
+const ScheduleServerSettings = React.lazy(() => import('./pages/schedule/ScheduleServerSettings'));
+const ScheduleParameterManagement = React.lazy(() => import('./pages/schedule/ScheduleParameterManagement'));
+const ScheduleList = React.lazy(() => import('./pages/schedule/ScheduleList'));
+const ReceiveFileList = React.lazy(() => import('./pages/execution/ReceiveFileList'));
+const ReceiveTargetAdd = React.lazy(() => import('./pages/execution/ReceiveTargetAdd'));
+const ExecutionManagement = React.lazy(() => import('./pages/execution/ExecutionManagement'));
+const ExecutionDetail = React.lazy(() => import('./pages/execution/ExecutionDetail'));
+const ExecutionTargetDetail = React.lazy(() => import('./pages/execution/ExecutionTargetDetail'));
+const CampaignScenario = React.lazy(() => import('./pages/management/CampaignScenario'));
+const CampaignScenarioDetail = React.lazy(() => import('./pages/management/CampaignScenarioDetail'));
+const CampaignScenarioCreate = React.lazy(() => import('./pages/management/CampaignScenarioCreate'));
+const RandomDispatch = React.lazy(() => import('./pages/management/RandomDispatch'));
+const IngestionMappingList = React.lazy(() => import('./pages/ingestion/IngestionMappingList'));
+const IngestionMappingEdit = React.lazy(() => import('./pages/ingestion/IngestionMappingEdit'));
+const IngestionHistory = React.lazy(() => import('./pages/ingestion/IngestionHistory'));
+
+export const routes = [
+  {
+    path: '/',
+    element: <Outlet />,
+    children: [
+      { index: true, element: <Navigate to="dashboard" replace /> },
+      {
+        path: 'dashboard',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="campaign-current" replace /> },
+          { path: 'campaign-current', element: <CampaignDashboard /> },
+        ],
+      },
+      {
+        path: 'statistics',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="campaign-result" replace /> },
+          { path: 'campaign-result', element: <CampaignResultStatistics /> },
+          { path: 'campaign-individual-result', element: <CampaignIndividualResultStatistics /> },
+          { path: 'achievement-result', element: <CampaignAchievementStatistics /> },
+        ],
+      },
+      {
+        path: 'management',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="basic-info" replace /> },
+          { path: 'basic-info', element: <CampaignList /> },
+          { path: 'create', element: <CampaignCreate /> },
+          { path: ':campaignId', element: <CampaignDetail /> },
+          { path: 'campaign-scenario', element: <CampaignScenario /> },
+          { path: 'campaign-scenario/create', element: <CampaignScenarioCreate /> },
+          { path: 'campaign-scenario/random-dispatch/:scenarioId', element: <RandomDispatch /> },
+          { path: 'campaign-scenario/:scenarioId', element: <CampaignScenarioDetail /> },
+        ],
+      },
+      {
+        path: 'schedule',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="schedule-management" replace /> },
+          { path: 'schedule-management', element: <ScheduleManagement /> },
+          { path: 'schedule-management/parameter/:scheduleId', element: <ScheduleParameterManagement /> },
+          { path: 'schedule-management/:scheduleId', element: <ScheduleDetail /> },
+          { path: 'create', element: <ScheduleCreate /> },
+          { path: 'schedule-server-settings', element: <ScheduleServerSettings /> },
+          { path: 'schedule-list', element: <ScheduleList /> },
+        ],
+      },
+      {
+        path: 'execution',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="receive-file" replace /> },
+          { path: 'receive-file', element: <ReceiveFileList /> },
+          { path: 'receive-file/:receiveFileId/targets/add', element: <ReceiveTargetAdd /> },
+          { path: 'execution-management/targets/:targetId', element: <ExecutionTargetDetail /> },
+          { path: 'execution-management/:executionId', element: <ExecutionDetail /> },
+          { path: 'execution-management', element: <ExecutionManagement /> },
+        ],
+      },
+      {
+        path: 'ingestion',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <Navigate to="mapping" replace /> },
+          {
+            path: 'mapping',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <IngestionMappingList /> },
+              { path: 'create', element: <IngestionMappingEdit /> },
+              { path: ':mappingId', element: <IngestionMappingEdit /> },
+            ],
+          },
+          { path: 'history', element: <IngestionHistory /> },
+        ],
+      },
+    ],
+  },
+  { path: '*', element: <NotFound homePath="/" /> },
+];

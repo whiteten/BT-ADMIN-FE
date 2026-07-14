@@ -1,0 +1,18 @@
+{
+  "presets": [
+    [
+      "@nx/react/babel",
+      {
+        "runtime": "automatic"
+      }
+    ]
+  ],
+  "plugins": [
+    [
+      "babel-plugin-react-compiler",
+      {
+        "target": "19"
+      }
+    ]
+  ]
+}

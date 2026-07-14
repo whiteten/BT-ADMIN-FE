@@ -19,6 +19,7 @@ export const ROUTE_LOADERS: Record<string, () => Promise<RoutesModule>> = {
   ivr: () => import('ivr/Routes') as unknown as Promise<RoutesModule>,
   insight: () => import('insight/Routes') as unknown as Promise<RoutesModule>,
   taskboard: () => import('taskboard/Routes') as unknown as Promise<RoutesModule>,
+  campaign: () => import('campaign/Routes').catch(() => ({ routes: [] })) as Promise<RoutesModule>,
   vel: () => import('vel/Routes') as unknown as Promise<RoutesModule>,
 };
 

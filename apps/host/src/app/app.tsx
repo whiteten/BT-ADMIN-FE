@@ -33,6 +33,7 @@ const REMOTES = [
   { id: 'ivr', Module: lazyRemote(() => import('ivr/Module')) },
   { id: 'insight', Module: lazyRemote(() => import('insight/Module')) },
   { id: 'taskboard', Module: lazyRemote(() => import('taskboard/Module')) },
+  { id: 'campaign', Module: lazyRemote(() => import('campaign/Module')) },
   { id: 'vel', Module: lazyRemote(() => import('vel/Module')) },
 ];
 
