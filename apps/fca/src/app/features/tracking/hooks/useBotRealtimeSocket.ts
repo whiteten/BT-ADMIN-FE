@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { WebSocketClient } from '@/shared-util';
+import { WebSocketClient, buildWsUrl } from '@/shared-util';
 import type { TrackingPushData, TrackingSession, TrackingSessionDetail } from '../types';
 
 const WS_PATH = '/ws/proxy/fca/tracking';
@@ -38,8 +38,7 @@ export function useBotRealtimeSocket() {
     setSessionDetail(null);
     setSessions([]);
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}${WS_PATH}`;
+    const wsUrl = buildWsUrl(WS_PATH);
 
     const client = new WebSocketClient(wsUrl, { messageLog: false });
     wsRef.current = client;

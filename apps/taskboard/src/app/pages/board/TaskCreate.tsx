@@ -36,6 +36,7 @@ import {
   useRefreshRedisHashKeys,
   useUpdateLayout,
 } from '../../features/board/hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
 import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnimation';
 import type {
   CalcConfig,
@@ -399,6 +400,15 @@ const IcActualKeyContext = createContext<Map<string, string[]>>(new Map());
  * `{groupId}` 같은 마스킹 토큰으로 저장할지 판단할 때 사용(maskEntitySegment). */
 const RedisKeyDefsContext = createContext<RedisKeyDefinitionsResponse>({ mediaType: {}, prefixMap: {}, keyDefinitions: {} });
 
+/** 해시그룹(엔티티ID→JSON) 위젯을 드래그로 만들 때, redisHashKey의 엔티티 세그먼트가 마스킹된 경우
+ * redisField(그 해시의 첫 엔트리 = 실제 큐ID/그룹ID 등)도 이 토큰으로 마스킹한다. 실제 표시값은 항상
+ * 뷰그룹에 등록된 데이터소스의 선택값으로만 결정되므로(getRedisDisplayValue의 override 경로), 디자인
+ * 시점 값은 미리보기용 sampleValue 하나로 충분하고 실제 ID를 저장/노출할 필요가 없다 — 노출 시 이 값이
+ * 그대로 저장된 레이아웃 JSON에 박혀 다른 테넌트가 복사해 쓰면 엉뚱한(또는 존재하지 않는) 테넌트ID가
+ * 그대로 남는 문제가 있었다(2026-07-13). 이 토큰은 실제 Redis 필드와 절대 일치하지 않으므로, 뷰그룹에
+ * 데이터소스가 등록되지 않은 경우 집계 결과는 자연스럽게 0이 된다(getRedisDisplayValue 수정 불필요). */
+const MASKED_ENTITY_FIELD = '{id}';
+
 // ─── Redis Hash 탐색기 — JSON 필드 드래그 아이템 ────────────────────────────
 // "해시그룹"(예: IC:GROUP:0처럼 한 hashKey 안에 compositeKey가 여러 개, 값이 각각 JSON인 구조)이어도
 // 디자인 시점에는 "어떤 메트릭(JSON 컬럼)"을 쓸지만 고르면 되고, "어떤 그룹"을 보여줄지는 디스플레이
@@ -442,10 +452,15 @@ function RedisHashFieldItems({ hashKey }: { hashKey: string }) {
     /* JSON 아님 */
   }
 
+  // 해시그룹(엔티티ID→JSON)이고 해시키 자체가 마스킹된 경우(YAML 매치) — firstField(첫 엔트리의 실제
+  // 엔티티ID)를 그대로 쓰지 않고 마스킹 토큰으로 대체(위 MASKED_ENTITY_FIELD 주석 참조).
+  const isMaskedEntityHashGroup = parsed !== null && maskedHashKey !== actualHashKey;
+  const displayField = isMaskedEntityHashGroup ? MASKED_ENTITY_FIELD : firstField;
+
   const displayItems: Array<{ field: string; col: string; sampleValue: string | number }> = parsed
     ? Object.entries(parsed)
         .filter(([col]) => col.trim().toLowerCase() !== 'sample')
-        .map(([col, val]) => ({ field: firstField, col, sampleValue: typeof val === 'number' ? val : String(val ?? '') }))
+        .map(([col, val]) => ({ field: displayField, col, sampleValue: typeof val === 'number' ? val : String(val ?? '') }))
     : entries.map(([field, value]) => ({ field, col: field, sampleValue: value }));
 
   return (
@@ -1904,6 +1919,11 @@ function getWidgetDataSourcePath(item: CallDataItem): string | null {
 // ─── 위젯 콘텐츠 (공유) ──────────────────────────────────────────────────────
 const ETC_CLOCK_IDS = new Set(['etc-date', 'etc-time', 'etc-datetime', 'etc-custom']);
 
+/** 웹임베드/공지사항/시계 위젯 — 계산식이 참조할 수 있는 단일 값이 아니므로 "🔗 계산식" 변수 연결에서 제외 */
+function isCalcRefExcludedWidget(widget: DroppedWidget): boolean {
+  return isWebEmbedWidget(widget) || isAnnouncementWidget(widget) || (widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id));
+}
+
 function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget; widgets: DroppedWidget[]; redisWsData: CtiWsDataByHashKey }) {
   const isEtcClock = widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
@@ -2034,25 +2054,23 @@ function isSectionCapableWidget(widget: DroppedWidget): boolean {
 function WidgetActionsMenu({
   widgetId,
   label,
-  isCalc,
+  showCalcRef,
   showSection,
   onDuplicate,
   onRemove,
   sections,
   currentSectionKey,
   onSectionChange,
-  onAddSection,
 }: {
   widgetId: string;
   label: string;
-  isCalc: boolean;
+  showCalcRef: boolean;
   showSection: boolean;
   onDuplicate: () => void;
   onRemove: () => void;
   sections: string[];
   currentSectionKey?: string;
   onSectionChange: (key: string | undefined) => void;
-  onAddSection: (name: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
@@ -2129,7 +2147,7 @@ function WidgetActionsMenu({
             >
               <span>×</span> 삭제
             </button>
-            {!isCalc && (
+            {showCalcRef && (
               <>
                 <div className="border-t border-slate-100" />
                 <WidgetRefHandle widgetId={widgetId} label={label} />
@@ -2154,23 +2172,17 @@ function WidgetActionsMenu({
                   <div className="px-3 pb-2 pt-0.5">
                     <div className="flex flex-wrap gap-1">
                       {menuSections.map((s, idx) => {
-                        const isDefined = sections.includes(s);
+                        const isActive = sections.includes(s); // 이 구역을 쓰는 위젯이 하나라도 있으면 활성
                         const isAssigned = currentSectionKey === s;
                         return (
                           <button
                             key={s}
-                            onClick={() => {
-                              if (!isDefined) {
-                                onAddSection(s);
-                              } else {
-                                onSectionChange(isAssigned ? undefined : s);
-                              }
-                            }}
-                            title={!isDefined ? '클릭하여 구역 추가 및 배정' : isAssigned ? '클릭하여 배정 해제' : '클릭하여 배정'}
+                            onClick={() => onSectionChange(isAssigned ? undefined : s)}
+                            title={isAssigned ? '클릭하여 배정 해제' : '클릭하여 이 위젯을 구역에 배정'}
                             className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
                               isAssigned
                                 ? 'bg-indigo-500 text-white'
-                                : isDefined
+                                : isActive
                                   ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                   : 'bg-slate-50 text-slate-400 border border-dashed border-slate-300 hover:bg-indigo-50 hover:text-indigo-500 hover:border-indigo-300'
                             }`}
@@ -2181,8 +2193,8 @@ function WidgetActionsMenu({
                       })}
                       {nextLetter && (
                         <button
-                          onClick={() => onAddSection(nextLetter)}
-                          title={`${nextLetter} 구역 추가 및 배정`}
+                          onClick={() => onSectionChange(nextLetter)}
+                          title={`${nextLetter} 구역에 이 위젯 배정`}
                           className="px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-500 hover:bg-indigo-100 border border-dashed border-indigo-300"
                         >
                           + {nextLetter}
@@ -2309,7 +2321,6 @@ interface CanvasWidgetFreeProps {
   redisWsData: CtiWsDataByHashKey;
   sections: string[];
   onSectionChange: (key: string | undefined) => void;
-  onAddSection: (name: string) => void;
 }
 
 function CanvasWidgetFree({
@@ -2326,7 +2337,6 @@ function CanvasWidgetFree({
   redisWsData,
   sections,
   onSectionChange,
-  onAddSection,
 }: CanvasWidgetFreeProps) {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
@@ -2356,14 +2366,13 @@ function CanvasWidgetFree({
         <WidgetActionsMenu
           widgetId={widget.id}
           label={widget.customTitle ?? widget.item.label}
-          isCalc={widget.item.category === 'Calc'}
+          showCalcRef={widget.item.category !== 'Calc' && !isCalcRefExcludedWidget(widget)}
           showSection={isSectionCapableWidget(widget)}
           onDuplicate={onDuplicate}
           onRemove={onRemove}
           sections={sections}
           currentSectionKey={widget.sectionKey}
           onSectionChange={onSectionChange}
-          onAddSection={onAddSection}
         />
       )}
 
@@ -2463,23 +2472,9 @@ interface CanvasWidgetGridProps {
   redisWsData: CtiWsDataByHashKey;
   sections: string[];
   onSectionChange: (key: string | undefined) => void;
-  onAddSection: (name: string) => void;
 }
 
-function CanvasWidgetGrid({
-  widget,
-  widgets,
-  isSelected,
-  locked,
-  onSelect,
-  onRemove,
-  onDuplicate,
-  fontScale = 1,
-  redisWsData,
-  sections,
-  onSectionChange,
-  onAddSection,
-}: CanvasWidgetGridProps) {
+function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRemove, onDuplicate, fontScale = 1, redisWsData, sections, onSectionChange }: CanvasWidgetGridProps) {
   const w = widget.w ?? DEFAULT_W;
   const h = widget.h ?? DEFAULT_H;
   const widgetIsTransparentBg = isTransparentBg(widget.style);
@@ -2505,14 +2500,13 @@ function CanvasWidgetGrid({
         <WidgetActionsMenu
           widgetId={widget.id}
           label={widget.customTitle ?? widget.item.label}
-          isCalc={widget.item.category === 'Calc'}
+          showCalcRef={widget.item.category !== 'Calc' && !isCalcRefExcludedWidget(widget)}
           showSection={isSectionCapableWidget(widget)}
           onDuplicate={onDuplicate}
           onRemove={onRemove}
           sections={sections}
           currentSectionKey={widget.sectionKey}
           onSectionChange={onSectionChange}
-          onAddSection={onAddSection}
         />
       )}
 
@@ -2628,6 +2622,68 @@ function DroppableBoard({
   );
 }
 
+// ─── 좌/우 패널 폭 조절 ───────────────────────────────────────────────────────
+// 편집 세션 보조값이라 레이아웃(layoutJson) 저장 대상이 아니라 localStorage로 브라우저에 유지한다.
+const LS_LEFT_PANEL_WIDTH = 'tb-taskcreate-left-panel-w';
+const LS_RIGHT_PANEL_WIDTH = 'tb-taskcreate-right-panel-w';
+const LEFT_PANEL_MIN = 200;
+const LEFT_PANEL_MAX = 480;
+const RIGHT_PANEL_MIN = 240;
+const RIGHT_PANEL_MAX = 560;
+
+function readPanelWidth(key: string, fallback: number): number {
+  const raw = Number(localStorage.getItem(key));
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
+
+/**
+ * 좌/우 패널과 캔버스 사이의 세로 리사이저 핸들. side='left'는 오른쪽으로 끌수록, side='right'는
+ * 왼쪽으로 끌수록 패널이 넓어진다. min/max로 폭을 제한한다. onResize는 안정 참조(state setter)를 넘길 것.
+ */
+function PanelResizer({ side, width, min, max, onResize }: { side: 'left' | 'right'; width: number; min: number; max: number; onResize: (w: number) => void }) {
+  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
+
+  useEffect(() => {
+    const handleMove = (e: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag) return;
+      e.preventDefault();
+      const delta = e.clientX - drag.startX;
+      const next = Math.max(min, Math.min(max, drag.startWidth + (side === 'left' ? delta : -delta)));
+      onResize(next);
+    };
+    const handleUp = () => {
+      if (!dragRef.current) return;
+      dragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  }, [side, min, max, onResize]);
+
+  const handleDown = (e: React.PointerEvent) => {
+    dragRef.current = { startX: e.clientX, startWidth: width };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  return (
+    <div
+      onPointerDown={handleDown}
+      title="드래그하여 패널 너비 조절"
+      className="flex-shrink-0 w-1 self-stretch cursor-col-resize bg-slate-200 hover:bg-[#0f5b9e] active:bg-[#0f5b9e] transition-colors relative z-20"
+    >
+      {/* 실제 클릭 히트영역을 핸들 양옆으로 넓혀 얇은 선도 쉽게 잡히게 한다 */}
+      <div className="absolute inset-y-0 -left-1.5 -right-1.5" />
+    </div>
+  );
+}
+
 // ─── TaskCreate (메인) ────────────────────────────────────────────────────────
 export default function TaskCreate() {
   const location = useLocation();
@@ -2637,6 +2693,7 @@ export default function TaskCreate() {
   const bg = state?.bg;
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
+  const { guardWrite } = useTaskboardWriteGuard();
   // 데이터 소스 관리 탭에 등록된 전체 데이터소스 목록 — 테이블 컬럼의 "이름 매핑" 드롭다운에서 고를 수 있게 제공.
   // 플레이스홀더(예: 그룹 목록 {groupId})도 VALUE/NAME 쿼리라서 이름 매핑 소스로 그대로 쓸 수 있다 —
   // 그룹ID 컬럼을 그룹명으로 바꿔 보여주는 게 정확히 이 케이스라 제외하지 않는다.
@@ -2690,6 +2747,15 @@ export default function TaskCreate() {
   const [zoom, setZoom] = useState(1);
   // 전체 잠금 — 위젯별이 아니라 캔버스 전체 단위 스위치. zoom과 동일하게 편집 세션 중 보조 토글이라 저장 대상 아님.
   const [canvasLocked, setCanvasLocked] = useState(false);
+  // 좌/우 패널 폭 — 드래그로 조절, localStorage로 세션 간 유지(레이아웃 저장값 아님)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(() => readPanelWidth(LS_LEFT_PANEL_WIDTH, 256));
+  const [rightPanelWidth, setRightPanelWidth] = useState(() => readPanelWidth(LS_RIGHT_PANEL_WIDTH, 288));
+  useEffect(() => {
+    localStorage.setItem(LS_LEFT_PANEL_WIDTH, String(leftPanelWidth));
+  }, [leftPanelWidth]);
+  useEffect(() => {
+    localStorage.setItem(LS_RIGHT_PANEL_WIDTH, String(rightPanelWidth));
+  }, [rightPanelWidth]);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>(savedMeta?.layoutMode ?? 'free');
   const [gridMargin, setGridMargin] = useState<[number, number]>(savedMeta?.gridMargin ?? [4, 4]);
   const [containerPadding, setContainerPadding] = useState<[number, number]>(savedMeta?.containerPadding ?? [0, 0]);
@@ -2732,18 +2798,10 @@ export default function TaskCreate() {
     }
   })();
 
-  const initialSections: string[] = (() => {
-    try {
-      if (!layout?.layoutJson) return [];
-      const raw = JSON.parse(layout.layoutJson) as { sections?: string[] };
-      return Array.isArray(raw?.sections) ? raw.sections : [];
-    } catch {
-      return [];
-    }
-  })();
-
   const [droppedWidgets, setDroppedWidgets] = useState<DroppedWidget[]>(initialWidgets);
-  const [sections, setSections] = useState<string[]>(initialSections);
+  // 구역(섹션)은 별도 상태로 관리하지 않고 위젯의 sectionKey에서 자동 파생한다.
+  // 위젯에 A/B 구역을 배정하면 그 구역이 자동으로 활성화되고, 마지막 위젯을 빼면 자동으로 해제된다.
+  const sections = ALL_SECTION_LETTERS.filter((l) => droppedWidgets.some((w) => w.sectionKey === l));
 
   // 캔버스의 모든 table-redis 위젯이 쓸 WS 연결 — 화면(이 컴포넌트)당 단일 소켓을 유지하기 위해 여기서
   // 한 번만 연결하고 dataByHashKey를 CanvasWidgetFree/Grid → WidgetContent → RedisTableWidget으로 prop 전달한다.
@@ -2782,12 +2840,8 @@ export default function TaskCreate() {
   const initialStateRef = useRef({
     widgets: JSON.stringify(initialWidgets),
     title: layout?.layoutName ?? bg?.pageName ?? '새 전광판',
-    sections: JSON.stringify(initialSections),
   });
-  const isDirty =
-    JSON.stringify(droppedWidgets) !== initialStateRef.current.widgets ||
-    boardTitle !== initialStateRef.current.title ||
-    JSON.stringify(sections) !== initialStateRef.current.sections;
+  const isDirty = JSON.stringify(droppedWidgets) !== initialStateRef.current.widgets || boardTitle !== initialStateRef.current.title;
 
   // 브라우저 새로고침/닫기 감지
   useEffect(() => {
@@ -3280,6 +3334,8 @@ export default function TaskCreate() {
       h: finalH,
       showTitle: true,
       style: { ...DEFAULT_STYLE },
+      // Redis 값 위젯은 집계 방식 기본값을 합계(sum)로 잡는다(테이블 위젯 제외).
+      ...(info.item.category === 'Redis' && info.item.redisHashKey && info.item.displayType !== 'table' ? { aggregation: 'sum' as const } : {}),
       ...(info.item.category === 'Calc' ? { calc: { formula: '', operands: [] } } : {}),
       ...(info.item.id === 'etc-custom' ? { clockFormat: DEFAULT_CUSTOM_CLOCK_FORMAT } : {}),
     };
@@ -3819,6 +3875,7 @@ export default function TaskCreate() {
 
   // ── 저장 ─────────────────────────────────────────────────────────────
   const handleSave = async () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 레이아웃 저장(생성·수정) 차단
     const pageId = layout?.pageId ?? bg?.pageId;
     if (!pageId) {
       toast.error('배경 정보가 없습니다.');
@@ -3846,11 +3903,10 @@ export default function TaskCreate() {
           tenantId: userInfo?.tenant ?? bg?.tenantId ?? '',
           layoutName: boardTitle,
           layoutJson,
-          authorName: userInfo?.username ?? userInfo?.userAccount,
-          authRole: userInfo?.roles?.[0],
+          // 등록자(createUserId=로그인 계정)는 서버가 세션에서 자동 기록하므로 클라이언트가 보내지 않는다.
         });
       }
-      initialStateRef.current = { widgets: JSON.stringify(droppedWidgets), title: boardTitle, sections: JSON.stringify(sections) };
+      initialStateRef.current = { widgets: JSON.stringify(droppedWidgets), title: boardTitle };
       unblockNavRef.current?.();
       toast.success('레이아웃이 저장되었습니다.');
       await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList().queryKey });
@@ -3934,13 +3990,14 @@ export default function TaskCreate() {
         <style dangerouslySetInnerHTML={{ __html: VALUE_CHANGE_ANIMATION_CSS }} />
         <div className="flex h-full bg-slate-100 font-sans overflow-hidden">
           {/* ── 왼쪽 패널: 데이터 소스 ── */}
-          <div className="w-64 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden relative z-10">
+          <div style={{ width: leftPanelWidth }} className="flex-shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-sm overflow-hidden relative z-10">
             <div className="flex-1 overflow-y-auto min-h-0">
               <RedisHashSection />
               <FixedItemsSection />
               <ExternalItemsSection />
             </div>
           </div>
+          <PanelResizer side="left" width={leftPanelWidth} min={LEFT_PANEL_MIN} max={LEFT_PANEL_MAX} onResize={setLeftPanelWidth} />
 
           {/* ── 가운데 패널: 캔버스 ── */}
           <div className="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 relative z-[1]">
@@ -4470,10 +4527,6 @@ export default function TaskCreate() {
                                   redisWsData={redisWsData}
                                   sections={sections}
                                   onSectionChange={(key) => updateWidgetMeta(widget.id, { sectionKey: key })}
-                                  onAddSection={(name) => {
-                                    setSections((prev) => (prev.includes(name) ? prev : [...prev, name]));
-                                    updateWidgetMeta(widget.id, { sectionKey: name });
-                                  }}
                                 />
                               ))
                             : droppedWidgets.map((widget) => (
@@ -4490,10 +4543,6 @@ export default function TaskCreate() {
                                     redisWsData={redisWsData}
                                     sections={sections}
                                     onSectionChange={(key) => updateWidgetMeta(widget.id, { sectionKey: key })}
-                                    onAddSection={(name) => {
-                                      setSections((prev) => (prev.includes(name) ? prev : [...prev, name]));
-                                      updateWidgetMeta(widget.id, { sectionKey: name });
-                                    }}
                                   />
                                 </div>
                               ))}
@@ -4512,8 +4561,9 @@ export default function TaskCreate() {
             </div>
           </div>
 
+          <PanelResizer side="right" width={rightPanelWidth} min={RIGHT_PANEL_MIN} max={RIGHT_PANEL_MAX} onResize={setRightPanelWidth} />
           {/* ── 오른쪽 패널: 스타일 옵션 ── */}
-          <div className="w-72 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col shadow-sm overflow-hidden">
+          <div style={{ width: rightPanelWidth }} className="flex-shrink-0 bg-white border-l border-slate-200 flex flex-col shadow-sm overflow-hidden">
             {selectedWidget ? (
               <>
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
@@ -6279,60 +6329,35 @@ export default function TaskCreate() {
                   >
                     {layoutMode === 'free' ? '✦ 자유 모드 — 포토샵처럼 자유롭게 배치' : '⊞ 그리드 모드 — 격자에 맞춰 정렬'}
                   </div>
-                  {/* 섹션 관리 — A,B,C 기본 표시 + 추가된 구역은 × 로 삭제 + + 버튼으로 다음 알파벳 추가 */}
+                  {/* 섹션 관리 — 위젯의 구역 배정에서 자동 파생. 위젯에 구역을 배정하면 자동 활성화되고, 마지막 위젯을 빼면 자동 해제된다. */}
                   <div className="w-full pt-3 border-t border-slate-100">
-                    <p className="text-[10px] text-slate-500 font-semibold mb-1.5">구역(섹션) 관리</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mb-1.5">구역(섹션) — 자동</p>
                     <p className="text-[9px] text-slate-400 mb-2">
-                      {sections.length === 0 ? '구역 없음 = 단일 뷰 그룹 모드 (기존 방식)' : `구역 ${sections.length}개 — 실행 시 구역별로 뷰 그룹을 따로 선택합니다`}
+                      {sections.length === 0
+                        ? '활성 구역 없음 = 단일 뷰 그룹 모드. 위젯 ⚙ → 구역에서 A/B… 배정 시 자동 생성됩니다.'
+                        : `활성 구역 ${sections.length}개 — 실행 시 구역별로 뷰 그룹을 따로 선택합니다. (× = 해당 구역 위젯 일괄 해제)`}
                     </p>
-                    {/* 기본 A,B,C + 이미 추가된 구역 표시 */}
-                    <div className="flex flex-wrap gap-1">
-                      {ALL_SECTION_LETTERS.filter((l) => ['A', 'B', 'C'].includes(l) || sections.includes(l)).map((s) => {
-                        const isDefined = sections.includes(s);
-                        return (
-                          <div
-                            key={s}
-                            className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] border ${
-                              isDefined ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-50 border-dashed border-slate-300 text-slate-400'
-                            }`}
-                          >
-                            <span
-                              className={!isDefined ? 'cursor-pointer hover:text-indigo-500' : ''}
-                              onClick={() => {
-                                if (!isDefined) setSections((prev) => [...prev, s]);
-                              }}
-                            >
-                              {s}
-                            </span>
-                            {isDefined && (
+                    {sections.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {sections.map((s) => {
+                          const count = droppedWidgets.filter((w) => w.sectionKey === s).length;
+                          return (
+                            <div key={s} className="flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] border bg-indigo-50 border-indigo-200 text-indigo-700">
+                              <span>
+                                {s} <span className="text-indigo-400">({count})</span>
+                              </span>
                               <button
-                                onClick={() => {
-                                  setSections((prev) => prev.filter((x) => x !== s));
-                                  setDroppedWidgets((prev) => prev.map((w) => (w.sectionKey === s ? { ...w, sectionKey: undefined } : w)));
-                                }}
+                                onClick={() => setDroppedWidgets((prev) => prev.map((w) => (w.sectionKey === s ? { ...w, sectionKey: undefined } : w)))}
+                                title={`${s} 구역 위젯 배정 일괄 해제`}
                                 className="ml-0.5 text-indigo-400 hover:text-red-500 leading-none font-bold"
                               >
                                 ×
                               </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                      {/* 다음 알파벳 추가 버튼 */}
-                      {(() => {
-                        const existing = ALL_SECTION_LETTERS.filter((l) => ['A', 'B', 'C'].includes(l) || sections.includes(l));
-                        const next = ALL_SECTION_LETTERS.find((l) => !existing.includes(l));
-                        return next ? (
-                          <button
-                            onClick={() => setSections((prev) => [...prev, next])}
-                            title={`${next} 구역 추가`}
-                            className="px-2 py-0.5 rounded-full text-[10px] border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50"
-                          >
-                            + {next}
-                          </button>
-                        ) : null;
-                      })()}
-                    </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   <div className="w-full pt-3 border-t border-slate-100">

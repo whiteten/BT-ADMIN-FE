@@ -6,6 +6,8 @@ export interface RetryReqTreeItem {
 }
 
 export interface RetryReqListItem {
+  tenantId: number;
+  tenantName: string | null;
   retryDate: string;
   retryType: string;
   retryTime: string;

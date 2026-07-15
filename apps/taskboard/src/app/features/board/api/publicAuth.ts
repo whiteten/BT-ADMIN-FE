@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { withBasePath } from '@/shared-util';
 
 /**
  * 전광판 공개 액세스 Bearer 토큰 관리.
@@ -48,7 +49,7 @@ export const publicAuthHeaders = (): { Authorization: string } | undefined => (_
 export const fetchPublicToken = async (clientId: string, clientSecret: string): Promise<string> => {
   const credentials = btoa(`${clientId}:${clientSecret}`);
   const params = new URLSearchParams({ grant_type: 'client_credentials' });
-  const response = await axios.post<{ access_token: string }>('/oauth/token', params.toString(), {
+  const response = await axios.post<{ access_token: string }>(withBasePath('/oauth/token'), params.toString(), {
     headers: {
       Authorization: `Basic ${credentials}`,
       'Content-Type': 'application/x-www-form-urlencoded',

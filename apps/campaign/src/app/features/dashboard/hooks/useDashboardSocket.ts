@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { LOG } from '@/log';
-import { WebSocketClient } from '@/shared-util';
+import { WebSocketClient, buildWsUrl } from '@/shared-util';
 import { useDashboardSocketStore } from './useDashboardSocketStore';
 import { DASHBOARD_MSG_TYPE, type DashboardWsServerMessage } from '../types';
 
@@ -18,8 +18,7 @@ export function useDashboardSocket() {
   useEffect(() => {
     const { setWsId, setIsConnected, setSend, setWidgetData, setWidgetError, reset } = useDashboardSocketStore.getState();
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/proxy/campaign/monitoring`;
+    const wsUrl = buildWsUrl('/ws/proxy/campaign/monitoring');
 
     const client = new WebSocketClient(wsUrl, { messageLog: false });
     wsRef.current = client;

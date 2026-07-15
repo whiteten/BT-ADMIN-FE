@@ -60,6 +60,8 @@ export interface CallStatusSummaryItem {
 
 export interface CallStatusItem {
   ucidGkey: string;
+  tenantId: number;
+  tenantName: string;
   filename: string;
   callDate: string;
   callTime: string;

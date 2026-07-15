@@ -1,9 +1,14 @@
+import { useEffect, useState } from 'react';
 import type { DroppedWidget } from '../types/taskboard.types';
 
 /** 위젯이 웹 임베드(iframe) 위젯인지 판별 — category='WebEmbed' */
 export function isWebEmbedWidget(widget: DroppedWidget): boolean {
   return widget.item.category === 'WebEmbed';
 }
+
+/** 라이브 화면에서 iframe을 주기적으로 새로 띄우는 간격(30분) — 라이브 방송 스트림의 미디어 버퍼가
+ *  시간이 지날수록 무한히 쌓여 메모리가 계속 증가하는 것을 끊기 위함(리로드 시 잠깐 재로딩됨). */
+const IFRAME_RELOAD_INTERVAL_MS = 30 * 60 * 1000;
 
 /** youtube.com/watch·youtu.be·shorts·live 형태에서 영상 ID를 추출한다. embed 전용 URL이 아니면 null. */
 function extractYoutubeId(url: URL): string | null {
@@ -63,6 +68,15 @@ export function WebEmbedWidget({ widget, editable = false }: { widget: DroppedWi
   const showTitle = widget.showTitle !== false;
   const displayTitle = widget.customTitle ?? widget.item.label;
 
+  // 편집 캔버스(editable)에서는 리로드하지 않는다 — 라이브 화면(task-view/rolling)에서만 30분마다 iframe을
+  // 새 key로 remount해 라이브 스트림 미디어 버퍼 누적으로 인한 메모리 증가를 끊는다.
+  const [reloadKey, setReloadKey] = useState(0);
+  useEffect(() => {
+    if (editable) return;
+    const timer = setInterval(() => setReloadKey((k) => k + 1), IFRAME_RELOAD_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [editable]);
+
   if (!src) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -82,6 +96,7 @@ export function WebEmbedWidget({ widget, editable = false }: { widget: DroppedWi
         </div>
       )}
       <iframe
+        key={reloadKey}
         src={src}
         title={displayTitle}
         className="w-full flex-1 min-h-0 border-0 bg-black"

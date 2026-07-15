@@ -5,6 +5,7 @@ import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardApi } from '../api/taskboardApi';
 import { useCreateDbQueryDef, useDeleteDbQueryDef, useGetDbQueryDefList, useGetRedisHashKeys, useGetRedisKeyDefinitions, useUpdateDbQueryDef } from '../hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../hooks/useTaskboardWriteGuard';
 import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry } from '../types/taskboard.types';
 import { matchKeyDefinition, suggestKeyTemplate } from '../utils/redisKeyDefinitions';
 import { type RedisKeyNode, filterRedisTree, groupRedisKeys } from '../utils/redisKeyPattern';
@@ -47,6 +48,18 @@ function findUnregisteredPlaceholderTokens(text: string, registeredNamesLower: S
     if (!isValidShape || !registeredNamesLower.has(name)) found.add(raw);
   }
   return [...found];
+}
+
+/** text(해시키 또는 필드 조합식)가 특정 플레이스홀더 이름을 {이름} 토큰으로 참조하는지 검사한다.
+ *  플레이스홀더 이름 변경 시 "이 이름을 참조하던 데이터소스" 경고 목록을 만들 때 사용(대소문자 무관). */
+function keyReferencesPlaceholder(text: string, nameLower: string): boolean {
+  for (const m of text.matchAll(PLACEHOLDER_TOKEN_DISPLAY_PATTERN)) {
+    const raw = m[1];
+    const isValidShape = /^\w+(:\d+)?$/.test(raw);
+    const name = isValidShape ? raw.split(':')[0].toLowerCase() : raw.toLowerCase();
+    if (name === nameLower) return true;
+  }
+  return false;
 }
 
 /** 저장 시 이 쿼리를 뷰그룹 선택용(연동 Redis 키 등록)으로 쓸지, 플레이스홀더(다른 데이터소스가 참조하는
@@ -300,6 +313,8 @@ export default function DataSourceQueryTab() {
   const [editingId, setEditingId] = useState<number | null>(null);
   /** 연동 키 목록에서 수정 중인 항목의 index — null이면 새 항목 추가 모드 */
   const [editingKeyIndex, setEditingKeyIndex] = useState<number | null>(null);
+  /** 저장된 목록(Step 3) 서브탭 — 뷰그룹 데이터와 플레이스홀더를 섞지 않고 한 번에 하나만 보여준다. */
+  const [savedTab, setSavedTab] = useState<'dataSource' | 'placeholder'>('dataSource');
 
   const runQuery = useMutation({ mutationFn: taskboardApi.runDbQuery });
 
@@ -310,6 +325,7 @@ export default function DataSourceQueryTab() {
   const matchedKeyDefinition = redisKeyDefs ? matchKeyDefinition(newKeyValue.trim(), redisKeyDefs) : null;
   const createDef = useCreateDbQueryDef({});
   const updateDef = useUpdateDbQueryDef({});
+  const { guardWrite } = useTaskboardWriteGuard();
   const deleteDef = useDeleteDbQueryDef({});
   const saveMutation = editingId ? updateDef : createDef;
   const modal = useModal();
@@ -439,7 +455,25 @@ export default function DataSourceQueryTab() {
   const dataSourceDefs = savedDefs.filter((d) => !d.placeholderName);
   const placeholderDefs = savedDefs.filter((d) => !!d.placeholderName);
 
+  // 편집 중인 플레이스홀더의 원래(저장된) 이름 — 이름을 바꾸면 이 이름을 {토큰}으로 참조하던 데이터소스가
+  // 전부 깨진다(자동 전파 없음). 저장 전에 그 목록을 경고로 보여준다(막지는 않음 — 사용자 판단).
+  const editingPlaceholderDef = editingId !== null ? savedDefs.find((d) => d.dbQueryId === editingId) : undefined;
+  const originalPlaceholderName = editingPlaceholderDef?.placeholderName ?? '';
+  const originalPlaceholderNameLower = originalPlaceholderName.trim().toLowerCase();
+  const isPlaceholderRenamed = saveMode === 'placeholder' && originalPlaceholderNameLower !== '' && placeholderName.trim().toLowerCase() !== originalPlaceholderNameLower;
+  const placeholderReferencingDefs = isPlaceholderRenamed
+    ? savedDefs.filter(
+        (d) =>
+          d.dbQueryId !== editingId &&
+          (d.redisKeys ?? []).some(
+            (rk) =>
+              keyReferencesPlaceholder(rk.key, originalPlaceholderNameLower) || (rk.keyTemplate ? keyReferencesPlaceholder(rk.keyTemplate, originalPlaceholderNameLower) : false),
+          ),
+      )
+    : [];
+
   const handleSave = async () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 데이터 소스 등록·수정 차단
     if (!queryName.trim()) {
       toast.error('쿼리 이름을 입력하세요.');
       return;
@@ -698,24 +732,32 @@ export default function DataSourceQueryTab() {
                   placeholder="설명 (선택)"
                   className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#0f5b9e]"
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold text-slate-500 flex-shrink-0">저장 용도</span>
-                  <div className="flex items-center border border-slate-200 rounded-md overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setSaveMode('dataSource')}
-                      className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${saveMode === 'dataSource' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-                    >
-                      뷰그룹 선택용
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSaveMode('placeholder')}
-                      className={`px-2.5 py-1 text-[10px] font-semibold border-l border-slate-200 transition-colors ${saveMode === 'placeholder' ? 'bg-amber-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-                    >
-                      플레이스홀더용
-                    </button>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-slate-500 flex-shrink-0">저장 용도</span>
+                    <div className="flex items-center border border-slate-200 rounded-md overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setSaveMode('dataSource')}
+                        className={`px-2.5 py-1 text-[10px] font-semibold transition-colors ${saveMode === 'dataSource' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                      >
+                        뷰그룹 선택용
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSaveMode('placeholder')}
+                        className={`px-2.5 py-1 text-[10px] font-semibold border-l border-slate-200 transition-colors ${saveMode === 'placeholder' ? 'bg-amber-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                      >
+                        플레이스홀더용
+                      </button>
+                    </div>
                   </div>
+                  {/* 두 용도의 차이가 헷갈리는 지점 — 고른 쪽이 무슨 뜻인지 한 줄로 바로 설명한다. */}
+                  <p className="text-[10px] text-slate-400 leading-snug">
+                    {saveMode === 'dataSource'
+                      ? '뷰그룹 선택용 — 운영자가 뷰그룹에서 직접 골라 위젯 값을 좁히는 목록(예: 큐/그룹 목록).'
+                      : '플레이스홀더용 — 뷰그룹엔 안 나오고, 다른 데이터소스의 Redis 키에서 {이름} 토큰으로 참조되는 값 목록.'}
+                  </p>
                 </div>
 
                 {userInfo?.isSystemAdmin ? (
@@ -767,13 +809,35 @@ export default function DataSourceQueryTab() {
                       이름을 <code className="font-mono">groupId</code>로 지정해도 특별한 동작은 없음 — 그룹 단위 위젯(그룹별 이석사유 현황·상담그룹 테이블 등)의 &quot;어느 그룹을
                       보여줄지&quot;는 뷰그룹 등록 폼의 &quot;상담그룹&quot; 직접선택 값을 그대로 씀.
                     </p>
+                    {/* 이름 변경 경고 — 이 이름을 참조하던 데이터소스는 자동 전파되지 않아, 각각 다시 저장 전까지 값이 0으로 나온다. */}
+                    {isPlaceholderRenamed && placeholderReferencingDefs.length > 0 && (
+                      <div className="mt-1 p-2 rounded-md bg-red-50 border border-red-200 flex flex-col gap-1.5">
+                        <p className="text-[10px] font-semibold text-red-600 leading-snug">
+                          주의 — 이름을 <code className="font-mono">{`{${originalPlaceholderName}}`}</code> →{' '}
+                          <code className="font-mono">{`{${placeholderName.trim() || '...'}}`}</code> (으)로 바꾸면, 이 이름을 참조하는 아래 데이터소스{' '}
+                          {placeholderReferencingDefs.length}
+                          개가 깨집니다. 각 소스를 열어 토큰을 새 이름으로 고쳐 다시 저장해야 값이 나옵니다(자동 전파 없음).
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {placeholderReferencingDefs.map((d) => (
+                            <span
+                              key={d.dbQueryId}
+                              className="px-1.5 py-0.5 rounded bg-white border border-red-200 text-[10px] text-red-600 font-semibold"
+                              title={d.description ?? d.queryName}
+                            >
+                              {d.queryName}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5 p-2.5 bg-white rounded-md border border-slate-200">
-                    <label className="text-[10px] font-semibold text-slate-500">연동 Redis 키 (라벨별로 여러 개 가능)</label>
-                    <p className="text-[10px] text-slate-400 leading-snug">
-                      해시 이름(HASH)과 필드(KEY) 두 영역을 따로 채운 뒤 라벨 입력 → 추가. 그룹요약/이석사유처럼 여러 해시에 걸치면 라벨별로 나눠 등록하세요. 등록된 항목을 클릭하면
-                      아래 해시/필드 영역에 불러와 수정할 수 있습니다.
+                    <label className="text-[10px] font-semibold text-slate-500">연동 Redis 키 — 이 목록의 값이 실시간 데이터로 어디에 꽂히는지</label>
+                    <p className="text-[10px] text-slate-500 leading-snug bg-sky-50 border border-sky-100 rounded px-2 py-1.5">
+                      이 쿼리의 <b>VALUE</b>(예: 큐ID)가 <b>①어느 Redis 키</b>의 <b>②어느 자리</b>에 들어가는지 지정합니다. 아래 ①에서 실제 키를 고른 뒤, 값마다 달라지는
+                      칸(그룹ID·미디어타입 등)을 플레이스홀더 칩으로 덮으면 됩니다. 라벨 입력 → 추가. 여러 해시에 걸치면(그룹요약/이석사유 등) 라벨별로 나눠 등록.
                     </p>
 
                     {redisKeys.length > 0 && (
@@ -824,7 +888,7 @@ export default function DataSourceQueryTab() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                       <div className="flex flex-col gap-1 p-2 bg-slate-50 rounded-md border border-slate-200">
-                        <label className="text-[10px] font-semibold text-slate-500">해시(HASH) 영역</label>
+                        <label className="text-[10px] font-semibold text-sky-700">① 이 목록이 꽂히는 Redis 키</label>
                         <RedisKeyTreePicker onPick={(key) => setNewKeyValue(key)} />
                         <PlaceholderTokenPicker dbQueryDefs={savedDefs} onPick={appendHashSegment} includeSelf={false} />
                         <div
@@ -846,7 +910,7 @@ export default function DataSourceQueryTab() {
                       </div>
 
                       <div className="flex flex-col gap-1 p-2 bg-slate-50 rounded-md border border-slate-200">
-                        <label className="text-[10px] font-semibold text-slate-500">필드(KEY) 영역 (선택)</label>
+                        <label className="text-[10px] font-semibold text-slate-500">② 키 안에서 값이 들어갈 자리 (보통 비움)</label>
                         <PlaceholderTokenPicker dbQueryDefs={savedDefs} onPick={appendKeyTemplateToken} />
                         <div
                           onDragOver={(e) => {
@@ -922,58 +986,134 @@ export default function DataSourceQueryTab() {
           </div>
 
           <div className="border-t border-slate-100 pt-4 flex flex-col gap-4">
-            <StepHeader step={3} title="저장된 데이터" />
+            <div className="flex items-center justify-between gap-2">
+              <StepHeader step={3} title="저장된 데이터" />
+              {/* 뷰그룹 데이터와 플레이스홀더는 성격이 달라 서로 헷갈리므로 서브탭으로 한 번에 하나만 보여준다. */}
+              <div className="flex items-center border border-slate-200 rounded-md overflow-hidden flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSavedTab('dataSource')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold transition-colors ${savedTab === 'dataSource' ? 'bg-[#0f5b9e] text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                >
+                  뷰그룹 데이터 <span className="opacity-70">({dataSourceDefs.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSavedTab('placeholder')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold border-l border-slate-200 transition-colors ${savedTab === 'placeholder' ? 'bg-amber-500 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                >
+                  플레이스홀더 <span className="opacity-70">({placeholderDefs.length})</span>
+                </button>
+              </div>
+            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="block text-xs font-semibold text-slate-600">저장된 뷰그룹 데이터 (연동 Redis 키 등록분)</label>
-              {dataSourceDefs.length === 0 ? (
-                <p className="text-[11px] text-slate-400 italic">저장된 쿼리 없음</p>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between gap-2 px-2.5">
-                    <div className="flex-1 min-w-0 grid grid-cols-2 gap-3">
-                      <span className="text-[10px] font-semibold text-slate-400">뷰그룹 데이터</span>
-                      <span className="text-[10px] font-semibold text-slate-400 border-l border-slate-200 pl-3">키 데이터</span>
+            {savedTab === 'dataSource' && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] text-slate-400 leading-snug">뷰그룹에서 직접 고르는 데이터 목록입니다(연동 Redis 키 등록분). 위젯 값이 여기 선택으로 스코핑됩니다.</p>
+                {dataSourceDefs.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">저장된 쿼리 없음</p>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-2 px-2.5">
+                      <div className="flex-1 min-w-0 grid grid-cols-2 gap-3">
+                        <span className="text-[10px] font-semibold text-slate-400">뷰그룹 데이터</span>
+                        <span className="text-[10px] font-semibold text-slate-400 border-l border-slate-200 pl-3">키 데이터</span>
+                      </div>
+                      <span className="w-[52px] flex-shrink-0" />
                     </div>
-                    <span className="w-[52px] flex-shrink-0" />
-                  </div>
-                  {dataSourceDefs.map((d) => (
+                    {dataSourceDefs.map((d) => (
+                      <div
+                        key={d.dbQueryId}
+                        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md border ${
+                          editingId === d.dbQueryId ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0 grid grid-cols-2 gap-3">
+                          <div className="min-w-0">
+                            <div className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
+                              <span className="truncate">{d.queryName}</span>
+                              <span
+                                className={`flex-shrink-0 text-[9px] px-1 py-0.5 rounded font-semibold ${
+                                  d.scopeType === 'ALL' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                                }`}
+                              >
+                                {d.scopeType === 'ALL' ? '전체' : '개별'}
+                              </span>
+                            </div>
+                            {d.description && <div className="text-[10px] text-slate-400 truncate">{d.description}</div>}
+                          </div>
+                          <div className="min-w-0 border-l border-slate-200 pl-3 flex flex-col gap-0.5">
+                            {(d.redisKeys?.length ?? 0) > 0 ? (
+                              d.redisKeys!.map((rk, i) => (
+                                <div
+                                  key={i}
+                                  className="text-[10px] font-mono text-emerald-600 truncate"
+                                  title={`${rk.label} = ${rk.key}${rk.keyTemplate ? ` (필드: ${rk.keyTemplate})` : ''}`}
+                                >
+                                  {rk.label}: {rk.key}
+                                  {rk.keyTemplate && <span className="text-sky-600"> ={rk.keyTemplate}</span>}
+                                </div>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-slate-300 italic">연동 키 없음</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button onClick={() => handleEdit(d)} className="p-1 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleCloneDef(d)}
+                            className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                            title="복제"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteDef(d.dbQueryId)}
+                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            title="삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {savedTab === 'placeholder' && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[10px] text-slate-400 leading-snug">
+                  다른 데이터소스가 해시/필드키 조합식에서 <code className="font-mono text-amber-600">{'{이름}'}</code> 토큰으로 참조하는 값 목록입니다. 뷰그룹에서 직접 고르는
+                  항목이 아닙니다.
+                </p>
+                {placeholderDefs.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">등록된 플레이스홀더 없음</p>
+                ) : (
+                  placeholderDefs.map((d) => (
                     <div
                       key={d.dbQueryId}
                       className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md border ${
-                        editingId === d.dbQueryId ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'
+                        editingId === d.dbQueryId ? 'bg-amber-50 border-amber-300' : 'bg-amber-50/40 border-amber-200'
                       }`}
                     >
-                      <div className="flex-1 min-w-0 grid grid-cols-2 gap-3">
-                        <div className="min-w-0">
-                          <div className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
-                            <span className="truncate">{d.queryName}</span>
-                            <span
-                              className={`flex-shrink-0 text-[9px] px-1 py-0.5 rounded font-semibold ${
-                                d.scopeType === 'ALL' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                              }`}
-                            >
-                              {d.scopeType === 'ALL' ? '전체' : '개별'}
-                            </span>
-                          </div>
-                          {d.description && <div className="text-[10px] text-slate-400 truncate">{d.description}</div>}
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
+                          <span className="truncate">{d.queryName}</span>
+                          <span
+                            className={`flex-shrink-0 text-[9px] px-1 py-0.5 rounded font-semibold ${
+                              d.scopeType === 'ALL' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {d.scopeType === 'ALL' ? '전체' : '개별'}
+                          </span>
                         </div>
-                        <div className="min-w-0 border-l border-slate-200 pl-3 flex flex-col gap-0.5">
-                          {(d.redisKeys?.length ?? 0) > 0 ? (
-                            d.redisKeys!.map((rk, i) => (
-                              <div
-                                key={i}
-                                className="text-[10px] font-mono text-emerald-600 truncate"
-                                title={`${rk.label} = ${rk.key}${rk.keyTemplate ? ` (필드: ${rk.keyTemplate})` : ''}`}
-                              >
-                                {rk.label}: {rk.key}
-                                {rk.keyTemplate && <span className="text-sky-600"> ={rk.keyTemplate}</span>}
-                              </div>
-                            ))
-                          ) : (
-                            <span className="text-[10px] text-slate-300 italic">연동 키 없음</span>
-                          )}
-                        </div>
+                        {d.description && <div className="text-[10px] text-slate-400 truncate">{d.description}</div>}
+                        <div className="text-[10px] text-amber-600 font-mono truncate">{`{${d.placeholderName}}`}</div>
                       </div>
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         <button onClick={() => handleEdit(d)} className="p-1 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
@@ -995,56 +1135,10 @@ export default function DataSourceQueryTab() {
                         </button>
                       </div>
                     </div>
-                  ))}
-                </>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="block text-xs font-semibold text-slate-600">저장된 플레이스홀더</label>
-              {placeholderDefs.length === 0 ? (
-                <p className="text-[11px] text-slate-400 italic">등록된 플레이스홀더 없음</p>
-              ) : (
-                placeholderDefs.map((d) => (
-                  <div
-                    key={d.dbQueryId}
-                    className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md border ${
-                      editingId === d.dbQueryId ? 'bg-amber-50 border-amber-300' : 'bg-amber-50/40 border-amber-200'
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
-                        <span className="truncate">{d.queryName}</span>
-                        <span
-                          className={`flex-shrink-0 text-[9px] px-1 py-0.5 rounded font-semibold ${
-                            d.scopeType === 'ALL' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
-                          }`}
-                        >
-                          {d.scopeType === 'ALL' ? '전체' : '개별'}
-                        </span>
-                      </div>
-                      {d.description && <div className="text-[10px] text-slate-400 truncate">{d.description}</div>}
-                      <div className="text-[10px] text-amber-600 font-mono truncate">{`{${d.placeholderName}}`}</div>
-                    </div>
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      <button onClick={() => handleEdit(d)} className="p-1 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleCloneDef(d)} className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="복제">
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteDef(d.dbQueryId)}
-                        className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
 

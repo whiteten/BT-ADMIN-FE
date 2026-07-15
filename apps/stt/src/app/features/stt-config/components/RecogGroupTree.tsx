@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetCodes } from '../hooks/useCommonQueries';
+import { ENGINE_KIND_OPTIONS } from '../constants/sttCodeConstants';
 import { recogQueryKeys, useDeleteRecogGroup, useGetRecogGroupList } from '../hooks/useRecogQueries';
 import type { RecogGroupItem } from '../types';
 import RecogGroupEditModal, { type RecogGroupEditModalRef } from './RecogGroupEditModal';
@@ -38,12 +38,12 @@ interface RecogTreeNode {
 export default function RecogGroupTree({ selection, onSelectEngine, onSelectGroup, onGroupDeleted, onGroupUpdated }: RecogGroupTreeProps) {
   const queryClient = useQueryClient();
   const modal = useModal();
-  const { data: engines = [], isLoading: isEnginesLoading } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
+  const engines = ENGINE_KIND_OPTIONS;
   const { data: groupList = [], isLoading: isGroupLoading } = useGetRecogGroupList();
   const editModalRef = useRef<RecogGroupEditModalRef>(null);
   const initialized = useRef(false);
 
-  const isLoading = isEnginesLoading || isGroupLoading;
+  const isLoading = isGroupLoading;
 
   useEffect(() => {
     if (isLoading || initialized.current) return;

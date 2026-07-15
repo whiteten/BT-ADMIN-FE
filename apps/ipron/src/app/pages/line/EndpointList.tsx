@@ -20,7 +20,7 @@ import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChanged
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
 import EndpointMemberDrawer, { type EndpointMemberDrawerRef } from '../../features/endpoint/components/EndpointMemberDrawer';
@@ -51,6 +51,7 @@ import {
 } from '../../features/endpoint/types';
 import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -59,6 +60,30 @@ const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { tit
 type BottomTab = 'member' | 'regnum';
 
 const TRANSPORT_LABELS: Record<number, string> = Object.fromEntries(TRANSPORT_OPTIONS.map((o) => [o.value, o.label]));
+
+/**
+ * 리스트형 표기의 컬럼 정의. 헤더와 데이터 행이 같은 폭 클래스를 참조해야 열이 어긋나지 않는다.
+ * 폭은 고정 px 가 아니라 비율(flex-[n]) — 넓은 화면에서 우측이 비지 않도록 남는 공간을 나눠 갖는다.
+ * min-w 는 좁은 화면에서 글자가 뭉개지지 않게 하는 하한선.
+ * 장비위치·라우팅위치는 대부분 미설정(N/A)이라 목록에서 제외했다 — 상세/수정 화면에서 확인.
+ */
+const LIST_COLUMNS: { key: string; label: string; width: string; align?: string }[] = [
+  { key: 'name', label: '국선명', width: 'flex-[2.2] min-w-[150px]' },
+  { key: 'type', label: '구분', width: 'flex-[1.1] min-w-[80px]' },
+  { key: 'profile', label: 'SIP 프로파일', width: 'flex-[1.5] min-w-[110px]' },
+  { key: 'node', label: '노드', width: 'flex-[1] min-w-[70px]' },
+  { key: 'maxchnl', label: '최대채널', width: 'flex-[0.9] min-w-[64px]', align: 'text-right' },
+  { key: 'obchnl', label: 'O/B채널', width: 'flex-[0.9] min-w-[64px]', align: 'text-right' },
+  { key: 'vendor', label: 'SSW 벤더', width: 'flex-[1.2] min-w-[90px]' },
+  { key: 'alloc', label: '서버 할당방식', width: 'flex-[1.4] min-w-[100px]' },
+  { key: 'reg', label: 'REG 방식', width: 'flex-[1.4] min-w-[100px]' },
+  { key: 'monitor', label: '모니터링', width: 'flex-[0.9] min-w-[64px]', align: 'text-center' },
+  { key: 'block', label: '블럭여부', width: 'flex-[0.9] min-w-[64px]', align: 'text-center' },
+  { key: 'status', label: '상태', width: 'flex-[0.9] min-w-[64px]', align: 'text-center' },
+];
+
+/** 컬럼키 → 폭·정렬 클래스. 데이터 행이 헤더와 같은 정의를 참조하도록 하는 용도. */
+const COL: Record<string, string> = Object.fromEntries(LIST_COLUMNS.map((c) => [c.key, `${c.width} ${c.align ?? ''}`]));
 
 export default function EndpointList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -82,6 +107,8 @@ export default function EndpointList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedEndpointId, setSelectedEndpointId] = useState<number | null>(initEndptId);
+  // 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 고정(변경 시 사용자 선택 초기화됨).
+  const [viewMode, setViewMode] = useViewMode('ipron-endpoint');
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
   const [filterEndptType, setFilterEndptType] = useState<number | null>(null);
@@ -400,19 +427,23 @@ export default function EndpointList() {
         },
       },
       {
+        // 감시 상태는 Redis 실시간 값(교환기가 올림). 0=정상 / 2=미사용 / 그 외=에러 / 값 없음=공백.
+        // AS-IS(IPR20S1010 Formatter.monState)와 동일한 매핑 — DB 의 MON_STATE 는 초기 설정값이라 쓰지 않는다.
         headerName: '모니터링 상태',
         field: 'monState',
         flex: 1,
         minWidth: 90,
         filterValueGetter: (params) => {
           const v = params.data?.monState;
+          if (v == null) return '';
           if (v === 0) return '정상';
           if (v === 2) return '미사용';
-          return '장애';
+          return '에러';
         },
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.monState;
+          if (v == null) return null;
           if (v === 0)
             return (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
@@ -427,18 +458,20 @@ export default function EndpointList() {
             );
           return (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              장애
+              에러
             </span>
           );
         },
       },
       {
+        // 등록 상태도 Redis 실시간 값. 1=등록 / 2=미사용 / 그 외=미등록 / 값 없음=공백.
         headerName: '장비 등록 상태',
         field: 'regState',
         flex: 1,
         minWidth: 90,
         filterValueGetter: (params) => {
           const v = params.data?.regState;
+          if (v == null) return '';
           if (v === 1) return '등록';
           if (v === 2) return '미사용';
           return '미등록';
@@ -446,6 +479,7 @@ export default function EndpointList() {
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.regState;
+          if (v == null) return null;
           if (v === 1)
             return (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
@@ -648,14 +682,83 @@ export default function EndpointList() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 (항상 펼침) ===== */}
+        {/* ===== 국선 목록 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body — 높이 고정 */}
-          <div className="flex items-center px-4 py-3 h-[185px]">
+          {/* 목록 헤더: 타이틀 + 건수 / 우측 표기방식 토글 */}
+          <div className="flex items-center gap-2 px-4 h-[44px] border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">국선</span>
+            <span className="text-xs text-gray-400">{filteredEndpoints.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 세로 스크롤 */}
+          <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[185px]' : 'h-[240px]'}`}>
             {filteredEndpoints.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
                 <Empty description={false} imageStyle={{ height: 40 }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
+              </div>
+            ) : viewMode === VIEW_MODE.LIST ? (
+              // 리스트형 — 헤더 + 표 형태. 컬럼 폭은 헤더와 행이 같은 상수를 써서 어긋나지 않게 한다.
+              // 장비위치·라우팅위치는 대부분 N/A 라 목록에서 제외(상세/수정 화면에서 확인).
+              <div className="flex flex-col w-full h-full min-w-0">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-y border-gray-200 text-[11px] font-semibold text-gray-500 flex-shrink-0">
+                  {LIST_COLUMNS.map((c) => (
+                    <span key={c.key} className={`${c.width} ${c.align ?? ''} truncate`}>
+                      {c.label}
+                    </span>
+                  ))}
+                  <span className="w-6 flex-shrink-0" />
+                </div>
+                <div className="flex flex-col overflow-y-auto divide-y divide-gray-100">
+                  {filteredEndpoints.map((ep) => {
+                    const isRowSelected = selectedEndpointId === ep.endptId;
+                    const status = getEndpointStatusInfo(ep);
+                    return (
+                      <div
+                        key={ep.endptId}
+                        id={`ep-row-${ep.endptId}`}
+                        className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors text-xs ${isRowSelected ? 'bg-[#405189]/5' : 'hover:bg-gray-50'}`}
+                        onClick={() => handleCardSelect(ep)}
+                        onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
+                      >
+                        <span className={`${COL.name} truncate text-sm font-semibold text-gray-800`}>{ep.endptName}</span>
+                        <span className={`${COL.type} truncate text-gray-600`}>{ENDPOINT_TYPE_LABELS[ep.endptType] ?? '-'}</span>
+                        <span className={`${COL.profile} truncate text-gray-600`}>{ep.sipProfileName ?? '-'}</span>
+                        <span className={`${COL.node} truncate text-gray-600`}>{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
+                        <span className={`${COL.maxchnl} text-gray-600`}>{ep.endptMaxchnl ?? 0}</span>
+                        <span className={`${COL.obchnl} text-gray-600`}>{ep.endptDodchnl ?? 0}</span>
+                        <span className={`${COL.vendor} truncate text-gray-600`}>{ep.sswVendor != null ? (SSW_VENDOR_LABELS[ep.sswVendor] ?? '-') : '-'}</span>
+                        <span className={`${COL.alloc} truncate text-gray-600`}>{ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
+                        <span className={`${COL.reg} truncate text-gray-600`}>{REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
+                        <span className={`${COL.monitor} text-gray-600`}>{ep.monitorYn === 1 ? 'ON' : 'OFF'}</span>
+                        <span className={COL.block}>
+                          <span
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              ep.blockYn === 1 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'
+                            }`}
+                          >
+                            {ep.blockYn === 1 ? '설정' : '해제'}
+                          </span>
+                        </span>
+                        <span className={COL.status}>
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ color: status.color, backgroundColor: status.bgColor }}>
+                            {status.label}
+                          </span>
+                        </span>
+                        <div onClick={(e) => e.stopPropagation()} className="w-6 flex-shrink-0">
+                          <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
+                            <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                              <MoreVertical className="size-3.5 text-gray-400" />
+                            </button>
+                          </Dropdown>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">

@@ -157,18 +157,19 @@ export function maskEntitySegment(realKey: string, defs: RedisKeyDefinitionsResp
 }
 
 /**
- * fieldKey가 복합 필드(2개 이상 파트로 나뉘는 필드)인지 판별한다. YAML에 정의가 있고 파트가 2개 이상이면
- * 선언된 고정길이 합보다 fieldKey가 더 길 때만 복합으로 본다(고정길이 합과 같거나 짧으면 아직 나머지
- * 파트가 없는 것 — 사실상 항상 있어야 정상이라 이 경우도 legacy 규칙으로 폴백). 정의가 없거나 단일
- * 파트면 레거시 16자리 정규식으로 폴백(SYSTEM_* 등 이번 범위 밖 키에도 안전).
+ * fieldKey가 복합 필드(2개 이상 파트로 나뉘는 필드)인지 판별한다. **오직 YAML 정의가 있고 파트가 2개
+ * 이상일 때만** 복합으로 본다 — 선언된 고정길이 합보다 fieldKey가 더 길면 복합.
+ *
+ * [2026-07-13] 예전엔 정의가 없으면 레거시 `/^\d{16}$/`(16자리 숫자)로 폴백했으나, 그러면 IC가 아닌
+ * 임의 Redis 해시라도 필드ID가 우연히 16자리 숫자면 SYSTEM_ID(10)+NODE_ID(6) 복합으로 오인해 행을
+ * 잘못 합쳐버렸다(사용자 확정 — 오탐 제거). 이제 복합 처리는 YAML에 등록된 키에만 적용되고, 정의 없는
+ * 임의 해시는 항상 "필드 1개 = 행 1개"로 generic하게 동작한다.
  */
 export function isCompositeFieldKey(fieldKey: string, definitionName: string | undefined, defs: RedisKeyDefinitionsResponse): boolean {
   const def = definitionName ? defs.keyDefinitions[definitionName] : undefined;
-  if (def && def.fieldParts.length > 1) {
-    const fixedLenSum = def.fieldLengths.filter((l) => l > 0).reduce((a, b) => a + b, 0);
-    return fieldKey.length > fixedLenSum;
-  }
-  return /^\d{16}$/.test(fieldKey);
+  if (!def || def.fieldParts.length <= 1) return false;
+  const fixedLenSum = def.fieldLengths.filter((l) => l > 0).reduce((a, b) => a + b, 0);
+  return fieldKey.length > fixedLenSum;
 }
 
 /** 복합 필드의 첫 파트(예: SYSTEM_ID/groupId)만 추출 — YAML 정의 있으면 그 기준, 없으면 앞 10자리 레거시 규칙 */

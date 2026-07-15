@@ -4,9 +4,7 @@ export interface TaskboardBg {
   pageName: string;
   fileName: string;
   /** 등록자 로그인 계정 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
-  createUserLoginId?: string;
-  /** 등록자 사용자 ID(시스템 PK) — 서버가 세션 기준으로 자동 기록 */
-  createUserId?: number;
+  createUserId?: string;
   genType: string;
   useYn: string;
   regDt: string;
@@ -21,8 +19,8 @@ export interface TaskboardLayout {
   fileName?: string; // bg 이미지 URL
   layoutName: string;
   layoutJson?: string;
-  authorName?: string; // 등록자 이름
-  authRole?: string; // 등록자 권한 역할코드
+  /** 등록자 로그인 계정 — 서버가 세션(로그인 사용자) 기준으로 자동 기록, 클라이언트에서 입력/변경 불가 */
+  createUserId?: string;
   useYn: string;
   regDt: string;
 }

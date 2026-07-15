@@ -5,15 +5,17 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Dropdown } from 'antd';
 import dayjs from 'dayjs';
 import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../../features/stt-config/components/ExcelImportResultModal';
 import PaGroupTree from '../../features/stt-config/components/PaGroupTree';
 import SttDnDrawer, { type SttDnDrawerRef } from '../../features/stt-config/components/SttDnDrawer';
+import { PA_GROUP_OPTIONS } from '../../features/stt-config/constants/sttCodeConstants';
 import { dnQueryKeys, useDeleteSttDn, useExportSttDn, useGetSttDnList, useImportSttDn } from '../../features/stt-config/hooks/useDnQueries';
 import type { CodeItem, SttDictionaryItem, SttDnItem, SttDnSearchParams } from '../../features/stt-config/types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
 import NoData from '@/components/custom/NoData';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -24,6 +26,9 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const PAGE_SIZE = 20;
+
+/** hostName(PA 그룹 코드) → 라벨. BE 는 코드만 내려주고 라벨은 FE 상수에서 해석한다. */
+const PA_GROUP_LABEL_BY_CODE: Record<string, string> = Object.fromEntries(PA_GROUP_OPTIONS.map((g) => [g.code, g.value]));
 
 function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
   const isUsed = value === '1' || value === 1;
@@ -71,6 +76,14 @@ export default function DnList() {
   const drawerRef = useRef<SttDnDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
   const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
+
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): apiClient 가 X-Act-As-Tenant 주입 → X 테넌트로 조회 스코프
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useState<SttDnSearchParams | null>(null);
@@ -153,7 +166,7 @@ export default function DnList() {
       cellRenderer: UseYnCellRenderer,
     },
     { headerName: '상담원ID', field: 'agentId', flex: 2 },
-    { headerName: '시스템그룹', field: 'hostName', flex: 2 },
+    { headerName: '시스템그룹', field: 'hostName', flex: 2, valueFormatter: ({ value }) => PA_GROUP_LABEL_BY_CODE[value] ?? value },
     { headerName: '수정일시', field: 'saFinshDate', flex: 2, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
     {
       headerName: '',
@@ -180,6 +193,17 @@ export default function DnList() {
         <div className="flex-1 min-h-0 bg-white bt-shadow overflow-hidden flex flex-col">
           {/* 검색 필터 */}
           <div className="flex items-center gap-4 flex-wrap px-5 py-4 shrink-0">
+            {operatorMode && (
+              <ScopeSelect
+                kind="tenant"
+                options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+                value={actAsTenantId}
+                onChange={(id) => {
+                  setActAsTenant(id);
+                  void queryClient.invalidateQueries({ queryKey: dnQueryKeys._def });
+                }}
+              />
+            )}
             <div className="flex items-center gap-2 ml-auto">
               <Button
                 type="primary"

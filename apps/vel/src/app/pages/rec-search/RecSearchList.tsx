@@ -14,7 +14,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Form, Input, Modal, Pagination, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { downloadBlob, extractFileName, toast } from '@/shared-util';
+import { downloadBlob, extractFileName, toast, withBasePath } from '@/shared-util';
 import { useGetTenants } from '../../features/common/hooks/useCommonQueries';
 import { recSearchApi } from '../../features/rec-search/api/recSearchApi';
 import RecInfoUpdateModal, { type RecInfoUpdateModalRef } from '../../features/rec-search/components/RecInfoUpdateModal';
@@ -277,7 +277,7 @@ export default function RecSearchList() {
     const screenH = window.innerHeight || document.documentElement.clientHeight || window.screen.height;
     const left = Math.max(0, dualLeft + (screenW - w) / 2);
     const top = Math.max(0, dualTop + (screenH - h) / 2);
-    window.open(`/vel/rec-search/player?playerId=${key}`, `RecPlayer-${key}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    window.open(withBasePath(`/vel/rec-search/player?playerId=${key}`), `RecPlayer-${key}`, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
   const handlePlay = (row: RecFileListItem) => openPlayer([row], 0);
@@ -301,7 +301,7 @@ export default function RecSearchList() {
     (Object.entries(searchParams) as [string, string | number | undefined][]).forEach(([k, v]) => {
       if (v !== undefined && v !== null) qs.append(k, String(v));
     });
-    window.open(`/api/bff/vel-rec-excel?${qs.toString()}`, '_blank');
+    window.open(withBasePath(`/api/bff/vel-rec-excel?${qs.toString()}`), '_blank');
   };
 
   const handleDownload = async () => {

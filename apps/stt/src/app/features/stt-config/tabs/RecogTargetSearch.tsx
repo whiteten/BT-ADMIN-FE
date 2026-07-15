@@ -5,6 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { PlayCircle, StopCircle } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { recogQueryKeys, useCreateRecogTarget, useGetRecogTargetSearch } from '../hooks/useRecogQueries';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
@@ -132,6 +133,11 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<RecogTargetSearchItem>>(null);
 
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — 사전관리 패턴 참고.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
+
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(DEFAULT_START_TIME);
@@ -233,6 +239,9 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       rxtxKind: Number(originData.rxtxKind),
       orgSentence: sentence,
       engineCode: originData.engineCode,
+      // 등록자(운영자) 본인/대행 테넌트가 아니라 문장 자체의 테넌트로 등록 — 전체 스코프
+      // 검색에서 다른 테넌트의 문장을 등록하는 경우가 있어 강제 치환하지 않는다.
+      tenantId: originData.tenantId,
     });
   };
 
@@ -250,6 +259,13 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
   };
 
   const columnDefs: ColDef<RecogTargetSearchItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     {
       headerName: '',
       colId: 'play',

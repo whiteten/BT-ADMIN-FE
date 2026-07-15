@@ -2,7 +2,8 @@
  * SIP 트렁크(테넌트) 관리 페이지 (SWAT IPR20S3030, GDN_TYPE=18).
  *
  * 멀티테넌트 개편(상담사 관리 정합): 노드 탭바 + 테넌트 카드 슬라이더 → 노드 Select + 테넌트 ScopeSelect + 요약.
- *  - 박스A: 헤더 — 노드 Select(필수) + 테넌트 ScopeSelect(공통[0] 포함, 클라이언트 필터) + 요약(그룹DN/트렁크/채널).
+ *  - 박스A: 헤더 — 노드 Select(필수) + 테넌트 ScopeSelect(클라이언트 필터) + 요약(그룹DN/트렁크/채널).
+ *    ※ 공용 트렁크(테넌트 0)는 이 화면 대상이 아니다 — 별도 화면(CommonTrunkList, /ipron/line/common-trunk)이 담당.
  *  - 박스B: 메인 2-패널 (좌 그룹DN 단일선택 / 우 SIP 트렁크 다중선택 — N:N 데이터, 1:N 행위)
  *  - floating bulk-bar: 그룹DN 1 × 트렁크 N → 배정 / 해제 / 선택 해제
  *
@@ -15,11 +16,11 @@ import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-gri
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Cable, LayoutGrid, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import SipGdnDrawer, { type SipGdnDrawerRef } from '../../features/sip-trunk/components/SipGdnDrawer';
 import SipTrunkAssignDrawer from '../../features/sip-trunk/components/SipTrunkAssignDrawer';
 import SipTrunkDrawer, { type SipTrunkDrawerRef } from '../../features/sip-trunk/components/SipTrunkDrawer';
@@ -55,20 +56,11 @@ export default function SipTrunkList() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   const modal = useModal();
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
   const { gridOptions: baseGridOptions } = useAggridOptions();
   const trunkGridRef = useRef<AgGridReactType<SipTrunkMemberResponse>>(null);
   const hasInitNodeRef = useRef(false);
 
   // ─── State ────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  // 운영자 전용 테넌트 필터. 일반 모드는 토큰 테넌트(ctx)로 스코프되어 UI 미노출.
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // null=전체(클라이언트 필터)
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   const [topSearch, setTopSearch] = useState('');
   const [gdnSearch, setGdnSearch] = useState('');
   const [selectedGdn, setSelectedGdn] = useState<SipGdnResponse | null>(null);
@@ -84,8 +76,20 @@ export default function SipTrunkList() {
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
-  const { data: nodeTenants = [] } = useGetNodeTenants();
+
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    nodes,
+    tenants: tenantOptions,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+    selectedTenantName,
+  } = useNodeTenantScope(allNodes);
+
   const { data: nodeSummaries = [] } = useGetSipTrunkNodes({ params: { tenantScope: 'tenant' } });
 
   const gdnListParams = useMemo(() => {
@@ -112,43 +116,23 @@ export default function SipTrunkList() {
   const allTrunksRef = useRef(allTrunks);
   allTrunksRef.current = allTrunks;
 
-  // ─── Derived: 노드 옵션 ─────────────────────────────────────────────────────
-  const assignedNodes = useMemo(() => {
-    const ids = new Set(nodeTenants.map((nt) => nt.nodeId));
-    const filtered = nodes.filter((n) => ids.has(n.nodeId));
-    return filtered.length > 0 ? filtered : nodes;
-  }, [nodes, nodeTenants]);
-
-  // ─── Derived: 테넌트 필터 옵션 (로드된 그룹DN 기준 distinct + 그룹DN 수) ────────────
-  const tenantOptions = useMemo(() => {
-    const map = new Map<number, { id: number; name: string; count: number }>();
-    for (const g of gdns) {
-      if (g.tenantId == null) continue;
-      if (!map.has(g.tenantId)) {
-        map.set(g.tenantId, { id: g.tenantId, name: g.tenantId === 0 ? '공통' : (g.tenantName ?? `테넌트 ${g.tenantId}`), count: 0 });
-      }
-      map.get(g.tenantId)!.count += 1;
-    }
-    return Array.from(map.values()).sort((a, b) => (a.id === 0 ? -1 : b.id === 0 ? 1 : a.name.localeCompare(b.name)));
-  }, [gdns]);
+  // ─── Derived: 테넌트별 그룹DN 건수 (ScopeSelect 뱃지) ──────────────────────────
+  const gdnCountByTenant = new Map<number, number>();
+  for (const g of gdns) {
+    if (g.tenantId == null) continue;
+    gdnCountByTenant.set(g.tenantId, (gdnCountByTenant.get(g.tenantId) ?? 0) + 1);
+  }
 
   // ─── Derived: 그리드 표시용 그룹DN (테넌트 클라이언트 필터) ────────────────────────
   const gdnsForGrid = useMemo(() => (selectedTenantId == null ? gdns : gdns.filter((g) => g.tenantId === selectedTenantId)), [gdns, selectedTenantId]);
 
   // ─── Auto-select 첫 노드 ──────────────────────────────────────────────────
   useEffect(() => {
-    if (assignedNodes.length > 0 && !hasInitNodeRef.current && selectedNodeId == null) {
+    if (nodes.length > 0 && !hasInitNodeRef.current && selectedNodeId == null) {
       hasInitNodeRef.current = true;
-      setSelectedNodeId(assignedNodes[0].nodeId);
+      setSelectedNodeId(nodes[0].nodeId);
     }
-  }, [assignedNodes, selectedNodeId]);
-
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
+  }, [nodes, selectedNodeId, setSelectedNodeId]);
 
   // 그룹DN 목록 변경 시 선택 무효화만 (자동 선택 제거 — 사용자가 클릭 선택)
   useEffect(() => {
@@ -172,22 +156,28 @@ export default function SipTrunkList() {
   }, [selectedTrunks, selectedGdn]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleNodeChange = useCallback((nodeId: number) => {
-    setSelectedNodeId(nodeId);
-    setTenantFilter(null);
-    setTopSearch('');
-    setGdnSearch('');
-    setSelectedGdn(null);
-    setSelectedTrunks([]);
-    setLockedTenantId(null);
-  }, []);
+  const handleNodeChange = useCallback(
+    (nodeId: number) => {
+      setSelectedNodeId(nodeId);
+      setTenantFilter(null);
+      setTopSearch('');
+      setGdnSearch('');
+      setSelectedGdn(null);
+      setSelectedTrunks([]);
+      setLockedTenantId(null);
+    },
+    [setSelectedNodeId, setTenantFilter],
+  );
 
-  const handleTenantChange = useCallback((id: string | null) => {
-    setTenantFilter(id == null ? null : Number(id));
-    setSelectedGdn(null);
-    setSelectedTrunks([]);
-    setLockedTenantId(null);
-  }, []);
+  const handleTenantChange = useCallback(
+    (id: string | null) => {
+      setTenantFilter(id == null ? null : Number(id));
+      setSelectedGdn(null);
+      setSelectedTrunks([]);
+      setLockedTenantId(null);
+    },
+    [setTenantFilter],
+  );
 
   // ─── Mutations ──────────────────────────────────────────────────────────
   const { mutate: deleteGdns } = useDeleteSipGdns({
@@ -537,8 +527,7 @@ export default function SipTrunkList() {
   }, [members, kindFilter, allTrunks, lockedTenantId]);
 
   const selectedNode = nodes.find((n) => n.nodeId === selectedNodeId);
-  const selectedTenant = tenantOptions.find((t) => t.id === selectedTenantId) ?? null;
-  const contextLabel = `${selectedNode?.nodeName ?? '-'} · ${selectedTenant?.name ?? '전체'}`;
+  const contextLabel = `${selectedNode?.nodeName ?? '-'} · ${selectedTenantName || '전체'}`;
   const drNodeOptions = useMemo(() => nodes.filter((n) => n.nodeId !== selectedNodeId), [nodes, selectedNodeId]);
 
   const totalNodeSummary = useMemo(() => {
@@ -561,16 +550,16 @@ export default function SipTrunkList() {
               value={selectedNodeId ?? undefined}
               onChange={handleNodeChange}
               placeholder="노드 선택"
-              options={assignedNodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
+              options={nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
               style={{ width: 150 }}
               popupMatchSelectWidth={false}
             />
           </div>
-          {/* 테넌트 필터 (공통 포함, 클라이언트 필터) — 운영자 모드에서만 노출 */}
+          {/* 테넌트 필터 (클라이언트 필터) — 운영자 모드에서만 노출 */}
           {operatorMode && (
             <ScopeSelect
               kind="tenant"
-              options={tenantOptions.map((t) => ({ id: t.id, name: t.name, count: t.count }))}
+              options={tenantOptions.map((t) => ({ id: t.tenantId, name: t.tenantName, count: gdnCountByTenant.get(t.tenantId) ?? 0 }))}
               value={tenantFilter == null ? null : String(tenantFilter)}
               onChange={handleTenantChange}
             />
@@ -781,7 +770,7 @@ export default function SipTrunkList() {
 
       {/* Drawers */}
       <SipGdnDrawer ref={gdnDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} drNodeOptions={drNodeOptions} />
-      <SipTrunkDrawer ref={trunkDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} tenantName={selectedTenant?.name ?? null} drNodeOptions={drNodeOptions} />
+      <SipTrunkDrawer ref={trunkDrawerRef} nodeId={selectedNodeId} tenantId={selectedTenantId} tenantName={selectedTenantName || null} drNodeOptions={drNodeOptions} />
       <SipTrunkAssignDrawer
         open={assignDrawerOpen}
         gdnId={selectedGdn?.gdnId ?? null}

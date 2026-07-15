@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Maximize2 } from 'lucide-react';
 import { useAgentChatStore, useLayoutStore, useOperatorScopeStore } from '@/shared-store';
+import { withBasePath } from '@/shared-util';
 import { useCanUseAgentChat } from './hooks/useCanUseAgentChat';
 import TenantChip from '../../components/TenantChip';
 import UserMenuSelector from '../../components/UserMenuSelector';
@@ -29,7 +30,7 @@ export default function TopHeader() {
     >
       {/* 좌측: 로고 */}
       <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center">
-        <img src="/assets/images/ci-white.svg" alt="CI" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
+        <img src={withBasePath('/assets/images/ci-white.svg')} alt="CI" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
       </div>
 
       {/* 정중앙: 통합 검색 — 640px 미만(sm 이하)에서는 좁아 충돌하므로 숨김 */}

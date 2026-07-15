@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
 import { useAuthStore, useNavigationStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { stripBasePath, toast } from '@/shared-util';
 import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
 import { useQuerySelectorsLoader } from './hooks/useQuerySelectorsLoader';
 import { useRemoteRoutesLoader } from './hooks/useRemoteRoutesLoader';
@@ -31,7 +31,7 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
   usePageVariantsLoader();
 
   const handleWsClose = () => {
-    if (window.location.pathname === '/login') {
+    if (stripBasePath(window.location.pathname) === '/login') {
       Log.warn('WS closed on login page. Skip ticket refetch.');
       return;
     }

@@ -568,7 +568,7 @@ export default function SleeConfigList() {
                 style={{ width: 200 }}
               />
               <Button color="blue" variant="filled" icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
-                이력
+                적용 이력
               </Button>
               <Button
                 variant="solid"

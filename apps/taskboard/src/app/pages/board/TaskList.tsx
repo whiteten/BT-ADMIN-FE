@@ -5,7 +5,10 @@ import dayjs from 'dayjs';
 import { X } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
+import TenantBadge from '../../features/board/components/TenantBadge';
 import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardDisplayList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
 import { type TaskboardLayout, parseLayoutSections, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
@@ -36,14 +39,46 @@ function saveLastSectionMap(layoutId: number, map: Record<string, number>) {
   }
 }
 
+const LAST_SINGLE_DISPLAY_PREFIX = 'taskboard:lastDisplay:';
+
+/** 단일(구역 없음) 모드에서 레이아웃별로 가장 최근에 실행한 뷰 그룹 id를 불러온다 — 없으면 '' */
+function loadLastSingleDisplay(layoutId: number): number | '' {
+  try {
+    const raw = localStorage.getItem(`${LAST_SINGLE_DISPLAY_PREFIX}${layoutId}`);
+    const n = raw ? Number(raw) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : '';
+  } catch {
+    return '';
+  }
+}
+
+/** 단일 모드 실행 시점에 선택한 뷰 그룹 id를 저장 — 다음에 이 레이아웃을 열면 그대로 세팅됨 */
+function saveLastSingleDisplay(layoutId: number, displayId: number) {
+  try {
+    localStorage.setItem(`${LAST_SINGLE_DISPLAY_PREFIX}${layoutId}`, String(displayId));
+  } catch {
+    // localStorage 사용 불가 환경 — 무시
+  }
+}
+
 // ─── 뷰 그룹 선택 팝오버 — 전광판(레이아웃)과 뷰 그룹은 매핑되지 않는 별개 풀이라, 전체 뷰 그룹 중 아무거나 즉시 선택해 실행한다 ───
 function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; onClose: () => void }) {
   const navigate = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const { data: displays = [], isLoading } = useGetTaskboardDisplayList();
-  const sections = parseLayoutSections(layout.layoutJson);
+  // 저장된 sections 배열에 남아있어도 실제 위젯이 쓰지 않는 구역은 제외(구역을 뺐는데도 실행 선택에 뜨던 문제 방지).
+  const usedSections = new Set(
+    parseLayoutWidgets(layout.layoutJson)
+      .map((w) => w.sectionKey)
+      .filter((k): k is string => !!k),
+  );
+  const sections = parseLayoutSections(layout.layoutJson).filter((s) => usedSections.has(s));
   const hasSections = sections.length > 0;
   const [sectionDisplayMap, setSectionDisplayMap] = useState<Record<string, number>>(() => loadLastSectionMap(layout.layoutId));
+  // 단일(구역 없음) 모드 — 뷰 그룹 하나 선택 (마지막 실행 선택을 localStorage에서 복원)
+  const [singleDisplayId, setSingleDisplayId] = useState<number | ''>(() => loadLastSingleDisplay(layout.layoutId));
+  const singleViewPath = singleDisplayId ? `/taskboard/board/task-view/${layout.layoutId}/${singleDisplayId}` : null;
+  const singlePublicPath = singleDisplayId ? `/taskboard/board/task-view-public/${layout.layoutId}/${singleDisplayId}` : null;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -183,47 +218,67 @@ function DisplayPickerPopover({ layout, onClose }: { layout: TaskboardLayout; on
             </div>
           </div>
         ) : (
-          /* 기존 단일 뷰 그룹 모드 */
-          <div className="max-h-72 overflow-y-auto">
+          /* 단일 뷰 그룹 모드 — 구역 모드와 동일한 구조(뷰 그룹 select 1개 + 실행 버튼 3개) */
+          <div className="p-4 flex flex-col gap-3">
             {isLoading ? (
-              <div className="py-8 text-center text-sm text-slate-400">불러오는 중...</div>
+              <div className="py-4 text-center text-sm text-slate-400">불러오는 중...</div>
             ) : displays.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-400 px-5">등록된 뷰 그룹이 없습니다.</div>
+              <div className="py-4 text-center text-sm text-slate-400">등록된 뷰 그룹이 없습니다.</div>
             ) : (
-              displays.map((d) => {
-                const viewPath = `/taskboard/board/task-view/${layout.layoutId}/${d.displayId}`;
-                const publicPath = `/taskboard/board/task-view-public/${layout.layoutId}/${d.displayId}`;
-                return (
-                  <div key={d.displayId} className="flex items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
-                    <button onClick={() => navigate(viewPath)} className="flex-1 flex items-center justify-between px-5 py-3 text-left">
-                      <span className="text-sm font-semibold text-slate-700 truncate">{d.displayName}</span>
-                      <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">#{d.displayId}</span>
-                    </button>
-                    <button
-                      title="새 창으로 열기 (로그인 필요)"
-                      onClick={() => window.open(viewPath, `taskview_${layout.layoutId}_${d.displayId}`, 'noopener,noreferrer')}
-                      className="flex-shrink-0 px-2.5 py-3 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                        <polyline points="15 3 21 3 21 9" />
-                        <line x1="10" y1="14" x2="21" y2="3" />
-                      </svg>
-                    </button>
-                    <button
-                      title="공개 링크 복사 (로그인 없이 접근 가능)"
-                      onClick={() => copyPublicUrlForDisplay(publicPath)}
-                      className="flex-shrink-0 px-2.5 py-3 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })
+              <div>
+                <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">뷰 그룹</label>
+                <select
+                  value={singleDisplayId}
+                  onChange={(e) => setSingleDisplayId(Number(e.target.value))}
+                  className="w-full text-sm border border-slate-200 rounded px-3 py-2 bg-white focus:outline-none focus:border-[#0f5b9e]"
+                >
+                  <option value="">뷰 그룹 선택...</option>
+                  {displays.map((d) => (
+                    <option key={d.displayId} value={d.displayId}>
+                      {d.displayName}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
+            <div className="flex flex-col gap-2 mt-1">
+              <button
+                disabled={!singleViewPath}
+                onClick={() => {
+                  if (!singleViewPath) return;
+                  saveLastSingleDisplay(layout.layoutId, Number(singleDisplayId));
+                  navigate(singleViewPath);
+                }}
+                className="w-full py-2 text-xs font-bold text-white bg-[#0f5b9e] rounded-lg hover:bg-[#0d4f8a] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                현재 화면에서 실행
+              </button>
+              <div className="flex gap-2">
+                <button
+                  disabled={!singleViewPath}
+                  onClick={() => {
+                    if (!singleViewPath) return;
+                    saveLastSingleDisplay(layout.layoutId, Number(singleDisplayId));
+                    window.open(singleViewPath, `taskview_${layout.layoutId}_${singleDisplayId}`, 'noopener,noreferrer');
+                  }}
+                  className="flex-1 py-2 text-xs font-semibold text-[#0f5b9e] bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  새창으로 실행
+                </button>
+                <button
+                  disabled={!singlePublicPath}
+                  onClick={() => {
+                    if (!singlePublicPath) return;
+                    saveLastSingleDisplay(layout.layoutId, Number(singleDisplayId));
+                    copyPublicUrlForDisplay(singlePublicPath);
+                  }}
+                  title="로그인 없이 접근 가능한 공개 링크"
+                  className="flex-1 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  공개 링크 복사
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -243,6 +298,7 @@ export default function TaskList() {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { guardWrite } = useTaskboardWriteGuard();
   const { data: layoutList = [], isLoading } = useGetTaskboardLayoutList();
   const { mutateAsync: deleteLayout } = useDeleteTaskboardLayout();
   const [deleteTarget, setDeleteTarget] = useState<TaskboardLayout | null>(null);
@@ -262,12 +318,14 @@ export default function TaskList() {
   };
 
   const goToCreate = (layout: TaskboardLayout) => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 편집(수정) 진입 차단
     const bg = { pageId: layout.pageId, pageName: layout.pageName ?? '', fileName: layout.fileName ?? '', tenantId: '', genType: '', useYn: 'Y', regDt: layout.regDt };
     navigate('/taskboard/board/task-create', { state: { bg, layout } });
   };
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen w-full font-sans">
+      <TaskboardTenantBar />
       {/* 헤더 */}
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
@@ -359,6 +417,9 @@ export default function TaskList() {
                     <div className="pr-2 min-w-0">
                       <h3 className="text-[15px] font-bold truncate text-slate-800">{item.layoutName}</h3>
                       <p className="text-[11px] text-slate-400 mt-0.5 truncate">{item.pageName}</p>
+                      <div className="mt-1">
+                        <TenantBadge tenantId={item.tenantId} />
+                      </div>
                     </div>
                     <span className="flex-shrink-0 text-[10px] px-2 py-1 rounded font-bold border bg-blue-50 text-[#0f5b9e] border-blue-200">사용중</span>
                   </div>

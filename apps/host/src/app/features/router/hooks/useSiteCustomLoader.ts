@@ -2,6 +2,7 @@ import { type ComponentType, useCallback } from 'react';
 import { loadRemote, registerRemotes } from '@module-federation/enhanced/runtime';
 import { LOG } from '@/log';
 import { type SiteOverrideMeta, useSiteCustomStore } from '@/shared-store';
+import { withBasePath } from '@/shared-util';
 
 const Log = new LOG('useSiteCustomLoader');
 
@@ -18,7 +19,8 @@ const Log = new LOG('useSiteCustomLoader');
  * 상세: apps/custom/webpack.config.ts 주석 참조.
  */
 const SITE_REMOTE_NAME = 'custom';
-const SITE_REMOTE_ENTRY_URL = `/remotes/${SITE_REMOTE_NAME}/remoteEntry.js`;
+/** root context(basePath) 배포 대응 — 호출 시점에 base 태그 기준으로 파생 */
+const getSiteRemoteEntryUrl = () => withBasePath(`/remotes/${SITE_REMOTE_NAME}/remoteEntry.js`);
 
 type SiteManifestModule = { siteOverrides?: Record<string, SiteOverrideMeta> };
 
@@ -34,13 +36,14 @@ export function useSiteCustomLoader() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(SITE_REMOTE_ENTRY_URL, { method: 'HEAD', cache: 'no-cache' });
+      const siteRemoteEntryUrl = getSiteRemoteEntryUrl();
+      const res = await fetch(siteRemoteEntryUrl, { method: 'HEAD', cache: 'no-cache' });
       if (!res.ok) {
         Log.debug('custom remote 없음 — 현장 커스텀 비활성 (표준 동작)');
         return;
       }
 
-      registerRemotes([{ name: SITE_REMOTE_NAME, entry: SITE_REMOTE_ENTRY_URL }]);
+      registerRemotes([{ name: SITE_REMOTE_NAME, entry: siteRemoteEntryUrl }]);
 
       // 오버라이드 목록 적재 — picker 카탈로그('커스텀' 카드 노출)의 근거.
       // SiteManifest가 없거나 로드에 실패해도 'site:' componentKey 명시 경로는 동작해야 하므로
@@ -58,7 +61,7 @@ export function useSiteCustomLoader() {
         const module = await loadRemote<{ default: ComponentType }>(`${SITE_REMOTE_NAME}/${exposedPath}`);
         return module?.default ?? null;
       });
-      Log.debug('custom remote 등록 완료:', SITE_REMOTE_ENTRY_URL, '/ overrides:', Object.keys(overrides));
+      Log.debug('custom remote 등록 완료:', siteRemoteEntryUrl, '/ overrides:', Object.keys(overrides));
     } catch (err) {
       Log.warn('custom remote 등록 실패 — 표준 화면으로 동작합니다.', err);
     }

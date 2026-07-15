@@ -13,6 +13,8 @@ import {
   TRANSITION_PREVIEW_CSS,
   parseSelection,
 } from '../../features/board/components/RollingDisplay';
+import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
+import TenantBadge from '../../features/board/components/TenantBadge';
 import {
   useCreateRollingGroup,
   useDeleteRollingGroup,
@@ -21,7 +23,8 @@ import {
   useGetTaskboardLayoutList,
   useUpdateRollingGroup,
 } from '../../features/board/hooks/useTaskboardQueries';
-import { type RollingGroup, type TaskboardDisplay, type TaskboardLayout, parseLayoutSections } from '../../features/board/types/taskboard.types';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
+import { type RollingGroup, type TaskboardDisplay, type TaskboardLayout, parseLayoutSections, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconTrash } from '@/components/custom/Icons';
 
@@ -139,6 +142,7 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
 
   const createGroup = useCreateRollingGroup();
   const updateGroup = useUpdateRollingGroup();
+  const { guardWrite } = useTaskboardWriteGuard();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
@@ -165,6 +169,7 @@ function GroupEditView({ group, layoutList, onSave, onCancel }: GroupEditViewPro
     .filter((entry): entry is { uid: string; layout: TaskboardLayout } => entry.layout !== undefined);
 
   const handleSave = async () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 롤링 그룹 생성·수정 차단
     if (selectedLayouts.length === 0) {
       toast.error('전광판을 1개 이상 선택해 주세요.');
       return;
@@ -374,11 +379,18 @@ function RunOptionsView({ group, layoutList, displayList, onStart, onCancel }: R
   const boardLayouts = parseIdArray(group.displayIds)
     .map((id, occurrenceIndex) => ({ occurrenceIndex, layout: layoutList.find((l) => l.layoutId === id) }))
     .filter((entry): entry is { occurrenceIndex: number; layout: TaskboardLayout } => entry.layout !== undefined)
-    .map(({ occurrenceIndex, layout }) => ({
-      occurrenceIndex,
-      layout,
-      sections: parseLayoutSections(layout.layoutJson), // 이 슬롯에 구역이 있는지 확인
-    }));
+    .map(({ occurrenceIndex, layout }) => {
+      // 실행 화면은 "실제 위젯이 배정된 구역"만 물어본다 — 선언만 되고 위젯이 하나도 없는 구역(구역 B의
+      // 위젯을 다 지웠거나 구역만 남은 경우)은 뷰그룹을 골라도 스코핑할 대상이 없어 무의미하므로 제외한다.
+      // (구역을 지웠는데도 실행 선택에 계속 뜨던 문제 — 미배정 위젯은 아래 '기본(__etc)'으로 처리됨.)
+      const usedSections = new Set(
+        parseLayoutWidgets(layout.layoutJson)
+          .map((w) => w.sectionKey)
+          .filter((k): k is string => !!k),
+      );
+      const sections = parseLayoutSections(layout.layoutJson).filter((s) => usedSections.has(s));
+      return { occurrenceIndex, layout, sections };
+    });
 
   const stored = loadRunOptions(group.groupId);
   const [applyAll, setApplyAll] = useState(stored.applyAll);
@@ -668,6 +680,7 @@ interface GroupListViewProps {
 function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, onDelete }: GroupListViewProps) {
   return (
     <div className="p-6 bg-slate-50 min-h-screen font-sans">
+      <TaskboardTenantBar />
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 그룹 관리</h1>
@@ -699,7 +712,12 @@ function GroupListView({ groups, layoutList, isLoading, onAdd, onEdit, onRun, on
             return (
               <div key={group.groupId} className="bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold text-slate-800 truncate min-w-0">{group.groupName}</h3>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-800 truncate">{group.groupName}</h3>
+                    <div className="mt-0.5">
+                      <TenantBadge tenantId={group.tenantId} />
+                    </div>
+                  </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button onClick={() => onEdit(group)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded transition-colors" title="수정">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
@@ -780,6 +798,7 @@ export default function TaskMgmt() {
   const { data: layoutList = [] } = useGetTaskboardLayoutList();
   const { data: displayList = [] } = useGetTaskboardDisplayList();
   const deleteGroup = useDeleteRollingGroup();
+  const { guardWrite } = useTaskboardWriteGuard();
 
   const handleDeleteConfirm = async () => {
     if (!deleteTarget) return;
@@ -828,10 +847,12 @@ export default function TaskMgmt() {
         layoutList={layoutList}
         isLoading={isLoading}
         onAdd={() => {
+          if (!guardWrite()) return; // 다중 테넌트 View 중엔 새 그룹 생성 진입 차단
           setEditingGroup(null);
           setViewMode('edit');
         }}
         onEdit={(g) => {
+          if (!guardWrite()) return; // 다중 테넌트 View 중엔 수정 진입 차단
           setEditingGroup(g);
           setViewMode('edit');
         }}

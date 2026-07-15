@@ -19,7 +19,7 @@ import type { ColDef, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Trash2, Upload } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DeviceBulkDeleteModal from '../../features/device/components/DeviceBulkDeleteModal';
 import DeviceFormDrawer, { type DeviceFormDrawerRef } from '../../features/device/components/DeviceFormDrawer';
@@ -27,7 +27,8 @@ import DeviceImportDrawer from '../../features/device/components/DeviceImportDra
 import { deviceQueryKeys, useGetDeviceTypes, useGetDevices, useUpdateFirmwareUse } from '../../features/device/hooks/useDeviceQueries';
 import type { DevMasterResponse } from '../../features/device/types';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
@@ -44,19 +45,7 @@ export default function DeviceList() {
 
   const queryClient = useQueryClient();
 
-  // 운영자 모드에서만 테넌트 필터 노출(일반 콘솔은 토큰=본인 테넌트 스코프).
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // 운영자 테넌트 필터 (null=전체)
-  // 일반 모드는 활성 테넌트(ctx)로 스코프, 운영자 모드는 필터 선택값(null=전체).
-  // 단말기 행은 tenantId 없음 → selectedTenantId 를 tenantNodeIds 매핑으로 노드 집합 변환 후 필터.
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
   const [searchText, setSearchText] = useState('');
   const [selectedRows, setSelectedRows] = useState<DevMasterResponse[]>([]);
   const [importOpen, setImportOpen] = useState(false);
@@ -72,27 +61,21 @@ export default function DeviceList() {
   const devices = useMemo(() => devicesResult?.items ?? [], [devicesResult]);
 
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
+  // 단말기 행은 tenantId 없음 → 테넌트 필터를 노드 집합으로 변환하기 위한 매핑 (스코프 훅과 별개 용도)
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: deviceTypes = [] } = useGetDeviceTypes();
 
-  // ─── Derived: 노드/테넌트 옵션 ───────────────────────────────────────────────
-  // 노드-테넌트에 할당된 노드만 (노드 셀렉트 옵션)
-  const assignedNodes = useMemo(() => {
-    const nodeIds = new Set(nodeTenants.map((nt) => nt.nodeId));
-    return nodes.filter((n) => nodeIds.has(n.nodeId));
-  }, [nodes, nodeTenants]);
-
-  // nodeTenants 기준 테넌트 목록 (테넌트 셀렉트 옵션)
-  // 선택 노드가 있으면 그 노드에 매핑된 테넌트만 (양방향 필터).
-  const assignedTenants = useMemo(() => {
-    const src = selectedNodeId != null ? nodeTenants.filter((nt) => nt.nodeId === selectedNodeId) : nodeTenants;
-    const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const nt of src) {
-      if (!map.has(nt.tenantId)) map.set(nt.tenantId, { tenantId: nt.tenantId, tenantName: nt.tenantName ?? '-' });
-    }
-    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [nodeTenants, selectedNodeId]);
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    nodes: assignedNodes,
+    tenants: assignedTenants,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+  } = useNodeTenantScope(allNodes);
 
   // 테넌트 → 노드 집합 (단말기는 nodeId 만 보유하므로 테넌트 필터를 노드 집합으로 변환)
   const tenantNodeIds = useMemo(() => {
@@ -136,20 +119,6 @@ export default function DeviceList() {
     return { total: devicesForGrid.length, firmUpd, provSuccess };
   }, [devicesForGrid]);
 
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, assignedTenants]);
-
   const invalidateDevices = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: deviceQueryKeys.list._def });
   }, [queryClient]);
@@ -188,9 +157,9 @@ export default function DeviceList() {
       toast.warning('노드를 선택한 후 등록하세요');
       return;
     }
-    const nodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? '';
+    const nodeName = assignedNodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? '';
     drawerRef.current?.openCreate(selectedNodeId, nodeName);
-  }, [selectedNodeId, nodes]);
+  }, [selectedNodeId, assignedNodes]);
 
   // 가져오기 버튼 — 노드 선택 필수 (Excel 업로드가 노드 단위).
   const handleImport = useCallback(() => {
@@ -204,10 +173,10 @@ export default function DeviceList() {
   // 수정 (더블클릭)
   const handleEdit = useCallback(
     (data: DevMasterResponse) => {
-      const nodeName = nodes.find((n) => n.nodeId === data.nodeId)?.nodeName ?? '';
+      const nodeName = assignedNodes.find((n) => n.nodeId === data.nodeId)?.nodeName ?? '';
       drawerRef.current?.openEdit(data, nodeName);
     },
-    [nodes],
+    [assignedNodes],
   );
 
   // ─── Grid Columns ────────────────────────────────────────────────────────────

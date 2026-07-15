@@ -4,7 +4,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
+import TenantBadge from '../../features/board/components/TenantBadge';
 import { taskboardQueryKeys, useCreateTaskboardBg, useDeleteTaskboardBg, useGetTaskboardBg } from '../../features/board/hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
 import type { LayoutTemplate, LayoutZone, TaskboardBg } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
@@ -405,6 +408,7 @@ export default function TaskBg() {
   const queryClient = useQueryClient();
   const [modalStep, setModalStep] = useState<1 | 2>(1);
   const [selectedLayout, setSelectedLayout] = useState<LayoutTemplate>(PRESET_LAYOUT_TEMPLATES[0]);
+  const { guardWrite } = useTaskboardWriteGuard();
   const { data: tasBoardList = [], isLoading } = useGetTaskboardBg();
   const { mutateAsync: createBgMutate } = useCreateTaskboardBg();
   const { mutateAsync: deleteBgMutate } = useDeleteTaskboardBg();
@@ -525,6 +529,7 @@ export default function TaskBg() {
   const handleDirectUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 배경 등록(생성) 차단
     try {
       const requestData: TaskboardBg = {
         tenantId: '2000000001',
@@ -929,6 +934,7 @@ export default function TaskBg() {
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen w-full font-sans">
+      <TaskboardTenantBar />
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">전광판 배경 관리</h1>
         <div className="flex items-center gap-3">
@@ -1006,6 +1012,9 @@ export default function TaskBg() {
                   <div className="min-w-0 pr-2">
                     <h3 className={`text-[15px] font-bold truncate ${item.useYn === 'N' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>{item.pageName}</h3>
                     <p className="text-[11px] font-mono text-slate-400 mt-0.5">ID: {item.pageId}</p>
+                    <div className="mt-1">
+                      <TenantBadge tenantId={item.tenantId} />
+                    </div>
                   </div>
                   <span
                     className={`flex-shrink-0 text-[10px] px-2 py-1 rounded font-bold border ${item.useYn === 'Y' ? 'bg-blue-50 text-[#0f5b9e] border-blue-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}
@@ -1014,7 +1023,7 @@ export default function TaskBg() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs text-slate-500 pt-3 border-t border-slate-100">
-                  <span className="font-medium">{item.createUserLoginId ?? '시스템'}</span>
+                  <span className="font-medium">{item.createUserId ?? '시스템'}</span>
                   <span>{dayjs(item.regDt).format('YYYY.MM.DD HH:mm')}</span>
                 </div>
               </div>
@@ -1224,6 +1233,7 @@ export default function TaskBg() {
                                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                         <button
                                           onClick={async () => {
+                                            if (!guardWrite()) return; // 다중 테넌트 View 중엔 배경 등록 차단
                                             try {
                                               const imageFile = dataURLtoFile(preview.url, `bg_${Date.now()}.jpg`);
                                               const requestData: TaskboardBg = {

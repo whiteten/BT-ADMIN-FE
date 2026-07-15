@@ -189,6 +189,18 @@ function toNumericField(hashData: Record<string, unknown> | undefined, redisFiel
  *   (그룹/스킬처럼 엔티티마다 키가 따로 있는 경우)면 targetIdsByPrefix로 뷰그룹이 선택한 엔티티만 필터링한다
  *   (그 REASON 키의 basePrefix에 대응하는 항목으로) — 안 그러면 디자인 시점에 캐싱된 전체 엔티티를 그대로 집계해버린다.
  */
+/** 숫자 배열을 집계 방식(sum/max/min/avg)에 따라 하나의 값 문자열로 계산한다. */
+function aggregateNumbers(nums: number[], mode: 'sum' | 'max' | 'min' | 'avg'): string {
+  if (nums.length === 0) return '0';
+  if (mode === 'max') return String(Math.max(...nums));
+  if (mode === 'min') return String(Math.min(...nums));
+  if (mode === 'avg') {
+    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+    return String(Math.round(avg * 100) / 100);
+  }
+  return String(nums.reduce((a, b) => a + b, 0));
+}
+
 export function getRedisDisplayValue(
   widget: RedisValueHost,
   redisData?: CtiWsDataByHashKey,
@@ -210,27 +222,23 @@ export function getRedisDisplayValue(
 
   // GROUP/CTIQ/AGENT(미디어타입 해시) 등 마스터 리스트가 있는 엔티티로 확정된 키는, 디자인 시점에 고정된
   // redisField 대신 디스플레이 선택값(selectionIdsByHashKey)으로 결정된 id들을 합산해서 보여준다.
+  const { aggregation } = widget;
   const overrides = resolvedKeys.map((k) => ({ k, ids: selectionIdsByHashKey?.[k] })).filter((e): e is { k: string; ids: string[] } => e.ids !== undefined);
   if (overrides.length > 0) {
     const nums = overrides.flatMap(({ k, ids }) => ids.map((id) => toNumericField(redisData[k], id, redisJsonField)));
     if (nums.length === 0) return '0';
-    return String(nums.reduce((a, b) => a + b, 0));
+    // 선택값이 여러 개인 경우의 기본 집계는 sum(과거 동작 유지). aggregation이 명시되면 그걸 따른다.
+    return aggregateNumbers(nums, aggregation && aggregation !== 'none' ? aggregation : 'sum');
   }
 
   if (!redisField) return String(widget.item.sampleValue);
-  const { aggregation } = widget;
   // aggregation이 명시적으로 설정 안 돼있어도(디자인 시점 기본값 'none') 마스킹된 키는 siblings 집계
   // 경로를 강제로 탄다(기본 집계는 sum) — resolvedKeys가 이미 REASON/mediaType 조건으로 좁혀져 있다.
   if ((aggregation && aggregation !== 'none') || (isMaskedKey && resolvedKeys.length > 0)) {
     // 해시 그룹(큐별로 분리된 여러 hashKey)의 동일 필드를 모아 집계. 그룹이 없으면 자기 자신만으로 집계한다.
     const nums = resolvedKeys.map((siblingKey) => toNumericField(redisData[siblingKey], redisField, redisJsonField));
     if (nums.length === 0) return '0';
-    const effectiveAggregation = aggregation && aggregation !== 'none' ? aggregation : 'sum';
-    if (effectiveAggregation === 'sum') return String(nums.reduce((a, b) => a + b, 0));
-    if (effectiveAggregation === 'max') return String(Math.max(...nums));
-    if (effectiveAggregation === 'min') return String(Math.min(...nums));
-    const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    return String(Math.round(avg * 100) / 100);
+    return aggregateNumbers(nums, aggregation && aggregation !== 'none' ? aggregation : 'sum');
   }
 
   // 마스킹된 키인데 siblings조차 없으면(등록 데이터소스 없음 등) 진짜 키처럼 조회 시도하지 않는다 —
@@ -315,7 +323,11 @@ export function collectRedisWsSubscriptions(
       // 실제로 값이 있을 때만 override, 없으면 디자인 시점 고정 필드로 폴백.
       if (selectedIds && selectedIds.length > 0) {
         selectedIds.forEach((id) => entry.ids.add(id));
-      } else {
+      } else if (!item.redisField!.includes('{')) {
+        // 마스킹 필드({id} 등)는 뷰그룹 override가 없으면 구독하지 않는다 — 실제 Redis 필드와 절대
+        // 매칭되지 않아(서버가 못 찾아 항상 0) 구독해봐야 의미 없는 잡음일 뿐이다(2026-07-13, redisField
+        // 마스킹 도입 이후 뷰그룹에 리스트 데이터소스가 등록/선택 안 된 큐·그룹 값 위젯이 IC:CTIQ:0/
+        // IC:GROUP:0 에 "{id}"로 구독돼 payload를 오염시키던 문제). 구체 필드(옛 위젯·metric명)만 폴백.
         entry.ids.add(item.redisField!);
       }
       if (item.redisJsonField) entry.columns.add(item.redisJsonField);
@@ -693,14 +705,16 @@ export function resolveMediaTypesFromSelection(selection: TaskboardDisplaySelect
 }
 
 /**
- * 뷰그룹에 저장된 엔티티 선택값(예: 그룹 A,B)을 실행 시점에 유효한 목록(예: 현재 마스터에 존재하는 그룹)
- * 기준으로 보정한다 — A가 시스템에서 삭제된 뒤에도 뷰그룹 저장값엔 그대로 남아있을 수 있어서, "선택
- * 없음=전체" 폴백만으로는 부족하다(선택값이 있긴 하지만 그중 일부가 무효인 경우). GROUP/CTIQ/AGENT
- * 마스터엔티티 해시 경로(MASTER_ENTITY_HASH_DEFS)는 이미 마스터 리스트에서 `.filter()`하는 방식이라
- * 우연히 안전하지만, REASON 패밀리 경로(targetGroupIds류)는 저장값을 그대로 썼다 — 이 함수로 통일한다.
+ * 뷰그룹이 명시적으로 고른 엔티티(그룹 등)만 실행 스코프로 쓴다 — 저장값 중 현재 유효한 것만 남긴다
+ * (시스템에서 삭제된 그룹 등은 제거).
+ *
+ * [2026-07-13 정책 변경] 선택이 비면 빈 목록(0)을 반환한다. 예전엔 "선택 없음=전체 유효그룹"으로
+ * 폴백했으나, 뷰그룹에서 그룹을 안 고르면 REASON 위젯도 값 위젯처럼 0이어야 한다는 사용자 확정 정책에
+ * 맞춰 그 폴백을 제거했다(선택 안 했는데 전체 그룹이 딸려 나오던 문제). "선택 안 함=전체"가 필요하면
+ * 뷰그룹에서 그룹을 전부 명시적으로 선택해야 한다. (편집 미리보기의 "전체 표시"는 이 함수가 아니라
+ * resolveCategoryKeys의 allowAllGroupsFallback 경로가 담당하므로 영향 없음.)
  */
 export function resolveValidEntityIds(selectedIds: string[], currentValidIds: string[]): string[] {
-  if (selectedIds.length === 0) return currentValidIds;
   const validSet = new Set(currentValidIds);
   return selectedIds.filter((id) => validSet.has(id));
 }

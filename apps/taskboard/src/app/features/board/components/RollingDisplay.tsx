@@ -455,7 +455,9 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 로테이션에 포함된 모든 레이아웃의 디스플레이 선택값을 합산해 WS 구독 하나로 커버.
-  const allSelections = layouts.map((l) => parseSelection(l.selectionJson));
+  // 섹션모드 레이아웃은 selectionJson(첫 섹션)만이 아니라 sectionSelections(전 섹션)를 모두 펼쳐야
+  // 첫 섹션 외 구역 위젯의 큐/그룹/미디어타입까지 구독된다(TaskView.SingleLayoutView와 동일 규칙).
+  const allSelections = layouts.flatMap((l) => (l.sectionSelections ? Object.values(l.sectionSelections) : [parseSelection(l.selectionJson)]));
 
   // 데이터소스관리 탭에 등록된 커스텀 데이터소스(dbQueryId)의 등록 키 ↔ 위젯 redisHashKey 매칭 — 로테이션
   // 내 모든 슬라이드의 선택값을 합산해 구독 자원을 넉넉히 만들어 둔다. 그룹 목록 데이터소스 옵션도 함께 조회(REASON 전체 폴백용).
@@ -494,7 +496,8 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
 
   // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다.
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix);
+  // allowAllGroupsFallback=false — 실행 화면에서 그룹 스코프가 비면 전체로 새지 않고 0(TaskView와 동일 정책).
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix, false);
 
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []

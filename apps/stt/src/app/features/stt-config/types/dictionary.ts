@@ -4,6 +4,8 @@ export interface KeywordBoostingSearchParams {
 
 export interface KeywordBoostingItem {
   id: number;
+  tenantId: number;
+  tenantName: string;
   keyword: string;
   engineCode?: string;
   workUser: string;
@@ -22,6 +24,8 @@ export interface SttDictionarySearchParams {
 
 export interface SttDictionaryItem {
   id: number;
+  tenantId: number;
+  tenantName: string;
   beforeWord: string;
   afterWord: string;
   useYn: string;

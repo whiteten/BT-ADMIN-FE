@@ -20,7 +20,7 @@ import type { ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AcdGdnFormDrawer from '../../features/acd-gdn/components/AcdGdnFormDrawer';
 import AcdGdnMemberGrid from '../../features/acd-gdn/components/AcdGdnMemberGrid';
@@ -28,7 +28,7 @@ import { useDeleteAcdGdns, useGetAcdGdnMembersPool, useGetAcdGdns, useSaveAcdGdn
 import { ACD_TYPE_OPTIONS, type GdnMemberItem, type GdnMemberPoolParams, type GdnMemberResponse, type GdnResponse, getAcdTypeName, getYnName } from '../../features/acd-gdn/types';
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
-import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -48,19 +48,7 @@ export default function AcdGdnList() {
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
 
-  // 운영자 모드에서만 테넌트 ScopeSelect 노출. 일반 콘솔은 토큰 테넌트로 스코프.
-  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
-  const ctxTenantId = useAuthStore((s) => {
-    const t = s.userInfo?.tenant;
-    return t ? Number(t) : null;
-  });
-
   // ─── State ────────────────────────────────────────────────────────────────
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null); // null=전체 노드
-  // 운영자 전용 테넌트 필터. 실제 사용하는 selectedTenantId 는 아래 파생값(일반=ctx, 운영자=필터).
-  const [tenantFilter, setTenantFilter] = useState<number | null>(null); // null=전체 테넌트
-  const selectedTenantId = operatorMode ? tenantFilter : ctxTenantId;
-
   // 좌 그리드 검색/필터
   const [gdnSearch, setGdnSearch] = useState('');
   const [acdTypeFilter, setAcdTypeFilter] = useState<string>('');
@@ -83,9 +71,20 @@ export default function AcdGdnList() {
 
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
-  const nodes = useScopedNodes(allNodes, selectedTenantId);
   const { data: tenants = [] } = useGetDnProfileTenants();
-  const { data: nodeTenants = [] } = useGetNodeTenants();
+
+  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    nodes: assignedNodes,
+    tenants: assignedTenants,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+  } = useNodeTenantScope(allNodes);
+
   const { data: gdns = [], isLoading: isGdnsLoading } = useGetAcdGdns();
 
   // 멤버 풀 — 선택 그룹DN 기준. 배정상태 필터는 서버 위임, keyword 는 클라이언트 quickFilter.
@@ -118,22 +117,6 @@ export default function AcdGdnList() {
     },
   });
 
-  // ─── Derived: 노드/테넌트 옵션 (DnList 패턴) ──────────────────────────────
-  const assignedNodes = useMemo(() => {
-    const nodeIds = new Set(nodeTenants.map((nt) => nt.nodeId));
-    return nodes.filter((n) => nodeIds.has(n.nodeId));
-  }, [nodes, nodeTenants]);
-
-  // 선택 노드가 있으면 그 노드에 매핑된 테넌트만 (양방향 필터).
-  const assignedTenants = useMemo(() => {
-    const rows = selectedNodeId != null ? nodeTenants.filter((nt) => nt.nodeId === selectedNodeId) : nodeTenants;
-    const map = new Map<number, { tenantId: number; tenantName: string }>();
-    for (const nt of rows) {
-      if (!map.has(nt.tenantId)) map.set(nt.tenantId, { tenantId: nt.tenantId, tenantName: nt.tenantName });
-    }
-    return Array.from(map.values()).sort((a, b) => a.tenantName.localeCompare(b.tenantName));
-  }, [nodeTenants, selectedNodeId]);
-
   // 좌 그리드 표시용 GDN — 노드/테넌트/ACD타입/검색 클라이언트 필터
   const gdnsForGrid = useMemo(() => {
     let rows = gdns;
@@ -155,20 +138,6 @@ export default function AcdGdnList() {
     }
     return { total: gdnsForGrid.length, acdActive, blocked };
   }, [gdnsForGrid]);
-
-  // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
-  useEffect(() => {
-    if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
-      setSelectedNodeId(null);
-    }
-  }, [nodes, selectedNodeId]);
-
-  // 선택 노드로 테넌트 옵션이 좁혀져 현재 운영자 테넌트 필터가 목록에 없으면 전체로 리셋 (교착 방지)
-  useEffect(() => {
-    if (operatorMode && tenantFilter != null && !assignedTenants.some((t) => t.tenantId === tenantFilter)) {
-      setTenantFilter(null);
-    }
-  }, [operatorMode, tenantFilter, assignedTenants]);
 
   // 스코프(노드/테넌트) 변경 시 잠금/선택 초기화
   useEffect(() => {
