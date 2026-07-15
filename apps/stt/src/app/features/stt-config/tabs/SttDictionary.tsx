@@ -20,7 +20,7 @@ const PAGE_SIZE = 20;
 
 interface DeleteCellRendererParams {
   data?: SttDictionaryItem;
-  onDelete: (beforeWord: string) => void;
+  onDelete: (data: SttDictionaryItem) => void;
 }
 
 function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
@@ -35,7 +35,7 @@ function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
 function DeleteCellRenderer({ data, onDelete }: DeleteCellRendererParams) {
   if (!data) return null;
   return (
-    <button onClick={() => onDelete(data.beforeWord)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
+    <button onClick={() => onDelete(data)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
       <Trash2 size={15} />
     </button>
   );
@@ -103,8 +103,8 @@ export default function SttDictionary() {
     drawerRef.current?.open(event.data);
   };
 
-  const handleDelete = (beforeWord: string) => {
-    modal.confirm.delete({ onOk: () => deleteDictionary({ beforeWord }) });
+  const handleDelete = (data: SttDictionaryItem) => {
+    modal.confirm.delete({ onOk: () => deleteDictionary({ tenantId: data.tenantId, beforeWord: data.beforeWord }) });
   };
 
   const columnDefs: ColDef<SttDictionaryItem>[] = [
@@ -216,7 +216,7 @@ export default function SttDictionary() {
         />
       </div>
 
-      <SttDictionaryDrawer ref={drawerRef} />
+      <SttDictionaryDrawer ref={drawerRef} existingWords={allData.map((d) => d.beforeWord)} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportDictionary} confirmLoading={isImporting} />
       <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="단어" />
     </div>

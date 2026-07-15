@@ -8,7 +8,7 @@ import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
 import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
-import { useGetCodes } from '../hooks/useCommonQueries';
+import { ENGINE_KIND_OPTIONS } from '../constants/sttCodeConstants';
 import {
   dictionaryQueryKeys,
   useCreateKeywordBoosting,
@@ -54,13 +54,11 @@ export default function KeywordBoosting() {
   const [engineCode, setEngineCode] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
 
-  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
-  const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
+  const engines = ENGINE_KIND_OPTIONS;
+  const engineOptions = engines.map((e) => ({ label: e.value, value: e.code }));
 
   useEffect(() => {
-    if (engines && engines.length > 0) {
-      setEngineCode((prev) => prev || engines[0].code);
-    }
+    setEngineCode((prev) => prev || engines[0].code);
   }, [engines]);
 
   const { data: allData = [], isLoading } = useGetKeywordBoostingList({
@@ -127,11 +125,15 @@ export default function KeywordBoosting() {
       toast.warning('6자 이내로 입력해주세요.');
       return;
     }
+    if (allData.some((item) => item.keyword === trimmed)) {
+      toast.warning('이미 등록된 키워드입니다.');
+      return;
+    }
     createKeywordBoosting({ keyword: trimmed, engineCode });
   };
 
   const handleDelete = (data: KeywordBoostingItem) => {
-    modal.confirm.delete({ onOk: () => deleteKeyword({ engineCode: data.engineCode ?? '', keyword: data.keyword }) });
+    modal.confirm.delete({ onOk: () => deleteKeyword({ tenantId: data.tenantId, engineCode: data.engineCode ?? '', keyword: data.keyword }) });
   };
 
   const handleClickImport = () => {
