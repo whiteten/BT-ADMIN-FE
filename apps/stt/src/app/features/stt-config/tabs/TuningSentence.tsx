@@ -6,7 +6,7 @@ import { Button, DatePicker, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Check, CheckCircle2, PlayCircle, StopCircle, Trash2, X, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
-import { useGetCodes } from '../hooks/useCommonQueries';
+import { ENGINE_KIND_OPTIONS } from '../constants/sttCodeConstants';
 import { useGetSttSearchListen } from '../hooks/useSearchQueries';
 import { trainingQueryKeys, useDeleteTuningSentence, useGetTuningSentenceList, useUpdateTuningSentence, useUpdateTunningKind } from '../hooks/useTrainingQueries';
 import type { SttSearchListenParams, TuningSentenceItem, TuningSentenceSearchParams } from '../types';
@@ -178,21 +178,19 @@ export default function TuningSentence() {
   const [engineCode, setEngineCode] = useState('');
   const [searchParams, setSearchParams] = useState<TuningSentenceSearchParams | null>(null);
 
-  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
-  const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
+  const engines = ENGINE_KIND_OPTIONS;
+  const engineOptions = engines.map((e) => ({ label: e.value, value: e.code }));
 
   useEffect(() => {
-    if (engines && engines.length > 0) {
-      setEngineCode((prev) => {
-        const resolved = prev || engines[0].code;
-        setSearchParams({
-          fromDate: dayjs().subtract(7, 'day').format('YYYYMMDD'),
-          toDate: dayjs().format('YYYYMMDD'),
-          engineCode: resolved,
-        });
-        return resolved;
+    setEngineCode((prev) => {
+      const resolved = prev || engines[0].code;
+      setSearchParams({
+        fromDate: dayjs().subtract(7, 'day').format('YYYYMMDD'),
+        toDate: dayjs().format('YYYYMMDD'),
+        engineCode: resolved,
       });
-    }
+      return resolved;
+    });
   }, [engines]);
 
   const {

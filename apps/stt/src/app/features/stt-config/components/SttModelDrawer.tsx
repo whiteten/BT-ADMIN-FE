@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Form, type FormProps, Input, Select } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { useGetCodes } from '../hooks/useCommonQueries';
+import { ENGINE_KIND_OPTIONS } from '../constants/sttCodeConstants';
 import { modelQueryKeys, useCreateSttModel, useUpdateSttModel } from '../hooks/useModelQueries';
 import type { SttModelCreateData, SttModelItem, SttModelUpdateData } from '../types';
 
@@ -41,8 +41,7 @@ const SttModelDrawer = forwardRef<SttModelDrawerRef, SttModelDrawerProps>(({ onC
   const [form] = Form.useForm<SttModelCreateData>();
   const queryClient = useQueryClient();
 
-  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
-  const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
+  const engineOptions = ENGINE_KIND_OPTIONS.map((e) => ({ label: e.value, value: e.code }));
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: modelQueryKeys.getSttModelList._def });
 
