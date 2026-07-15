@@ -18,21 +18,20 @@ import dayjs from 'dayjs';
 import { ChevronDown, FileText, Folder, ListChecks, PhoneCall, Search, Tags } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { fuzzyFilter } from '@/shared-util';
-import ScenarioMenuControlDrawer, { type ScenarioMenuControlDrawerRef } from '../../features/scenario/components/ScenarioMenuControlDrawer';
-import ScenarioMenuSuperAniDrawer, { type ScenarioMenuSuperAniDrawerRef } from '../../features/scenario/components/ScenarioMenuSuperAniDrawer';
-import { scenarioMenuControlQueryKeys, scenarioQueryKeys, useGetScenarioMenuControls, useGetScenarios, useGetVersions } from '../../features/scenario/hooks/useScenarioQueries';
+import { scenarioQueryKeys, useGetScenarios, useGetVersions } from '../../features/scenario/hooks/useScenarioQueries';
+import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type ScenarioType } from '../../features/scenario/types';
+import ScenarioMenuControlDrawer, { type ScenarioMenuControlDrawerRef } from '../../features/scenario-menu/components/ScenarioMenuControlDrawer';
+import ScenarioMenuSuperAniDrawer, { type ScenarioMenuSuperAniDrawerRef } from '../../features/scenario-menu/components/ScenarioMenuSuperAniDrawer';
+import { scenarioMenuControlQueryKeys, useGetScenarioMenuControls } from '../../features/scenario-menu/hooks/useScenarioMenuControlQueries';
 import {
   SCENARIO_MENU_CONTROL_KIND,
   SCENARIO_MENU_CONTROL_KIND_LABELS,
   SCENARIO_MENU_DATE_TYPE_LABELS,
   SCENARIO_MENU_NEXT_TYPE_LABELS,
-  SCENARIO_TYPE_COLORS,
-  SCENARIO_TYPE_LABELS,
   type ScenarioMenuControlKind,
   type ScenarioMenuControlRow,
-  type ScenarioType,
   getScenarioMenuControlKind,
-} from '../../features/scenario/types';
+} from '../../features/scenario-menu/types';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
