@@ -16,7 +16,7 @@ export function createInitialReceiveTargetFormFields(): ReceiveTargetFormField[]
   }));
 }
 
-/** CUST_INFO 인덱스 → ReceiveFileDetailItem 필드 매핑 (목업) */
+/** CUST_INFO 인덱스 → ReceiveFileDetailItem 필드 매핑 */
 export const RECEIVE_TARGET_FIELD_SAVE_MAP = {
   customerName: 0,
   mobilePhone: 1,

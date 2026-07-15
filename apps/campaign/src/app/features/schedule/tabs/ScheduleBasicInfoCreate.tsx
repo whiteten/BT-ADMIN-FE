@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
+import { useGetTenantOptionList } from '../../statistics/hooks/useCampaignStatisticsQueries';
 import {
   SCHEDULE_CRON_ALL_VALUE,
   SCHEDULE_CRON_DAY_OF_WEEK_OPTIONS,
@@ -16,7 +17,6 @@ import {
   SCHEDULE_CRON_SETTING,
   SCHEDULE_CRON_SETTING_OPTIONS,
 } from '../constants/scheduleManagementFormConstants';
-import { MOCK_SCHEDULE_TENANT_OPTIONS } from '../constants/scheduleMockData';
 
 type ScheduleBasicInfoCreateFormValues = {
   scheduleName: string;
@@ -50,7 +50,7 @@ const initialValues: Partial<ScheduleBasicInfoCreateFormValues> = {
   minuteValue: SCHEDULE_CRON_ALL_VALUE,
   secondRepeat: SCHEDULE_CRON_REPEAT.NONE,
   secondValue: SCHEDULE_CRON_ALL_VALUE,
-  tenantId: MOCK_SCHEDULE_TENANT_OPTIONS[0].value,
+  tenantId: '',
   historyCollection: true,
   usageEnabled: false,
 };
@@ -59,7 +59,11 @@ export default function ScheduleBasicInfoCreate() {
   const navigate = useNavigate();
   const [form] = Form.useForm<ScheduleBasicInfoCreateFormValues>();
 
-  const tenantSelectOptions = useMemo(() => MOCK_SCHEDULE_TENANT_OPTIONS.map((tenant) => ({ label: tenant.label, value: tenant.value })), []);
+  const { data: tenantOptionList } = useGetTenantOptionList();
+  const tenantSelectOptions = useMemo(
+    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
+    [tenantOptionList],
+  );
 
   const onFinish: FormProps<ScheduleBasicInfoCreateFormValues>['onFinish'] = (values) => {
     if (values.usageEnabled) {

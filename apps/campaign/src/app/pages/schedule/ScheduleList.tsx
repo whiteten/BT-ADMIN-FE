@@ -6,7 +6,7 @@ import { useBreadcrumbStore } from '@/shared-store';
 import { fuzzyFilter, toast } from '@/shared-util';
 import ScheduleListGrid from '../../features/schedule/components/ScheduleListGrid';
 import { SCHEDULE_STATUS_FILTER_OPTIONS, SCHEDULE_TYPE_FILTER_OPTIONS, type ScheduleStatus, type ScheduleType } from '../../features/schedule/constants/scheduleConstants';
-import { MOCK_SCHEDULE_LIST } from '../../features/schedule/constants/scheduleMockData';
+import type { ScheduleListItem } from '../../features/schedule/types';
 import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -125,7 +125,7 @@ export default function ScheduleList() {
   }, [campaignSelections]);
 
   const filteredList = useMemo(() => {
-    let items = MOCK_SCHEDULE_LIST;
+    let items: ScheduleListItem[] = [];
 
     if (appliedFilters.tenantIds.length > 0) {
       items = items.filter((item) => appliedFilters.tenantIds.includes(item.tenantId));

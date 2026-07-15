@@ -5,8 +5,6 @@ import { Plus, Search, Settings, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ScheduleManagementGrid from '../../features/schedule/components/ScheduleManagementGrid';
-import { getMockScheduleManagementListByTenantId } from '../../features/schedule/constants/scheduleManagementMockData';
-import { MOCK_SCHEDULE_TENANT_OPTIONS } from '../../features/schedule/constants/scheduleMockData';
 import type { ScheduleManagementItem } from '../../features/schedule/types';
 import { useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -17,14 +15,13 @@ const breadcrumb: BreadcrumbProps['items'] = [
 ];
 
 const SCHEDULE_MANAGEMENT_TENANT_STORAGE_KEY = 'campaign-schedule-management:tenant-id';
-const DEFAULT_MOCK_TENANT_ID = MOCK_SCHEDULE_TENANT_OPTIONS[0].value;
 
 function loadStoredTenantId(): string {
   try {
     const saved = localStorage.getItem(SCHEDULE_MANAGEMENT_TENANT_STORAGE_KEY);
-    return saved && saved.length > 0 ? saved : DEFAULT_MOCK_TENANT_ID;
+    return saved && saved.length > 0 ? saved : '';
   } catch {
-    return DEFAULT_MOCK_TENANT_ID;
+    return '';
   }
 }
 
@@ -41,11 +38,10 @@ export default function ScheduleManagement() {
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
 
   const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(() => {
-    const fromApi = (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) }));
-    if (fromApi.length > 0) return fromApi;
-    return MOCK_SCHEDULE_TENANT_OPTIONS.map((t) => ({ label: t.label, value: t.value }));
-  }, [tenantOptionList]);
+  const tenantSelectOptions = useMemo(
+    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
+    [tenantOptionList],
+  );
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -56,7 +52,10 @@ export default function ScheduleManagement() {
     localStorage.setItem(SCHEDULE_MANAGEMENT_TENANT_STORAGE_KEY, tenantId);
   }, [tenantId]);
 
-  const filteredList = useMemo(() => getMockScheduleManagementListByTenantId(appliedTenantId), [appliedTenantId]);
+  const filteredList = useMemo((): ScheduleManagementItem[] => {
+    if (!appliedTenantId) return [];
+    return [];
+  }, [appliedTenantId]);
 
   const handleSearch = () => {
     setAppliedTenantId(tenantId);

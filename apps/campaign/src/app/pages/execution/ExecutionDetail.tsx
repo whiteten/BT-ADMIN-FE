@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
-import { getMockCampaignExecution } from '../../features/execution/execution-management/constants/executionManagementMockData';
 import { IconDocument } from '@/components/custom/Icons';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -12,7 +11,6 @@ const tabs: PageTab[] = [{ id: 'tab1', label: '기본정보', icon: IconDocument
 
 export default function ExecutionDetail() {
   const { executionId } = useParams();
-  const execution = executionId ? getMockCampaignExecution(executionId) : undefined;
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -22,10 +20,9 @@ export default function ExecutionDetail() {
       { title: '캠페인 실행관리', path: '/campaign/execution/execution-management' },
       { title: ':executionLabel', path: `/campaign/execution/execution-management/${executionId}` },
     ];
-    const executionLabel = execution ? `${execution.executionDate} ${execution.campaignName}` : '-';
-    setBreadcrumb(breadcrumb, { executionLabel });
+    setBreadcrumb(breadcrumb, { executionLabel: '-' });
     return () => clearBreadcrumb();
-  }, [executionId, execution?.executionDate, execution?.campaignName, setBreadcrumb, clearBreadcrumb]);
+  }, [executionId, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex h-full w-full flex-col gap-4">

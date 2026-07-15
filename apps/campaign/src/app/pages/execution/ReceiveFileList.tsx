@@ -17,7 +17,6 @@ import {
   type ReceiveFileDetailSearchCondition,
   type ReceiveFileReceiveStateFilter,
 } from '../../features/execution/receive-file/constants/receiveFileListConstants';
-import { MOCK_RECEIVE_FILE_DETAILS, MOCK_RECEIVE_FILE_SUMMARIES } from '../../features/execution/receive-file/constants/receiveFileListMockData';
 import type { ReceiveFileDetailItem, ReceiveFileStatus, ReceiveFileSummary } from '../../features/execution/receive-file/types';
 import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -248,8 +247,8 @@ export default function ReceiveFileList() {
   const [receivedDateRange, setReceivedDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(EMPTY_APPLIED_FILTERS);
   const [selectedReceiveFileId, setSelectedReceiveFileId] = useState<string | null>(null);
-  const [receiveFileSummaries, setReceiveFileSummaries] = useState(MOCK_RECEIVE_FILE_SUMMARIES);
-  const [receiveFileDetails, setReceiveFileDetails] = useState(MOCK_RECEIVE_FILE_DETAILS);
+  const [receiveFileSummaries, setReceiveFileSummaries] = useState<ReceiveFileSummary[]>([]);
+  const [receiveFileDetails, setReceiveFileDetails] = useState<ReceiveFileDetailItem[]>([]);
   const [detailSearchCondition, setDetailSearchCondition] = useState<ReceiveFileDetailSearchCondition | null>(null);
   const [detailSearchKeyword, setDetailSearchKeyword] = useState('');
   const [appliedDetailFilters, setAppliedDetailFilters] = useState<AppliedDetailFilters>(EMPTY_APPLIED_DETAIL_FILTERS);

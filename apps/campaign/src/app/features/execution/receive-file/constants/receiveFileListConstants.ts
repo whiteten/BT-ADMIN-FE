@@ -15,7 +15,7 @@ export const RECEIVE_FILE_RECEIVE_STATE_FILTER_OPTIONS: { label: string; value: 
   { label: '수신완료', value: RECEIVE_FILE_RECEIVE_STATE_FILTER.RECEIVED },
 ];
 
-/** 목록 검색 필터 → 카드 수신상태 매핑 (목업·클라이언트 필터용) */
+/** 목록 검색 필터 → 카드 수신상태 매핑 (클라이언트 필터용) */
 export const RECEIVE_FILE_RECEIVE_STATE_FILTER_STATUS_MAP: Record<ReceiveFileReceiveStateFilter, ReceiveFileStatus[]> = {
   [RECEIVE_FILE_RECEIVE_STATE_FILTER.PROCESSING]: [RECEIVE_FILE_STATUS.PROCESSING],
   [RECEIVE_FILE_RECEIVE_STATE_FILTER.PROCESSED]: [RECEIVE_FILE_STATUS.SUCCESS, RECEIVE_FILE_STATUS.FAILED],

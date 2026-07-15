@@ -4,13 +4,13 @@ import { type BreadcrumbProps, Button } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CallerNumberGrid from '../../features/management/components/CallerNumberGrid';
-import { MOCK_CALLER_NUMBER_LIST } from '../../features/management/constants/callerNumberMockData';
-import { getMockCampaignScenarioDetail } from '../../features/management/constants/campaignScenarioMockData';
+import type { CallerNumberListItem } from '../../features/management/types/callerNumber';
 
 export default function RandomDispatch() {
   const navigate = useNavigate();
   const { scenarioId } = useParams();
-  const scenario = scenarioId ? getMockCampaignScenarioDetail(scenarioId) : undefined;
+  const scenario = scenarioId ? { scenarioId, scenarioName: '-', callerNumber: '' } : undefined;
+  const callerNumberList: CallerNumberListItem[] = [];
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const [currentCallerNumber, setCurrentCallerNumber] = useState('');
@@ -36,7 +36,7 @@ export default function RandomDispatch() {
       return;
     }
 
-    const selectedCaller = MOCK_CALLER_NUMBER_LIST.find((item) => item.callerNumberId === selectedCallerNumberId);
+    const selectedCaller = callerNumberList.find((item) => item.callerNumberId === selectedCallerNumberId);
     if (!selectedCaller) return;
 
     setCurrentCallerNumber(selectedCaller.callerNumber);
@@ -76,7 +76,7 @@ export default function RandomDispatch() {
 
         <div className="flex flex-col gap-3 w-full flex-1 min-h-0">
           <h3 className="text-sm font-medium text-[#495057]">발신번호 목록</h3>
-          <CallerNumberGrid rowData={MOCK_CALLER_NUMBER_LIST} selectedCallerNumberId={selectedCallerNumberId} onRowSelect={setSelectedCallerNumberId} />
+          <CallerNumberGrid rowData={callerNumberList} selectedCallerNumberId={selectedCallerNumberId} onRowSelect={setSelectedCallerNumberId} />
         </div>
 
         <footer className="flex items-center justify-center gap-2 w-full pt-2">

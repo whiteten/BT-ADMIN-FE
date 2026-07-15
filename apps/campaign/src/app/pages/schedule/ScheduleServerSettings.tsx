@@ -7,7 +7,6 @@ import { createUUID, toast } from '@/shared-util';
 import ScheduleServerDetailForm, { type ScheduleServerDetailFormRef } from '../../features/schedule/components/ScheduleServerDetailForm';
 import ScheduleServerGrid from '../../features/schedule/components/ScheduleServerGrid';
 import { DEFAULT_SCHEDULE_SERVER_PORT, SCHEDULE_SERVER_ACTIVE, SCHEDULE_SERVER_PROTOCOL } from '../../features/schedule/constants/scheduleServerConstants';
-import { MOCK_SCHEDULE_SERVER_LIST } from '../../features/schedule/constants/scheduleServerMockData';
 import type { ScheduleServerFormValues, ScheduleServerItem } from '../../features/schedule/types';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -49,7 +48,7 @@ export default function ScheduleServerSettings() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
-  const [serverList, setServerList] = useState<ScheduleServerItem[]>(() => [...MOCK_SCHEDULE_SERVER_LIST]);
+  const [serverList, setServerList] = useState<ScheduleServerItem[]>([]);
   const [editingServerId, setEditingServerId] = useState<string | null>(null);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);

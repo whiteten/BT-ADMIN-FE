@@ -18,8 +18,8 @@ import {
   EXECUTION_TARGET_STATUS_FILTER_OPTIONS,
 } from '../../features/execution/execution-management/constants/executionManagementConstants';
 import { createExecutionTargetColumnDefs, getDetailSearchFieldText } from '../../features/execution/execution-management/constants/executionManagementGridColumns';
-import { MOCK_CAMPAIGN_EXECUTIONS, MOCK_EXECUTION_TARGETS } from '../../features/execution/execution-management/constants/executionManagementMockData';
 import {
+  type CampaignExecutionItem,
   EXECUTION_MONITORING_MODE,
   EXECUTION_PROCESS_STATUS_FILTER,
   type ExecutionBatchChangeAction,
@@ -36,6 +36,9 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '실행', path: '/campaign/execution' },
   { title: '캠페인 실행관리', path: '/campaign/execution/execution-management' },
 ];
+
+const EMPTY_CAMPAIGN_EXECUTIONS: CampaignExecutionItem[] = [];
+const EMPTY_EXECUTION_TARGETS: ExecutionTargetItem[] = [];
 
 const EXECUTION_MANAGEMENT_TENANT_STORAGE_KEY = 'campaign-execution-management:tenant-ids';
 const EXECUTION_MANAGEMENT_CAMPAIGN_STORAGE_KEY = 'campaign-execution-management:campaign-selections';
@@ -150,9 +153,9 @@ export default function ExecutionManagement() {
     processStatusFilters: EXECUTION_PROCESS_STATUS_FILTER_OPTIONS.map((o) => o.value),
   });
 
-  const executionList = MOCK_CAMPAIGN_EXECUTIONS;
-  const executionTargets = MOCK_EXECUTION_TARGETS;
-  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>('exec-001');
+  const executionList = EMPTY_CAMPAIGN_EXECUTIONS;
+  const executionTargets = EMPTY_EXECUTION_TARGETS;
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [checkedExecutionIds, setCheckedExecutionIds] = useState<string[]>([]);
   const [checkedTargetIds, setCheckedTargetIds] = useState<string[]>([]);
 
