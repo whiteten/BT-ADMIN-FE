@@ -15,6 +15,8 @@ export interface QueryRequest {
   conditions?: GlobalConditions;
   /** KPI 모드 — 이 패널의 KPI 슬롯 필드만 전체 집계(1행). 상단 KPI 요약 카드 전용. */
   kpiMode?: boolean;
+  /** 운영자 모드 — 조회 대상 테넌트 override. 데이터·정책이 이 테넌트 기준으로 조회된다. */
+  tenantId?: string | null;
 }
 
 /**

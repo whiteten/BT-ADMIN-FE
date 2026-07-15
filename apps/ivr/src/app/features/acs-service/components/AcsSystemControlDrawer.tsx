@@ -4,7 +4,7 @@
  * <p>DNIS(수신번호) 단위 발신 활성화/비활성화(blockState). 행별 라디오로 변경하고
  * 저장 시 변경된 행만 다건 전송한다 (AS-IS multi 동일).</p>
  */
-import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Radio, Table } from 'antd';
 import { Save } from 'lucide-react';
@@ -33,15 +33,14 @@ const AcsSystemControlDrawer = forwardRef<AcsSystemControlDrawerRef>((_props, re
     },
   }));
 
+  // 편집 상태 초기화는 open()·저장 성공 시점에 수행한다.
+  // ⚠️ [rows] 의존 useEffect로 초기화하지 말 것 — 쿼리 비활성(data undefined) 동안 `rows = []` 기본값이
+  // 매 렌더 새 배열이라 setState 무한 루프가 되고, 이 상시 루프가 keepalive의 startTransition 커밋을
+  // 굶겨 탭 전환 시 본문이 안 바뀌는 장애로 이어진다.
   const { data: rows = [], isFetching } = useGetSystemControls({
     params: acsId ? { acsId } : {},
     queryOptions: { enabled: visible },
   });
-
-  // 목록 재조회 시 편집 상태 초기화
-  useEffect(() => {
-    setEdited({});
-  }, [rows]);
 
   const { mutate: updateMutate, isPending } = useUpdateBlockState({
     mutationOptions: {

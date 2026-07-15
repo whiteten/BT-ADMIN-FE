@@ -2,11 +2,14 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useBreadcrumbStore } from '@/shared-store';
 import ReportEditorCanvas from '../../features/canvas/components/ReportEditorCanvas';
+import { useExitReportOnScopeChange } from '../../features/report/hooks/useExitReportOnScopeChange';
 import { useReportEditorStore } from '../../features/report/hooks/useReportEditorStore';
 import { useGetReport } from '../../features/report/hooks/useReportQueries';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 
 export default function ReportEditor() {
+  // 편집 중 운영자 모드/대행 테넌트가 바뀌면 reportId 가 새 컨텍스트에서 무효 — 목록 복귀
+  useExitReportOnScopeChange();
   const { reportId: reportIdParam } = useParams<{ reportId: string }>();
   const reportId = Number(reportIdParam);
   const navigate = useNavigate();

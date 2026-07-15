@@ -1011,6 +1011,7 @@ export default function PanelEditorSheet({ reportId, panelType, panelId, dataset
         searchValues: committedFilter.searchValues,
         comparison: committedFilter.comparison,
         conditions: committedFilter.conditions,
+        tenantId: committedFilter.tenantId ?? null,
       });
       setSqlPreview(result);
     } catch {

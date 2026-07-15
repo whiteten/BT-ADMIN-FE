@@ -97,12 +97,21 @@ export default function AcsServicePage() {
 
   const { mutate: updateUseMutate } = useUpdateAcsServiceUse({
     mutationOptions: {
-      // 토글 결과는 Switch 상태로 충분해 성공 토스트는 띄우지 않는다
-      onSuccess: () => invalidateMaster(),
-      onError: (err) => {
-        toast.error(`변경 실패: ${(err as Error).message ?? '오류'}`);
-        invalidateMaster();
+      // 낙관적 업데이트 — 서버 왕복(use-update + list 재조회)을 기다리지 않고 스위치를 즉시 반영
+      onMutate: async ({ acsId, useYn }) => {
+        await queryClient.cancelQueries({ queryKey: acsServiceQueryKeys.getAcsServices.queryKey });
+        const previous = queryClient.getQueryData<AcsService[]>(acsServiceQueryKeys.getAcsServices.queryKey);
+        queryClient.setQueryData<AcsService[]>(acsServiceQueryKeys.getAcsServices.queryKey, (old) => old?.map((acs) => (acs.acsId === acsId ? { ...acs, useYn } : acs)));
+        return { previous };
       },
+      // 토글 결과는 Switch 상태로 충분해 성공 토스트는 띄우지 않는다
+      onError: (err, _vars, context) => {
+        const ctx = context as { previous?: AcsService[] } | undefined;
+        if (ctx?.previous) queryClient.setQueryData(acsServiceQueryKeys.getAcsServices.queryKey, ctx.previous);
+        toast.error(`변경 실패: ${(err as Error).message ?? '오류'}`);
+      },
+      // 성공·실패 무관 서버 상태와 최종 동기화 (백그라운드 재조회라 스위치 반응을 막지 않음)
+      onSettled: () => invalidateMaster(),
     },
   });
 

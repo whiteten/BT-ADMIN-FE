@@ -370,6 +370,26 @@ if (isLoading) return <FallbackSpinner />;
 - **용도가 다른 경우**: 버튼 내부 로딩(antd `Button loading`), 리스트 항목 옆 소형 인라인 진행 표시(lucide `Loader2` + `animate-spin`) 등 "영역 로딩"이 아닌 항목 단위 인디케이터
 - **사용자가 직접 다른 컴포넌트를 지시한 경우**: 지시를 따름
 
+### root context(basePath) 경로 규칙
+
+고객사가 앱을 root context(예: `/bt-admin`) 하위에 배포할 수 있다. 빌드 산출물은 전 고객사 공통 1개이며, 각 앱 index.html의 `<base href="/">`를 서빙 주체가 고객사 경로로 치환하고 FE는 그 값을 런타임에 파생해 쓴다(도입 커밋 `c10756ae` 참조). **루트 절대경로 리터럴을 그대로 쓰면 root context 배포에서 404로 깨진다.**
+
+#### 핵심 규칙 (요약)
+
+1. **루트 절대경로(`/api/...`·`/ws/...`·`/assets/...`·`/<remote>/...`)를 리터럴로 요청·이동·자산 참조에 쓰지 말 것** — 아래 유틸(`@/shared-util`) 경유:
+
+| 유틸 | 용도 |
+| --- | --- |
+| `getBasePath()` | base 태그 파생값. 루트면 `''`, 아니면 `/bt-admin` 형태 |
+| `withBasePath(path)` | 절대경로 접두 — `window.open`·직접 `fetch`·`sendBeacon`·`<img src>`·CSS `url()` |
+| `buildWsUrl(path)` | WS 접속 URL 조립(프로토콜·호스트·basePath 포함) — `new WebSocket`/`WebSocketClient`용 |
+| `stripBasePath(pathname)` | raw `window.location.pathname`을 라우트 경로와 비교할 때 정규화 |
+
+2. **자동 처리라 손대지 않는 것**: 라우터 내부 이동(`navigate`·`<Link>`·`<Navigate>` — basename 자동), TanStack Query 훅 경유 API(apiClient가 접두), webpack chunk·MF remote entry(host 런타임 플러그인 `mf-basepath-runtime-plugin`이 처리)
+3. **수동 접두 필수**: `window.open`, apiClient를 우회하는 직접 `fetch`/`axios`, `new WebSocket`/`WebSocketClient`(→ `buildWsUrl`), `navigator.sendBeacon`, 정적 자산 절대경로. **URL을 `${...}/api/...`처럼 템플릿 리터럴로 조립하는 것도 동일 대상** — 리터럴 검색에 안 걸린다고 예외 아님
+4. **`useLocation()`의 pathname은 basename이 이미 제거돼 있어 그대로 사용.** 라우터 밖에서 `window.location.pathname`을 라우트와 비교하면 반드시 `stripBasePath()` 경유 (예: `RouteShell`·`SharedInfoProvider`)
+5. **신규 앱 index.html에는 `<base href="/" />` 앵커 필수** (charset meta 다음 줄) — 이 앵커가 배포 시 치환 지점이자 standalone 딥링크에서 baseURI 오인 방지 장치
+
 ### 라우팅(routes.tsx) 컨벤션
 
 각 remote의 라우팅은 `apps/<remote>/src/app/routes.tsx` 한 파일에 정의하며, **`apps/fca/src/app/routes.tsx`를 레퍼런스**로 삼습니다.
@@ -476,7 +496,7 @@ if (isLoading) return <FallbackSpinner />;
 
 1. **routes.tsx leaf를 `Chromeless` 래퍼로 감쌈**: `element: <Chromeless>{pv('<key>', Page)}</Chromeless>`(`@/components/custom/Chromeless`). pv 소켓은 유지(변형·custom 키 보존). 페이지는 host `/<remote>` 아래라 Layout을 거친다. **예외 — 공개 라우트(`handle: { public: true }`) leaf는 래퍼를 두지 않음**: host `PublicRouteGate`가 Chromeless를 강제하므로 중복("라우팅 컨벤션" 핵심 규칙 14 참조).
 2. **host에 전용 prefix 라우트 만들지 말 것**: `/aoe-workflow`·`/vel-player` 같은 별도 host 라우트 추가 금지. 그 방식을 없애려고 이 메커니즘이 있다.
-3. **새창은 Layout 통과 경로로**: `window.open('/<remote>/...')`. 창 크기·named window 옵션은 그대로 유지.
+3. **새창은 Layout 통과 경로로**: `window.open(withBasePath('/<remote>/...'))`. 창 크기·named window 옵션은 그대로 유지. `window.open`은 라우터 밖이라 basename이 자동 적용되지 않으므로 `withBasePath` 필수("root context(basePath) 경로 규칙" 참조).
 4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal`·`toast` 그대로 동작).
 5. **페이지 안에서 `useChromeless` 직접 호출 금지**: 반드시 `Chromeless` 래퍼가 담당. 래퍼 없이 lazy 페이지 내부에서 호출하면 로딩 구간 내내 chrome이 보이는 깜빡임이 생긴다.
 

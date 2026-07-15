@@ -35,7 +35,7 @@ export const useUpdateAcsService = ({ mutationOptions }: MutationHookOptions = {
   });
 };
 
-export const useUpdateAcsServiceUse = ({ mutationOptions }: MutationHookOptions = {}) => {
+export const useUpdateAcsServiceUse = ({ mutationOptions }: MutationHookOptions<unknown, { acsId: number; useYn: number }> = {}) => {
   return useMutation({
     mutationFn: acsServiceApi.updateAcsServiceUse,
     ...mutationOptions,

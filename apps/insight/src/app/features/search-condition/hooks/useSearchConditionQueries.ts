@@ -54,21 +54,24 @@ export const useGetSearchConditionStages = ({
 /**
  * 장표 런타임 cascade — 한 단계의 옵션을 부모 선택값 기준으로 조회.
  * parentValue 가 바뀌면 자동 재조회. 루트 단계(nodeCode/parentValue 없음)도 동일 훅 사용.
+ * tenantId(운영자 모드 조회 대상 테넌트)가 바뀌면 테넌트별 캐시가 분리돼 자동 재조회.
  */
 export const useResolveStageOptions = ({
   searchCondId,
   nodeCode,
   parentValue,
+  tenantId,
   queryOptions,
 }: {
   searchCondId: number;
   nodeCode: string | null;
   parentValue?: string | string[] | null;
+  tenantId?: string | null;
   queryOptions?: Omit<UseQueryOptions<SqlPreviewResult[]>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    queryKey: ['search-cond-resolve', searchCondId, nodeCode, parentValue],
-    queryFn: () => searchConditionApi.resolveStageOptions(searchCondId, nodeCode, parentValue),
+    queryKey: ['search-cond-resolve', searchCondId, nodeCode, parentValue, tenantId ?? null],
+    queryFn: () => searchConditionApi.resolveStageOptions(searchCondId, nodeCode, parentValue, tenantId),
     staleTime: 60 * 1000,
     ...queryOptions,
   });

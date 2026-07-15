@@ -11,7 +11,18 @@ export const usePanelData = ({
   queryOptions?: Omit<UseQueryOptions<QueryResult>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    queryKey: ['panel-data', params.reportId, params.panelId, params.period, params.searchValues, params.comparison, params.conditions, params.kpiMode ?? false, queryTrigger],
+    queryKey: [
+      'panel-data',
+      params.reportId,
+      params.panelId,
+      params.period,
+      params.searchValues,
+      params.comparison,
+      params.conditions,
+      params.kpiMode ?? false,
+      params.tenantId ?? null,
+      queryTrigger,
+    ],
     queryFn: () => panelApi.executeQuery(params),
     staleTime: 0,
     ...queryOptions,
