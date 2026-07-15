@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Input, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Download } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { downloadBlob, extractFileName, toast } from '@/shared-util';
 import { searchApi } from '../api/searchApi';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
@@ -18,6 +19,11 @@ export default function SttSearch() {
   const { gridOptions } = useAggridOptions();
   const gridRef = useRef<AgGridReact<SttSearchItem>>(null);
   const drawerRef = useRef<SttSearchDetailDrawerRef>(null);
+
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — CtiQueueTable 패턴 참고.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
 
   const [isExporting, setIsExporting] = useState(false);
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
@@ -96,6 +102,13 @@ export default function SttSearch() {
   };
 
   const columnDefs: ColDef<SttSearchItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     {
       headerName: '통화일시',
       field: 'callDatetime',

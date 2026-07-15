@@ -4,6 +4,7 @@ import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { recogQueryKeys, useDeleteRecogTarget, useGetRecogTargetList } from '../hooks/useRecogQueries';
 import type { RecogTargetListItem } from '../types';
@@ -37,6 +38,11 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
   const gridRef = useRef<AgGridReact<RecogTargetListItem>>(null);
   const { gridOptions } = useAggridOptions();
 
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — 사전관리 패턴 참고.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
+
   const { data: targetList = [], isLoading } = useGetRecogTargetList({ params: { groupCode, engineCode } });
 
   const { mutate: deleteTarget } = useDeleteRecogTarget({
@@ -56,6 +62,13 @@ export default function RecogTargetList({ groupCode, engineCode }: RecogTargetLi
   };
 
   const columnDefs: ColDef<RecogTargetListItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     { headerName: '정답지 내용', field: 'orgSentence', flex: 4, filter: true, tooltipField: 'orgSentence' },
     {
       headerName: '화자',

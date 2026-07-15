@@ -5,6 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import { useGetCodes } from '../hooks/useCommonQueries';
@@ -43,6 +44,12 @@ export default function KeywordBoosting() {
   const queryClient = useQueryClient();
   const importModalRef = useRef<FileImportModalRef>(null);
   const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
+
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — CtiQueueTable 패턴 참고.
+  // 특정 테넌트를 대행 중이거나 일반 사용자면 모든 행이 같은 테넌트라 컬럼이 무의미해서 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
 
   const [engineCode, setEngineCode] = useState('');
   const [newKeyword, setNewKeyword] = useState('');
@@ -139,6 +146,13 @@ export default function KeywordBoosting() {
 
   const columnDefs: ColDef<KeywordBoostingItem>[] = [
     {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
+    {
       headerName: '키워드',
       field: 'keyword',
       flex: 4,
@@ -178,7 +192,7 @@ export default function KeywordBoosting() {
     <div className="flex flex-col gap-4 h-full">
       {/* 필터 및 추가 */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <span className="text-sm font-medium text-[#495057] shrink-0">엔진</span>
           <Select
             value={engineCode}
@@ -188,9 +202,7 @@ export default function KeywordBoosting() {
             options={engineOptions}
             style={{ width: 140 }}
           />
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          <Input value={newKeyword} onChange={handleNewKeywordChange} onPressEnter={handleAdd} placeholder="한글 6자 이내로 입력하세요" maxLength={6} style={{ width: 220 }} />
+          <Input value={newKeyword} onChange={handleNewKeywordChange} onPressEnter={handleAdd} placeholder="한글 6자 이내로 입력하세요" maxLength={6} style={{ width: 270 }} />
           <Button type="primary" onClick={handleAdd}>
             추가
           </Button>

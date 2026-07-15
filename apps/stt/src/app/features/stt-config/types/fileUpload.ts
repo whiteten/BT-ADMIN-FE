@@ -1,5 +1,6 @@
 export interface FileUploadItem {
   ucidGkey: string;
+  tenantName: string;
   filename: string;
   callDatetime: string;
   callDate: string;

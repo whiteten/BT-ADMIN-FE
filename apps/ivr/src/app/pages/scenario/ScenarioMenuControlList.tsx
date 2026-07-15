@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GetDataPath, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Empty, Select } from 'antd';
+import dayjs from 'dayjs';
 import { FileText, Folder, ListChecks, PhoneCall } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import ScenarioMenuControlDrawer, { type ScenarioMenuControlDrawerRef } from '../../features/scenario/components/ScenarioMenuControlDrawer';
@@ -191,14 +192,22 @@ export default function ScenarioMenuControlList() {
         colId: 'dateRange',
         flex: 1,
         minWidth: 150,
-        cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => (p.data?.startDate && p.data?.finshDate ? `${p.data.startDate} ~ ${p.data.finshDate}` : '-'),
+        cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => {
+          if (!p.data?.startDate || !p.data?.finshDate) return '-';
+          const fmt = (d: string) => (dayjs(d).isValid() ? dayjs(d).format('YYYY-MM-DD') : d);
+          return `${fmt(p.data.startDate)} ~ ${fmt(p.data.finshDate)}`;
+        },
       },
       {
         headerName: '시간',
         colId: 'timeRange',
         flex: 1,
         minWidth: 130,
-        cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => (p.data?.startTime && p.data?.finshTime ? `${p.data.startTime} ~ ${p.data.finshTime}` : '-'),
+        cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => {
+          if (!p.data?.startTime || !p.data?.finshTime) return '-';
+          const fmt = (t: string) => t.slice(0, 5); // HH:MI:SS → HH:MI
+          return `${fmt(p.data.startTime)} ~ ${fmt(p.data.finshTime)}`;
+        },
       },
       {
         headerName: '적용일자타입',
@@ -276,7 +285,7 @@ export default function ScenarioMenuControlList() {
         <div className="flex flex-1 min-h-0 gap-4">
           {/* ===== 좌측: 시나리오 목록 ===== */}
           <div className="w-[260px] flex-shrink-0 bg-white bt-shadow flex flex-col overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100 flex-shrink-0">
+            <div className="flex items-center gap-2 px-5 py-5 border-b border-gray-100 flex-shrink-0">
               <FileText className="size-4 text-[#405189]" />
               <h3 className="text-sm font-semibold text-gray-800">시나리오</h3>
               <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredScenarios.length}개</span>
