@@ -42,11 +42,13 @@ interface RecogTargetRegisterModalProps {
   open: boolean;
   sentence: SttResultSentenceItem | null;
   engineCode: string;
+  /** 등록자 본인/대행 테넌트가 아니라 녹취(ucidGkey) 자체의 테넌트 — 상위 드로어의 SttSearchItem.tenantId. */
+  tenantId?: number;
   onClose: () => void;
   onSeek: (ms: number) => void;
 }
 
-function RecogTargetRegisterModal({ open, sentence, engineCode, onClose, onSeek }: RecogTargetRegisterModalProps) {
+function RecogTargetRegisterModal({ open, sentence, engineCode, tenantId, onClose, onSeek }: RecogTargetRegisterModalProps) {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
   const { data: groups = [] } = useGetRecogGroupList({ params: engineCode ? { engineCode } : undefined });
@@ -81,7 +83,7 @@ function RecogTargetRegisterModal({ open, sentence, engineCode, onClose, onSeek 
     form
       .validateFields()
       .then((values: { answer: string; groupCode: string }) => {
-        if (!sentence) return;
+        if (!sentence || tenantId == null) return;
         createTarget({
           groupCode: values.groupCode,
           ucidGkey: sentence.ucidGkey,
@@ -89,6 +91,7 @@ function RecogTargetRegisterModal({ open, sentence, engineCode, onClose, onSeek 
           rxtxKind: Number(sentence.rxtxKind),
           orgSentence: values.answer,
           engineCode,
+          tenantId,
         });
       })
       .catch(() => {
@@ -459,6 +462,7 @@ const SttSearchDetailDrawer = forwardRef<SttSearchDetailDrawerRef>((_, ref) => {
         open={registerModal.open}
         sentence={registerModal.sentence}
         engineCode={state.engineCode}
+        tenantId={state.row?.tenantId}
         onClose={() => setRegisterModal({ open: false, sentence: null })}
         onSeek={(ms) => audioPlayerRef.current?.seekMs(ms)}
       />

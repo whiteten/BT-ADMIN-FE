@@ -85,4 +85,6 @@ export interface RecogTargetCreateData {
   rxtxKind: number;
   orgSentence: string;
   engineCode: string;
+  /** 등록자 본인/대행 테넌트가 아니라 문장(검색 결과 행) 자체의 테넌트. */
+  tenantId: number;
 }

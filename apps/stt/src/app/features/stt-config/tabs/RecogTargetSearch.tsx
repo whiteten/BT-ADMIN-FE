@@ -239,6 +239,9 @@ export default function RecogTargetSearch({ groupCode, engineCode }: RecogTarget
       rxtxKind: Number(originData.rxtxKind),
       orgSentence: sentence,
       engineCode: originData.engineCode,
+      // 등록자(운영자) 본인/대행 테넌트가 아니라 문장 자체의 테넌트로 등록 — 전체 스코프
+      // 검색에서 다른 테넌트의 문장을 등록하는 경우가 있어 강제 치환하지 않는다.
+      tenantId: originData.tenantId,
     });
   };
 
