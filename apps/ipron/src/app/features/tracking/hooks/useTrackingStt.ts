@@ -11,7 +11,7 @@
  *  - reset()                    : hook 상태 초기화
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import ApiClient, { type ApiResponse, WebSocketClient } from '@/shared-util';
+import ApiClient, { type ApiResponse, WebSocketClient, buildWsUrl } from '@/shared-util';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
@@ -173,8 +173,7 @@ export function useTrackingStt() {
       setResult({ status: 'requesting', fileName: uploaded.uploadedFilename });
       const requestedAt = new Date(); // polling 기준 — 이 이후 등록된 row 만 새 변환으로 간주
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/proxy/stt/file-upload`;
+      const wsUrl = buildWsUrl('/ws/proxy/stt/file-upload');
       const client = new WebSocketClient(wsUrl, { messageLog: false });
       wsRef.current = client;
 

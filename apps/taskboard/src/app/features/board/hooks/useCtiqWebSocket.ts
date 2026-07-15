@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { buildWsUrl } from '@/shared-util';
 import { isPublicMode } from '../api/publicAuth';
 
 export type CtiqRecord = Record<string, string | number | null>;
@@ -77,8 +78,7 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
     const connect = () => {
       if (destroyed) return;
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${protocol}//${window.location.host}/ws/proxy/taskboard/taskboard-rt`);
+      ws = new WebSocket(buildWsUrl('/ws/proxy/taskboard/taskboard-rt'));
 
       ws.onopen = () => {
         everConnected = true;
