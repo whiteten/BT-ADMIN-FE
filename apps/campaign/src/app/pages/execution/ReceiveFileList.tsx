@@ -18,13 +18,12 @@ import {
   type ReceiveFileReceiveStateFilter,
 } from '../../features/execution/receive-file/constants/receiveFileListConstants';
 import type { ReceiveFileDetailItem, ReceiveFileStatus, ReceiveFileSummary } from '../../features/execution/receive-file/types';
-import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
+import { useGetCampaignOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '실행' }, { title: '캠페인 수신파일이력', path: '/campaign/execution/receive-file' }];
 
-const RECEIVE_FILE_TENANT_STORAGE_KEY = 'campaign-receive-file:tenant-ids';
 const RECEIVE_FILE_CAMPAIGN_STORAGE_KEY = 'campaign-receive-file:campaign-selections';
 const RECEIVE_FILE_SCENARIO_STORAGE_KEY = 'campaign-receive-file:scenario-selections';
 
@@ -35,7 +34,6 @@ const RECEIVE_TARGET_GRID_HEIGHT = 400;
 const RECEIVE_FILE_CARD_SCROLL_STEP = 272;
 
 type AppliedFilters = {
-  tenantIds: string[];
   campaignSelections: string[];
   scenarioSelections: string[];
   receiveStateFilter: ReceiveFileReceiveStateFilter | null;
@@ -43,7 +41,6 @@ type AppliedFilters = {
 };
 
 const EMPTY_APPLIED_FILTERS: AppliedFilters = {
-  tenantIds: [],
   campaignSelections: [],
   scenarioSelections: [],
   receiveStateFilter: null,
@@ -233,10 +230,8 @@ export default function ReceiveFileList() {
   }, [location.pathname, location.state, navigate]);
 
   const { gridOptions } = useAggridOptions();
-  const isInitialTenantHydrationDone = useRef(false);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(RECEIVE_FILE_TENANT_STORAGE_KEY));
   const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(RECEIVE_FILE_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
   const [scenarioSelections, setScenarioSelections] = useState<string[]>(() => {
     const fromScenarioKey = loadStoredStringArray(RECEIVE_FILE_SCENARIO_STORAGE_KEY);
@@ -254,17 +249,7 @@ export default function ReceiveFileList() {
   const [appliedDetailFilters, setAppliedDetailFilters] = useState<AppliedDetailFilters>(EMPTY_APPLIED_DETAIL_FILTERS);
   const [selectedDetailId, setSelectedDetailId] = useState<string | null>(null);
 
-  const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(
-    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
-    [tenantOptionList],
-  );
-
-  const tenantIdNums = useMemo(() => tenantIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)), [tenantIds]);
-  const { data: campaignOptionList } = useGetCampaignOptionList({
-    params: { tenantIds: tenantIdNums },
-    queryOptions: { enabled: tenantIdNums.length > 0 },
-  });
+  const { data: campaignOptionList } = useGetCampaignOptionList();
 
   const campaignSelectOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -298,15 +283,6 @@ export default function ReceiveFileList() {
   }, [campaignOptionList, campaignSelections]);
 
   useEffect(() => {
-    if (!isInitialTenantHydrationDone.current) {
-      isInitialTenantHydrationDone.current = true;
-      return;
-    }
-    setCampaignSelections([]);
-    setScenarioSelections([]);
-  }, [tenantIds]);
-
-  useEffect(() => {
     if (!campaignOptionList) return;
 
     const validValues = new Set(scenarioSelectOptions.map((o) => o.value));
@@ -329,10 +305,6 @@ export default function ReceiveFileList() {
   }, [campaignOptionList, scenarioSelectOptions]);
 
   useEffect(() => {
-    localStorage.setItem(RECEIVE_FILE_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
-  }, [tenantIds]);
-
-  useEffect(() => {
     localStorage.setItem(RECEIVE_FILE_CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignSelections));
   }, [campaignSelections]);
 
@@ -342,10 +314,6 @@ export default function ReceiveFileList() {
 
   const filteredSummaries = useMemo(() => {
     let items = receiveFileSummaries;
-
-    if (appliedFilters.tenantIds.length > 0) {
-      items = items.filter((item) => appliedFilters.tenantIds.includes(item.tenantId));
-    }
 
     const campaignIds = parseCampaignIds(appliedFilters.campaignSelections);
     if (campaignIds.length > 0) {
@@ -415,7 +383,6 @@ export default function ReceiveFileList() {
 
   const handleSearch = () => {
     setAppliedFilters({
-      tenantIds,
       campaignSelections,
       scenarioSelections,
       receiveStateFilter,
@@ -489,45 +456,6 @@ export default function ReceiveFileList() {
       <div className="flex w-full shrink-0 flex-col gap-3 bg-white bt-shadow px-7 py-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-[#495057] shrink-0">테넌트</span>
-            <Select
-              mode="multiple"
-              value={tenantIds}
-              onChange={(value) => setTenantIds(value ?? [])}
-              allowClear
-              showSearch
-              maxTagCount="responsive"
-              options={tenantSelectOptions}
-              placeholder="테넌트를 선택하세요."
-              optionFilterProp="label"
-              style={{ width: '15rem' }}
-              popupMatchSelectWidth={false}
-              dropdownRender={(menu) => (
-                <>
-                  <div
-                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      if (tenantIds.length === tenantSelectOptions.length) {
-                        setTenantIds([]);
-                      } else {
-                        setTenantIds(tenantSelectOptions.map((o) => o.value));
-                      }
-                    }}
-                  >
-                    <Checkbox
-                      checked={tenantIds.length === tenantSelectOptions.length && tenantSelectOptions.length > 0}
-                      indeterminate={tenantIds.length > 0 && tenantIds.length < tenantSelectOptions.length}
-                    />
-                    <span className="text-sm">전체 선택</span>
-                  </div>
-                  <Divider style={{ margin: '4px 0' }} />
-                  {menu}
-                </>
-              )}
-            />
-          </div>
-          <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
             <Select
               mode="multiple"
@@ -541,7 +469,6 @@ export default function ReceiveFileList() {
               optionFilterProp="label"
               style={{ width: '15rem' }}
               popupMatchSelectWidth={false}
-              disabled={tenantIds.length === 0}
               dropdownRender={(menu) => (
                 <>
                   <div
@@ -581,7 +508,7 @@ export default function ReceiveFileList() {
               optionFilterProp="label"
               style={{ width: '15rem' }}
               popupMatchSelectWidth={false}
-              disabled={tenantIds.length === 0 || campaignSelections.length === 0}
+              disabled={campaignSelections.length === 0}
               dropdownRender={(menu) => (
                 <>
                   <div

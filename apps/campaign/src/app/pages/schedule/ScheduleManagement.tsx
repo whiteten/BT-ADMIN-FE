@@ -1,31 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Select } from 'antd';
+import { type BreadcrumbProps, Button } from 'antd';
 import { Plus, Search, Settings, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ScheduleManagementGrid from '../../features/schedule/components/ScheduleManagementGrid';
 import type { ScheduleManagementItem } from '../../features/schedule/types';
-import { useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '스케줄', path: '/campaign/schedule' },
-  { title: '스케줄 관리', path: '/campaign/schedule/schedule-management' },
+  { title: '캠페인 스케줄 관리', path: '/campaign/schedule/schedule-management' },
 ];
 
-const SCHEDULE_MANAGEMENT_TENANT_STORAGE_KEY = 'campaign-schedule-management:tenant-id';
-
-function loadStoredTenantId(): string {
-  try {
-    const saved = localStorage.getItem(SCHEDULE_MANAGEMENT_TENANT_STORAGE_KEY);
-    return saved && saved.length > 0 ? saved : '';
-  } catch {
-    return '';
-  }
-}
-
 const SCHEDULE_CONTROL_BUTTON_CLASS = '!bg-[#0ab39c] !border-[#0ab39c] hover:!bg-[#099885] hover:!border-[#099885] !text-white';
+
+const EMPTY_SCHEDULE_LIST: ScheduleManagementItem[] = [];
 
 export default function ScheduleManagement() {
   const navigate = useNavigate();
@@ -33,32 +23,15 @@ export default function ScheduleManagement() {
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const modal = useModal();
 
-  const [tenantId, setTenantId] = useState<string>(() => loadStoredTenantId());
-  const [appliedTenantId, setAppliedTenantId] = useState<string>(() => loadStoredTenantId());
   const [selectedScheduleIds, setSelectedScheduleIds] = useState<string[]>([]);
-
-  const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(
-    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
-    [tenantOptionList],
-  );
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  useEffect(() => {
-    localStorage.setItem(SCHEDULE_MANAGEMENT_TENANT_STORAGE_KEY, tenantId);
-  }, [tenantId]);
-
-  const filteredList = useMemo((): ScheduleManagementItem[] => {
-    if (!appliedTenantId) return [];
-    return [];
-  }, [appliedTenantId]);
-
   const handleSearch = () => {
-    setAppliedTenantId(tenantId);
+    setSelectedScheduleIds([]);
   };
 
   const handleSettings = () => {
@@ -103,22 +76,6 @@ export default function ScheduleManagement() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <div className="flex items-center gap-3 w-full bg-white bt-shadow px-7 py-5 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-[#495057] shrink-0">테넌트</span>
-          <Select
-            value={tenantId}
-            onChange={(value) => setTenantId(value)}
-            showSearch
-            options={tenantSelectOptions}
-            placeholder="테넌트를 선택하세요."
-            optionFilterProp="label"
-            style={{ width: '15rem' }}
-            popupMatchSelectWidth={false}
-          />
-        </div>
-      </div>
-
       <div className="flex flex-col gap-5 w-full h-full bg-white bt-shadow p-5">
         <header className="flex items-center justify-between w-full gap-2 lg:flex-nowrap flex-wrap">
           <h2 className="text-base font-semibold text-gray-800 shrink-0">스케줄 목록</h2>
@@ -151,7 +108,7 @@ export default function ScheduleManagement() {
         </header>
 
         <div className="w-full h-full">
-          <ScheduleManagementGrid rowData={filteredList} showSelection onDetailClick={handleDetailClick} onSelectionChange={setSelectedScheduleIds} />
+          <ScheduleManagementGrid rowData={EMPTY_SCHEDULE_LIST} showSelection onDetailClick={handleDetailClick} onSelectionChange={setSelectedScheduleIds} />
         </div>
       </div>
     </div>

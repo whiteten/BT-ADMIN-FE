@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Divider, Input, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
@@ -7,18 +7,16 @@ import { fuzzyFilter, toast } from '@/shared-util';
 import ScheduleListGrid from '../../features/schedule/components/ScheduleListGrid';
 import { SCHEDULE_STATUS_FILTER_OPTIONS, SCHEDULE_TYPE_FILTER_OPTIONS, type ScheduleStatus, type ScheduleType } from '../../features/schedule/constants/scheduleConstants';
 import type { ScheduleListItem } from '../../features/schedule/types';
-import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
+import { useGetCampaignOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '스케줄', path: '/campaign/schedule' },
   { title: '캠페인 스케줄 이력', path: '/campaign/schedule/schedule-list' },
 ];
 
-const SCHEDULE_LIST_TENANT_STORAGE_KEY = 'campaign-schedule-list:tenant-ids';
 const SCHEDULE_LIST_CAMPAIGN_STORAGE_KEY = 'campaign-schedule-list:campaign-selections';
 
 type AppliedFilters = {
-  tenantIds: string[];
   campaignSelections: string[];
   executionDateRange: { start: string; end: string } | null;
   scheduleName: string;
@@ -37,7 +35,6 @@ function toExecutionDateRangeFilter(dates: [Dayjs | null, Dayjs | null] | null):
 }
 
 const INITIAL_APPLIED_FILTERS: AppliedFilters = {
-  tenantIds: [],
   campaignSelections: [],
   executionDateRange: toExecutionDateRangeFilter(DEFAULT_EXECUTION_DATE_RANGE),
   scheduleName: '',
@@ -75,8 +72,6 @@ export default function ScheduleList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const isInitialTenantHydrationDone = useRef(false);
-  const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(SCHEDULE_LIST_TENANT_STORAGE_KEY));
   const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(SCHEDULE_LIST_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
   const [executionDateRange, setExecutionDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(DEFAULT_EXECUTION_DATE_RANGE);
   const [scheduleName, setScheduleName] = useState('');
@@ -84,17 +79,7 @@ export default function ScheduleList() {
   const [scheduleStatusFilter, setScheduleStatusFilter] = useState<ScheduleStatus | null>(null);
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(INITIAL_APPLIED_FILTERS);
 
-  const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(
-    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
-    [tenantOptionList],
-  );
-
-  const tenantIdNums = useMemo(() => tenantIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)), [tenantIds]);
-  const { data: campaignOptionList } = useGetCampaignOptionList({
-    params: { tenantIds: tenantIdNums },
-    queryOptions: { enabled: tenantIdNums.length > 0 },
-  });
+  const { data: campaignOptionList } = useGetCampaignOptionList();
   const campaignSelectOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { label: string; value: string }[] = [];
@@ -109,27 +94,11 @@ export default function ScheduleList() {
   }, [campaignOptionList]);
 
   useEffect(() => {
-    if (!isInitialTenantHydrationDone.current) {
-      isInitialTenantHydrationDone.current = true;
-      return;
-    }
-    setCampaignSelections([]);
-  }, [tenantIds]);
-
-  useEffect(() => {
-    localStorage.setItem(SCHEDULE_LIST_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
-  }, [tenantIds]);
-
-  useEffect(() => {
     localStorage.setItem(SCHEDULE_LIST_CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignSelections));
   }, [campaignSelections]);
 
   const filteredList = useMemo(() => {
     let items: ScheduleListItem[] = [];
-
-    if (appliedFilters.tenantIds.length > 0) {
-      items = items.filter((item) => appliedFilters.tenantIds.includes(item.tenantId));
-    }
 
     const campaignIds = parseCampaignIds(appliedFilters.campaignSelections);
     if (campaignIds.length > 0) {
@@ -158,18 +127,12 @@ export default function ScheduleList() {
   }, [appliedFilters]);
 
   const handleSearch = () => {
-    if (tenantIds.length === 0) {
-      toast.warning('테넌트를 선택해주세요.');
-      return;
-    }
-
     if (campaignSelections.length === 0) {
       toast.warning('캠페인을 선택해주세요.');
       return;
     }
 
     setAppliedFilters({
-      tenantIds,
       campaignSelections,
       executionDateRange: toExecutionDateRangeFilter(executionDateRange),
       scheduleName,
@@ -181,45 +144,6 @@ export default function ScheduleList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex items-center gap-3 w-full bg-white bt-shadow px-7 py-5 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-[#495057] shrink-0">테넌트</span>
-          <Select
-            mode="multiple"
-            value={tenantIds}
-            onChange={(value) => setTenantIds(value ?? [])}
-            allowClear
-            showSearch
-            maxTagCount="responsive"
-            options={tenantSelectOptions}
-            placeholder="테넌트를 선택하세요."
-            optionFilterProp="label"
-            style={{ width: '15rem' }}
-            popupMatchSelectWidth={false}
-            dropdownRender={(menu) => (
-              <>
-                <div
-                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    if (tenantIds.length === tenantSelectOptions.length) {
-                      setTenantIds([]);
-                    } else {
-                      setTenantIds(tenantSelectOptions.map((o) => o.value));
-                    }
-                  }}
-                >
-                  <Checkbox
-                    checked={tenantIds.length === tenantSelectOptions.length && tenantSelectOptions.length > 0}
-                    indeterminate={tenantIds.length > 0 && tenantIds.length < tenantSelectOptions.length}
-                  />
-                  <span className="text-sm">전체 선택</span>
-                </div>
-                <Divider style={{ margin: '4px 0' }} />
-                {menu}
-              </>
-            )}
-          />
-        </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-[#495057] shrink-0">캠페인</span>
           <Select
@@ -234,7 +158,6 @@ export default function ScheduleList() {
             optionFilterProp="label"
             style={{ width: '15rem' }}
             popupMatchSelectWidth={false}
-            disabled={tenantIds.length === 0}
             dropdownRender={(menu) => (
               <>
                 <div
