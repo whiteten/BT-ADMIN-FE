@@ -1,8 +1,9 @@
 /**
  * ACS 서비스 기본정보 수정 Drawer (AS-IS popupAcsServiceMaster).
  *
- * <p>등록은 없다 — 시나리오 관리에서 ACS 시나리오(20/70) 등록 시 자동 생성.
- * 시나리오 이름/ACS Type 은 수정 불가 (AS-IS 동일).</p>
+ * <p>등록은 없다 — 시나리오 관리에서 ACS 시나리오(20/70) 등록 시 자동 생성.</p>
+ * <p>ACS 기간(시작~종료일자)은 스케줄링 제어 타입이 기간제어(1)일 때만 의미가 있어
+ * 기간제어 선택 시에만 입력 가능하며, 미사용 저장 시 일자는 비운다.</p>
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,15 +11,14 @@ import { Button, DatePicker, Drawer, Form, Input, InputNumber, Radio } from 'ant
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
 import { acsServiceQueryKeys, useUpdateAcsService } from '../hooks/useAcsServiceQueries';
-import { ACS_TYPE_LABELS, type AcsService } from '../types/acsService.types';
+import type { AcsService } from '../types/acsService.types';
 
 interface FormValues {
   acsServiceName: string;
   dupYn: number;
   maxObReqCnt: number;
   controlType: number;
-  startDate: Dayjs | null;
-  finishDate: Dayjs | null;
+  period?: [Dayjs, Dayjs] | null;
   useYn: number;
   acsPeriod: number;
 }
@@ -34,6 +34,7 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
   const [visible, setVisible] = useState(false);
   const [editing, setEditing] = useState<AcsService | null>(null);
   const controlType = Form.useWatch('controlType', form);
+  const isPeriodControl = controlType === 1;
 
   useImperativeHandle(ref, () => ({
     openEdit: (acs) => {
@@ -43,8 +44,7 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
         dupYn: acs.dupYn,
         maxObReqCnt: acs.maxObReqCnt,
         controlType: acs.controlType,
-        startDate: acs.startDate ? dayjs(acs.startDate) : null,
-        finishDate: acs.finishDate ? dayjs(acs.finishDate) : null,
+        period: acs.startDate && acs.finishDate ? [dayjs(acs.startDate), dayjs(acs.finishDate)] : undefined,
         useYn: acs.useYn,
         acsPeriod: acs.acsPeriod,
       });
@@ -58,12 +58,10 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
 
   const handleSubmit = async (values: FormValues) => {
     if (!editing) return;
-    if (values.controlType === 1 && (!values.startDate || !values.finishDate)) {
-      toast.error('기간제어 사용 시 ACS 시작/종료일자는 필수입니다.');
-      return;
-    }
-    if (values.startDate && values.finishDate && values.startDate.isAfter(values.finishDate, 'day')) {
-      toast.error('ACS 시작일자는 종료일자보다 클 수 없습니다.');
+    // 기간제어일 때만 일자 저장 — 미사용이면 의미 없는 값이라 비운다
+    const usePeriod = values.controlType === 1;
+    if (usePeriod && !values.period) {
+      toast.error('기간제어 사용 시 ACS 기간은 필수입니다.');
       return;
     }
     try {
@@ -74,8 +72,8 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
           dupYn: values.dupYn,
           maxObReqCnt: values.maxObReqCnt,
           controlType: values.controlType,
-          startDate: values.startDate ? values.startDate.format('YYYY-MM-DD') : null,
-          finishDate: values.finishDate ? values.finishDate.format('YYYY-MM-DD') : null,
+          startDate: usePeriod && values.period ? values.period[0].format('YYYY-MM-DD') : null,
+          finishDate: usePeriod && values.period ? values.period[1].format('YYYY-MM-DD') : null,
           useYn: values.useYn,
           acsPeriod: values.acsPeriod,
         },
@@ -106,12 +104,6 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
       }
     >
       <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark>
-        <Form.Item label="시나리오 이름">
-          <Input disabled value={editing?.serviceName ?? ''} />
-        </Form.Item>
-        <Form.Item label="ACS Type">
-          <Input disabled value={editing ? (ACS_TYPE_LABELS[editing.acsType] ?? String(editing.acsType)) : ''} />
-        </Form.Item>
         <Form.Item
           name="acsServiceName"
           label="ACS 서비스명"
@@ -143,20 +135,13 @@ const AcsServiceEditDrawer = forwardRef<AcsServiceEditDrawerRef>((_props, ref) =
           />
         </Form.Item>
         <Form.Item
-          name="startDate"
-          label="ACS 시작일자"
-          required={controlType === 1}
-          rules={controlType === 1 ? [{ required: true, message: '기간제어 사용 시 시작일자는 필수입니다' }] : []}
+          name="period"
+          label="ACS 기간 (시작 ~ 종료일자)"
+          required={isPeriodControl}
+          rules={isPeriodControl ? [{ required: true, message: '기간제어 사용 시 ACS 기간은 필수입니다' }] : []}
+          extra={isPeriodControl ? undefined : '기간제어 선택 시에만 입력할 수 있습니다'}
         >
-          <DatePicker className="!w-full" />
-        </Form.Item>
-        <Form.Item
-          name="finishDate"
-          label="ACS 종료일자"
-          required={controlType === 1}
-          rules={controlType === 1 ? [{ required: true, message: '기간제어 사용 시 종료일자는 필수입니다' }] : []}
-        >
-          <DatePicker className="!w-full" />
+          <DatePicker.RangePicker className="!w-full" disabled={!isPeriodControl} />
         </Form.Item>
         <Form.Item name="useYn" label="ACS 사용여부" required rules={[{ required: true, message: '사용여부는 필수입니다' }]}>
           <Radio.Group
