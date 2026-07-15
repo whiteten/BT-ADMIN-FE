@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+/**
+ * host + 선택 remote 동시 dev 기동 (원본 BT-ADMIN-FE scripts/serve-host.js UX 이식).
+ *
+ * 원본(Nx module-federation-dev-server의 --devRemotes/--skipRemotes)과 달리
+ * turborepo에선 선택한 앱만 `turbo run dev --filter=...`로 띄운다.
+ * 미선택 remote는 dev 서버 자체가 없으므로 host가 로드 실패(404/REFUSED)를
+ * catch로 스킵 — 원본 legacy의 skipRemotes 동작과 등가.
+ */
 const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -8,11 +16,14 @@ const readline = require('readline');
 
 const REMOTE_APPS = ['fca', 'ipron', 'aoe', 'stt', 'ivr', 'insight', 'taskboard', 'campaign', 'vel'];
 
+/** 앱 이름 → pnpm 워크스페이스 패키지명 */
+const packageName = (app) => (app === 'host' ? '@bridgetec/ui-host' : `@bridgetec/ui-remote-${app}`);
+
 /**
  * LAN IPv4 주소를 자동 감지합니다.
  *
  * 외부(사내망 등)에서 IP로 host에 접속할 때, remote들도 이 IP로 해석되도록
- * module-federation.config.ts에 MF_REMOTE_HOST 환경변수로 전달합니다.
+ * host rsbuild.config.ts에 MF_REMOTE_HOST 환경변수로 전달합니다.
  * 사설망 대역(192.168.x / 10.x / 172.16~31.x)을 우선 선택합니다.
  *
  * MF_REMOTE_HOST 환경변수가 이미 지정돼 있으면(예: VPN·가상 어댑터가 많아
@@ -70,13 +81,11 @@ function parseSelection(input) {
 }
 
 function buildCommand(selectedRemotes) {
-  const skipRemotes = REMOTE_APPS.filter((app) => !selectedRemotes.includes(app));
-  let command = 'nx serve host --open --host=0.0.0.0';
-
-  if (selectedRemotes.length > 0) command += ` --devRemotes=${selectedRemotes.join(',')}`;
-  if (skipRemotes.length > 0) command += ` --skipRemotes=${skipRemotes.join(',')}`;
-
-  return command;
+  const apps = ['host', ...selectedRemotes];
+  const filters = apps.map((app) => `--filter=${packageName(app)}`);
+  // turbo 기본 동시성(10)이 persistent dev 태스크 수보다 작으면 기동 거부 — 앱 수 + 여유 1로 상향
+  const concurrency = Math.max(apps.length + 1, 10);
+  return `npx turbo run dev --concurrency=${concurrency} ${filters.join(' ')}`;
 }
 
 /**
@@ -134,7 +143,11 @@ function runServe(answer) {
     console.log('\n⏳ Host 앱을 시작하고 있습니다...');
     rl.close();
 
-    const childEnv = remoteHost ? { ...process.env, MF_REMOTE_HOST: remoteHost } : { ...process.env };
+    const childEnv = { ...process.env };
+    if (remoteHost) childEnv.MF_REMOTE_HOST = remoteHost;
+    // 브라우저 자동 열기는 serve 경유 시에만 (host rsbuild.config.ts가 SERVE_OPEN을 읽음).
+    // SERVE_NO_OPEN이 지정돼 있으면 원본과 동일하게 열지 않음.
+    if (!process.env.SERVE_NO_OPEN) childEnv.SERVE_OPEN = '1';
 
     const child = spawn(command, [], {
       stdio: 'inherit',

@@ -95,3 +95,10 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# turborepo
+.turbo
+
+# 개인 로컬 설정 (커밋 금지)
+proxy.config.local.json
+serve-host.local.json
