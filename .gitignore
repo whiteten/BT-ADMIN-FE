@@ -49,6 +49,9 @@ apps/host/proxy.config.local.json
 # serve-host 스크립트 개인 옵션 override (env 등)
 scripts/serve-host.local.json
 
+# build-selective 스크립트 개인 옵션 override (env 등)
+scripts/build-selective.local.json
+
 # generate-manual 스킬 개인 설정(로그인 계정) 및 산출 임시 파일
 .claude/skills/generate-manual/manual.config.json
 .claude/skills/generate-manual/_routes.json

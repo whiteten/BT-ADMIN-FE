@@ -1,4 +1,4 @@
-import ApiClient from '@/shared-util';
+import ApiClient, { withBasePath } from '@/shared-util';
 import type { RecLogPagedResult, RecLogSearchParams, RecReasonType, RecReasonTypeRequest, RecReasonTypeSearchParams } from '../types/rec-log';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -32,6 +32,6 @@ export const recLogApi = {
     (Object.entries(params) as [string, string | undefined][]).forEach(([k, v]) => {
       if (v !== undefined && v !== null) qs.append(k, v);
     });
-    window.open(`/api/bff/vel-reclog-excel?${qs.toString()}`, '_blank');
+    window.open(withBasePath(`/api/bff/vel-reclog-excel?${qs.toString()}`), '_blank');
   },
 };

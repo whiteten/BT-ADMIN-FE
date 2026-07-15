@@ -1,5 +1,6 @@
 import { LOG } from '@/log';
 import type { RemoteRouteEntry } from '@/shared-store';
+import { stripBasePath } from '@/shared-util';
 import { matchEntryPath } from '../../layout/utils/openTabs';
 import { ROUTE_LOADERS, flattenRoutes } from '../hooks/useRemoteRoutesLoader';
 
@@ -25,8 +26,10 @@ const splitPath = (pathname: string): string[] | null => {
 };
 
 /** 실제 판정 — 첫 세그먼트가 remote id일 때만 해당 remote Routes를 import해 public leaf와 매칭 */
-const judge = async (pathname: string): Promise<PublicVerdict> => {
-  const segments = splitPath(pathname);
+const judge = async (rawPathname: string): Promise<PublicVerdict> => {
+  // root context(basePath) 배포 시 raw pathname은 /bt-admin/taskboard/... 형태 —
+  // basePath를 벗겨야 첫 세그먼트가 remote id로 매칭된다
+  const segments = splitPath(stripBasePath(rawPathname));
   if (!segments) return 'private';
 
   const [remoteId, ...rest] = segments;
