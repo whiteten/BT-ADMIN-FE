@@ -117,6 +117,53 @@ async function copyRemotesToHost(selectedApps) {
   console.log('✅ 모든 remote 앱 복사 완료');
 }
 
+/**
+ * scripts/build-selective.local.json — 개인 PC 전용 빌드 옵션 override.
+ * .gitignore 처리되어 커밋되지 않음. (serve-host.local.json과 동일 포맷)
+ *
+ * 포맷:
+ *   {
+ *     "args": "--parallel=1 --verbose",
+ *     "env": {
+ *       "NODE_OPTIONS": "--max-old-space-size=8192"
+ *     }
+ *   }
+ *
+ * - args: nx run-many 명령 끝에 그대로 이어붙는 문자열(검증 없음). 예: "--parallel=1".
+ *   미지정 시 아무것도 붙지 않아 nx 기본값으로 동작.
+ * - env: 빌드 자식 프로세스 환경변수에 머지. 셸에서 이미 export된 값이 항상
+ *   우선이므로, 이미 존재하는 키는 덮어쓰지 않음.
+ */
+const LOCAL_CONFIG_PATH = path.join(__dirname, 'build-selective.local.json');
+function loadLocalConfig() {
+  if (!fs.existsSync(LOCAL_CONFIG_PATH)) return {};
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LOCAL_CONFIG_PATH, 'utf-8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch (e) {
+    console.warn(`⚠️  build-selective.local.json 로드 실패 (${e.message}). 무시하고 진행합니다.`);
+    return {};
+  }
+}
+const localConfig = loadLocalConfig();
+
+function applyLocalConfigEnv() {
+  const env = localConfig.env && typeof localConfig.env === 'object' ? localConfig.env : null;
+  if (!env) return [];
+  const applied = [];
+  for (const [k, v] of Object.entries(env)) {
+    if (process.env[k] !== undefined) continue;
+    process.env[k] = String(v);
+    applied.push(k);
+  }
+  return applied;
+}
+
+/** local config의 args 문자열 — 빌드 명령 끝에 그대로 이어붙임 (검증 없음) */
+function resolveExtraArgs() {
+  return typeof localConfig.args === 'string' && localConfig.args.trim() ? ` ${localConfig.args.trim()}` : '';
+}
+
 async function runBuild(answer) {
   try {
     const selectedApps = parseSelection(answer);
@@ -130,9 +177,10 @@ async function runBuild(answer) {
     // 2. dist 폴더 삭제
     await cleanDist();
 
-    // 3. 선택한 앱들 빌드 (순차적으로 빌드하여 메모리 이슈 방지)
+    // 3. 선택한 앱들 빌드 — 추가 옵션은 build-selective.local.json의 args로 개인 PC별 조정
+    //    (예: 메모리 부족 PC는 "--parallel=1"로 순차 빌드)
     const projects = selectedApps.join(',');
-    const buildCommand = `nx run-many --target=build --projects=${projects} --parallel=1`;
+    const buildCommand = `nx run-many --target=build --projects=${projects}${resolveExtraArgs()}`;
     await runCommand(buildCommand, `앱 빌드 (${projects})`);
 
     // 4. host가 포함된 경우 remote들을 host/remotes로 복사
@@ -149,6 +197,9 @@ async function runBuild(answer) {
 }
 
 async function buildApps() {
+  const applied = applyLocalConfigEnv();
+  if (applied.length > 0) console.log(`📄 build-selective.local.json 적용: ${applied.join(', ')}`);
+
   const cliArg = process.argv[2];
 
   if (cliArg) {
