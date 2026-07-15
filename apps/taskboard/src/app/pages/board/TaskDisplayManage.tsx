@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, ChevronRight, LayoutGrid, List, Plus, Search, Settings2 } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { fuzzyFilter, toast } from '@/shared-util';
+import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
+import TenantBadge from '../../features/board/components/TenantBadge';
 import {
   useCreateTaskboardDisplay,
   useDeleteTaskboardDisplay,
@@ -10,6 +12,7 @@ import {
   useGetTaskboardDisplayList,
   useUpdateTaskboardDisplay,
 } from '../../features/board/hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
 import DataSourceQueryTab from '../../features/board/tabs/DataSourceQueryTab';
 import type { DbQueryDef, TaskboardDisplay, TaskboardDisplaySelection } from '../../features/board/types/taskboard.types';
 import { extractNameValueItems } from '../../features/board/utils/redisValue';
@@ -260,6 +263,7 @@ interface DisplayFormProps {
 function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   const initialSelection = parseSelection(initial?.selectionJson);
   const userInfo = useAuthStore((s) => s.userInfo);
+  const { guardWrite } = useTaskboardWriteGuard();
 
   const [displayName, setDisplayName] = useState(initial?.displayName ?? '새 뷰 그룹');
 
@@ -335,6 +339,7 @@ function DisplayForm({ initial, onSave, onCancel }: DisplayFormProps) {
   const updateDisplay = useUpdateTaskboardDisplay({});
 
   const handleSubmit = async () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 뷰 그룹 생성·수정 차단
     if (!displayName.trim()) {
       toast.error('뷰 그룹 이름을 입력해 주세요.');
       return;
@@ -547,13 +552,16 @@ export default function TaskDisplayManage() {
 
   const deleteDisplay = useDeleteTaskboardDisplay({});
   const modal = useModal();
+  const { guardWrite } = useTaskboardWriteGuard();
 
   const handleAdd = () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 뷰 그룹 생성 진입 차단
     setEditingDisplay(null);
     setFormOpen(true);
   };
 
   const handleEdit = (display: TaskboardDisplay) => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 수정 진입 차단
     setEditingDisplay(display);
     setFormOpen(true);
   };
@@ -593,7 +601,6 @@ export default function TaskDisplayManage() {
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">데이터 소스 관리</h1>
             <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[11px] font-bold">고급 · 관리자</span>
           </div>
-          <p className="text-sm text-slate-500 mt-1">뷰 그룹에서 고를 데이터를 SELECT 쿼리로 만들어 저장합니다. 처음 세팅할 때 한 번만 등록하면 됩니다.</p>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
           <DataSourceQueryTab />
@@ -605,9 +612,9 @@ export default function TaskDisplayManage() {
   // ── 뷰 그룹 관리 (메인) ──
   return (
     <div className="p-6 bg-slate-50 h-full flex flex-col overflow-hidden font-sans">
+      <TaskboardTenantBar />
       <div className="mb-4 flex-shrink-0">
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">뷰 그룹 관리</h1>
-        <p className="text-sm text-slate-500 mt-1">전광판에 표시할 데이터를 묶어 뷰 그룹으로 만들고, 어떤 전광판(레이아웃)에든 그대로 입혀 재사용합니다.</p>
       </div>
 
       <div className="flex-shrink-0">
@@ -666,6 +673,9 @@ export default function TaskDisplayManage() {
                   <div className="min-w-0">
                     <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
                     <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
+                    <div className="mt-1">
+                      <TenantBadge tenantId={d.tenantId} />
+                    </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button onClick={() => handleEdit(d)} className="p-1.5 text-slate-400 hover:text-[#0f5b9e] hover:bg-blue-50 rounded-md transition-colors" title="수정">
@@ -692,6 +702,9 @@ export default function TaskDisplayManage() {
                 <div className="min-w-0 w-44 flex-shrink-0">
                   <div className="font-bold text-slate-800 truncate">{d.displayName}</div>
                   <div className="text-[10px] text-slate-400 font-mono">#{d.displayId}</div>
+                  <div className="mt-1">
+                    <TenantBadge tenantId={d.tenantId} />
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <SelectionSummary selection={parseSelection(d.selectionJson)} dbQueryDefs={dbQueryDefs} dbQueryNameMaps={dbQueryNameMaps} />

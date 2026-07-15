@@ -5,7 +5,10 @@ import dayjs from 'dayjs';
 import { X } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
+import TenantBadge from '../../features/board/components/TenantBadge';
 import { taskboardQueryKeys, useDeleteTaskboardLayout, useGetTaskboardDisplayList, useGetTaskboardLayoutList } from '../../features/board/hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
 import { type TaskboardLayout, parseLayoutSections, parseLayoutWidgets } from '../../features/board/types/taskboard.types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { IconEdit, IconTrash } from '@/components/custom/Icons';
@@ -295,6 +298,7 @@ export default function TaskList() {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { guardWrite } = useTaskboardWriteGuard();
   const { data: layoutList = [], isLoading } = useGetTaskboardLayoutList();
   const { mutateAsync: deleteLayout } = useDeleteTaskboardLayout();
   const [deleteTarget, setDeleteTarget] = useState<TaskboardLayout | null>(null);
@@ -314,12 +318,14 @@ export default function TaskList() {
   };
 
   const goToCreate = (layout: TaskboardLayout) => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 편집(수정) 진입 차단
     const bg = { pageId: layout.pageId, pageName: layout.pageName ?? '', fileName: layout.fileName ?? '', tenantId: '', genType: '', useYn: 'Y', regDt: layout.regDt };
     navigate('/taskboard/board/task-create', { state: { bg, layout } });
   };
 
   return (
     <div className="p-6 bg-slate-50 min-h-screen w-full font-sans">
+      <TaskboardTenantBar />
       {/* 헤더 */}
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
@@ -411,6 +417,9 @@ export default function TaskList() {
                     <div className="pr-2 min-w-0">
                       <h3 className="text-[15px] font-bold truncate text-slate-800">{item.layoutName}</h3>
                       <p className="text-[11px] text-slate-400 mt-0.5 truncate">{item.pageName}</p>
+                      <div className="mt-1">
+                        <TenantBadge tenantId={item.tenantId} />
+                      </div>
                     </div>
                     <span className="flex-shrink-0 text-[10px] px-2 py-1 rounded font-bold border bg-blue-50 text-[#0f5b9e] border-blue-200">사용중</span>
                   </div>

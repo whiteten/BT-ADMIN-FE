@@ -1,15 +1,16 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { useTaskboardTenantParam } from './useTaskboardTenantScope';
 import { type RedisKeyDefinitionsResponse, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
 import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
 export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
-  getLayoutList: () => [{}],
-  getDisplayList: () => [{}],
-  getRollingGroupList: () => [{}],
+  getLayoutList: (tenantIds?: string) => [{ tenantIds }],
+  getDisplayList: (tenantIds?: string) => [{ tenantIds }],
+  getRollingGroupList: (tenantIds?: string) => [{ tenantIds }],
   getNoticeList: () => [{}],
   getNoticeListByKey: (noticeKey: string) => [{ noticeKey }],
   getDbQueryDefList: () => [{}],
@@ -20,9 +21,10 @@ export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
  * [BG LIST] 클라이언트 목록 조회 훅
  */
 export const useGetTaskboardBg = ({ params, queryOptions }: QueryHookWithParamsOptions<TaskboardBg[]> = {}) => {
+  const tenantIds = useTaskboardTenantParam();
   return useQuery({
-    queryKey: taskboardQueryKeys.getBgList(params).queryKey,
-    queryFn: () => taskboardApi.getTaskBoardBgs(params),
+    queryKey: taskboardQueryKeys.getBgList({ ...params, tenantIds }).queryKey,
+    queryFn: () => taskboardApi.getTaskBoardBgs(params, tenantIds),
     ...queryOptions,
   });
 };
@@ -50,9 +52,10 @@ export const useDeleteTaskboardBg = ({ mutationOptions }: MutationHookOptions<an
 // ── 레이아웃 훅 ───────────────────────────────────────────────────────────
 
 export const useGetTaskboardLayoutList = ({ queryOptions }: QueryHookWithParamsOptions<TaskboardLayout[]> = {}) => {
+  const tenantIds = useTaskboardTenantParam();
   return useQuery({
-    queryKey: taskboardQueryKeys.getLayoutList().queryKey,
-    queryFn: () => taskboardApi.getLayoutList(),
+    queryKey: taskboardQueryKeys.getLayoutList(tenantIds).queryKey,
+    queryFn: () => taskboardApi.getLayoutList(tenantIds),
     ...queryOptions,
   });
 };
@@ -81,9 +84,10 @@ export const useDeleteTaskboardLayout = ({ mutationOptions }: MutationHookOption
 // ── 뷰 그룹 훅 (레이아웃과 매핑되지 않는 독립된 선택값 묶음) ─────────────────────────
 
 export const useGetTaskboardDisplayList = ({ queryOptions }: QueryHookWithParamsOptions<TaskboardDisplay[]> = {}) => {
+  const tenantIds = useTaskboardTenantParam();
   return useQuery({
-    queryKey: taskboardQueryKeys.getDisplayList().queryKey,
-    queryFn: () => taskboardApi.getDisplayList(),
+    queryKey: taskboardQueryKeys.getDisplayList(tenantIds).queryKey,
+    queryFn: () => taskboardApi.getDisplayList(tenantIds),
     ...queryOptions,
   });
 };
@@ -182,9 +186,10 @@ export const useGetDbQueryDefOptionsMulti = (ids: number[]) => {
 // ── 롤링 그룹 훅 ─────────────────────────────────────────────────────────
 
 export const useGetRollingGroupList = ({ queryOptions }: QueryHookWithParamsOptions<RollingGroup[]> = {}) => {
+  const tenantIds = useTaskboardTenantParam();
   return useQuery({
-    queryKey: taskboardQueryKeys.getRollingGroupList().queryKey,
-    queryFn: () => taskboardApi.getRollingGroupList(),
+    queryKey: taskboardQueryKeys.getRollingGroupList(tenantIds).queryKey,
+    queryFn: () => taskboardApi.getRollingGroupList(tenantIds),
     ...queryOptions,
   });
 };

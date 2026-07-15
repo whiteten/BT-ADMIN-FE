@@ -5,6 +5,7 @@ import { useAuthStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { taskboardApi } from '../api/taskboardApi';
 import { useCreateDbQueryDef, useDeleteDbQueryDef, useGetDbQueryDefList, useGetRedisHashKeys, useGetRedisKeyDefinitions, useUpdateDbQueryDef } from '../hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../hooks/useTaskboardWriteGuard';
 import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry } from '../types/taskboard.types';
 import { matchKeyDefinition, suggestKeyTemplate } from '../utils/redisKeyDefinitions';
 import { type RedisKeyNode, filterRedisTree, groupRedisKeys } from '../utils/redisKeyPattern';
@@ -324,6 +325,7 @@ export default function DataSourceQueryTab() {
   const matchedKeyDefinition = redisKeyDefs ? matchKeyDefinition(newKeyValue.trim(), redisKeyDefs) : null;
   const createDef = useCreateDbQueryDef({});
   const updateDef = useUpdateDbQueryDef({});
+  const { guardWrite } = useTaskboardWriteGuard();
   const deleteDef = useDeleteDbQueryDef({});
   const saveMutation = editingId ? updateDef : createDef;
   const modal = useModal();
@@ -471,6 +473,7 @@ export default function DataSourceQueryTab() {
     : [];
 
   const handleSave = async () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 데이터 소스 등록·수정 차단
     if (!queryName.trim()) {
       toast.error('쿼리 이름을 입력하세요.');
       return;

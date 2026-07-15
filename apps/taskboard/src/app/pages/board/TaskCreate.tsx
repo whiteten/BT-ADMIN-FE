@@ -36,6 +36,7 @@ import {
   useRefreshRedisHashKeys,
   useUpdateLayout,
 } from '../../features/board/hooks/useTaskboardQueries';
+import { useTaskboardWriteGuard } from '../../features/board/hooks/useTaskboardWriteGuard';
 import { useValueChangeKey } from '../../features/board/hooks/useValueChangeAnimation';
 import type {
   CalcConfig,
@@ -2692,6 +2693,7 @@ export default function TaskCreate() {
   const bg = state?.bg;
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
+  const { guardWrite } = useTaskboardWriteGuard();
   // 데이터 소스 관리 탭에 등록된 전체 데이터소스 목록 — 테이블 컬럼의 "이름 매핑" 드롭다운에서 고를 수 있게 제공.
   // 플레이스홀더(예: 그룹 목록 {groupId})도 VALUE/NAME 쿼리라서 이름 매핑 소스로 그대로 쓸 수 있다 —
   // 그룹ID 컬럼을 그룹명으로 바꿔 보여주는 게 정확히 이 케이스라 제외하지 않는다.
@@ -3873,6 +3875,7 @@ export default function TaskCreate() {
 
   // ── 저장 ─────────────────────────────────────────────────────────────
   const handleSave = async () => {
+    if (!guardWrite()) return; // 다중 테넌트 View 중엔 레이아웃 저장(생성·수정) 차단
     const pageId = layout?.pageId ?? bg?.pageId;
     if (!pageId) {
       toast.error('배경 정보가 없습니다.');
