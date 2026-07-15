@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { withBasePath } from '@/shared-util';
 import type { EavesdropInfo } from '../../features/monitoring/types/monitoring';
 
 const TH = 'bg-gray-50 px-3 py-1.5 font-medium text-gray-600 flex items-center border-r border-gray-200 text-sm whitespace-nowrap';
@@ -40,7 +41,7 @@ export default function EavesdropPage() {
   useEffect(() => {
     if (!info) return;
 
-    fetch('/api/bff/vel-monitoring-rt-user', {
+    fetch(withBasePath('/api/bff/vel-monitoring-rt-user'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -50,7 +51,7 @@ export default function EavesdropPage() {
       }),
     }).catch(() => undefined);
 
-    fetch('/api/bff/vel-monitoring-rt-log', {
+    fetch(withBasePath('/api/bff/vel-monitoring-rt-log'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -68,7 +69,7 @@ export default function EavesdropPage() {
     const handleBeforeUnload = () => {
       const cur = infoRef.current;
       if (!cur) return;
-      fetch('/api/bff/vel-monitoring-rt-user-clear', {
+      fetch(withBasePath('/api/bff/vel-monitoring-rt-user-clear'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId: cur.tenantId, dnNo: cur.dnNo }),

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { LOG } from '@/log';
-import { WebSocketClient, toast } from '@/shared-util';
+import { WebSocketClient, buildWsUrl, toast } from '@/shared-util';
 
 const Log = new LOG('useSessionSocket');
 
@@ -19,8 +19,7 @@ export function useSessionSocket({ ticket, onClose, onError }: UseSessionSocketO
   useEffect(() => {
     if (!ticket) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/session?ticket=${encodeURIComponent(ticket)}`;
+    const wsUrl = buildWsUrl(`/ws/session?ticket=${encodeURIComponent(ticket)}`);
 
     const client = new WebSocketClient(wsUrl, {
       muteLog: (data) => data.includes('"PING"') || data.includes('"PONG"'),

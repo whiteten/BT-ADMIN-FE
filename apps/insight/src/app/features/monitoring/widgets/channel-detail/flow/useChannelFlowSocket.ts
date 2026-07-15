@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { WebSocketClient } from '@/shared-util';
+import { WebSocketClient, buildWsUrl } from '@/shared-util';
 import type { ChannelFlowDetail, ChannelFlowTarget } from './types';
 
 const WS_PATH = '/ws/proxy/insight/channel-flow';
@@ -34,8 +34,7 @@ export function useChannelFlowSocket() {
         return;
       }
 
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}${WS_PATH}`;
+      const wsUrl = buildWsUrl(WS_PATH);
       const client = new WebSocketClient(wsUrl, { messageLog: false });
       wsRef.current = client;
 

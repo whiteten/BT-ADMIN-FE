@@ -1,3 +1,4 @@
+import { join } from 'path';
 import type { ModuleFederationConfig } from '@nx/module-federation';
 import { withModuleFederation } from '@nx/module-federation/webpack.js';
 import { withReact } from '@nx/react';
@@ -45,4 +46,13 @@ const prodConfig: ModuleFederationConfig = {
  * The DTS Plugin can be enabled by setting dts: true
  * Learn more about the DTS Plugin here: https://module-federation.io/configure/dts.html
  */
-export default composePlugins(withNx(), withReact(), withModuleFederation(prodConfig, { dts: false }), withDefinePlugin);
+export default composePlugins(
+  withNx(),
+  withReact(),
+  withModuleFederation(prodConfig, {
+    dts: false,
+    // remote entry(/remotes/...)에 root context(basePath)를 런타임 접두 — 상세는 플러그인 주석 참조
+    runtimePlugins: [join(__dirname, 'src', 'mf-basepath-runtime-plugin.ts')],
+  }),
+  withDefinePlugin,
+);
