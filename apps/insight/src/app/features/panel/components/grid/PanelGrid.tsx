@@ -78,6 +78,7 @@ export default function PanelGrid({ panel, reportId, preview = false }: PanelGri
       searchValues: committedFilter.searchValues,
       comparison: committedFilter.comparison,
       conditions: committedFilter.conditions,
+      tenantId: committedFilter.tenantId ?? null,
     },
     queryTrigger,
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },

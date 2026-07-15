@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Checkbox, DatePicker, Divider, Radio, Select, TimePicker, Tooltip, TreeSelect, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Camera, Download, Search } from 'lucide-react';
+import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ComparisonToggle from './ComparisonToggle';
 import { useExportPanelExcel } from '../../panel/hooks/usePanelQueries';
@@ -51,10 +52,12 @@ interface SearchCondCascadeProps {
   fallbackFieldName?: string;
   /** 보고서 ID — cascade 선택 체인 스냅샷을 보고서별로 저장/복원. */
   reportId: number;
+  /** 운영자 모드 조회 대상 테넌트 — 옵션 조회(:tenantId)·스냅샷 키 스코프에 반영. */
+  tenantId?: string | null;
   onChange(fieldName: string, val: string | string[] | null): void;
 }
 
-function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, reportId, onChange }: SearchCondCascadeProps) {
+function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, reportId, tenantId, onChange }: SearchCondCascadeProps) {
   const { data: meta } = useGetSearchConditionStages({ searchCondId });
   const stages = useMemo(() => meta?.stages ?? [], [meta]);
   // 단계별 로컬 선택값 — cascade 구동(자식 조회) + 바인딩 컬럼 전송 양쪽에 사용.
@@ -78,7 +81,8 @@ function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, repo
   // cascade 선택 체인(그룹+하위 단계 전체)을 보고서별 스냅샷으로 저장/복원.
   // searchValues 는 바인딩된 leaf 컬럼만 담아 그룹(부모) 복원이 안 되고, 그룹 미선택이면
   // 하위 옵션 조회가 비활성→선택값 label 도 못 띄운다. 전체 체인을 직접 보관해 해결.
-  const snapKey = `insight.report.cascade.${reportId}.${searchCondId}`;
+  // 운영자 모드는 테넌트별로 유효 선택값이 다르므로 스냅샷 키를 테넌트로 스코프.
+  const snapKey = `insight.report.cascade.${reportId}.${searchCondId}${tenantId ? `.${tenantId}` : ''}`;
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current || stages.length === 0) return;
@@ -147,6 +151,7 @@ function SearchCondCascade({ searchCondId, nodeFieldMap, fallbackFieldName, repo
             fallbackTitle={meta?.title}
             hasParent={parentCode != null}
             parentValue={parentCode ? selected[parentCode] : undefined}
+            tenantId={tenantId}
             value={selected[stage.nodeCode]}
             onChange={(val) => handleStageChange(stage, val)}
           />
@@ -164,11 +169,13 @@ interface StageSelectProps {
   /** 유효 부모 단계가 존재하는지 (cascade 자식 여부). */
   hasParent: boolean;
   parentValue?: string | string[] | null;
+  /** 운영자 모드 조회 대상 테넌트 — 옵션 조회(:tenantId) override. */
+  tenantId?: string | null;
   value: string | string[] | null;
   onChange(val: string | string[] | null): void;
 }
 
-function StageSelect({ searchCondId, stage, fallbackTitle, hasParent, parentValue, value, onChange }: StageSelectProps) {
+function StageSelect({ searchCondId, stage, fallbackTitle, hasParent, parentValue, tenantId, value, onChange }: StageSelectProps) {
   const parentMissing = hasParent && (parentValue == null || (Array.isArray(parentValue) && parentValue.length === 0));
   // 드롭다운 open 직접 제어 — 바깥 영역 클릭 시에만 닫히도록 (전체선택 체크박스 클릭으로 닫히지 않게)
   const [open, setOpen] = useState(false);
@@ -186,6 +193,7 @@ function StageSelect({ searchCondId, stage, fallbackTitle, hasParent, parentValu
     searchCondId,
     nodeCode: stage.nodeCode,
     parentValue: parentValue ?? null,
+    tenantId,
     queryOptions: { enabled: !parentMissing },
   });
   const options = (data ?? []).map((o) => ({ value: String(o.value ?? ''), label: String(o.label ?? o.value ?? '') }));
@@ -336,7 +344,26 @@ const ISO_DATE = 'YYYY-MM-DD';
 export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
   const { panels, report } = useReportEditorStore();
   const reportTitle = report?.title ?? '통계 보고서';
-  const { globalFilter, committedFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, commitFilter, hydrateForReport } = useReportViewStore();
+  const { globalFilter, committedFilter, setTimeUnit, setComparison, setPeriod, setSearchValue, setConditions, setTenantId, commitFilter, hydrateForReport } = useReportViewStore();
+
+  // 운영자 모드 — 장표 안 테넌트 검색조건(필수 선행). 선택 전엔 하위 조건·조회 모두 차단.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
+  const viewTenantId = globalFilter.tenantId ?? null;
+  const tenantSelectionPending = mode === 'view' && operatorMode && !viewTenantId;
+  const tenantOptions = (availableTenants ?? []).map((t) => ({ value: String(t.tenantId), label: t.tenantName }));
+
+  // 편집 모드 — 데이터 스코프를 장표 "소유 테넌트"로 자동 고정 (선택형 아님).
+  // 편집은 장표 정의(소유 테넌트 자산)를 만지는 작업이므로 미리보기·검색조건 옵션도
+  // 소유 테넌트 기준이어야 한다. admin 이 타 테넌트 공유/기본 장표를 편집할 때 유효
+  // (일반 사용자는 소유 테넌트 == 컨텍스트 테넌트라 동작 변화 없음).
+  const editorOwnerTenantId = mode === 'editor' && report?.tenantId != null ? String(report.tenantId) : null;
+  useEffect(() => {
+    if (editorOwnerTenantId && globalFilter.tenantId !== editorOwnerTenantId) setTenantId(editorOwnerTenantId);
+  }, [editorOwnerTenantId, globalFilter.tenantId, setTenantId]);
+
+  // cascade 옵션 조회에 쓸 테넌트: 편집=소유 테넌트 고정, 뷰+운영자=선택 테넌트, 그 외=컨텍스트(미전송)
+  const cascadeTenantId = editorOwnerTenantId ?? (mode === 'view' && operatorMode ? viewTenantId : undefined);
 
   // 뷰 진입(또는 보고서 전환) 시 저장된 조건 복원 — 글로벌 공통조건 + 보고서별 searchValues
   useEffect(() => {
@@ -357,6 +384,7 @@ export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
       searchValues: committedFilter.searchValues,
       comparison: committedFilter.comparison,
       conditions: committedFilter.conditions,
+      tenantId: committedFilter.tenantId ?? null,
     });
   };
 
@@ -517,7 +545,27 @@ export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
     setPeriod(range.from, range.to);
   };
 
+  // 운영자 모드 — 테넌트 변경: 조회 대상 교체 + 이 보고서의 cascade 스냅샷 전부 제거
+  // (스냅샷 키는 테넌트 접미사가 붙으므로 prefix 스캔으로 지운다. searchValues 초기화는
+  // store.setTenantId 가 처리, cascade 내부 상태는 key remount 로 초기화)
+  const handleTenantChange = (val: string | undefined) => {
+    setTenantId(val ?? null);
+    try {
+      const prefix = `insight.report.cascade.${reportId}.`;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k?.startsWith(prefix)) localStorage.removeItem(k);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleQuery = () => {
+    if (tenantSelectionPending) {
+      message.warning('조회할 테넌트를 먼저 선택해주세요.');
+      return;
+    }
     const s = dayjs(globalFilter.period.from);
     const e = dayjs(globalFilter.period.to);
     if (s.isValid() && e.isValid() && !validateDateRange(s, e, unit, limits)) {
@@ -684,21 +732,44 @@ export default function GlobalFilter({ reportId, mode }: GlobalFilterProps) {
         </div>
       </div>
 
-      {/* 2행: 데이터셋 동적 검색조건 (공통 아래) */}
-      {filterBindings.length > 0 && (
+      {/* 2행: 데이터셋 동적 검색조건 (공통 아래) — 운영자 모드는 테넌트 조건이 필수 선행 */}
+      {((mode === 'view' && operatorMode) || filterBindings.length > 0) && (
         <>
           <Divider className="!my-0" />
           <div className="flex flex-wrap items-center gap-3">
-            {filterBindings.map(({ searchCondId, nodeFieldMap, fallbackFieldName }) => (
-              <SearchCondCascade
-                key={searchCondId}
-                searchCondId={searchCondId}
-                nodeFieldMap={nodeFieldMap}
-                fallbackFieldName={fallbackFieldName}
-                reportId={reportId}
-                onChange={(fieldName, val) => setSearchValue(fieldName, val)}
-              />
-            ))}
+            {mode === 'view' && operatorMode && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-[#495057] shrink-0">
+                  테넌트 <span className="text-red-500">*</span>
+                </span>
+                <Select
+                  value={viewTenantId ?? undefined}
+                  onChange={handleTenantChange}
+                  options={tenantOptions}
+                  placeholder="조회할 테넌트 선택"
+                  status={viewTenantId ? undefined : 'warning'}
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ minWidth: 180, maxWidth: 280 }}
+                  popupMatchSelectWidth={false}
+                />
+              </div>
+            )}
+            {tenantSelectionPending ? (
+              <span className="text-sm text-[var(--color-bt-fg-muted)]">테넌트를 선택하면 검색조건과 데이터가 해당 테넌트 기준으로 조회됩니다.</span>
+            ) : (
+              filterBindings.map(({ searchCondId, nodeFieldMap, fallbackFieldName }) => (
+                <SearchCondCascade
+                  key={operatorMode ? `${searchCondId}:${viewTenantId}` : searchCondId}
+                  searchCondId={searchCondId}
+                  nodeFieldMap={nodeFieldMap}
+                  fallbackFieldName={fallbackFieldName}
+                  reportId={reportId}
+                  tenantId={cascadeTenantId}
+                  onChange={(fieldName, val) => setSearchValue(fieldName, val)}
+                />
+              ))
+            )}
           </div>
         </>
       )}

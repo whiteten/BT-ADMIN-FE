@@ -27,6 +27,7 @@ export default function PanelPieChart({ panel, reportId }: PanelPieChartProps) {
       searchValues: committedFilter.searchValues,
       comparison: committedFilter.comparison,
       conditions: committedFilter.conditions,
+      tenantId: committedFilter.tenantId ?? null,
     },
     queryTrigger,
     queryOptions: { enabled: !isDraft && hasMapping && queryTrigger > 0 },

@@ -50,12 +50,13 @@ export const searchConditionApi = {
   /**
    * 장표 런타임 cascade — 한 단계(node)의 옵션을 부모 선택값 기준으로 조회.
    * nodeCode null 이면 루트 단계. parentValue 는 단일/다중 모두 배열로 전송 (IN 확장).
+   * tenantId 는 운영자 모드의 조회 대상 테넌트 override (OPTION_SQL :tenantId 바인딩).
    */
-  resolveStageOptions: async (searchCondId: number, nodeCode: string | null, parentValue?: string | string[] | null): Promise<SqlPreviewResult[]> => {
+  resolveStageOptions: async (searchCondId: number, nodeCode: string | null, parentValue?: string | string[] | null, tenantId?: string | null): Promise<SqlPreviewResult[]> => {
     const pv = parentValue == null ? undefined : Array.isArray(parentValue) ? parentValue : [parentValue];
     const response = await apiClient.post<Record<string, unknown>>(
       '/insight-statistics-search-condition-resolve',
-      { nodeCode: nodeCode ?? null, parentValue: pv },
+      { nodeCode: nodeCode ?? null, parentValue: pv, tenantId: tenantId ?? undefined },
       { params: { searchCondId } },
     );
     const raw = (response as unknown as { data: { data: unknown } })?.data?.data;
