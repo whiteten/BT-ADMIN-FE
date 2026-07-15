@@ -3,7 +3,7 @@
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractApiErrorMessage, extractFileName, toast } from '@/shared-util';
+import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractApiErrorMessage, extractFileName, toast } from '@/shared-util';
 import { sleeConfigApi } from '../api/sleeConfigApi';
 import type {
   SleeConfigApplyResult,
@@ -20,7 +20,6 @@ import type {
   SleeConfigProperty,
   SleeConfigReservationRequest,
   SleeConfigReservationResult,
-  SleeConfigTenant,
   SleeUserconfigCreateRequest,
   SleeUserconfigImportResponse,
   SleeUserconfigUpdateRequest,
@@ -46,7 +45,6 @@ interface UpdatePropertyVariables {
 }
 
 export const sleeConfigQueryKeys = createQueryKeys('sleeConfig', {
-  getTenants: null,
   getConfigFiles: (params?: Record<string, unknown>) => [params],
   getCategories: (params?: Record<string, unknown>) => [params],
   getProperties: (params?: Record<string, unknown>) => [params],
@@ -56,14 +54,6 @@ export const sleeConfigQueryKeys = createQueryKeys('sleeConfig', {
   getBackups: (params?: Record<string, unknown>) => [params],
   getBackupCompare: (params?: Record<string, unknown>) => [params],
 });
-
-export const useGetSleeConfigTenants = ({ queryOptions }: QueryHookOptions<SleeConfigTenant[]> = {}) => {
-  return useQuery({
-    queryKey: sleeConfigQueryKeys.getTenants.queryKey,
-    queryFn: () => sleeConfigApi.getTenants(),
-    ...queryOptions,
-  });
-};
 
 export const useGetSleeConfigFiles = ({ params, queryOptions }: QueryHookWithParamsOptions<SleeConfigFile[]> = {}) => {
   return useQuery({

@@ -16,7 +16,7 @@ export const dnisQueryKeys = createQueryKeys('ivrDnis', {
 export const useGetDnisList = ({ params, queryOptions }: QueryHookWithParamsOptions<DnisItem[]> = {}) => {
   return useQuery({
     queryKey: dnisQueryKeys.list(params).queryKey,
-    queryFn: () => dnisApi.getDnisList(params as { nodeId: number; tenantId: number; dnisNo?: string }),
+    queryFn: () => dnisApi.getDnisList(params as { nodeId: number; dnisNo?: string }),
     ...queryOptions,
   });
 };

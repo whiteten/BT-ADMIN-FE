@@ -1,11 +1,6 @@
-export interface SleeConfigTenant {
-  tenantId: number;
-  tenantName: string;
-  configFileCount: number;
-}
-
 export interface SleeConfigFile {
   tenantId: number;
+  tenantName: string | null;
   configFile: string;
   categoryCount: number;
   propertyCount: number;
