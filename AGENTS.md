@@ -57,7 +57,7 @@
 
 ## 개발 명령어
 
-- **빌드·개발 서버**: `pnpm build`(turbo, 캐시 활용) / `pnpm serve`(대화형 앱 선택). 배포 산출물 조립은 `pnpm build:deploy`(dist/deploy + remotes/ 트리). 특정 앱만 지정할 때는 `npx turbo run <build|dev> --filter=@bridgetec/ui-remote-<app>`(host는 `@bridgetec/ui-host`).
+- **빌드·개발 서버**: `pnpm build`(대화형 앱 선택 — turbo 빌드 + 배포 트리 조립: dist/deploy + remotes/) / `pnpm serve`(대화형 앱 선택). 조립 없는 raw 빌드는 `pnpm build:raw`(전체) 또는 `npx turbo run <build|dev> --filter=@bridgetec/ui-remote-<app>`(host는 `@bridgetec/ui-host`).
 - **새 Remote 생성**: 반드시 `pnpm gen remote` 사용(turbo gen). 골격 생성 + 포트 SoT·serve 메뉴·host 로더 3종·remotes.d.ts 등록을 자동화하므로 수동 생성 시 정상 동작 안 함.
 - **현장 커스텀 오버라이드 생성**: `pnpm run create-custom` (대화형·비대화형·`--dry-run`·`--check`). 절차·규칙은 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) 참조.
 - **lint·typecheck**: husky + lint-staged가 pre-commit hook에서 스테이징된 `.{js,jsx,ts,tsx}`에 자동으로 `eslint --fix` + `prettier --write` + 파일 단위 타입검사 실행. 별도로 돌릴 때는 `pnpm lint`(전량 eslint) / `pnpm check-types`(전 앱) 또는 `npx tsc -p apps/<app>/tsconfig.app.json --noEmit`(앱 단위).

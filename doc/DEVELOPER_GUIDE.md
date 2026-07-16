@@ -1825,7 +1825,7 @@ git push origin feat/add-user-search
 
 ### 자주 쓰는 개발 명령어
 
-> **스크립트 우선 사용**: 서빙은 `pnpm serve`(대화형 앱 선택), 배포 산출물 조립은 `pnpm build:deploy`를 우선 사용하세요. turbo의 특정 옵션이 필요한 경우에만 `npx turbo run` 직접 명령을 사용하세요.
+> **스크립트 우선 사용**: 서빙은 `pnpm serve`, 빌드·배포 산출물 조립은 `pnpm build`(둘 다 대화형 앱 선택)를 우선 사용하세요. 조립 없는 raw 빌드는 `pnpm build:raw`, turbo의 특정 옵션이 필요한 경우에만 `npx turbo run` 직접 명령을 사용하세요.
 > **새 Remote 생성은 반드시 생성기 사용**: `pnpm gen remote`만 사용하세요. Module Federation 설정, 포트·serve 메뉴·host 로더·remotes.d.ts 등록 자동화가 포함되어 있어 수동 생성 시 정상 동작하지 않을 수 있습니다.
 
 ```bash
@@ -1833,9 +1833,10 @@ git push origin feat/add-user-search
 pnpm serve                  # 대화형으로 실행할 Remote 선택
 
 # 빌드
-pnpm build                  # 전체 빌드 (turbo, 캐시 활용)
-pnpm build:deploy           # 빌드 + 배포 트리 조립 (dist/deploy + remotes/)
-npx turbo run build --filter=@bridgetec/ui-remote-fca   # fca 앱만 빌드
+pnpm build                  # 대화형 선택 → turbo 빌드 + 배포 트리 조립 (dist/deploy + remotes/)
+pnpm build all              # 전체 (비대화형 — 번호·이름·all 인자 지원)
+pnpm build:raw              # turbo raw 빌드 전체 (조립 없음)
+npx turbo run build --filter=@bridgetec/ui-remote-fca   # fca 앱만 raw 빌드
 
 # 린트
 pnpm lint                   # 전체 린트 (루트 eslint.config.mjs)

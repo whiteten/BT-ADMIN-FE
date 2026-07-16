@@ -453,3 +453,14 @@ pnpm serve 1   # host + remote 10개 전체 dev 기동(29.8s) — 수정된 --co
 - nx daemon(249MB)은 상주 프로세스라 원본 합산에 포함(스택 상주 비용). 측정 후 dev 서버
   전부 종료·포트 해제 검증(daemon만 잔존 — 정상 상주).
 - 계획서 P4-2 속도 비교표에 메모리 2행 추가.
+
+### 2026-07-16 — 빌드 명령 재배치 (build = 스크립트, build:raw = turbo raw)
+
+기존 사용자 혼란 지적(원본 `pnpm build`는 조립 포함 스크립트였음) 반영. 산출 규약(dist/deploy)은
+turborepo 방식 유지, 명령 이름만 재배치.
+
+- `pnpm build` = scripts/build-deploy.js (대화형·인자 지원, turbo 빌드 + dist/deploy 조립)
+- `pnpm build:raw` = `turbo run build` (조립 없는 raw 빌드, 구 `pnpm build` 상당)
+- `build:deploy` 이름 제거. Jenkinsfile·Dockerfile은 스크립트 직접 호출이라 무변.
+- 문서 갱신: AGENTS·README·DEVELOPER_GUIDE·CUSTOM 가이드. 검증: `pnpm build host manager`
+  (FULL TURBO + dist/deploy 조립), `pnpm build:raw`(12/12 캐시) 각각 정상.

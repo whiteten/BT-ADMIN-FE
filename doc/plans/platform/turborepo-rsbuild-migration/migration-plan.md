@@ -121,6 +121,8 @@
 - [x] **P3-6. prod 배포 산출물 구조**: 완료(2026-07-15) — `pnpm build:deploy`(scripts/build-deploy.js,
       원본 build-selective 상당·turbo 캐시 활용) → dist/deploy + remotes/<name>/ 조립,
       `pnpm serve:prod` 스모크 통과(index·remoteEntry×2·SPA fallback·config.js 전부 200)
+      → **2026-07-16 명령 재배치**: `pnpm build` = build-deploy.js(조립 포함, 원본 UX),
+      `pnpm build:raw` = turbo raw 빌드, `build:deploy` 이름 제거 (산출 규약 dist/deploy는 유지)
 - [x] **P3-7. basePath(root context) 게이트**: 완료(2026-07-15) — /bt-admin 하위 서빙 + base href
       치환으로 브라우저 실측: host 청크·API·remote entry 10개 전부 /bt-admin 접두 200,
       loadRemote('manager/Routes') 실로드 성공. runtime plugin 원본 c10756ae 규격 동작 확인

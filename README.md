@@ -52,8 +52,8 @@ bt-admin-fe/
 | 명령어                   | 설명                                            |
 | ------------------------ | ----------------------------------------------- |
 | `pnpm serve`             | 개발 서버 시작 (대화형 앱 선택)                  |
-| `pnpm build`             | 프로덕션 빌드 (turbo, 캐시 활용)                 |
-| `pnpm build:deploy`      | 빌드 + 배포 트리 조립 (dist/deploy + remotes/)   |
+| `pnpm build`             | 빌드 + 배포 트리 조립 (대화형 앱 선택, dist/deploy + remotes/) |
+| `pnpm build:raw`         | turbo raw 빌드 (조립 없음, 캐시 활용)            |
 | `pnpm serve:prod`        | 배포 트리(dist/deploy) 서빙 (:4200)              |
 | `pnpm gen remote`        | 새 Remote 앱 생성 (MF 설정·host 등록 자동 구성)  |
 | `pnpm run shadcn:add`    | shared-ui에 shadcn/ui 컴포넌트 추가              |

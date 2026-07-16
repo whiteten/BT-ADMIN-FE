@@ -9,10 +9,10 @@
  * host rsbuild.config.ts의 prod remote URL(`/remotes/<name>/remoteEntry.js`)이
  * 이 배치를 전제한다. 로컬 스모크: `pnpm serve:prod` (serve -s, 4200).
  *
- * 사용:
- *   node scripts/build-deploy.js            # 대화형 메뉴
- *   node scripts/build-deploy.js all        # 전체 빌드·조립
- *   node scripts/build-deploy.js host vel   # 선택 앱만 빌드 후 해당 부분만 교체
+ * 사용 (`pnpm build`가 이 스크립트를 실행 — raw 빌드는 `pnpm build:raw`):
+ *   pnpm build                              # 대화형 메뉴
+ *   pnpm build all                          # 전체 빌드·조립
+ *   pnpm build host vel                     # 선택 앱만 빌드 후 해당 부분만 교체
  *
  * 참고: 부분 갱신은 덮어쓰기 복사라 host의 옛 해시 파일이 잔존할 수 있다(스모크 용도).
  * 실배포 파이프라인은 항상 all 기준으로 조립할 것.

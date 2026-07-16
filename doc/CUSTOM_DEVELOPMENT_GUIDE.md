@@ -33,7 +33,7 @@
 ### 핵심 아이디어
 
 `apps/custom`은 라우트를 가진 일반 업무 remote가 아니라, **"오버라이드 컴포넌트 운반체"** 입니다.
-이 때문에 "모든 remote"를 대상으로 하는 본사 도구·작업에서 custom은 **항상 제외 대상**입니다 — `/update-remote` 점검, `pnpm build:deploy`(build-deploy)·`pnpm serve`(serve-host) 목록, 매뉴얼 생성(generate-manual), routes.tsx 일괄 정규화 등. 빌드·실행은 5장의 전용 절차를 따릅니다.
+이 때문에 "모든 remote"를 대상으로 하는 본사 도구·작업에서 custom은 **항상 제외 대상**입니다 — `/update-remote` 점검, `pnpm build`(build-deploy)·`pnpm serve`(serve-host) 목록, 매뉴얼 생성(generate-manual), routes.tsx 일괄 정규화 등. 빌드·실행은 5장의 전용 절차를 따릅니다.
 
 - host의 빌드 설정(remotes 배열)에 등록되어 있지 않아 **빌드 타임에 host는 custom의 존재를 모릅니다.**
 - host가 부팅할 때 고정 경로 `/remotes/custom/remoteEntry.js`를 HEAD 요청으로 확인하고,
@@ -239,7 +239,7 @@ npx turbo run build --filter=@bridgetec/ui-remote-custom
 # 산출물: apps/custom/dist/
 ```
 
-custom은 본사 배포 조립 스크립트(`pnpm build:deploy` / build-deploy.js)의 앱 목록에 포함되지 않습니다. **현장이 직접 위 명령으로 빌드합니다.**
+custom은 본사 빌드 스크립트(`pnpm build` / build-deploy.js)의 앱 목록에 포함되지 않습니다. **현장이 직접 위 명령으로 빌드합니다.**
 
 ### 배포 (도커 운영 환경 기준)
 

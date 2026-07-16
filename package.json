@@ -2,8 +2,8 @@
   "name": "bt-admin-fe",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
-    "build:deploy": "node scripts/build-deploy.js",
+    "build": "node scripts/build-deploy.js",
+    "build:raw": "turbo run build",
     "serve:prod": "serve dist/deploy -l 4200 -s",
     "dev": "turbo run dev",
     "serve": "node scripts/serve-host.js",
