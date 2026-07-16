@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "stream",
+  "globalDependencies": ["libs/**", "tools/**", "types/**", "tsconfig.base.json", "postcss.config.mjs"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
