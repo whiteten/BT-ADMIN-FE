@@ -1,6 +1,6 @@
 # BT Admin FE
 
-Bridgetec 관리자 프론트엔드 — Nx 모노레포 기반의 마이크로 프론트엔드 애플리케이션입니다.
+Bridgetec 관리자 프론트엔드 — turborepo(pnpm workspace) + Rsbuild 기반의 마이크로 프론트엔드 애플리케이션입니다.
 Module Federation으로 Host 셸 위에 여러 Remote 앱을 통합합니다.
 
 ## 빠른 시작
@@ -22,7 +22,7 @@ pnpm run build    # 프로덕션 빌드
 | **Node.js** | v22.17.0 |
 | **pnpm**    | 10.29.2  |
 
-> 나머지 도구(Nx, TypeScript, Webpack 등)는 `package.json`에 버전이 명시되어 있으며 `pnpm install` 시 자동 설치됩니다.
+> 나머지 도구(turbo, TypeScript, Rsbuild 등)는 `package.json`에 버전이 명시되어 있으며 `pnpm install` 시 자동 설치됩니다.
 
 ## 프로젝트 구조
 
@@ -45,27 +45,30 @@ bt-admin-fe/
 └── scripts/          # 빌드·서빙·Remote 생성 스크립트
 ```
 
-> `apps/fca`가 폴더 구조의 **레퍼런스 구현**입니다. 신규 Remote는 반드시 `pnpm run create-remote`로 생성하세요.
+> `apps/fca`가 폴더 구조의 **레퍼런스 구현**입니다. 신규 Remote는 반드시 `pnpm gen remote`로 생성하세요.
 
 ## 주요 명령어
 
-| 명령어                   | 설명                                  |
-| ------------------------ | ------------------------------------- |
-| `pnpm run serve`         | 개발 서버 시작 (대화형 앱 선택)        |
-| `pnpm run build`         | 프로덕션 빌드 (대화형 앱 선택)         |
-| `pnpm run serve:prod`    | 프로덕션 빌드 결과물 서빙 (:4200)      |
-| `pnpm run create-remote` | 새 Remote 앱 생성 (MF 설정 자동 구성)  |
-| `pnpm run shadcn:add`    | shared-ui에 shadcn/ui 컴포넌트 추가    |
-| `pnpm run graph`         | Nx 의존성 그래프 시각화                |
-| `pnpm commit`            | Commitizen 대화형 커밋                 |
+| 명령어                   | 설명                                            |
+| ------------------------ | ----------------------------------------------- |
+| `pnpm serve`             | 개발 서버 시작 (대화형 앱 선택)                  |
+| `pnpm build`             | 빌드 + 배포 트리 조립 (대화형 앱 선택, dist/deploy + remotes/) |
+| `pnpm build:raw`         | turbo raw 빌드 (조립 없음, 캐시 활용)            |
+| `pnpm serve:prod`        | 배포 트리(dist/deploy) 서빙 (:4200)              |
+| `pnpm gen remote`        | 새 Remote 앱 생성 (MF 설정·host 등록 자동 구성)  |
+| `pnpm run shadcn:add`    | shared-ui에 shadcn/ui 컴포넌트 추가              |
+| `pnpm commit`            | Commitizen 대화형 커밋                           |
 
-린트·타입 검사·테스트 등 Nx 직접 명령은 `npx nx run-many --target=<lint|typecheck|test> --all` 형태로 실행합니다.
+린트는 `pnpm lint`(전량 eslint), 타입 검사는 `pnpm check-types`(전 앱 tsc), 테스트는 `pnpm test`(Vitest)로 실행합니다.
 
 ## 기술 스택
 
-React 19 · TypeScript 5.8 · Nx 21 · Webpack 5 (Module Federation) ·
+React 19 · TypeScript 5.8 · turborepo · Rsbuild 2 (rspack, Module Federation) ·
 Tailwind CSS v4 · shadcn/ui · Ant Design v6 · AG-Grid Enterprise ·
 TanStack Query · Zustand · React Hook Form + Zod · React Router DOM 6
+
+> 빌드 체계 전환(Nx+Webpack → turborepo+Rsbuild) 배경·과정·성능 비교는
+> [doc/plans/platform/turborepo-rsbuild-migration/](doc/plans/platform/turborepo-rsbuild-migration/INDEX.md) 참조.
 
 ## Claude Code 기반 개발
 

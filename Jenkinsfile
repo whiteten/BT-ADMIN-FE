@@ -31,7 +31,7 @@ pipeline {
         booleanParam(
             name: 'SKIP_CACHE',
             defaultValue: false,
-            description: 'Nx 캐시 무시하고 강제 재빌드 (캐시 결과가 의심스러울 때만 체크)'
+            description: 'turbo 캐시 무시하고 강제 재빌드 (캐시 결과가 의심스러울 때만 체크)'
         )
     }
 
@@ -116,15 +116,12 @@ pipeline {
                     sh 'corepack enable && corepack prepare pnpm@10.29.2 --activate'
 
                     // dist 누적 방지 (이전 빌드 잔여물이 다음 tgz에 섞이는 문제 차단)
-                    sh 'rm -rf dist'
+                    sh 'rm -rf dist apps/*/dist'
 
-                    // Webpack 캐시만 정리 (Nx 캐시는 유지 → 변경 없는 모듈은 캐시 hit으로 빠른 빌드)
-                    sh 'rm -rf node_modules/.cache'
-
-                    // SKIP_CACHE 옵션 선택 시 Nx 캐시도 함께 정리
+                    // SKIP_CACHE 옵션 선택 시 turbo 로컬 캐시 정리 (평소엔 유지 → 변경 없는 앱은 캐시 hit으로 빠른 빌드)
                     if (params.SKIP_CACHE) {
-                        echo "[INFO] SKIP_CACHE=true → Nx 캐시 전체 무효화"
-                        sh 'rm -rf .nx node_modules/.nx'
+                        echo "[INFO] SKIP_CACHE=true → turbo 캐시 전체 무효화"
+                        sh 'rm -rf .turbo node_modules/.cache'
                     }
 
                     // 의존성 설치 (node_modules 있으면 빠르게 통과)
@@ -138,44 +135,29 @@ pipeline {
                     echo " 빌드 대상: ${projects}"
                     echo "=========================================="
 
-                    // Nx 빌드 (순차 빌드로 메모리 이슈 방지)
-                    def cacheFlag = params.SKIP_CACHE ? '--skip-nx-cache' : ''
-                    sh "npx nx run-many --target=build --projects=${projects} ${cacheFlag}"
+                    // turbo 빌드 + 배포 트리 조립 (dist/deploy = host 루트 + remotes/<name>/)
+                    // scripts/build-deploy.js가 빌드와 host/remotes 복사를 일괄 수행
+                    sh "node scripts/build-deploy.js ${projects}"
 
-                    // host 포함 시: remote 앱들을 host/remotes/로 복사
-                    if (targets.contains('host')) {
-                        def remotes = targets.findAll { it != 'host' }
-                        if (remotes.size() > 0) {
-                            sh 'mkdir -p dist/apps/host/remotes'
-                            remotes.each { remote ->
-                                if (fileExists("dist/apps/${remote}")) {
-                                    sh "cp -r dist/apps/${remote} dist/apps/host/remotes/${remote}"
-                                    echo "[OK] ${remote} → dist/apps/host/remotes/${remote}"
-                                } else {
-                                    echo "[WARN] dist/apps/${remote} 빌드 결과를 찾을 수 없습니다"
-                                }
-                            }
-                        }
-                    }
-
-                    // 패키징: dist/apps/host/ → btadmin-fe-static.tgz
+                    // 패키징: dist/deploy/ → btadmin-fe-static.tgz
                     // BE에서 압축 해제 후 BT-ADMIN-BFF/src/main/resources/static/ 에 배치
 
                     // 빌드 산출물 정합성 검증 (Module Federation 핵심 파일 존재 확인)
                     // 캐시 hit으로 dist가 빈 채 통과되는 사고 차단 — latest 갱신 전 마지막 게이트
-                    ['dist/apps/host/index.html', 'dist/apps/host/mf-manifest.json'].each { f ->
+                    ['dist/deploy/index.html', 'dist/deploy/mf-manifest.json'].each { f ->
                         if (!fileExists(f)) {
                             error("[빌드 실패] ${f} 없음 — 빌드 비정상, latest 갱신 차단")
                         }
                     }
-                    ['main.*.js', 'runtime.*.js'].each { glob ->
-                        def found = sh(script: "ls dist/apps/host/${glob} 2>/dev/null | head -1", returnStdout: true).trim()
+                    // rsbuild 산출물: 엔트리 JS는 static/js/index.<hash>.js (webpack의 main/runtime 분리 없음)
+                    ['static/js/index.*.js'].each { glob ->
+                        def found = sh(script: "ls dist/deploy/${glob} 2>/dev/null | head -1", returnStdout: true).trim()
                         if (!found) {
-                            error("[빌드 실패] dist/apps/host/${glob} 없음 — 빌드 비정상, latest 갱신 차단")
+                            error("[빌드 실패] dist/deploy/${glob} 없음 — 빌드 비정상, latest 갱신 차단")
                         }
                     }
                     targets.findAll { it != 'host' }.each { remote ->
-                        def remoteEntry = "dist/apps/host/remotes/${remote}/remoteEntry.js"
+                        def remoteEntry = "dist/deploy/remotes/${remote}/remoteEntry.js"
                         if (!fileExists(remoteEntry)) {
                             error("[빌드 실패] ${remoteEntry} 없음 — ${remote} remote 빌드 비정상")
                         }
@@ -183,7 +165,7 @@ pipeline {
                     echo "[OK] 빌드 산출물 정합성 검증 통과"
 
                     sh """
-                        cd dist/apps/host
+                        cd dist/deploy
                         tar cvfz ${WORKSPACE}/${env.PKG_NAME} .
                     """
 
@@ -284,7 +266,7 @@ pipeline {
             cleanWs(patterns: [
                 [pattern: 'node_modules/**', type: 'EXCLUDE'],
                 [pattern: '.git/**', type: 'EXCLUDE'],
-                [pattern: '.nx/**', type: 'EXCLUDE']
+                [pattern: '.turbo/**', type: 'EXCLUDE']
             ])
         }
     }

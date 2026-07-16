@@ -289,7 +289,7 @@ function createOverride(appId, key, label, description, dryRun) {
   console.log('\n🎉 오버라이드 스캐폴딩 완료. 다음 단계:');
   console.log(`   1. apps/custom/src/app/overrides/${appId}/ 아래 사본을 수정해 커스텀 구현`);
   console.log(`   2. site-manifest.ts의 label/description을 현장에 맞게 다듬기`);
-  console.log('   3. 로컬 확인: 터미널 1) pnpm run serve (host 포함), 터미널 2) npx nx serve custom');
+  console.log('   3. 로컬 확인: 터미널 1) pnpm run serve (host 포함), 터미널 2) npx turbo run dev --filter=@bridgetec/ui-remote-custom');
   console.log(`   4. 운영자가 manager의 화면 지정 메뉴에서 '커스텀' 카드 선택 (componentKey 'site:${appId}/${key}')`);
   console.log('   상세: doc/CUSTOM_DEVELOPMENT_GUIDE.md');
   return true;
