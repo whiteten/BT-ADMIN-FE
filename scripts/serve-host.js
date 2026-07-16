@@ -85,7 +85,10 @@ function buildCommand(selectedRemotes) {
   const filters = apps.map((app) => `--filter=${packageName(app)}`);
   // turbo 기본 동시성(10)이 persistent dev 태스크 수보다 작으면 기동 거부 — 앱 수 + 여유 1로 상향
   const concurrency = Math.max(apps.length + 1, 10);
-  return `npx turbo run dev --concurrency=${concurrency} ${filters.join(' ')}`;
+  // turbo 2 기본 strict env mode는 미선언 환경변수를 태스크에 전달하지 않는다.
+  // serve 경로는 SERVE_OPEN·MF_REMOTE_HOST에 더해 serve-host.local.json의 임의 env 키까지
+  // 전달해야 하므로(원본 nx 동작) loose로 실행 — dev는 cache:false라 캐시 정합성 비용 없음.
+  return `npx turbo run dev --env-mode=loose --concurrency=${concurrency} ${filters.join(' ')}`;
 }
 
 /**

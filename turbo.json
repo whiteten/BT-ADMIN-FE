@@ -1,11 +1,12 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "ui": "tui",
+  "ui": "stream",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**"],
+      "env": ["NX_PUBLIC_REACT_QUERY_DEVTOOLS"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -15,7 +16,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["SERVE_OPEN", "SERVE_NO_OPEN", "MF_REMOTE_HOST", "NX_PUBLIC_REACT_QUERY_DEVTOOLS", "NODE_OPTIONS"]
     }
   }
 }
