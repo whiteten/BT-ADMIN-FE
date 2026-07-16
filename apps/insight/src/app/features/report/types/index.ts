@@ -40,6 +40,8 @@ export interface ReportDetail {
   /** 시스템 기본 장표 여부 — true면 모든 사용자 readonly (관리자만 수정/삭제). */
   isSystem?: boolean;
   ownerUserId: number;
+  /** 장표 소유 테넌트 — 편집 모드 미리보기 데이터 스코프 고정에 사용 (BE 상세 응답 노출값). */
+  tenantId?: string;
   createdAt: string;
   updatedAt: string;
 }

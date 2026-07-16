@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AutoComplete, Button, Checkbox, Form, Input, Popover, Select, Space, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { toast, withBasePath } from '@/shared-util';
 import icoWait from '../../../assets/ico_01.gif';
 import icoRec from '../../../assets/ico_10.gif';
 import imgRec0510 from '../../../assets/img_rec05_10.gif';
@@ -414,7 +414,7 @@ export default function MonitoringList() {
       };
       localStorage.setItem(key, JSON.stringify(eavesdropInfo));
 
-      window.open(`/vel/monitoring/eavesdrop?eavesdropId=${key}`, `Eavesdrop-${key}`, 'width=560,height=500,resizable=yes');
+      window.open(withBasePath(`/vel/monitoring/eavesdrop?eavesdropId=${key}`), `Eavesdrop-${key}`, 'width=560,height=500,resizable=yes');
     } catch {
       toast.error('감청 시작에 실패했습니다.');
     }

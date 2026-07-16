@@ -116,7 +116,7 @@ export default function FileUploadList() {
   });
 
   const handleDelete = (data: FileUploadItem) => {
-    modal.confirm.delete({ onOk: () => deleteFile(data.ucidGkey) });
+    modal.confirm.delete({ onOk: () => deleteFile({ tenantId: data.tenantId, ucidGkey: data.ucidGkey }) });
   };
 
   const handleExcelDownload = async () => {

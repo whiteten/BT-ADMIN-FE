@@ -10,10 +10,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Checkbox, DatePicker, Drawer, Dropdown, Empty, Input, Radio, Tag, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import {
-  Building2,
   CheckSquareIcon,
-  ChevronLeft,
-  ChevronRight,
   ClipboardList,
   Download,
   FileCog,
@@ -27,7 +24,7 @@ import {
   Trash2,
   Upload as UploadIcon,
 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import PropertyEditDrawer, { type PropertyEditDrawerRef } from '../../features/slee-config/components/PropertyEditDrawer';
 import SleeConfigApplyResultModal, { type SleeConfigApplyResultModalRef } from '../../features/slee-config/components/SleeConfigApplyResultModal';
@@ -45,10 +42,11 @@ import {
   useGetSleeConfigFiles,
   useGetSleeConfigIrSystems,
   useGetSleeConfigProperties,
-  useGetSleeConfigTenants,
 } from '../../features/slee-config/hooks/useSleeConfigQueries';
 import type { SleeConfigCategory, SleeConfigFile, SleeConfigIrSystem, SleeConfigProperty } from '../../features/slee-config/types';
-import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
+import ScopeSelect from '@/components/custom/ScopeSelect';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -67,9 +65,20 @@ export default function SleeConfigList() {
   const { gridOptions } = useAggridOptions();
   const modal = useModal();
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): 헤더 미전달 → 서버가 TenantContext.isViewAllTenants() 로 전 테넌트 조회
+  //  - 대행(actAsTenantId=X): apiClient 가 X-Act-As-Tenant 주입 → X 테넌트로 조회 스코프
+  //  - 비운영자: 헤더 미주입 → 서버가 JWT 테넌트 기준으로 자신의 파일만 반환
+  const myTenantId = useAuthStore((s) => (s.userInfo?.tenant ? Number(s.userInfo.tenant) : null));
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+
   // ─── State ──────────────────────────────────────────────────────────────────
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
   const [selectedConfigFile, setSelectedConfigFile] = useState<string | null>(null);
+  // 선택된 카드(환경파일)가 속한 테넌트 — "전체" 스코프에선 카드마다 테넌트가 다를 수 있어 별도 추적.
+  const [selectedFileTenantId, setSelectedFileTenantId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [applyDrawerOpen, setApplyDrawerOpen] = useState(false);
@@ -82,7 +91,6 @@ export default function SleeConfigList() {
   const [applyReason, setApplyReason] = useState('');
   const [reservationAt, setReservationAt] = useState<Dayjs | null>(null);
   const [checkedSystemIds, setCheckedSystemIds] = useState<Set<number>>(new Set());
-  const cardScrollRef = useRef<HTMLDivElement>(null);
   const propertyEditDrawerRef = useRef<PropertyEditDrawerRef>(null);
   const importModalRef = useRef<SleeUserconfigImportModalRef>(null);
   const historyModalRef = useRef<SleeConfigHistoryModalRef>(null);
@@ -92,45 +100,35 @@ export default function SleeConfigList() {
   const autoCheckDoneRef = useRef(false);
 
   // ─── Data (API hooks) ────────────────────────────────────────────────────
-  const { data: rawTenants = [] } = useGetSleeConfigTenants();
-  const tenants = useMemo(() => [...rawTenants].sort((a, b) => a.tenantId - b.tenantId), [rawTenants]);
-  const tenantNameMap = useMemo(() => new Map(tenants.map((t) => [t.tenantId, t.tenantName])), [tenants]);
-  const tenantTabItems: TabBarItem<number>[] = useMemo(
-    () => tenants.map((tenant) => ({ id: tenant.tenantId, label: tenant.tenantName, icon: Building2, count: tenant.configFileCount })),
-    [tenants],
-  );
-
-  const configFileParams = useMemo(() => (selectedTenantId ? { tenantId: selectedTenantId } : undefined), [selectedTenantId]);
-  const { data: allConfigFiles = [] } = useGetSleeConfigFiles({
-    params: configFileParams,
-    queryOptions: { enabled: !!selectedTenantId },
-  });
+  // 환경파일 목록 — 파라미터 없이 호출. 조회 스코프(내 테넌트/대행/전체)는 서버가 헤더로 판단.
+  const { data: allConfigFiles = [] } = useGetSleeConfigFiles({});
 
   const categoryParams = useMemo(
-    () => (selectedTenantId && selectedConfigFile ? { tenantId: selectedTenantId, configFile: selectedConfigFile } : undefined),
-    [selectedTenantId, selectedConfigFile],
+    () => (selectedFileTenantId && selectedConfigFile ? { tenantId: selectedFileTenantId, configFile: selectedConfigFile } : undefined),
+    [selectedFileTenantId, selectedConfigFile],
   );
   const { data: allCategories = [] } = useGetSleeConfigCategories({
     params: categoryParams,
-    queryOptions: { enabled: !!selectedTenantId && !!selectedConfigFile },
+    queryOptions: { enabled: !!selectedFileTenantId && !!selectedConfigFile },
   });
 
   const propertyParams = useMemo(
-    () => (selectedTenantId && selectedConfigFile && selectedCategory ? { tenantId: selectedTenantId, configFile: selectedConfigFile, category: selectedCategory } : undefined),
-    [selectedTenantId, selectedConfigFile, selectedCategory],
+    () =>
+      selectedFileTenantId && selectedConfigFile && selectedCategory ? { tenantId: selectedFileTenantId, configFile: selectedConfigFile, category: selectedCategory } : undefined,
+    [selectedFileTenantId, selectedConfigFile, selectedCategory],
   );
   const { data: properties = [] } = useGetSleeConfigProperties({
     params: propertyParams,
-    queryOptions: { enabled: !!selectedTenantId && !!selectedConfigFile && !!selectedCategory },
+    queryOptions: { enabled: !!selectedFileTenantId && !!selectedConfigFile && !!selectedCategory },
   });
 
   const irSystemParams = useMemo(
-    () => (selectedTenantId && selectedConfigFile ? { tenantId: selectedTenantId, configFile: selectedConfigFile } : undefined),
-    [selectedTenantId, selectedConfigFile],
+    () => (selectedFileTenantId && selectedConfigFile ? { tenantId: selectedFileTenantId, configFile: selectedConfigFile } : undefined),
+    [selectedFileTenantId, selectedConfigFile],
   );
   const { data: irSystems = [] } = useGetSleeConfigIrSystems({
     params: irSystemParams,
-    queryOptions: { enabled: !!selectedTenantId && !!selectedConfigFile && applyDrawerOpen },
+    queryOptions: { enabled: !!selectedFileTenantId && !!selectedConfigFile && applyDrawerOpen },
   });
 
   // ─── Derived data ─────────────────────────────────────────────────────────
@@ -143,21 +141,15 @@ export default function SleeConfigList() {
   }, [allConfigFiles, isSearching, searchText]);
 
   const selectedFileObj = useMemo(() => {
-    if (!selectedConfigFile || !selectedTenantId) return null;
-    return allConfigFiles.find((f) => f.configFile === selectedConfigFile && f.tenantId === selectedTenantId) ?? null;
-  }, [allConfigFiles, selectedConfigFile, selectedTenantId]);
+    if (!selectedConfigFile || !selectedFileTenantId) return null;
+    return allConfigFiles.find((f) => f.configFile === selectedConfigFile && f.tenantId === selectedFileTenantId) ?? null;
+  }, [allConfigFiles, selectedConfigFile, selectedFileTenantId]);
 
-  // 진입 시 첫 번째 테넌트 자동 선택
-  useEffect(() => {
-    if (!selectedTenantId && tenants.length > 0) {
-      setSelectedTenantId(tenants[0].tenantId);
-    }
-  }, [tenants, selectedTenantId]);
-
-  // 테넌트 변경 시 첫 번째 카드 자동 선택
+  // 목록(스코프) 변경 시 첫 번째 카드 자동 선택
   useEffect(() => {
     if (!selectedConfigFile && filteredConfigFiles.length > 0) {
       setSelectedConfigFile(filteredConfigFiles[0].configFile);
+      setSelectedFileTenantId(filteredConfigFiles[0].tenantId);
     }
   }, [filteredConfigFiles, selectedConfigFile]);
 
@@ -166,23 +158,32 @@ export default function SleeConfigList() {
     setSelectedPropertyKeys(new Set());
   }, [selectedCategory]);
 
+  // Import 대상 테넌트 — 대행 중이면 대행 테넌트, 아니면 내 테넌트. "전체" 스코프는 선택된 카드의 테넌트로 대체.
+  const actAsTenantIdNum = actAsTenantId !== null ? Number(actAsTenantId) : null;
+  const importTargetTenantId = operatorMode ? (actAsTenantIdNum ?? selectedFileTenantId) : myTenantId;
+  // "전체" 스코프에서만 목록에 테넌트 배지 노출(대행/일반 모드는 전부 같은 테넌트라 무의미) — ScenarioMenuControlList.tsx 패턴 동일.
+  const showTenantLabel = operatorMode && actAsTenantId === null;
+
   // ─── Handlers ─────────────────────────────────────────────────────────────
-  const handleTenantSelect = (tenantId: number) => {
-    if (selectedTenantId === tenantId) return;
-    setSelectedTenantId(tenantId);
+  const handleScopeChange = (tenantId: string | null) => {
+    setActAsTenant(tenantId);
     setSelectedConfigFile(null);
+    setSelectedFileTenantId(null);
     setSelectedCategory(null);
     setSearchText('');
+    void queryClient.invalidateQueries({ queryKey: sleeConfigQueryKeys.getConfigFiles._def });
   };
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
     setSelectedConfigFile(null);
+    setSelectedFileTenantId(null);
     setSelectedCategory(null);
   };
 
   const handleCardSelect = (file: SleeConfigFile) => {
     setSelectedConfigFile(file.configFile);
+    setSelectedFileTenantId(file.tenantId);
     setSelectedCategory(null);
   };
 
@@ -218,19 +219,19 @@ export default function SleeConfigList() {
   }, [queryClient]);
 
   const handleOpenPropertyCreate = useCallback(() => {
-    if (!selectedTenantId || !selectedConfigFile) return;
+    if (!selectedFileTenantId || !selectedConfigFile) return;
     propertyEditDrawerRef.current?.openCreate({
-      tenantId: selectedTenantId,
+      tenantId: selectedFileTenantId,
       configFile: selectedConfigFile,
       category: selectedCategory,
     });
-  }, [selectedTenantId, selectedConfigFile, selectedCategory]);
+  }, [selectedFileTenantId, selectedConfigFile, selectedCategory]);
 
   const handleOpenPropertyEdit = useCallback(
     (row: SleeConfigProperty) => {
-      if (!selectedTenantId || !selectedConfigFile) return;
+      if (!selectedFileTenantId || !selectedConfigFile) return;
       propertyEditDrawerRef.current?.openEdit({
-        tenantId: selectedTenantId,
+        tenantId: selectedFileTenantId,
         configFile: selectedConfigFile,
         category: row.category,
         property: row.property,
@@ -238,7 +239,7 @@ export default function SleeConfigList() {
         ptyDesc: row.ptyDesc ?? null,
       });
     },
-    [selectedTenantId, selectedConfigFile],
+    [selectedFileTenantId, selectedConfigFile],
   );
 
   const { mutate: deleteSingleProperty } = useDeleteProperty({
@@ -308,29 +309,29 @@ export default function SleeConfigList() {
   // ─── 환경변수 Export (cfg ZIP) — AS-IS IPR30S3030EX ──────────────────────
   const { mutate: exportConfig, isPending: isExporting } = useExportSleeConfig();
   const handleExport = useCallback(() => {
-    if (!selectedTenantId || !selectedConfigFile) {
+    if (!selectedFileTenantId || !selectedConfigFile) {
       toast.warning('Export할 환경파일을 선택하세요.');
       return;
     }
-    exportConfig({ tenantId: selectedTenantId, configFile: selectedConfigFile });
-  }, [selectedTenantId, selectedConfigFile, exportConfig]);
+    exportConfig({ tenantId: selectedFileTenantId, configFile: selectedConfigFile });
+  }, [selectedFileTenantId, selectedConfigFile, exportConfig]);
 
   // ─── 이력 모달 (Phase 6) ─────────────────────────────────────────────
   const handleOpenHistory = useCallback(() => {
-    if (!selectedTenantId || !selectedConfigFile) return;
-    historyModalRef.current?.open({ tenantId: selectedTenantId, configFile: selectedConfigFile });
-  }, [selectedTenantId, selectedConfigFile]);
+    if (!selectedFileTenantId || !selectedConfigFile) return;
+    historyModalRef.current?.open({ tenantId: selectedFileTenantId, configFile: selectedConfigFile });
+  }, [selectedFileTenantId, selectedConfigFile]);
 
   // ─── 예약 적용 결과 모달 (AS-IS IPR30S3030L3) ──────────────────────────
   const handleOpenReservationResult = useCallback(() => {
-    if (!selectedTenantId || !selectedConfigFile) return;
-    reservationResultModalRef.current?.open({ tenantId: selectedTenantId, configFile: selectedConfigFile });
-  }, [selectedTenantId, selectedConfigFile]);
+    if (!selectedFileTenantId || !selectedConfigFile) return;
+    reservationResultModalRef.current?.open({ tenantId: selectedFileTenantId, configFile: selectedConfigFile });
+  }, [selectedFileTenantId, selectedConfigFile]);
 
   /** 행별 휴지통 단건 삭제 — DNIS관리(MCS) 와 동일하게 useModal 사용 (centered 모달). */
   const handleDeleteSingleProperty = useCallback(
     (row: SleeConfigProperty) => {
-      if (!selectedTenantId || !selectedConfigFile) return;
+      if (!selectedFileTenantId || !selectedConfigFile) return;
       modal.confirm.delete({
         options: {
           title: '속성 삭제',
@@ -338,14 +339,14 @@ export default function SleeConfigList() {
         },
         onOk: () =>
           deleteSingleProperty({
-            tenantId: selectedTenantId,
+            tenantId: selectedFileTenantId,
             configFile: selectedConfigFile,
             category: row.category,
             property: row.property,
           }),
       });
     },
-    [modal, selectedTenantId, selectedConfigFile, deleteSingleProperty],
+    [modal, selectedFileTenantId, selectedConfigFile, deleteSingleProperty],
   );
 
   const handlePropertySelectionChanged = useCallback((api: { getSelectedRows: () => SleeConfigProperty[] }) => {
@@ -412,7 +413,7 @@ export default function SleeConfigList() {
   const isApplying = isApplyingImmediate || isApplyingReservation;
 
   const handleSubmitApply = useCallback(() => {
-    if (!selectedTenantId || !selectedConfigFile) return;
+    if (!selectedFileTenantId || !selectedConfigFile) return;
     if (checkedSystemIds.size === 0) return;
     if (applyMode === 'ITEM') {
       // ITEM: category + properties 필수
@@ -429,7 +430,7 @@ export default function SleeConfigList() {
 
     if (applyTiming === 'REALTIME') {
       applyImmediate({
-        tenantId: selectedTenantId,
+        tenantId: selectedFileTenantId,
         configFile: selectedConfigFile,
         category: requestCategory,
         properties: selectedPropertyNames,
@@ -465,7 +466,7 @@ export default function SleeConfigList() {
         : [];
 
     applyReservation({
-      tenantId: selectedTenantId,
+      tenantId: selectedFileTenantId,
       configFile: selectedConfigFile,
       category: requestCategory,
       propertyChanges,
@@ -475,7 +476,7 @@ export default function SleeConfigList() {
     });
   }, [
     applyMode,
-    selectedTenantId,
+    selectedFileTenantId,
     selectedConfigFile,
     selectedCategory,
     checkedSystemIds,
@@ -552,184 +553,169 @@ export default function SleeConfigList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 테넌트 탭 바 ===== */}
-        <TabBar<number>
-          items={tenantTabItems}
-          selectedId={selectedTenantId}
-          onSelect={handleTenantSelect}
-          rightContent={
-            <>
-              <Input
-                allowClear
-                prefix={<Search className="size-3.5 text-gray-400" />}
-                placeholder="환경파일 검색"
-                value={searchText}
-                onChange={handleSearchChange}
-                style={{ width: 200 }}
-              />
+        {/* ===== 상단: 툴바(운영자모드 테넌트 스코프 + 액션) — 검색은 좌측 환경파일 목록으로 이동 ===== */}
+        <div className="bg-white bt-shadow flex-shrink-0 px-5 h-[56px]">
+          <header className="flex items-center gap-2 flex-wrap h-full">
+            {operatorMode && (
+              <ScopeSelect kind="tenant" options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))} value={actAsTenantId} onChange={handleScopeChange} />
+            )}
+            <div className="flex items-center gap-2 ml-auto">
               <Button color="blue" variant="filled" icon={<History className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenHistory}>
                 적용 이력
               </Button>
               <Button
                 variant="solid"
                 icon={<UploadIcon className="size-3.5" />}
-                disabled={!selectedTenantId}
-                onClick={() => selectedTenantId && importModalRef.current?.open(selectedTenantId)}
+                disabled={!importTargetTenantId}
+                onClick={() => importTargetTenantId && importModalRef.current?.open(importTargetTenantId)}
               >
                 Import
               </Button>
               <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} loading={isExporting} disabled={!selectedConfigFile} onClick={handleExport}>
                 Export
               </Button>
-            </>
-          }
-        />
+            </div>
+          </header>
+        </div>
 
-        {/* ===== 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center px-4 py-3 h-[170px]">
-            {filteredConfigFiles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} styles={{ image: { height: 40 } }} />
-                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 환경파일이 없습니다'}</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="flex flex-1 min-h-0 gap-4">
+          {/* ===== 좌측: 환경파일 목록 (검색 + flat list — ScenarioMenuControlList.tsx 시나리오 목록 패턴) ===== */}
+          <div className="w-[340px] flex-shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 overflow-hidden">
+            <div className="flex items-center gap-2">
+              <FileCog className="size-4 text-[#405189]" />
+              <h3 className="text-sm font-semibold text-gray-800">환경파일</h3>
+              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredConfigFiles.length}개</span>
+            </div>
+
+            <Input allowClear prefix={<Search className="size-3.5 text-gray-400" />} placeholder="환경파일 검색" value={searchText} onChange={handleSearchChange} />
+
+            <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
+              {filteredConfigFiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+                  <Empty description={false} styles={{ image: { height: 40 } }} />
+                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 환경파일이 없습니다'}</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-0.5">
                   {filteredConfigFiles.map((file) => {
-                    const isCardSelected = selectedConfigFile === file.configFile;
+                    const isSelected = selectedConfigFile === file.configFile && selectedFileTenantId === file.tenantId;
                     return (
                       <div
                         key={`${file.tenantId}-${file.configFile}`}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[130px] flex-shrink-0 flex flex-col ${
-                          isCardSelected
-                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          handleCardSelect(file);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
+                        onClick={() => handleCardSelect(file)}
+                        title={file.configFile}
+                        className={cn(
+                          'group flex items-center gap-2 cursor-pointer rounded-md border-l-[3px] px-3 py-2 transition-colors',
+                          isSelected ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]' : 'border-transparent hover:bg-gray-50',
+                        )}
                       >
-                        <div className="flex items-start justify-between gap-1 mb-1.5">
-                          <span className="text-sm font-semibold text-gray-800 truncate">{file.configFile}</span>
-                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                            <Dropdown menu={{ items: getCardMenuItems(file) }} trigger={['click']} placement="bottomRight">
-                              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
-                                <MoreVertical className="size-3.5 text-gray-400" />
-                              </button>
-                            </Dropdown>
-                          </div>
+                        <FileCog className={cn('size-4 flex-shrink-0', isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-400')} />
+                        <div className="flex-1 min-w-0">
+                          <div className={cn('truncate text-sm', isSelected ? 'text-[var(--color-bt-primary)] font-medium' : 'text-gray-700')}>{file.configFile}</div>
+                          <div className="text-[11px] text-gray-400 truncate">카테고리 {file.categoryCount}개</div>
                         </div>
-                        <div className="text-xs text-gray-500 space-y-0.5">
-                          <div className="flex items-center gap-1">
-                            <Building2 className="size-3 text-gray-400" />
-                            <span className="truncate">{tenantNameMap.get(file.tenantId) ?? `Tenant ${file.tenantId}`}</span>
-                          </div>
-                          <div>카테고리 수: {file.categoryCount}</div>
+                        {showTenantLabel && file.tenantName && (
+                          <Badge variant="secondary" className="text-[10px] leading-4 !h-5 shrink-0 text-amber-700 bg-amber-50 border border-amber-200">
+                            {file.tenantName}
+                          </Badge>
+                        )}
+                        <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 opacity-0 group-hover:opacity-100">
+                          <Dropdown menu={{ items: getCardMenuItems(file) }} trigger={['click']} placement="bottomRight">
+                            <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                              <MoreVertical className="size-3.5 text-gray-400" />
+                            </button>
+                          </Dropdown>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ===== 하단: 카테고리(좌) + 속성(우) ===== */}
-        <div className="flex flex-1 min-h-0 gap-4">
-          {/* 카테고리 그리드 */}
-          {/* 카테고리는 USERCONFIG (속성) 의 컬럼일 뿐 별도 마스터 없음 → 단독 CUD 불요 (레거시 IPR30S3030 도 없음) */}
-          <div className="bg-white bt-shadow flex flex-col w-[420px] flex-shrink-0 min-h-0 overflow-hidden">
-            <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <Folder className="size-4 text-[#405189]" />
-                <h3 className="text-sm font-semibold text-gray-800">
-                  카테고리 — <span className="text-[#405189]">{selectedConfigFile ?? ''}</span>
-                </h3>
-                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{allCategories.length}개</span>
-              </div>
-            </div>
-            <div className="border-t border-gray-200" />
-            <div className="flex-1 min-h-0 p-5">
-              {selectedConfigFile ? (
-                <AgGridReact<SleeConfigCategory>
-                  rowData={allCategories}
-                  columnDefs={categoryColumnDefs}
-                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                  getRowId={(params) => params.data.category}
-                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                  rowSelection="single"
-                  onSelectionChanged={(e) => {
-                    const selected = e.api.getSelectedRows();
-                    setSelectedCategory(selected.length > 0 ? selected[0].category : null);
-                  }}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Empty description="환경파일을 선택하세요" />
-                </div>
               )}
             </div>
           </div>
 
-          {/* 속성 그리드 */}
-          <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-            <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="size-4 text-[#405189]" />
-                <h3 className="text-sm font-semibold text-gray-800">
-                  속성 — <span className="text-[#405189]">{selectedCategory ?? ''}</span>
-                </h3>
-                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{properties.length}개</span>
+          {/* ===== 우측: 카테고리(좌) + 속성(우) ===== */}
+          <div className="flex flex-1 min-h-0 gap-4">
+            {/* 카테고리 그리드 */}
+            {/* 카테고리는 USERCONFIG (속성) 의 컬럼일 뿐 별도 마스터 없음 → 단독 CUD 불요 (레거시 IPR30S3030 도 없음) */}
+            <div className="bg-white bt-shadow flex flex-col w-[420px] flex-shrink-0 min-h-0 overflow-hidden">
+              <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <Folder className="size-4 text-[#405189]" />
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    카테고리 — <span className="text-[#405189]">{selectedConfigFile ?? ''}</span>
+                  </h3>
+                  <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{allCategories.length}개</span>
+                </div>
               </div>
-              <div className="flex gap-2 items-center">
-                <Button type="primary" icon={<span className="text-base leading-none">+</span>} disabled={!selectedConfigFile} onClick={handleOpenPropertyCreate}>
-                  속성 추가
-                </Button>
-                <Button color="purple" variant="solid" icon={<CheckSquareIcon className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
-                  항목단위 적용 ({selectedPropertyKeys.size})
-                </Button>
-                <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
-                  파일단위 적용
-                </Button>
-                <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
-                  예약 적용 결과
-                </Button>
+              <div className="border-t border-gray-200" />
+              <div className="flex-1 min-h-0 p-5">
+                {selectedConfigFile ? (
+                  <AgGridReact<SleeConfigCategory>
+                    rowData={allCategories}
+                    columnDefs={categoryColumnDefs}
+                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                    getRowId={(params) => params.data.category}
+                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                    rowSelection="single"
+                    onSelectionChanged={(e) => {
+                      const selected = e.api.getSelectedRows();
+                      setSelectedCategory(selected.length > 0 ? selected[0].category : null);
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Empty description="환경파일을 선택하세요" />
+                  </div>
+                )}
               </div>
             </div>
-            <div className="border-t border-gray-200" />
-            <div className="flex-1 min-h-0 p-5">
-              {selectedCategory ? (
-                <AgGridReact<SleeConfigProperty>
-                  rowData={properties}
-                  columnDefs={propertyColumnDefs}
-                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                  getRowId={(params) => `${params.data.category}::${params.data.property}`}
-                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                  rowSelection="multiple"
-                  suppressRowClickSelection
-                  onSelectionChanged={(e) => handlePropertySelectionChanged(e.api)}
-                  onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Empty description="카테고리를 선택하세요" />
+
+            {/* 속성 그리드 */}
+            <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="size-4 text-[#405189]" />
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    속성 — <span className="text-[#405189]">{selectedCategory ?? ''}</span>
+                  </h3>
+                  <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{properties.length}개</span>
                 </div>
-              )}
+                <div className="flex gap-2 items-center">
+                  <Button type="primary" icon={<span className="text-base leading-none">+</span>} disabled={!selectedConfigFile} onClick={handleOpenPropertyCreate}>
+                    속성 추가
+                  </Button>
+                  <Button color="purple" variant="solid" icon={<CheckSquareIcon className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
+                    항목단위 적용 ({selectedPropertyKeys.size})
+                  </Button>
+                  <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
+                    파일단위 적용
+                  </Button>
+                  <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
+                    예약 적용 결과
+                  </Button>
+                </div>
+              </div>
+              <div className="border-t border-gray-200" />
+              <div className="flex-1 min-h-0 p-5">
+                {selectedCategory ? (
+                  <AgGridReact<SleeConfigProperty>
+                    rowData={properties}
+                    columnDefs={propertyColumnDefs}
+                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                    getRowId={(params) => `${params.data.category}::${params.data.property}`}
+                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                    rowSelection="multiple"
+                    suppressRowClickSelection
+                    onSelectionChanged={(e) => handlePropertySelectionChanged(e.api)}
+                    onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Empty description="카테고리를 선택하세요" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

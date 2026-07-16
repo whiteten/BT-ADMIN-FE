@@ -14,6 +14,7 @@ const SleeConfigList = React.lazy(() => import('./pages/scenario/SleeConfigList'
 const MentFileList = React.lazy(() => import('./pages/scenario/MentFileList'));
 const DnisList = React.lazy(() => import('./pages/scenario/DnisList'));
 const ExtAdaptorList = React.lazy(() => import('./pages/addon/ExtAdaptorList'));
+const ScenarioAnalysisList = React.lazy(() => import('./pages/addon/ScenarioAnalysisList'));
 const ScenarioMenuControlList = React.lazy(() => import('./pages/scenario/ScenarioMenuControlList'));
 // worktime (IVR 업무시간관리 — SWAT IPR30S4022 의 IR 분리분. 교환기 분리분은 apps/ipron)
 const IrWorktimeList = React.lazy(() => import('./pages/worktime/IrWorktimeList'));
@@ -60,6 +61,7 @@ export const routes = [
         element: <Outlet />,
         children: [
           { index: true, element: <Navigate to="ext-adaptor" replace /> },
+          { path: 'scenario-analysis', element: pv('addon/scenario-analysis', ScenarioAnalysisList) },
           { path: 'ext-adaptor', element: pv('addon/ext-adaptor', ExtAdaptorList) },
         ],
       },

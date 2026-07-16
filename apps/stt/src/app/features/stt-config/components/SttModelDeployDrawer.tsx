@@ -5,7 +5,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, Drawer, Input, Radio, Select, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { toast } from '@/shared-util';
-import { useGetCodes, useGetSttSystemList } from '../hooks/useCommonQueries';
+import { ENGINE_KIND_OPTIONS } from '../constants/sttCodeConstants';
+import { useGetSttSystemList } from '../hooks/useCommonQueries';
 import { modelQueryKeys, useDeployModel, useGetSttModelList } from '../hooks/useModelQueries';
 import { MODEL_TUNNING_RESULT, type SttSystemItem } from '../types';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -49,13 +50,11 @@ const SttModelDeployDrawer = forwardRef<SttModelDeployDrawerRef>((_, ref) => {
 
   const handleClose = () => setOpen(false);
 
-  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
-
   useEffect(() => {
-    if (engines && engines.length > 0 && !engineCode) {
-      setEngineCode(engines[0].code);
+    if (!engineCode) {
+      setEngineCode(ENGINE_KIND_OPTIONS[0].code);
     }
-  }, [engines, engineCode]);
+  }, [engineCode]);
 
   const { data: models = [] } = useGetSttModelList({
     params: engineCode ? { engineCode } : null,

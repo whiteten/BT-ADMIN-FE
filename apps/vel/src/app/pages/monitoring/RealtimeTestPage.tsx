@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, Input, Select } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
+import { withBasePath } from '@/shared-util';
 
 /**
  * 실시간 감청 테스트 폼 (데모).
@@ -77,7 +78,7 @@ export default function RealtimeTestPage() {
     const left = Math.max(0, (window.screen.width - w) / 2);
     const top = Math.max(0, (window.screen.height - h) / 2);
     const name = `RealtimePlayer-${mode}-${form.agent_dn}-${Date.now()}`;
-    window.open(`/vel/monitoring/realtime-player?${qs}`, name, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+    window.open(withBasePath(`/vel/monitoring/realtime-player?${qs}`), name, `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`);
   };
 
   return (

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { useBreadcrumbStore, useNavigationStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { toast, withBasePath } from '@/shared-util';
 import { AOE_PERM } from '../../constants/permissions';
 import AgentCard from '../../features/agent-config/components/AgentCard';
 import AgentPlaygroundDrawer, { type AgentPlaygroundDrawerRef } from '../../features/agent-config/components/AgentPlaygroundDrawer';
@@ -40,7 +40,7 @@ export default function AgentList() {
   const typeOptions = [{ label: '전체', value: '' }, ...(agentTypes ?? []).map((type) => ({ label: type.agentTypeName, value: type.agentTypeName }))];
 
   const handleOpenStudio = (agentId: string) => {
-    window.open(`/aoe/workflow/${agentId}`, '_blank', 'noopener,noreferrer');
+    window.open(withBasePath(`/aoe/workflow/${agentId}`), '_blank', 'noopener,noreferrer');
   };
 
   const { mutate: deleteAgent } = useDeleteAgent({

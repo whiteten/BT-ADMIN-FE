@@ -36,7 +36,7 @@ export const useCreateRetryReq = ({ mutationOptions }: MutationHookOptions<unkno
   });
 };
 
-export const useDeleteRetryReq = ({ mutationOptions }: MutationHookOptions<unknown, string> = {}) => {
+export const useDeleteRetryReq = ({ mutationOptions }: MutationHookOptions<unknown, { tenantId: number; retryDate: string }> = {}) => {
   return useMutation({
     mutationFn: retryReqApi.deleteRetryReq,
     ...mutationOptions,

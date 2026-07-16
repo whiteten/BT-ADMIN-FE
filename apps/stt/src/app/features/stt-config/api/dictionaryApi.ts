@@ -20,7 +20,7 @@ export const dictionaryApi = {
   createKeywordBoosting: async (data: KeywordBoostingCreateData) => {
     return apiClient.post('/keyword-boosting-create', data);
   },
-  deleteKeywordBoosting: async (params: { engineCode: string; keyword: string }) => {
+  deleteKeywordBoosting: async (params: { tenantId: number; engineCode: string; keyword: string }) => {
     await apiClient.delete(`/keyword-boosting-delete`, { params });
   },
   getSttDictionaryList: async (params?: SttDictionarySearchParams) => {
@@ -33,7 +33,7 @@ export const dictionaryApi = {
   updateSttDictionary: async (data: SttDictionaryUpdateData) => {
     return apiClient.put('/stt-dictionary-update', data);
   },
-  deleteSttDictionary: async (params: { beforeWord: string }) => {
+  deleteSttDictionary: async (params: { tenantId: number; beforeWord: string }) => {
     await apiClient.delete('/stt-dictionary-delete', { params });
   },
   importSttDictionary: async (data: File): Promise<ExcelImportResult> => {

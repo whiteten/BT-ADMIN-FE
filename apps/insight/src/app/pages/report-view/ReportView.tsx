@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import ReportViewCanvas from '../../features/canvas/components/ReportViewCanvas';
+import { useExitReportOnScopeChange } from '../../features/report/hooks/useExitReportOnScopeChange';
 import { useReportEditorStore } from '../../features/report/hooks/useReportEditorStore';
 import { useGetReport } from '../../features/report/hooks/useReportQueries';
 import { useReportViewStore } from '../../features/report/hooks/useReportViewStore';
@@ -18,14 +19,19 @@ import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 export default function ReportView() {
   const [searchParams] = useSearchParams();
   const reportId = searchParams.get('reportId') ?? '';
-  return <ReportViewBody key={reportId} reportId={Number(reportId)} />;
+  // 운영자 모드 목록에서 선택한 스코프 테넌트 — 뷰어 테넌트 조건 프리셋 (`?tenantId=`)
+  const presetTenantId = searchParams.get('tenantId');
+  return <ReportViewBody key={`${reportId}:${presetTenantId ?? ''}`} reportId={Number(reportId)} presetTenantId={presetTenantId} />;
 }
 
-function ReportViewBody({ reportId }: { reportId: number }) {
+function ReportViewBody({ reportId, presetTenantId }: { reportId: number; presetTenantId: string | null }) {
+  // 화면 안에서 운영자 모드/대행 테넌트가 바뀌면 reportId 가 새 컨텍스트에서 무효 — 목록 복귀
+  useExitReportOnScopeChange();
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { setReport, setPanels, setCalcFields, setSearchBindings, setFieldDisplays, reset } = useReportEditorStore();
   const commitFilter = useReportViewStore((s) => s.commitFilter);
+  const setViewTenantId = useReportViewStore((s) => s.setTenantId);
   const resetViewFilter = useReportViewStore((s) => s.resetFilter);
   const autoQueriedRef = useRef<number | null>(null);
 
@@ -44,13 +50,18 @@ function ReportViewBody({ reportId }: { reportId: number }) {
     }
   }, [reportFull, setReport, setPanels, setCalcFields, setSearchBindings, setFieldDisplays]);
 
-  // 뷰 진입 시 1회 자동 조회 — 새로고침/네비게이션 상관없이 항상 동일하게 동작
+  // 뷰 진입 시 1회 자동 조회 — 새로고침/네비게이션 상관없이 항상 동일하게 동작.
+  // 운영자 모드는 테넌트 검색조건 선택이 선행돼야 하므로 기본은 자동 조회를 걸지 않되,
+  // 목록에서 스코프 테넌트를 갖고 들어온 경우(?tenantId=)는 그 값으로 프리셋 후 즉시 조회.
+  // (프리셋은 GlobalFilter 의 hydrate(자식 effect, 먼저 실행)가 tenantId 를 비운 뒤 적용돼야 함)
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
   useEffect(() => {
-    if (reportFull && autoQueriedRef.current !== reportId) {
-      autoQueriedRef.current = reportId;
-      commitFilter();
-    }
-  }, [reportFull, reportId, commitFilter]);
+    if (!reportFull || autoQueriedRef.current === reportId) return;
+    if (operatorMode && !presetTenantId) return; // 프리셋 없는 운영자 진입 — 수동 선택 대기
+    autoQueriedRef.current = reportId;
+    if (operatorMode && presetTenantId) setViewTenantId(presetTenantId);
+    commitFilter();
+  }, [reportFull, reportId, commitFilter, operatorMode, presetTenantId, setViewTenantId]);
 
   // 이탈 시 editor·view 스토어 모두 초기화 (queryTrigger 잔존으로 인한 비일관 동작 방지)
   useEffect(() => {

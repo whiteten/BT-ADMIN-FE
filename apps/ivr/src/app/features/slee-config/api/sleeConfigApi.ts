@@ -3,7 +3,6 @@
  * BFF Aggregation Flow 기반.
  *
  * 등록된 flow:
- * - ivr-slee-config-tenants:            GET  테넌트 목록
  * - ivr-slee-config-files:              GET  ConfigFile 목록
  * - ivr-slee-config-categories:         GET  카테고리 목록
  * - ivr-slee-config-properties:         GET  속성 목록
@@ -27,7 +26,6 @@ import type {
   SleeConfigProperty,
   SleeConfigReservationRequest,
   SleeConfigReservationResult,
-  SleeConfigTenant,
   SleeUserconfigCreateRequest,
   SleeUserconfigImportResponse,
   SleeUserconfigUpdateRequest,
@@ -52,11 +50,6 @@ interface DeletePropertyParams {
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const sleeConfigApi = {
-  getTenants: async (): Promise<SleeConfigTenant[]> => {
-    const response = await apiClient.get<ApiResponse<{ value: SleeConfigTenant[] }>>('/ivr-slee-config-tenants');
-    return response.data?.data?.value ?? [];
-  },
-
   /** 환경변수 cfg ZIP Export (Blob) — AS-IS IPR30S3030EX. @flow ivr-slee-config-export */
   exportConfig: async (params: { tenantId: number; configFile: string }) => {
     return await apiClient.get<Blob>('/ivr-slee-config-export', { params, responseType: 'blob', silent: true });

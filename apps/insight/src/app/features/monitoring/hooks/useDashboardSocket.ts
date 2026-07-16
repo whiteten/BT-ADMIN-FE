@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { buildWsUrl } from '@/shared-util';
 import type { Widget, WsConnectionState, WsServerMessage, WsSubscribeMessage } from '../types';
 import { getCustomWidgetFields } from '../widgets/registry';
 
@@ -113,8 +114,7 @@ export function useDashboardSocket({
     }
 
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const url = `${protocol}://${window.location.host}${WS_ENDPOINT}?dashboardId=${dashboardId}`;
+      const url = buildWsUrl(`${WS_ENDPOINT}?dashboardId=${dashboardId}`);
       const ws = new WebSocket(url);
       socketRef.current = ws;
       setConnectionState('connecting');

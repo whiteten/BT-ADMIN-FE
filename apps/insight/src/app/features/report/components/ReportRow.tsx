@@ -49,13 +49,18 @@ interface ReportRowProps {
   query?: string;
   /** 메뉴(QuerySelector)에 등록된 보고서인지 — 등록본은 관리자만 삭제/공유 해제 가능(죽은 메뉴 참조 방지). */
   isMenuRegistered?: boolean;
+  /**
+   * 운영자 모드 목록 스코프 테넌트 — 전달 시 뷰 진입 URL 에 ?tenantId= 로 합성돼
+   * 뷰어의 테넌트 검색조건이 이 값으로 프리셋된다 (목록에서 보던 테넌트 기준 즉시 조회).
+   */
+  scopeTenantId?: string;
 }
 
 /**
  * 보고서 목록 행 — 좌측 필터 레일 + 행 리스트 레이아웃용.
  * 권한(편집/삭제/화면 공유)·네비게이션 로직은 ReportCard 와 동일 정책을 따른다.
  */
-export default function ReportRow({ report, query, isMenuRegistered = false }: ReportRowProps) {
+export default function ReportRow({ report, query, isMenuRegistered = false, scopeTenantId }: ReportRowProps) {
   const navigate = useNavigate();
   const modal = useModal();
   const queryClient = useQueryClient();
@@ -93,7 +98,7 @@ export default function ReportRow({ report, query, isMenuRegistered = false }: R
     },
   });
 
-  const handleView = () => navigate(`/insight/statistics/reports/view?reportId=${report.reportId}`);
+  const handleView = () => navigate(`/insight/statistics/reports/view?reportId=${report.reportId}${scopeTenantId ? `&tenantId=${encodeURIComponent(scopeTenantId)}` : ''}`);
   const handleEdit = () => navigate(`/insight/statistics/reports/${report.reportId}/edit`);
   const handleDelete = () => {
     modal.confirm.delete({

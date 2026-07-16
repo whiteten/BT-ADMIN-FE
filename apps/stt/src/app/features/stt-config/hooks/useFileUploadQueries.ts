@@ -20,7 +20,7 @@ export const useGetFileUploadList = ({
   });
 };
 
-export const useDeleteFileUpload = ({ mutationOptions }: MutationHookOptions<unknown, string> = {}) => {
+export const useDeleteFileUpload = ({ mutationOptions }: MutationHookOptions<unknown, { tenantId: number; ucidGkey: string }> = {}) => {
   return useMutation({
     mutationFn: fileUploadApi.deleteFileUpload,
     ...mutationOptions,

@@ -87,7 +87,7 @@ export default function RetryReqList() {
   });
 
   const handleDelete = (data: RetryReqListItem) => {
-    modal.confirm.delete({ onOk: () => deleteRetryReq(data.retryDate) });
+    modal.confirm.delete({ onOk: () => deleteRetryReq({ tenantId: data.tenantId, retryDate: data.retryDate }) });
   };
 
   const columnDefs: ColDef<RetryReqListItem>[] = [

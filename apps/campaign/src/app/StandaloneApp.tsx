@@ -1,9 +1,10 @@
 import { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastContainer } from 'react-toastify';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import 'react-toastify/dist/ReactToastify.css';
 import { App as AntdApp, ConfigProvider } from 'antd';
+import { getBasePath } from '@/shared-util';
 import App from './app';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 // 단독 실행 시 host가 제공하던 전역 Tailwind + 디자인 토큰을 직접 로드 (campaign styles.css는 비어 있음)
@@ -26,7 +27,7 @@ export default function StandaloneApp() {
     <ConfigProvider>
       <AntdApp>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter future={{ v7_relativeSplatPath: false, v7_startTransition: true }}>
+          <BrowserRouter basename={getBasePath() || '/'} future={{ v7_relativeSplatPath: false, v7_startTransition: true }}>
             {/* host 레이아웃이 없는 standalone에서 페이지의 h-full 체인이 동작하도록 뷰포트 전체를 채우는 컨테이너 제공.
                 Tailwind 동적 생성에 의존하지 않도록 인라인 스타일 사용. */}
             <div style={{ position: 'fixed', inset: 0, overflow: 'auto', background: '#f0f2f5', padding: 16 }}>

@@ -1,33 +1,39 @@
 /**
  * IVR 서비스 번호 관리 페이지 — AS-IS IPR20S6030 마이그레이션.
  *
- * <p>레이아웃: IVR/IPRON 표준 카드 슬라이더 스킨(ExtAdaptorList·McsDnis 동일).
- *   3개의 flat 박스(bg-white bt-shadow) — ① 노드 탭 헤더 ② 테넌트 카드 슬라이더 ③ DNIS 그리드.</p>
- * <p>데이터는 (노드 + 테넌트) 2단계 선택 → 둘 다 선택 시 그리드 로드.
+ * <p>레이아웃: 2개의 flat 박스(bg-white bt-shadow) — ① 툴바(노드 셀렉트 + 운영자모드 테넌트 스코프) ② DNIS 그리드.</p>
+ * <p>노드는 필수 단일 선택(Select). 테넌트는 운영자모드에서만 ScopeSelect 로 대행/전체 전환하고,
+ *   비운영자는 서버가 JWT 테넌트로 자동 스코프(선택 UI 없음).
  *   API/hooks/types·Sheet·Modal·ImportButton 은 변경 없이 그대로 재사용(화면 스킨만 표준화).</p>
  */
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input, Popconfirm, Tag } from 'antd';
-import { Building2, ChevronLeft, ChevronRight, Copy, Download, Network, Phone, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { Button, Empty, Popconfirm, Select } from 'antd';
+import { Copy, Download, Network, Phone, Plus, Trash2 } from 'lucide-react';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnisBatchCopyModal, { type DnisBatchCopyModalRef } from './DnisBatchCopyModal';
 import DnisExcelImportButton from './DnisExcelImportButton';
 import DnisSheet, { type DnisSheetRef } from './DnisSheet';
-import { useGetTenants } from '../../ivr-ain-dnis/hooks/useIvrAinDnisQueries';
 import { useGetNodes } from '../../ivr-dn-group/hooks/useIvrDnGroupQueries';
+import { SCENARIO_TYPE_COLORS } from '../../scenario/types';
 import { dnisQueryKeys, useDeleteDnis, useGetDnisList } from '../hooks/useDnisQueries';
 import type { DnisItem } from '../types/dnis.types';
-import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
+import ScopeSelect from '@/components/custom/ScopeSelect';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [
   { title: '시나리오 관리', path: '/ivr/scenario/dnis' },
   { title: 'IVR 서비스 번호 관리', path: '/ivr/scenario/dnis' },
 ];
+
+// 시나리오타입 뱃지 — 색상은 SCENARIO_TYPE_COLORS(도메인 SoT, scenario/types)로 화면 전반 통일.
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
 
 export default function DnisPage() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -40,20 +46,27 @@ export default function DnisPage() {
   const queryClient = useQueryClient();
   const { gridOptions } = useAggridOptions();
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): 헤더 미전달 → 서버가 TenantContext.isViewAllTenants() 로 전 테넌트 조회
+  //  - 대행(actAsTenantId=X): apiClient 가 X-Act-As-Tenant 주입 → X 테넌트로 조회 스코프
+  //  - 비운영자: 헤더 미주입 → 서버가 JWT 테넌트 기준으로 자신의 DNIS만 반환
+  const myTenantId = useAuthStore((s) => (s.userInfo?.tenant ? Number(s.userInfo.tenant) : null));
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const actAsTenantIdNum = actAsTenantId !== null ? Number(actAsTenantId) : null;
+  // 추가/가져오기(신규 row 생성) 대상 테넌트 — "전체" 스코프는 대상이 모호해 비활성 처리.
+  const writeTargetTenantId = operatorMode ? actAsTenantIdNum : myTenantId;
+  const showTenantColumn = operatorMode && actAsTenantId === null;
+
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(null);
-  const [keyword, setKeyword] = useState('');
-  const [confirmedKeyword, setConfirmedKeyword] = useState('');
   const [selectedRows, setSelectedRows] = useState<DnisItem[]>([]);
 
   const sheetRef = useRef<DnisSheetRef>(null);
   const batchCopyRef = useRef<DnisBatchCopyModalRef>(null);
-  const cardScrollRef = useRef<HTMLDivElement>(null);
 
   const { data: nodes = [] } = useGetNodes();
-  const { data: tenants = [] } = useGetTenants();
-  // DNIS는 노드별로만 조회 가능(전체 집계 API 없음) → count 없이 표시.
-  const nodeTabItems: TabBarItem<number>[] = useMemo(() => nodes.map((node) => ({ id: node.nodeId, label: node.nodeName, icon: Network })), [nodes]);
 
   // 진입 시 첫 노드 자동 선택
   useEffect(() => {
@@ -62,16 +75,15 @@ export default function DnisPage() {
     }
   }, [nodes, selectedNodeId]);
 
-  // 첫 테넌트 자동 선택
-  useEffect(() => {
-    if (!selectedTenantId && tenants.length > 0) {
-      setSelectedTenantId(tenants[0].tenantId);
-    }
-  }, [tenants, selectedTenantId]);
+  const handleScopeChange = (tenantId: string | null) => {
+    setActAsTenant(tenantId);
+    setSelectedRows([]);
+    void queryClient.invalidateQueries({ queryKey: dnisQueryKeys.list._def });
+  };
 
   const { data: dnisList = [], isFetching } = useGetDnisList({
-    params: selectedNodeId && selectedTenantId ? { nodeId: selectedNodeId, tenantId: selectedTenantId, dnisNo: confirmedKeyword || undefined } : undefined,
-    queryOptions: { enabled: !!selectedNodeId && !!selectedTenantId },
+    params: selectedNodeId ? { nodeId: selectedNodeId } : undefined,
+    queryOptions: { enabled: !!selectedNodeId },
   });
 
   const { mutate: deleteMutate } = useDeleteDnis({
@@ -95,118 +107,66 @@ export default function DnisPage() {
     });
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setKeyword(e.target.value);
-    if (!e.target.value.trim()) setConfirmedKeyword('');
-  };
-
   const columnDefs: ColDef<DnisItem>[] = useMemo(
     () => [
-      { headerName: '서비스번호', field: 'dnisNo', width: 120, cellClass: 'font-mono' },
-      { headerName: '서비스번호명', field: 'dnisName', flex: 1, minWidth: 180 },
+      { headerName: '테넌트', field: 'tenantName', flex: 2, hide: !showTenantColumn },
+      { headerName: '서비스번호', field: 'dnisNo', flex: 2, cellClass: 'font-mono' },
+      { headerName: '서비스번호명', field: 'dnisName', flex: 3 },
       {
         headerName: '시나리오타입',
         field: 'serviceTypeName',
-        width: 110,
-        cellRenderer: (p: ICellRendererParams<DnisItem>) => (
-          <Tag color="blue" className="!m-0">
-            {p.value ?? '-'}
-          </Tag>
-        ),
+        flex: 2,
+        cellRenderer: (p: ICellRendererParams<DnisItem>) => {
+          if (!p.data) return null;
+          const color = p.data.serviceType != null ? SCENARIO_TYPE_COLORS[String(p.data.serviceType)] : null;
+          return <Badge className={cn(BADGE_CLASS, color ? `${color.bg} ${color.text}` : DEFAULT_BADGE_CLASS)}>{p.data.serviceTypeName ?? '-'}</Badge>;
+        },
       },
-      { headerName: '시나리오명', field: 'serviceName', flex: 1, minWidth: 160 },
-      { headerName: '통신사', field: 'telcoKindName', width: 90 },
-      { headerName: '설명', field: 'dnisDesc', flex: 1.2, minWidth: 180, tooltipField: 'dnisDesc' },
+      { headerName: '시나리오명', field: 'serviceName', flex: 3 },
+      { headerName: '통신사', field: 'telcoKindName', flex: 2 },
+      { headerName: '설명', field: 'dnisDesc', flex: 3, tooltipField: 'dnisDesc' },
     ],
-    [],
+    [showTenantColumn],
   );
 
   const selectedNode = useMemo(() => nodes.find((n) => n.nodeId === selectedNodeId) ?? null, [nodes, selectedNodeId]);
-  const selectedTenant = useMemo(() => tenants.find((t) => t.tenantId === selectedTenantId) ?? null, [tenants, selectedTenantId]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <DnisSheet ref={sheetRef} selectedNode={selectedNode ? { nodeId: selectedNode.nodeId, nodeName: selectedNode.nodeName } : null} selectedTenantId={selectedTenantId} />
+      <DnisSheet ref={sheetRef} selectedNode={selectedNode ? { nodeId: selectedNode.nodeId, nodeName: selectedNode.nodeName } : null} selectedTenantId={writeTargetTenantId} />
       <DnisBatchCopyModal ref={batchCopyRef} />
 
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== ① 노드 탭 바 ===== */}
-        <TabBar<number>
-          items={nodeTabItems}
-          selectedId={selectedNodeId}
-          onSelect={setSelectedNodeId}
-          rightContent={
-            <Input
-              allowClear
-              prefix={<Search className="size-3.5 text-gray-400" />}
-              placeholder="서비스번호 검색"
-              value={keyword}
-              onChange={handleSearchChange}
-              onPressEnter={() => setConfirmedKeyword(keyword.trim())}
-              style={{ width: 200 }}
-            />
-          }
-        />
-
-        {/* ===== ② 테넌트 카드 슬라이더 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center px-4 py-3 h-[150px]">
-            {tenants.length === 0 ? (
-              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} styles={{ image: { height: 36 } }} />
-                <span className="text-sm">테넌트가 없습니다</span>
-              </div>
-            ) : (
-              <div className="relative flex items-center gap-2 w-full">
-                <Button
-                  type="text"
-                  icon={<ChevronLeft className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: -240, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none' }}>
-                  {tenants.map((t) => {
-                    const isSel = selectedTenantId === t.tenantId;
-                    return (
-                      <div
-                        key={t.tenantId}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[110px] flex-shrink-0 flex flex-col ${
-                          isSel ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                        }`}
-                        onClick={(e) => {
-                          setSelectedTenantId(t.tenantId);
-                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }}
-                      >
-                        <div className="flex items-center gap-2 mb-1.5 min-w-0">
-                          <Building2 className="size-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-sm font-semibold text-gray-800 truncate">{t.tenantName}</span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          테넌트 ID: <b className="text-gray-700">{t.tenantId}</b>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                <Button
-                  type="text"
-                  icon={<ChevronRight className="size-5" />}
-                  onClick={() => cardScrollRef.current?.scrollBy({ left: 240, behavior: 'smooth' })}
-                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                />
-              </div>
+        {/* ===== ① 툴바(노드 셀렉트 + 운영자모드 테넌트 스코프) ===== */}
+        <div className="bg-white bt-shadow flex-shrink-0 px-5 h-[56px]">
+          <header className="flex items-center gap-2 flex-wrap h-full">
+            {/* 노드 필터 */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select<number>
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? undefined}
+                onChange={setSelectedNodeId}
+                options={nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
+                placeholder="노드 선택"
+                style={{ width: 190 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
+            {operatorMode && (
+              <ScopeSelect kind="tenant" options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))} value={actAsTenantId} onChange={handleScopeChange} />
             )}
-          </div>
+          </header>
         </div>
 
-        {/* ===== ③ DNIS 그리드 ===== */}
+        {/* ===== ② DNIS 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-2">
               <Phone className="size-4 text-[#405189]" />
               <h3 className="text-sm font-semibold text-gray-800">
-                서비스번호별 시나리오 — <span className="text-[#405189]">{selectedNode && selectedTenant ? `${selectedNode.nodeName} · ${selectedTenant.tenantName}` : ''}</span>
+                서비스번호별 시나리오 — <span className="text-[#405189]">{selectedNode?.nodeName ?? ''}</span>
               </h3>
               <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{dnisList.length}개</span>
               {selectedRows.length > 0 && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-blue-600 bg-blue-50">선택 {selectedRows.length}개</span>}
@@ -222,18 +182,18 @@ export default function DnisPage() {
               <Button icon={<Copy className="size-3.5" />} onClick={() => selectedNodeId && batchCopyRef.current?.open(selectedNodeId)} disabled={!selectedNodeId}>
                 일괄복사
               </Button>
-              <DnisExcelImportButton selectedNode={selectedNode ? { nodeId: selectedNode.nodeId } : null} selectedTenantId={selectedTenantId} />
+              <DnisExcelImportButton selectedNode={selectedNode ? { nodeId: selectedNode.nodeId } : null} selectedTenantId={writeTargetTenantId} />
               <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} onClick={() => exportToExcel(dnisList)} disabled={dnisList.length === 0}>
                 내보내기
               </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => sheetRef.current?.openCreate()} disabled={!selectedNodeId || !selectedTenantId}>
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={() => sheetRef.current?.openCreate()} disabled={!selectedNodeId || !writeTargetTenantId}>
                 추가
               </Button>
             </div>
           </div>
           <div className="border-t border-gray-200" />
           <div className="flex-1 min-h-0 p-5">
-            {selectedNode && selectedTenant ? (
+            {selectedNode ? (
               <AgGridReact<DnisItem>
                 rowData={dnisList}
                 columnDefs={columnDefs}
@@ -247,7 +207,7 @@ export default function DnisPage() {
               />
             ) : (
               <div className="flex items-center justify-center h-full">
-                <Empty description="상단에서 노드와 테넌트를 선택하세요" />
+                <Empty description="상단에서 노드를 선택하세요" />
               </div>
             )}
           </div>

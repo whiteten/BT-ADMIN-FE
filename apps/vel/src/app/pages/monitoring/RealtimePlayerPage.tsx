@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { getCookie } from '@/shared-util';
+import { buildWsUrl, getCookie, withBasePath } from '@/shared-util';
 
 /**
  * 실시간 감청 플레이어 팝업 (데모).
@@ -73,7 +73,7 @@ export default function RealtimePlayerPage() {
   // 현재 살아있는 sid(sessionId.current)를 사용한다.
   const sendStopSignal = (sid: string = sessionId.current) => {
     // BFF aggregation flow(vel-realtime-stop) 경유 → VEL realtimeStop(agent_dn+sid 쿼리). POST라 CSRF 필요.
-    const stopUrl = `/api/bff/vel-realtime-stop?agent_dn=${encodeURIComponent(params.agent_dn)}&sid=${encodeURIComponent(sid)}`;
+    const stopUrl = withBasePath(`/api/bff/vel-realtime-stop?agent_dn=${encodeURIComponent(params.agent_dn)}&sid=${encodeURIComponent(sid)}`);
     // best-effort: 실패해도 서버가 브라우저 연결 끊김을 감지해 세션 정리.
     fetch(stopUrl, { method: 'POST', keepalive: true, headers: { 'X-CSRF-TOKEN': getCookie('XSRF-TOKEN') ?? '' } }).catch(() => undefined);
   };
@@ -202,7 +202,7 @@ export default function RealtimePlayerPage() {
         lastPacketTime.current = Date.now();
         while (!localAbort.signal.aborted) {
           try {
-            const response = await fetch(`/api/bff/vel-realtime-play`, {
+            const response = await fetch(withBasePath('/api/bff/vel-realtime-play'), {
               method: 'POST',
               signal: localAbort.signal,
               headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCookie('XSRF-TOKEN') ?? '' },
@@ -249,7 +249,7 @@ export default function RealtimePlayerPage() {
         setMessage('실시간 스트림 연결 중 (BFF 패스스루 테스트)...');
         lastPacketTime.current = Date.now();
         try {
-          const response = await fetch(`/api/bff/vel-realtime-stream`, {
+          const response = await fetch(withBasePath('/api/bff/vel-realtime-stream'), {
             method: 'POST',
             signal: localAbort.signal,
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': getCookie('XSRF-TOKEN') ?? '' },
@@ -293,8 +293,7 @@ export default function RealtimePlayerPage() {
         setMessage('WebSocket 연결 중 (BFF /ws/proxy 패스스루)...');
         lastPacketTime.current = Date.now();
 
-        const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const ws = new WebSocket(`${proto}://${window.location.host}/ws/proxy/vel/realtime`);
+        const ws = new WebSocket(buildWsUrl('/ws/proxy/vel/realtime'));
         ws.binaryType = 'arraybuffer';
         wsRef.current = ws;
 

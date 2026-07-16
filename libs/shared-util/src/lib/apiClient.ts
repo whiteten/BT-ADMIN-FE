@@ -1,5 +1,6 @@
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import qs from 'qs';
+import { getBasePath } from './basePath';
 import { LOG } from './log';
 import { createShortId, getCookie } from './util';
 
@@ -55,7 +56,7 @@ export default class ApiClient {
 
   constructor(options: ApiClientOptions = {}) {
     const { serviceURL = '', timeout = 1000 * 60 * 3 } = options;
-    const baseURL = `/api${serviceURL}`;
+    const baseURL = `${getBasePath()}/api${serviceURL}`;
     this.#instance = axios.create({
       baseURL,
       timeout,
@@ -142,7 +143,7 @@ export default class ApiClient {
 
   async #refreshCsrfToken(): Promise<void> {
     Log.info('[CSRF] 토큰 재발급 요청');
-    await axios.get('/api/auth/csrf', { params: { t: Date.now() } });
+    await axios.get(`${getBasePath()}/api/auth/csrf`, { params: { t: Date.now() } });
     Log.success('[CSRF] 토큰 재발급 완료');
   }
 

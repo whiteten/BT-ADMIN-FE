@@ -22,6 +22,11 @@ export interface ScopeSelectProps {
   onChange: (id: string | null) => void;
   /** "전체" 항목 라벨 override. 기본 kind 에 따라 "전체 테넌트"/"전체 노드". */
   allLabel?: string;
+  /**
+   * "전체" 항목 제거 — 단일 대상 필수 선택 화면용(예: 통계 보고서 목록의 테넌트 스코프).
+   * true 면 onChange 에 null 이 전달되지 않는다 (value 도 항상 값 유지 전제).
+   */
+  hideAll?: boolean;
   /** 드롭다운 너비(px). 기본 190. */
   width?: number;
   disabled?: boolean;
@@ -42,17 +47,15 @@ const ALL = '__all__';
  * @example  // 노드(브랜치 D 확장)
  * <ScopeSelect kind="node" options={nodes} value={nodeId} onChange={setNodeId} />
  */
-export default function ScopeSelect({ kind = 'tenant', options, value, onChange, allLabel, width = 190, disabled, className }: ScopeSelectProps) {
+export default function ScopeSelect({ kind = 'tenant', options, value, onChange, allLabel, hideAll = false, width = 190, disabled, className }: ScopeSelectProps) {
   const acting = value != null;
   const Icon = kind === 'node' ? Server : Building2;
   const defaultAll = allLabel ?? (kind === 'node' ? '전체 노드' : '전체 테넌트');
-  const selectOptions = [
-    { value: ALL, label: defaultAll },
-    ...options.map((o) => ({
-      value: String(o.id),
-      label: o.count != null ? `${o.name} (${o.count.toLocaleString()})` : o.name,
-    })),
-  ];
+  const mapped = options.map((o) => ({
+    value: String(o.id),
+    label: o.count != null ? `${o.name} (${o.count.toLocaleString()})` : o.name,
+  }));
+  const selectOptions = hideAll ? mapped : [{ value: ALL, label: defaultAll }, ...mapped];
   return (
     <div
       className={cn(

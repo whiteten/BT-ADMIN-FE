@@ -94,6 +94,9 @@ function createRemote() {
       // 신규앱의 style.css 파일 내용 제거
       clearStyleCss(trimmedAppName);
 
+      // 신규앱의 index.html에 base 앵커 삽입 (root context 배포 치환 지점 — AGENTS.md "root context(basePath) 경로 규칙")
+      patchIndexHtmlBaseTag(trimmedAppName);
+
       // 신규앱의 webpack-helpers.ts 파일을 manager와 동일하게 복사
       copyWebpackHelpers(trimmedAppName);
 
@@ -657,6 +660,39 @@ function removeAppSpec(appName) {
     }
   } catch (error) {
     logError(appName, 'app.spec.tsx 삭제', error);
+  }
+}
+
+function patchIndexHtmlBaseTag(appName) {
+  const timer = createTimer();
+  logStart(appName, 'index.html에 <base href="/" /> 앵커 삽입');
+  try {
+    const indexHtmlPath = path.join(process.cwd(), `apps/${appName}/src/index.html`);
+
+    if (!fs.existsSync(indexHtmlPath)) {
+      logError(appName, 'src/index.html 파일을 찾을 수 없음');
+      return;
+    }
+
+    const content = fs.readFileSync(indexHtmlPath, 'utf8');
+
+    // 이미 base 태그가 있으면 건너뜀 (재실행 대비)
+    if (content.includes('<base ')) {
+      logSuccess(appName, 'index.html에 base 앵커 이미 존재 — 건너뜀', timer);
+      return;
+    }
+
+    // charset meta 다음 줄에 삽입 (모든 URL 참조 태그보다 앞이어야 함)
+    const patched = content.replace(/(<meta charset="utf-8" \/>)/, '$1\n    <base href="/" />');
+    if (patched === content) {
+      logError(appName, 'index.html에서 charset meta를 찾지 못해 base 앵커 삽입 실패 — 수동 추가 필요');
+      return;
+    }
+
+    fs.writeFileSync(indexHtmlPath, patched);
+    logSuccess(appName, 'index.html에 base 앵커 삽입', timer);
+  } catch (error) {
+    logError(appName, 'index.html base 앵커 처리', error);
   }
 }
 

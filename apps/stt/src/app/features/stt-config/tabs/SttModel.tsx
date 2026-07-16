@@ -6,7 +6,7 @@ import { BarChart2, MoreVertical, Pause, Play } from 'lucide-react';
 import { fuzzyFilter, toast } from '@/shared-util';
 import SttModelDrawer, { type SttModelDrawerRef } from '../components/SttModelDrawer';
 import SttModelRecogDrawer, { type SttModelRecogDrawerRef } from '../components/SttModelRecogDrawer';
-import { useGetCodes } from '../hooks/useCommonQueries';
+import { ENGINE_KIND_OPTIONS } from '../constants/sttCodeConstants';
 import { modelQueryKeys, useDeleteSttModel, useGetSttModelList } from '../hooks/useModelQueries';
 import { MODEL_TUNNING_RESULT, MODEL_TUNNING_TYPE, type ModelTunningResult, type ModelTunningType, type SttModelItem } from '../types';
 import { Badge } from '@/components/ui/badge';
@@ -111,17 +111,15 @@ export default function SttModel() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshSeconds, setRefreshSeconds] = useState(3);
 
-  const { data: engines } = useGetCodes({ params: { classCd: 'ENGINE_KIND' } });
-  const engineOptions = engines?.map((e) => ({ label: e.value, value: e.code })) ?? [];
+  const engines = ENGINE_KIND_OPTIONS;
+  const engineOptions = engines.map((e) => ({ label: e.value, value: e.code }));
 
   useEffect(() => {
-    if (engines && engines.length > 0) {
-      setEngineCode((prev) => {
-        const resolved = prev || engines[0].code;
-        setSearchParams({ engineCode: resolved });
-        return resolved;
-      });
-    }
+    setEngineCode((prev) => {
+      const resolved = prev || engines[0].code;
+      setSearchParams({ engineCode: resolved });
+      return resolved;
+    });
   }, [engines]);
 
   const { data: rawData = [], isFetching } = useGetSttModelList({
