@@ -3,10 +3,10 @@
 - 작성일: 2026-07-15
 - 대상 저장소: `E:\dev\bt-admin-fe` (https://github.com/leehojae91/bt-admin-fe.git, main)
 - 원본 저장소: `E:\dev\bt-admin-workspace\BT-ADMIN-FE` (Nx 21 + Webpack 5 + MF, master)
-- 이력 문서: [MIGRATION-LOG.md](MIGRATION-LOG.md) — 실행 명령어·함정·게이트 실측 기록의 SoT. 이 계획서는 "남은 일"의 SoT.
+- 이력 문서: [migration-log.md](migration-log.md) — 실행 명령어·함정·게이트 실측 기록의 SoT. 이 계획서는 "남은 일"의 SoT.
 - 선행 참고: 원본 저장소 `poc/nx23-rspack2` 브랜치 `doc/plans/platform/rspack-migration/` (rspack 시도 계획·진행 로그 — 이월 자산 출처)
 
-> **이 문서 하나만 읽고도 다른 세션에서 이어받을 수 있도록 작성됨.** 새 세션은 §0 → §1 → 진행할 단계 순으로 읽고, 작업 후 MIGRATION-LOG.md에 이력을 남기고 이 문서의 체크박스를 갱신한다.
+> **이 문서 하나만 읽고도 다른 세션에서 이어받을 수 있도록 작성됨.** 새 세션은 §0 → §1 → 진행할 단계 순으로 읽고, 작업 후 migration-log.md에 이력을 남기고 이 문서의 체크박스를 갱신한다.
 
 ---
 
@@ -192,7 +192,7 @@
 | `scripts/create-custom.js` | 고객사별 custom 생성 | 보류 판정 유지(P3-2) — 실수요 시 |
 | `components.json` | shadcn 설정 | 이관(shadcn:add 스크립트와 세트) |
 | `.github/`·`.editorconfig`·`.gitattributes`·`.npmrc`·`.env`·`.gitmojirc` | 저장소 부속 설정 | 선별 이관 |
-| `ds-bundle/`·`.design-sync/` | claude.ai/design 동기화 자산 | 디자인 동기화 계속 쓰면 이관 |
+| `ds-bundle/`·`.design-sync/` | claude.ai/design 동기화 자산 | 제거 확정(2026-07-16) — 미사용 판정, 저장소·로컬에서 삭제 |
 | git 이력 | 원본 커밋 이력 | 신규는 fresh start — 원본 저장소 보존(아카이브)으로 이력 참조 |
 
 ## 6. 리스크·주의

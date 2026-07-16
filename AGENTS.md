@@ -79,7 +79,7 @@
 
 ## 기술 스택
 
-React 19 + TypeScript 5.8, Rsbuild 2(rspack) + Module Federation, turborepo, pnpm. UI는 Tailwind CSS v4 + shadcn/ui + Ant Design v6 + AG-Grid Enterprise + Lucide. 상태는 Zustand, 서버 상태는 TanStack Query, 폼은 React Hook Form + Zod, 라우팅은 React Router DOM 6.29. 날짜는 date-fns/dayjs, 유틸은 lodash, 테스트는 Vitest + Testing Library. React Compiler는 babel 플러그인으로 전 소스에 적용(정합성 필수 — `tools/rsbuild/react-compiler.ts`). 정확한 버전은 `package.json` 참조. 빌드 체계 전환 배경·성능 비교는 [docs/MIGRATION-LOG.md](docs/MIGRATION-LOG.md) 참조.
+React 19 + TypeScript 5.8, Rsbuild 2(rspack) + Module Federation, turborepo, pnpm. UI는 Tailwind CSS v4 + shadcn/ui + Ant Design v6 + AG-Grid Enterprise + Lucide. 상태는 Zustand, 서버 상태는 TanStack Query, 폼은 React Hook Form + Zod, 라우팅은 React Router DOM 6.29. 날짜는 date-fns/dayjs, 유틸은 lodash, 테스트는 Vitest + Testing Library. React Compiler는 babel 플러그인으로 전 소스에 적용(정합성 필수 — `tools/rsbuild/react-compiler.ts`). 정확한 버전은 `package.json` 참조. 빌드 체계 전환 배경·성능 비교는 [doc/plans/platform/turborepo-rsbuild-migration/](doc/plans/platform/turborepo-rsbuild-migration/INDEX.md) 참조.
 
 ## API 통합 가이드라인
 
@@ -101,6 +101,10 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 - **절차·규칙**: 커밋 메시지 작성 시 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
 - **본문 필수**: 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
 - **사람이 직접 커밋**: 이 프로젝트는 **commitizen** + cz-git을 사용합니다. `pnpm commit`(대화형)을 사용하세요.
+
+## RFC(변경 제안서, doc/plans/)
+
+**큰 작업이나 프로젝트에 영향이 큰 변경은, 착수 전에 [doc/plans/](doc/plans/)에 RFC(변경 제안서)를 먼저 작성하고 팀과 공유한 뒤 진행할 것.** 되돌리기 어려운 결정(아키텍처·API 계약·마이그레이션), 모두의 환경에 영향 주는 변경(의존성 메이저 업그레이드·번들러/turborepo/Module Federation 구조·공통 설정), 여러 remote나 `libs/shared-*`에 걸치는 넓은 변경, 여러 세션에 걸치는 긴 작업이 대상. 판정 기준은 "착수 전에 다른 팀원이 알아야 하나?" — 예면 RFC를 쓴다(승인 게이트 아님, 사전 공유가 목적). 단일 화면·버그 수정·소규모 리팩터는 불필요. 트리거 상세·폴더 규칙(platform/feature·이니셔티브 하위폴더·INDEX·파일명)은 [doc/plans/README.md](doc/plans/README.md) 참조.
 
 ## 파일 구조 컨벤션
 

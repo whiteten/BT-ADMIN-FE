@@ -68,7 +68,7 @@ Tailwind CSS v4 · shadcn/ui · Ant Design v6 · AG-Grid Enterprise ·
 TanStack Query · Zustand · React Hook Form + Zod · React Router DOM 6
 
 > 빌드 체계 전환(Nx+Webpack → turborepo+Rsbuild) 배경·과정·성능 비교는
-> [docs/MIGRATION-LOG.md](docs/MIGRATION-LOG.md)·[docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) 참조.
+> [doc/plans/platform/turborepo-rsbuild-migration/](doc/plans/platform/turborepo-rsbuild-migration/INDEX.md) 참조.
 
 ## Claude Code 기반 개발
 
