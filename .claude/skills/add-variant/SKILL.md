@@ -1,6 +1,6 @@
 ---
 name: add-variant
-description: 정식 화면 변형(page variant) 작성 절차. 같은 path에서 테넌트별로 다른 컴포넌트를 렌더하는 본사 관리 변형 — variant 컴포넌트 작성, <Page>.variants.ts 선언, pageVariantManifest 등록, routes.tsx DynamicElement 교체까지. "변형 추가", "variant 만들어줘", 특정 화면의 테넌트별 분기 요청 시 사용. 특정 현장 전용 커스텀은 이 스킬이 아니라 custom remote(doc/CUSTOM_DEVELOPMENT_GUIDE.md, pnpm run create-custom) 대상.
+description: 정식 화면 변형(page variant) 작성 절차. 같은 path에서 테넌트별로 다른 컴포넌트를 렌더하는 본사 관리 변형 — variant 컴포넌트 작성, <Page>.variants.ts 선언, pageVariantManifest 등록, routes.tsx DynamicElement 교체까지. "변형 추가", "variant 만들어줘", 특정 화면의 테넌트별 분기 요청 시 사용. 특정 현장 전용 커스텀은 이 스킬이 아니라 custom remote(doc/CUSTOM_DEVELOPMENT_GUIDE.md) 대상.
 ---
 
 # add-variant
@@ -14,7 +14,7 @@ description: 정식 화면 변형(page variant) 작성 절차. 같은 path에서
 | 상황 | 결론 |
 | --- | --- |
 | 여러 현장에서 공통으로 쓸 공식 변형, 본사 git으로 관리 | ✅ 이 스킬 (정식 variant) |
-| 특정 현장 전용, 현장이 자체 형상관리 | ❌ custom remote — `pnpm run create-custom`, [CUSTOM_DEVELOPMENT_GUIDE.md](../../../doc/CUSTOM_DEVELOPMENT_GUIDE.md) |
+| 특정 현장 전용, 현장이 자체 형상관리 | ❌ custom remote — [CUSTOM_DEVELOPMENT_GUIDE.md](../../../doc/CUSTOM_DEVELOPMENT_GUIDE.md) |
 | 기본 컴포넌트와 prop·context·query key가 본질적으로 다름 | ❌ variant 아님 — 별도 path로 분리 |
 | queryString으로 같은 골격에 preset만 분기 | ❌ queryString 메뉴 분기 패턴 (AGENTS.md 참조) |
 
