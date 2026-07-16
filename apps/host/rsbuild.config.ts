@@ -57,7 +57,7 @@ export default defineConfig({
     preEntry: [path.resolve(__dirname, '../../libs/shared-ui/src/styles/global.css')],
     define: {
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
-      'process.env.NX_PUBLIC_REACT_QUERY_DEVTOOLS': JSON.stringify(process.env.NX_PUBLIC_REACT_QUERY_DEVTOOLS ?? 'OFF'),
+      // PUBLIC_REACT_QUERY_DEVTOOLS는 apps/host/.env + rsbuild PUBLIC_ 자동 노출로 주입 — 수동 define 불필요
     },
   },
   output: {
