@@ -1,28 +1,20 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm (버전 고정 — pnpm 메이저가 다르면 lock 포맷·ag-grid 패치 해시가 어긋남)
+RUN corepack enable && corepack prepare pnpm@10.29.2 --activate
 
-# Copy package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY patches ./patches
+# Copy source code
+# (pnpm workspace는 apps/*/package.json이 있어야 링크를 구성하므로 install 전에 전체 복사)
+COPY . .
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
-COPY . .
-
-# Build all apps using nx
-RUN pnpm exec nx run-many --target=build --projects=host,manager,fca --parallel=1
-
-# Copy remote apps to host/remotes
-RUN mkdir -p dist/apps/host/remotes && \
-    cp -r dist/apps/manager dist/apps/host/remotes/ && \
-    cp -r dist/apps/fca dist/apps/host/remotes/
+# Build + assemble deploy tree (dist/deploy = host 루트 + remotes/<name>/)
+RUN node scripts/build-deploy.js host,manager,fca
 
 # Production stage
 FROM nginx:alpine
@@ -31,7 +23,7 @@ FROM nginx:alpine
 COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built files
-COPY --from=builder /app/dist/apps/host /usr/share/nginx/html
+COPY --from=builder /app/dist/deploy /usr/share/nginx/html
 
 # Expose port
 EXPOSE 80
