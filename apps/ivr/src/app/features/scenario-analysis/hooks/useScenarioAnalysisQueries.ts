@@ -5,11 +5,24 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { type MutationHookOptions, type QueryHookWithParamsOptions } from '@/shared-util';
 import { type ScenarioAnalysisMenuUpdateParams, scenarioAnalysisApi } from '../api/scenarioAnalysisApi';
-import type { ScenarioAnalysisCodeRow, ScenarioAnalysisMenuRow } from '../types';
+import type {
+  ScenarioAnalysisCodeRow,
+  ScenarioAnalysisMenuRow,
+  ScenarioAnalysisPacketItemRow,
+  ScenarioAnalysisPacketRow,
+  ScenarioAnalysisTrackingItemRow,
+  ScenarioAnalysisUserStatCategoryRow,
+  ScenarioAnalysisUserStatItemRow,
+} from '../types';
 
 export const scenarioAnalysisQueryKeys = createQueryKeys('ivrScenarioAnalysis', {
   getMenus: (params?: Record<string, unknown>) => [params],
   getCodes: (params?: Record<string, unknown>) => [params],
+  getTrackingItems: (params?: Record<string, unknown>) => [params],
+  getPackets: (params?: Record<string, unknown>) => [params],
+  getPacketItems: (params?: Record<string, unknown>) => [params],
+  getUserStatCategories: (params?: Record<string, unknown>) => [params],
+  getUserStatItems: (params?: Record<string, unknown>) => [params],
 });
 
 export const useGetScenarioAnalysisMenus = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAnalysisMenuRow[]> = {}) => {
@@ -32,5 +45,45 @@ export const useUpdateScenarioAnalysisMenu = ({ mutationOptions }: MutationHookO
   return useMutation({
     mutationFn: scenarioAnalysisApi.updateMenu,
     ...mutationOptions,
+  });
+};
+
+export const useGetScenarioAnalysisTrackingItems = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAnalysisTrackingItemRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioAnalysisQueryKeys.getTrackingItems(params).queryKey,
+    queryFn: () => scenarioAnalysisApi.getTrackingItems(params as { serviceId: number; serviceVer: string }),
+    ...queryOptions,
+  });
+};
+
+export const useGetScenarioAnalysisPackets = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAnalysisPacketRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioAnalysisQueryKeys.getPackets(params).queryKey,
+    queryFn: () => scenarioAnalysisApi.getPackets(params as { serviceId: number; serviceVer: string }),
+    ...queryOptions,
+  });
+};
+
+export const useGetScenarioAnalysisPacketItems = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAnalysisPacketItemRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioAnalysisQueryKeys.getPacketItems(params).queryKey,
+    queryFn: () => scenarioAnalysisApi.getPacketItems(params as { serviceId: number; serviceVer: string; packetId: string }),
+    ...queryOptions,
+  });
+};
+
+export const useGetScenarioAnalysisUserStatCategories = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAnalysisUserStatCategoryRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioAnalysisQueryKeys.getUserStatCategories(params).queryKey,
+    queryFn: () => scenarioAnalysisApi.getUserStatCategories(params as { serviceId: number; serviceVer: string }),
+    ...queryOptions,
+  });
+};
+
+export const useGetScenarioAnalysisUserStatItems = ({ params, queryOptions }: QueryHookWithParamsOptions<ScenarioAnalysisUserStatItemRow[]> = {}) => {
+  return useQuery({
+    queryKey: scenarioAnalysisQueryKeys.getUserStatItems(params).queryKey,
+    queryFn: () => scenarioAnalysisApi.getUserStatItems(params as { serviceId: number; serviceVer: string; categoryId: string }),
+    ...queryOptions,
   });
 };

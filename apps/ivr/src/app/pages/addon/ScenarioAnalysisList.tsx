@@ -7,34 +7,59 @@
  *    화면별 필터/액션은 각 탭 컴포넌트 안에서 독립적으로 구성한다(RecogList의 GroupDetailPanel과 동일 원칙).
  *    - 시나리오별 메뉴관리 (AS-IS IPR20S6050) — TB_IR_SERVICEMENU 메뉴 트리, 읽기 전용
  *    - 시나리오 코드관리 (AS-IS IPR20S6070) — TB_IR_SERVICECODEITEM 코드 목록, 읽기 전용
- *  둘 다 시나리오 업로드 시점 SXML 분석 결과를 그대로 보여주며 CUD 없음(분석 파이프라인이 유일한 쓰기 경로).
+ *    - 트래킹 아이템 관리 (AS-IS IPR20S6075) — TB_IR_SVCTRACKINGITEM 목록, 읽기 전용
+ *    - 트래킹 패킷전문 관리 (AS-IS IPR20S6076) — TB_IR_PACKETMASTER/TB_IR_PACKETITEM, 읽기 전용
+ *    - 사용자정의통계 관리 (AS-IS IPR20S6077) — TB_IR_USERSTATCATEGORY/TB_IR_USERSTATITEM, 읽기 전용
+ *  모두 시나리오 업로드 시점 SXML 분석 결과를 그대로 보여주며 CUD 없음(분석 파이프라인이 유일한 쓰기 경로).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Empty, Input, Segmented } from 'antd';
-import { ChevronDown, Code2, FileText, ListTree, Search, Tags } from 'lucide-react';
+import { BarChart3, ChevronDown, Code2, FileText, ListTree, Package, Search, Tags, Waypoints } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { fuzzyFilter } from '@/shared-util';
 import { scenarioQueryKeys, useGetScenarios } from '../../features/scenario/hooks/useScenarioQueries';
 import { SCENARIO_TYPE_COLORS, SCENARIO_TYPE_LABELS, type ScenarioType } from '../../features/scenario/types';
 import ScenarioAnalysisCodeTab from '../../features/scenario-analysis/tabs/ScenarioAnalysisCodeTab';
 import ScenarioAnalysisMenuTab from '../../features/scenario-analysis/tabs/ScenarioAnalysisMenuTab';
+import ScenarioAnalysisPacketTab from '../../features/scenario-analysis/tabs/ScenarioAnalysisPacketTab';
+import ScenarioAnalysisTrackingItemTab from '../../features/scenario-analysis/tabs/ScenarioAnalysisTrackingItemTab';
+import ScenarioAnalysisUserStatTab from '../../features/scenario-analysis/tabs/ScenarioAnalysisUserStatTab';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '부가기능' }, { title: '시나리오 분석 결과', path: '/ivr/addon/scenario-analysis' }];
 
-type AnalysisMode = 'menu' | 'code';
+type AnalysisMode = 'menu' | 'code' | 'tracking-item' | 'packet' | 'user-stat';
 
 const MODE_LABELS: Record<AnalysisMode, string> = {
   menu: '시나리오별 메뉴관리',
   code: '시나리오 코드관리',
+  'tracking-item': '트래킹 아이템 관리',
+  packet: '트래킹 패킷전문 관리',
+  'user-stat': '사용자정의통계 관리',
 };
 
 const MODE_ICONS: Record<AnalysisMode, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   menu: ListTree,
   code: Code2,
+  'tracking-item': Waypoints,
+  packet: Package,
+  'user-stat': BarChart3,
+};
+
+interface AnalysisTabProps {
+  serviceId: number | null;
+  scenarioName: string | null;
+}
+
+const MODE_TABS: Record<AnalysisMode, React.ComponentType<AnalysisTabProps>> = {
+  menu: ScenarioAnalysisMenuTab,
+  code: ScenarioAnalysisCodeTab,
+  'tracking-item': ScenarioAnalysisTrackingItemTab,
+  packet: ScenarioAnalysisPacketTab,
+  'user-stat': ScenarioAnalysisUserStatTab,
 };
 
 /** Segmented 토글 (RecogList.tsx의 buildGroupDetailModeOptions와 동일 패턴) — 선택된 토글만 primary 색으로 강조. */
@@ -113,6 +138,8 @@ export default function ScenarioAnalysisList() {
     [searchedScenarios, selectedTypes],
   );
 
+  const ActiveTab = MODE_TABS[mode];
+
   const toggleType = (type: ScenarioType) => {
     setSelectedTypes((prev) => {
       const next = new Set(prev);
@@ -137,6 +164,7 @@ export default function ScenarioAnalysisList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
+      {scopeSelect && <div className="flex items-center bg-white bt-shadow px-5 h-[56px] flex-shrink-0">{scopeSelect}</div>}
       <div className="flex flex-1 min-h-0 gap-4">
         {/* ===== 좌측: 시나리오 목록 ===== */}
         <div className="w-[340px] flex-shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 overflow-hidden">
@@ -242,14 +270,9 @@ export default function ScenarioAnalysisList() {
         <div className="flex-1 min-w-0 flex flex-col gap-5 bg-white bt-shadow p-5 overflow-hidden">
           <header className="flex items-center gap-4 w-full flex-wrap flex-shrink-0">
             <Segmented options={buildModeOptions(mode)} value={mode} onChange={(v) => setMode(v as AnalysisMode)} size="large" />
-            {scopeSelect}
           </header>
           <div className="flex-1 min-h-0 flex flex-col">
-            {mode === 'menu' ? (
-              <ScenarioAnalysisMenuTab serviceId={selectedScenarioId} scenarioName={selectedScenario?.serviceName ?? null} />
-            ) : (
-              <ScenarioAnalysisCodeTab serviceId={selectedScenarioId} scenarioName={selectedScenario?.serviceName ?? null} />
-            )}
+            <ActiveTab serviceId={selectedScenarioId} scenarioName={selectedScenario?.serviceName ?? null} />
           </div>
         </div>
       </div>
