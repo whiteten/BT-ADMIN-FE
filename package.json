@@ -7,6 +7,7 @@
     "serve:prod": "serve dist/deploy -l 4200 -s",
     "dev": "turbo run dev",
     "serve": "node scripts/serve-host.js",
+    "create-custom": "node scripts/create-custom.js",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",

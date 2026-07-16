@@ -38,7 +38,7 @@
 | React Compiler | babel 플러그인으로 필수 적용 | Compiler 메모이제이션에 의존하는 effect deps 존재 (미적용 시 세션 WS 루프) |
 | react-refresh 브리지 | host main.ts dev 전용 | rspack/rsbuild 진영 공식 해법 부재 (Vite `reactRefreshHost`만 존재). Rsbuild에 동등 옵션 생기면 삭제 |
 | shared 전략 | `loaded-first` + react·react-dom singleton + eager dayjs + excluded(clsx·tailwind-merge·echarts·codemirror) | 원본 정책 + rspack 브랜치 검증분 |
-| 포트 SoT | `tools/mf/app-ports.ts` | project.json 소멸 대체. ⚠️ campaign·custom 4209 중복은 원본 그대로 |
+| 포트 SoT | `tools/mf/app-ports.ts` | project.json 소멸 대체. campaign·custom 4209 중복은 custom 4211 재배정으로 해소(2026-07-16) |
 | deps 배치 | 루트 package.json 전량(단일 버전 정책), 앱은 rsbuild 계열 devDeps만 | 원본 관례 유지 |
 
 ## 2. 잔여 게이트 (P1) — 확장 전 확인 ✅ 전부 통과 (2026-07-15, 게이트 4차)
@@ -189,7 +189,7 @@
 | `.claude/skills/` 14종 + commands/ | add-api·add-form·add-grid 등 작업 스킬 | 이관 필수 — 명령어(nx 기반)·경로 재작성 |
 | `AGENTS.md` (53.8K) | 작업 유형별 스킬 인덱스 포함 지침 | P3-8과 통합 재작성 |
 | `Jenkinsfile` + `infra/` | Dockerfile·nginx.conf·k8s/ | 빌드 명령을 build:deploy로 교체해 이관 |
-| `scripts/create-custom.js` | 고객사별 custom 생성 | 보류 판정 유지(P3-2) — 실수요 시 |
+| `scripts/create-custom.js` | 고객사별 custom 생성 | 복원 완료(2026-07-16) — 실의존이 node 내장뿐임을 확인, 안내 문구 1줄만 개정 |
 | `components.json` | shadcn 설정 | 이관(shadcn:add 스크립트와 세트) |
 | `.github/`·`.editorconfig`·`.gitattributes`·`.npmrc`·`.env`·`.gitmojirc` | 저장소 부속 설정 | 선별 이관 |
 | `ds-bundle/`·`.design-sync/` | claude.ai/design 동기화 자산 | 제거 확정(2026-07-16) — 미사용 판정, 저장소·로컬에서 삭제 |
@@ -201,7 +201,7 @@
 | --- | --- |
 | react-refresh 브리지 = 생태계 결함 보정 | dev 전용·prod 무영향. Rsbuild `reactRefreshHost` 동등 옵션 등장 시 삭제 (업스트림 요청 검토 — 후속) |
 | rspack 2 계열 MF+HMR 버그 리포트 존재 (web-infra-dev/rspack#9322·#11735) | 버전 업그레이드 시 HMR 게이트 재실행 습관화 |
-| campaign·custom 포트 중복(4209) | 동시 기동 요구 발생 시 재배정 (원본과 합의 필요 — 양쪽 동일 이슈) |
+| campaign·custom 포트 중복(4209) | 해소 — custom을 4211로 재배정(2026-07-16, app-ports SoT + host 프록시 + 문서 갱신) |
 | 원자적 저장 이중 컴파일 (P1-3) | 재현 시 watchOptions 튜닝 검토 — rspack 브랜치에서도 미해결이었음 |
 | 원본 master 후속 커밋과의 소스 드리프트 | 확장 이관(P2) 직전 원본 최신화 후 복사. 전환 판정(P4)까지 원본이 본선 |
 
