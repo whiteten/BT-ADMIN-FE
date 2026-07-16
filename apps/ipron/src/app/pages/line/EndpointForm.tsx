@@ -1,14 +1,13 @@
 /**
- * 국선 등록/수정 -- 3단계 위저드 + 우측 입력 정보 요약
- * AS-IS IPR20S1010.jsp 3-Tab 구조 그대로 재현
- * Step 1: 기본정보
- * Step 2: 부가정보
- * Step 3: 중개NAT
+ * 국선 등록/수정 -- 단일 스크롤 폼(Collapse) + 우측 입력 정보 요약
+ * AS-IS IPR20S1010.jsp 필드/검증 규칙을 그대로 유지하되, 3단계 위저드를 없애고
+ * 필수 섹션(기본정보 / DNIS 편집)은 펼침, 선택 섹션(장비 등록 / 네트워크·위치 /
+ * 모니터링·부가 / 중개 NAT)은 기본 접힘으로 배치.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Form, Input, InputNumber, Row, Select, Steps, Switch } from 'antd';
+import { Button, Col, Collapse, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -21,14 +20,7 @@ import {
   useGetRegnums,
   useUpdateEndpoint,
 } from '../../features/endpoint/hooks/useEndpointQueries';
-import {
-  ENDPOINT_FORM_STEPS,
-  ENDPOINT_INITIAL_VALUES,
-  ENDPOINT_TYPE_OPTIONS,
-  type EndpointCreateRequest,
-  SSW_VENDOR_OPTIONS,
-  TRANSPORT_OPTIONS,
-} from '../../features/endpoint/types';
+import { ENDPOINT_INITIAL_VALUES, ENDPOINT_TYPE_OPTIONS, type EndpointCreateRequest, SSW_VENDOR_OPTIONS, TRANSPORT_OPTIONS } from '../../features/endpoint/types';
 import { msGroupApi } from '../../features/ms-group/api/msGroupApi';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { type MentOption, type WorktimeOption, routeApi } from '../../features/route/api/routeApi';
@@ -80,6 +72,37 @@ const ENAT_OPTION_OPTIONS = [
   { label: 'Dynamic NAT', value: 2 },
 ] as const;
 
+// ─── 섹션(Collapse) 키 + 필드 소속 매핑 ──────────────────────────────────────
+// 검증 실패 시 해당 필드가 속한 섹션을 자동으로 펼치기 위한 역방향 맵의 원본.
+const SECTION_KEYS = {
+  BASIC: 'basic',
+  DNIS: 'dnis',
+  DEVICE: 'device',
+  NETWORK: 'network',
+  MONITOR: 'monitor',
+  NAT: 'nat',
+} as const;
+
+const SECTION_FIELDS: Record<string, string[]> = {
+  [SECTION_KEYS.BASIC]: ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn', 'sswVendor'],
+  [SECTION_KEYS.DNIS]: ['delCount', 'addDigit', 'editOpt', 'ieWorktimeId', 'worktimeOpt', 'guideMentId'],
+  [SECTION_KEYS.DEVICE]: ['regUseYn', 'regNum', 'regId', 'regPwd', 'regInterval'],
+  [SECTION_KEYS.NETWORK]: ['drnodeId', 'transportType', 'sipProfileId', 'locationNodeId', 'routingNodeId', 'snmpOid', 'allocMethod', 'regMethod', 'domainName', 'wanNetworkYn'],
+  [SECTION_KEYS.MONITOR]: ['monitorYn', 'watchInterval', 'failCnt', 'msgTraceYn', 'blockYn', 'userAgentChk', 'userAgentRegex', 'countryCodeUseYn', 'countryId'],
+  [SECTION_KEYS.NAT]: ['natOption', 'msGroupId', 'drnatOption', 'msDrgroupId', 'enatOption', 'natIpAddress'],
+};
+
+// 필드명 → 섹션키
+const FIELD_SECTION: Record<string, string> = Object.entries(SECTION_FIELDS).reduce<Record<string, string>>((acc, [section, fields]) => {
+  fields.forEach((f) => {
+    acc[f] = section;
+  });
+  return acc;
+}, {});
+
+// 진입 시 펼쳐두는 필수 섹션
+const DEFAULT_ACTIVE_KEYS = [SECTION_KEYS.BASIC, SECTION_KEYS.DNIS];
+
 export default function EndpointForm() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -87,9 +110,9 @@ export default function EndpointForm() {
   const defaultNodeId = searchParams.get('nodeId') ? Number(searchParams.get('nodeId')) : undefined;
   const queryClient = useQueryClient();
   const [form] = Form.useForm();
-  const [currentStep, setCurrentStep] = useState(0);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [formValues, setFormValues] = useState<any>(null);
+  const [activeKeys, setActiveKeys] = useState<string[]>([...DEFAULT_ACTIVE_KEYS]);
 
   const isEditMode = !!id;
   const endptId = id ? Number(id) : null;
@@ -152,7 +175,7 @@ export default function EndpointForm() {
         domainName: endpointDetail.domainName ?? '',
         wanNetworkYn: endpointDetail.wanNetworkYn,
         sipProfileId: endpointDetail.sipProfileId,
-        // Tab 2
+        // 부가정보
         monitorYn: endpointDetail.monitorYn,
         watchInterval: endpointDetail.watchInterval,
         failCnt: endpointDetail.failCnt,
@@ -168,7 +191,7 @@ export default function EndpointForm() {
         guideMentId: endpointDetail.guideMentId,
         countryCodeUseYn: endpointDetail.countryCodeUseYn,
         countryId: endpointDetail.countryId,
-        // Tab 3
+        // 중개 NAT
         natOption: endpointDetail.natOption,
         drnatOption: endpointDetail.drnatOption,
         msGroupId: endpointDetail.msGroupId,
@@ -298,188 +321,116 @@ export default function EndpointForm() {
     }
   }, [watchedDrnodeId, form]);
 
-  // ─── 현재 폼 값 (요약 패널 + 단계 이동 판정 공용, 변경 전에는 초기값) ──────────
+  // ─── 현재 폼 값 (요약 패널용, 변경 전에는 초기값) ───────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentValues: any = formValues ?? { ...ENDPOINT_INITIAL_VALUES, ...(defaultNodeId ? { nodeId: defaultNodeId } : {}) };
-
-  // ─── Steps ──────────────────────────────────────────────────────────────────
-  const steps = [...ENDPOINT_FORM_STEPS];
-  const isLastStep = currentStep === steps.length - 1;
 
   // 값 존재 여부 (0/false 는 채워진 값으로 취급)
   const isFilled = (v: unknown) => v !== null && v !== undefined && v !== '';
 
-  // 단계 검증 — "다음" 버튼과 Steps 헤더 클릭 이동이 공용으로 사용
-  const validateStep = async (step: number): Promise<boolean> => {
-    try {
-      if (step === 0) {
-        const fieldsToValidate = ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn'];
-        if (regUseYn === 1) {
-          fieldsToValidate.push('regNum', 'regId', 'regPwd', 'regInterval');
-        }
-        if (routingNodeId) {
-          fieldsToValidate.push('snmpOid');
-        }
-        await form.validateFields(fieldsToValidate);
+  // ─── 섹션 자동 펼침 헬퍼 ──────────────────────────────────────────────────
+  const expandSections = (keys: string[]) => {
+    setActiveKeys((prev) => Array.from(new Set([...prev, ...keys])));
+  };
 
-        // SWAT IPR20S1010.jsp callProcess() line 1137-1145: WebRTC(4) 제외 채널 교차 검증
-        const currentEndptType = form.getFieldValue('endptType');
-        const currentMaxchnl = form.getFieldValue('endptMaxchnl') ?? 0;
-        const currentDodchnl = form.getFieldValue('endptDodchnl') ?? 0;
-        if (String(currentEndptType) !== '4') {
-          // 인/아웃 최대채널 min=1 검증 (SWAT line 1142-1145)
-          if (currentMaxchnl < 1) {
-            toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다');
-            return false;
-          }
-          // OB할당채널 > 최대채널 교차 검증 (SWAT line 1137-1140)
-          if (currentDodchnl > currentMaxchnl) {
-            toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다');
-            return false;
-          }
-        }
-      } else if (step === 1) {
-        const fieldsToValidate = ['delCount', 'editOpt'];
-        if (ieWorktimeId && (worktimeOpt === 2 || worktimeOpt === 4)) {
-          fieldsToValidate.push('guideMentId');
-        }
-        await form.validateFields(fieldsToValidate);
+  const handleCollapseChange = (keys: string | string[]) => {
+    setActiveKeys(Array.isArray(keys) ? keys : [keys]);
+  };
+
+  // ─── Submit ───────────────────────────────────────────────────────────────
+  // onFinish: antd 필수/패턴 검증 통과 후 비즈니스 교차 검증 + payload 생성
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleFinish = (values: any) => {
+    // SWAT IPR20S1010.jsp callProcess() line 1137-1145: WebRTC(4) 제외 채널 교차 검증
+    const currentMaxchnl = values.endptMaxchnl ?? 0;
+    const currentDodchnl = values.endptDodchnl ?? 0;
+    if (String(values.endptType) !== '4') {
+      // 인/아웃 최대채널 min=1 검증 (SWAT line 1142-1145)
+      if (currentMaxchnl < 1) {
+        toast.error('인/아웃 최대채널은 1 이상 입력해야 합니다');
+        expandSections([SECTION_KEYS.BASIC]);
+        return;
       }
-      return true;
-    } catch {
-      /* validation failed */
-      return false;
-    }
-  };
-
-  const handleNext = async () => {
-    const passed = await validateStep(currentStep);
-    if (!passed) return;
-    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
-  };
-
-  // Steps 헤더 disabled 판정용 — 필수값이 채워졌는지만 가볍게 확인 (실제 검증은 이동 시 validateStep)
-  const isStepRequiredFilled = (step: number) => {
-    const v = currentValues;
-    if (step === 0) {
-      const baseFilled = ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn'].every((k) => isFilled(v[k]));
-      if (!baseFilled) return false;
-      if (v.regUseYn === 1 && !['regNum', 'regId', 'regPwd', 'regInterval'].every((k) => isFilled(v[k]))) return false;
-      if (v.routingNodeId && !isFilled(v.snmpOid)) return false;
-      return true;
-    }
-    if (step === 1) {
-      if (!isFilled(v.delCount) || !isFilled(v.editOpt)) return false;
-      const worktimeOn = !!v.ieWorktimeId && v.ieWorktimeId !== 0;
-      if (worktimeOn && !isFilled(v.worktimeOpt)) return false;
-      if (worktimeOn && (v.worktimeOpt === 2 || v.worktimeOpt === 4) && !isFilled(v.guideMentId)) return false;
-      return true;
-    }
-    return true;
-  };
-
-  // 지나온 단계로는 항상 이동 가능. 앞 단계는 현재~직전 단계 필수값이 모두 채워져야 이동 가능
-  const canJumpToStep = (target: number) => {
-    if (target <= currentStep) return true;
-    for (let s = currentStep; s < target; s += 1) {
-      if (!isStepRequiredFilled(s)) return false;
-    }
-    return true;
-  };
-
-  // Steps 헤더 클릭 이동 — 앞으로 갈 때는 현재 단계부터 순차 검증(기존 "다음" 검증 로직 재사용)
-  const handleStepChange = async (target: number) => {
-    if (target === currentStep) return;
-    if (target < currentStep) {
-      setCurrentStep(target);
-      return;
-    }
-    for (let s = currentStep; s < target; s += 1) {
-      // 앞 단계가 실패하면 그 단계에 머무르며 검증 에러를 노출한다 (순차 검증이라 병렬화 불가)
-
-      const passed = await validateStep(s);
-      if (!passed) {
-        setCurrentStep(s);
+      // OB할당채널 > 최대채널 교차 검증 (SWAT line 1137-1140)
+      if (currentDodchnl > currentMaxchnl) {
+        toast.error('아웃할당채널수는 인/아웃최대채널을 초과할 수 없습니다');
+        expandSections([SECTION_KEYS.BASIC]);
         return;
       }
     }
-    setCurrentStep(target);
+
+    const payload: EndpointCreateRequest = {
+      endptName: values.endptName,
+      endptType: values.endptType,
+      nodeId: values.nodeId,
+      endptMaxchnl: values.endptMaxchnl,
+      endptDodchnl: values.endptDodchnl ?? 0,
+      sipProfileId: values.sipProfileId || null,
+      sswVendor: values.sswVendor,
+      transportType: values.transportType,
+      srtpYn: values.srtpYn ?? 0,
+      regUseYn: values.regUseYn ?? 0,
+      regNum: values.regUseYn === 1 ? values.regNum : null,
+      regId: values.regUseYn === 1 ? values.regId : null,
+      regPwd: values.regUseYn === 1 ? values.regPwd : null,
+      regInterval: values.regUseYn === 1 ? values.regInterval : 60,
+      locationNodeId: values.locationNodeId || null,
+      routingNodeId: values.routingNodeId || null,
+      snmpOid: values.routingNodeId ? values.snmpOid : null,
+      allocMethod: values.allocMethod ?? 0,
+      regMethod: values.regMethod ?? 0,
+      domainName: values.domainName || null,
+      wanNetworkYn: values.wanNetworkYn ?? 0,
+      drnodeId: values.drnodeId || null,
+      // 부가정보
+      monitorYn: values.monitorYn ?? 1,
+      watchInterval: values.watchInterval ?? 60,
+      failCnt: values.failCnt ?? 8,
+      msgTraceYn: values.msgTraceYn ?? 0,
+      blockYn: values.blockYn ?? 0,
+      userAgentChk: values.userAgentChk ?? 0,
+      userAgentRegex: values.userAgentChk === 1 ? values.userAgentRegex : null,
+      delCount: values.delCount ?? 0,
+      addDigit: values.addDigit || null,
+      editOpt: values.editOpt ?? '0',
+      ieWorktimeId: values.ieWorktimeId || null,
+      worktimeOpt: values.worktimeOpt ?? 0,
+      guideMentId: values.guideMentId || null,
+      countryCodeUseYn: values.countryCodeUseYn ?? 0,
+      countryId: values.countryCodeUseYn === 1 ? values.countryId : null,
+      // 중개 NAT
+      natOption: values.natOption ?? 0,
+      drnatOption: values.drnatOption ?? 0,
+      msGroupId: values.natOption !== 0 ? values.msGroupId : null,
+      msDrgroupId: values.drnatOption !== 0 ? values.msDrgroupId : null,
+      enatOption: values.enatOption ?? 0,
+      natIpAddress: values.natIpAddress || null,
+      // 기타 기본값
+      ipVersion: values.ipVersion ?? 4,
+      portNo1: values.portNo1 ?? 5060,
+      ipAddress1: values.ipAddress1 ?? '',
+      ssRefreshType: values.ssRefreshType ?? 0,
+    };
+    if (isEditMode && endptId) {
+      updateEndpoint({ id: endptId, data: payload });
+    } else {
+      createEndpoint(payload);
+    }
   };
 
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      const payload: EndpointCreateRequest = {
-        endptName: values.endptName,
-        endptType: values.endptType,
-        nodeId: values.nodeId,
-        endptMaxchnl: values.endptMaxchnl,
-        endptDodchnl: values.endptDodchnl ?? 0,
-        sipProfileId: values.sipProfileId || null,
-        sswVendor: values.sswVendor,
-        transportType: values.transportType,
-        srtpYn: values.srtpYn ?? 0,
-        regUseYn: values.regUseYn ?? 0,
-        regNum: values.regUseYn === 1 ? values.regNum : null,
-        regId: values.regUseYn === 1 ? values.regId : null,
-        regPwd: values.regUseYn === 1 ? values.regPwd : null,
-        regInterval: values.regUseYn === 1 ? values.regInterval : 60,
-        locationNodeId: values.locationNodeId || null,
-        routingNodeId: values.routingNodeId || null,
-        snmpOid: values.routingNodeId ? values.snmpOid : null,
-        allocMethod: values.allocMethod ?? 0,
-        regMethod: values.regMethod ?? 0,
-        domainName: values.domainName || null,
-        wanNetworkYn: values.wanNetworkYn ?? 0,
-        drnodeId: values.drnodeId || null,
-        // Tab 2
-        monitorYn: values.monitorYn ?? 1,
-        watchInterval: values.watchInterval ?? 60,
-        failCnt: values.failCnt ?? 8,
-        msgTraceYn: values.msgTraceYn ?? 0,
-        blockYn: values.blockYn ?? 0,
-        userAgentChk: values.userAgentChk ?? 0,
-        userAgentRegex: values.userAgentChk === 1 ? values.userAgentRegex : null,
-        delCount: values.delCount ?? 0,
-        addDigit: values.addDigit || null,
-        editOpt: values.editOpt ?? '0',
-        ieWorktimeId: values.ieWorktimeId || null,
-        worktimeOpt: values.worktimeOpt ?? 0,
-        guideMentId: values.guideMentId || null,
-        countryCodeUseYn: values.countryCodeUseYn ?? 0,
-        countryId: values.countryCodeUseYn === 1 ? values.countryId : null,
-        // Tab 3
-        natOption: values.natOption ?? 0,
-        drnatOption: values.drnatOption ?? 0,
-        msGroupId: values.natOption !== 0 ? values.msGroupId : null,
-        msDrgroupId: values.drnatOption !== 0 ? values.msDrgroupId : null,
-        enatOption: values.enatOption ?? 0,
-        natIpAddress: values.natIpAddress || null,
-        // 기타 기본값
-        ipVersion: values.ipVersion ?? 4,
-        portNo1: values.portNo1 ?? 5060,
-        ipAddress1: values.ipAddress1 ?? '',
-        ssRefreshType: values.ssRefreshType ?? 0,
-      };
-      if (isEditMode && endptId) {
-        updateEndpoint({ id: endptId, data: payload });
-      } else {
-        createEndpoint(payload);
-      }
-    } catch {
-      // validation failed - find first error step
-      try {
-        await form.validateFields(['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId']);
-        try {
-          await form.validateFields(['delCount', 'editOpt']);
-          setCurrentStep(2);
-        } catch {
-          setCurrentStep(1);
-        }
-      } catch {
-        setCurrentStep(0);
-      }
-    }
+  // onFinishFailed: 검증 실패한 필드가 속한 섹션을 자동으로 펼쳐 에러를 노출
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleFinishFailed = (errorInfo: any) => {
+    const failedFields = errorInfo?.errorFields ?? [];
+    const sections = new Set<string>();
+    failedFields.forEach((f: { name: (string | number)[] }) => {
+      const fieldName = String(f.name?.[0] ?? '');
+      const section = FIELD_SECTION[fieldName];
+      if (section) sections.add(section);
+    });
+    if (sections.size > 0) expandSections(Array.from(sections));
+    const firstError = failedFields[0]?.errors?.[0];
+    toast.error(firstError ?? '필수 입력값을 확인해주세요');
   };
 
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -513,6 +464,440 @@ export default function EndpointForm() {
     getValueProps: (value: number) => ({ checked: value === 1 }),
   };
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  섹션 렌더 함수 (각 Collapse 패널 children)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // 기본정보 (필수)
+  function renderBasicSection() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={12}>
+            <Form.Item
+              name="endptName"
+              label="국선명"
+              required
+              hasFeedback
+              rules={[
+                { required: true, message: '국선명은 필수입니다' },
+                { max: 100, message: '100자 이내여야 합니다' },
+              ]}
+            >
+              <Input placeholder="국선명 입력" maxLength={100} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="endptType" label="구분" required rules={[{ required: true, message: '구분은 필수입니다' }]}>
+              <Select options={[...ENDPOINT_TYPE_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="endptMaxchnl" label="인/아웃 최대채널" required rules={[{ required: true, message: '최대채널은 필수입니다' }]}>
+              <InputNumber min={0} className="!w-full" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="endptDodchnl" label="아웃할당채널" required rules={[{ required: true, message: '아웃할당채널은 필수입니다' }]}>
+              <InputNumber min={0} className="!w-full" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
+              <Select options={nodeOptions} placeholder="노드 선택" disabled={isEditMode} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="srtpYn" label="음성보안" required rules={[{ required: true, message: '음성보안은 필수입니다' }]}>
+              <Select options={[...SRTP_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
+            <Form.Item name="sswVendor" label="SSW 벤더">
+              <Select options={[...SSW_VENDOR_OPTIONS]} disabled={sswVendorDisabled} />
+            </Form.Item>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // DNIS 편집 (필수) + 업무시간
+  function renderDnisSection() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="delCount" label="DNIS 편집 Digit수" required rules={[{ required: true, message: 'DNIS 편집 Digit수는 필수입니다' }]}>
+              <InputNumber min={-1} className="!w-full" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              name="addDigit"
+              label="DNIS 추가 Digit"
+              rules={[
+                { max: 24, message: '24자 이내여야 합니다' },
+                { pattern: /^[0-9]*$/, message: '숫자만 입력 가능합니다' },
+              ]}
+            >
+              <Input placeholder="숫자" maxLength={24} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="editOpt" label="편집 옵션" required rules={[{ required: true, message: '편집 옵션은 필수입니다' }]}>
+              <Select options={[...EDIT_OPT_OPTIONS]} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">업무시간</h4>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            {/* SWAT IPR20S1010.jsp line 959: cbCreate('#poIeWorktimeId', 'worktime', 'tenantId=0', {text:'사용안함', value:'0'}) */}
+            <Form.Item name="ieWorktimeId" label="업무시간 설정">
+              <Select
+                options={worktimeOptions}
+                placeholder="사용안함"
+                allowClear
+                onChange={(val) => {
+                  // 업무시간 해제 시 하위 필드 초기화
+                  if (!val || val === 0) {
+                    form.setFieldsValue({ worktimeOpt: 0, guideMentId: null });
+                  }
+                }}
+              />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="worktimeOpt" label="업무시간 외 제어" rules={ieWorktimeId && ieWorktimeId !== 0 ? [{ required: true, message: '업무시간 외 제어는 필수입니다' }] : []}>
+              <Select options={[...WORKTIME_OPT_OPTIONS]} disabled={!ieWorktimeId || ieWorktimeId === 0} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            {/* SWAT IPR20S1010.jsp line 961: cbCreate('#poGuideMentId', 'ment', 'tenantId=0&nodeId='+nodeId, {text:'없음', value:'0'}) */}
+            <Form.Item
+              name="guideMentId"
+              label="업무시간 외 안내멘트"
+              rules={ieWorktimeId && ieWorktimeId !== 0 && (worktimeOpt === 2 || worktimeOpt === 4) ? [{ required: true, message: '안내멘트는 필수입니다' }] : []}
+            >
+              <Select options={mentOptions} placeholder="없음" allowClear disabled={!ieWorktimeId || ieWorktimeId === 0 || (worktimeOpt !== 2 && worktimeOpt !== 4)} />
+            </Form.Item>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // 장비 등록 (regUseYn===1 일 때만 필수)
+  function renderDeviceSection() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="regUseYn" label="장비 등록 사용여부" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              name="regNum"
+              label="장비 등록 번호"
+              rules={
+                regUseYn === 1
+                  ? [
+                      { required: true, message: '등록번호는 필수입니다' },
+                      { max: 50, message: '50자 이내여야 합니다' },
+                      // SWAT IPR20S1010.jsp callProcess() line 1157-1161: 숫자+특수문자 패턴
+                      { pattern: /^[0-9~!@#$%^&*()_+|<>?:{}]+$/, message: '숫자와 특수문자만 입력 가능합니다' },
+                    ]
+                  : []
+              }
+            >
+              <Input placeholder="등록번호" maxLength={50} disabled={regUseYn !== 1} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              name="regId"
+              label="장비 등록 아이디"
+              rules={
+                regUseYn === 1
+                  ? [
+                      { required: true, message: '등록 아이디는 필수입니다' },
+                      { max: 20, message: '20자 이내여야 합니다' },
+                      // SWAT IPR20S1010.jsp iValidator line 1102: pattern ^[0-9a-zA-Z_]+$ 한글/특수문자 금지
+                      { pattern: /^[0-9a-zA-Z_]+$/, message: '영문자·숫자·_만 입력 가능합니다' },
+                    ]
+                  : []
+              }
+            >
+              <Input placeholder="등록 아이디" maxLength={20} disabled={regUseYn !== 1} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="regPwd" label="장비 등록 비밀번호" rules={regUseYn === 1 ? [{ required: true, message: '등록 비밀번호는 필수입니다' }] : []}>
+              <Input.Password placeholder="비밀번호" disabled={regUseYn !== 1} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="regInterval" label="장비 등록 주기(초)" rules={regUseYn === 1 ? [{ required: true, message: '등록 주기는 필수입니다' }] : []}>
+              <InputNumber min={0} className="!w-full" disabled={regUseYn !== 1} />
+            </Form.Item>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // 네트워크 / 위치
+  function renderNetworkSection() {
+    return (
+      <>
+        <Row gutter={20}>
+          {/* DR 노드: endptType=4(WebRTC)이면 숨김 → 행 앞쪽에 배치, 숨김 시 열 정렬 유지 위해 뒤 필드가 채움 */}
+          {String(endptType) !== '4' && (
+            <Col span={6}>
+              <Form.Item name="drnodeId" label="DR 노드">
+                <Select options={drNodeOptions} allowClear placeholder="선택" />
+              </Form.Item>
+            </Col>
+          )}
+          <Col span={6}>
+            <Form.Item name="transportType" label="Transport 타입">
+              <Select options={[...TRANSPORT_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="sipProfileId" label="SIP 프로파일">
+              <Select options={sipProfileOptions} allowClear placeholder="선택" />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="locationNodeId" label="장비위치">
+              <Select options={nodeOptions} allowClear placeholder="선택" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="routingNodeId" label="라우팅위치">
+              <Select options={nodeOptions} allowClear placeholder="선택" />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item
+              name="snmpOid"
+              label="라우팅 OID"
+              rules={
+                routingNodeId
+                  ? [
+                      { required: true, message: '라우팅 OID는 필수입니다' },
+                      { max: 50, message: '50자 이내여야 합니다' },
+                    ]
+                  : []
+              }
+            >
+              <Input placeholder="OID" maxLength={50} disabled={!routingNodeId} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="allocMethod" label="서버 할당방식">
+              <Select options={[...ALLOC_METHOD_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="regMethod" label="등록 방식">
+              <Select options={[...REG_METHOD_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="domainName" label="도메인">
+              <Input placeholder="도메인" maxLength={63} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="wanNetworkYn" label="WAN IP 사용여부" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // 모니터링 / 부가 (감시·추적 / UserAgent / 국가번호)
+  function renderMonitorSection() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="monitorYn" label="모니터링 여부" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            {/* SWAT IPR20S1010.jsp callProcess() line 1191-1195: 감시주기 1초 이상 */}
+            <Form.Item name="watchInterval" label="감시 주기(초)">
+              <InputNumber min={1} className="!w-full" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="failCnt" label="감시실패 제한수">
+              <InputNumber min={0} className="!w-full" />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="msgTraceYn" label="호추적 여부" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="blockYn" label="블럭 여부" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">UserAgent</h4>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="userAgentChk" label="UserAgent 검사" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+          <Col span={12}>
+            <Form.Item name="userAgentRegex" label="UA 패턴" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
+              <Input placeholder="정규식 패턴" maxLength={256} disabled={userAgentChk !== 1} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">국가번호</h4>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="countryCodeUseYn" label="국가번호 사용" {...switchProps}>
+              <Switch />
+            </Form.Item>
+          </Col>
+          {/* 국가번호: 사용 시에만 노출 → 행 뒤쪽 배치 */}
+          {countryCodeUseYn === 1 && (
+            <Col span={6}>
+              <Form.Item name="countryId" label="국가번호">
+                <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
+              </Form.Item>
+            </Col>
+          )}
+        </Row>
+      </>
+    );
+  }
+
+  // 중개 NAT
+  function renderNatSection() {
+    return (
+      <>
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="natOption" label="중개 옵션">
+              <Select options={[...NAT_OPTION_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            {/* SWAT IPR20S1010.jsp line 787/1008: cbCreate('#poMsGroupId', 'msGroup', 'nodeId='+nodeId) */}
+            <Form.Item name="msGroupId" label="MS그룹" rules={natOption !== 0 && natOption !== undefined ? [{ required: true, message: 'MS그룹은 필수입니다' }] : []}>
+              <Select options={msGroupOptions} placeholder="미지정" disabled={!natOption || natOption === 0} allowClear />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="drnatOption" label="중개 옵션(DR)">
+              <Select options={[...NAT_OPTION_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item name="msDrgroupId" label="MS그룹(DR)" rules={drnatOption !== 0 && drnatOption !== undefined ? [{ required: true, message: 'MS그룹(DR)은 필수입니다' }] : []}>
+              {/* AS-IS: SWAT onChangedDrNode() — DR 노드 변경 시 해당 노드의 MS그룹 목록 재조회 */}
+              <Select options={drMsGroupOptions} placeholder="미지정" disabled={!drnatOption || drnatOption === 0 || !watchedDrnodeId || watchedDrnodeId === 0} allowClear />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">NAT 설정</h4>
+
+        <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="enatOption" label="NAT 동작옵션">
+              <Select options={[...ENAT_OPTION_OPTIONS]} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
+            <Form.Item
+              name="natIpAddress"
+              label="NAT IP 주소"
+              rules={[
+                {
+                  pattern: /^((\d{1,3}\.){3}\d{1,3})?$/,
+                  message: '올바른 IPv4 형식이 아닙니다',
+                },
+              ]}
+            >
+              <Input placeholder="0.0.0.0" />
+            </Form.Item>
+          </Col>
+        </Row>
+      </>
+    );
+  }
+
+  // ─── Collapse items ─────────────────────────────────────────────────────────
+  // forceRender: 접힌 섹션의 Form.Item 도 항상 마운트되어야 값 등록/검증이 정상 동작
+  const collapseItems = [
+    { key: SECTION_KEYS.BASIC, label: renderSectionLabel('기본정보', true), children: renderBasicSection(), forceRender: true },
+    { key: SECTION_KEYS.DNIS, label: renderSectionLabel('DNIS 편집', true), children: renderDnisSection(), forceRender: true },
+    { key: SECTION_KEYS.DEVICE, label: renderSectionLabel('장비 등록', false), children: renderDeviceSection(), forceRender: true },
+    { key: SECTION_KEYS.NETWORK, label: renderSectionLabel('네트워크 / 위치', false), children: renderNetworkSection(), forceRender: true },
+    { key: SECTION_KEYS.MONITOR, label: renderSectionLabel('모니터링 / 부가', false), children: renderMonitorSection(), forceRender: true },
+    { key: SECTION_KEYS.NAT, label: renderSectionLabel('중개 NAT', false), children: renderNatSection(), forceRender: true },
+  ];
+
+  // ─── Footer ─────────────────────────────────────────────────────────────────
+  function renderFooter() {
+    return (
+      <Row gutter={20} justify="center">
+        <Col>
+          <Button variant="solid" onClick={() => navigate('/ipron/line/endpoint')}>
+            취소
+          </Button>
+        </Col>
+        <Col>
+          <Button variant="solid" color="primary" onClick={() => form.submit()} loading={isPending}>
+            {isEditMode ? '수정' : '등록'}
+          </Button>
+        </Col>
+      </Row>
+    );
+  }
+
   // ─── Summary Panel ─────────────────────────────────────────────────────────
   function renderFormSummary() {
     const values = currentValues;
@@ -523,49 +908,23 @@ export default function EndpointForm() {
 
     return (
       <div className="space-y-4 text-sm">
-        {/* Step 1: 기본정보 */}
+        {/* 기본정보 */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">1. 기본정보</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">기본정보</div>
           <SummaryRow label="국선명" required missing={missing('endptName')} value={displayValue(values.endptName)} />
           <SummaryRow label="구분" required missing={missing('endptType')} value={displayValue(getLabelByValue(ENDPOINT_TYPE_OPTIONS, values.endptType))} />
           <SummaryRow label="인/아웃 최대채널" required missing={missing('endptMaxchnl')} value={displayValue(values.endptMaxchnl)} />
           <SummaryRow label="아웃할당채널" required missing={missing('endptDodchnl')} value={displayValue(values.endptDodchnl)} />
           <SummaryRow label="노드" required missing={missing('nodeId')} value={displayValue(nodeOptions.find((n) => n.value === values.nodeId)?.label)} />
-          <SummaryRow label="DR 노드" value={displayValue(drNodeOptions.find((n) => n.value === values.drnodeId)?.label)} />
-          <SummaryRow label="Transport 타입" value={displayValue(getLabelByValue(TRANSPORT_OPTIONS, values.transportType))} />
           <SummaryRow label="음성보안" required missing={missing('srtpYn')} value={displayValue(getLabelByValue(SRTP_OPTIONS, values.srtpYn))} />
           <SummaryRow label="SSW 벤더" value={displayValue(getLabelByValue(SSW_VENDOR_OPTIONS, values.sswVendor))} />
-          <SummaryRow label="장비 등록" value={values.regUseYn === 1 ? '사용' : '미사용'} />
-          {values.regUseYn === 1 && (
-            <>
-              <SummaryRow label="  등록번호" required missing={missing('regNum')} value={displayValue(values.regNum)} />
-              <SummaryRow label="  등록 아이디" required missing={missing('regId')} value={displayValue(values.regId)} />
-              <SummaryRow label="  등록 비밀번호" required missing={missing('regPwd')} value={values.regPwd ? '••••••' : ''} />
-              <SummaryRow label="  등록 주기" required missing={missing('regInterval')} value={displayValue(values.regInterval)} />
-            </>
-          )}
-          <SummaryRow label="장비위치" value={displayValue(nodeOptions.find((n) => n.value === values.locationNodeId)?.label)} />
-          <SummaryRow label="라우팅위치" value={displayValue(nodeOptions.find((n) => n.value === values.routingNodeId)?.label)} />
-          {values.routingNodeId && <SummaryRow label="  라우팅 OID" required missing={missing('snmpOid')} value={displayValue(values.snmpOid)} />}
-          <SummaryRow label="서버 할당방식" value={displayValue(getLabelByValue(ALLOC_METHOD_OPTIONS, values.allocMethod))} />
-          <SummaryRow label="등록 방식" value={displayValue(getLabelByValue(REG_METHOD_OPTIONS, values.regMethod))} />
-          <SummaryRow label="도메인" value={displayValue(values.domainName)} />
-          <SummaryRow label="WAN IP" value={values.wanNetworkYn === 1 ? '사용' : '미사용'} />
-          <SummaryRow label="SIP 프로파일" value={displayValue(sipProfileOptions.find((p) => p.value === values.sipProfileId)?.label)} />
         </div>
 
         <div className="border-t border-gray-100 my-3" />
 
-        {/* Step 2: 부가정보 */}
+        {/* DNIS 편집 */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">2. 부가정보</div>
-          <SummaryRow label="모니터링 여부" value={values.monitorYn === 1 ? '사용' : '미사용'} />
-          <SummaryRow label="감시 주기" value={displayValue(values.watchInterval)} />
-          <SummaryRow label="감시실패 제한수" value={displayValue(values.failCnt)} />
-          <SummaryRow label="호추적 여부" value={values.msgTraceYn === 1 ? '사용' : '미사용'} />
-          <SummaryRow label="블럭 여부" value={values.blockYn === 1 ? '설정' : '해제'} />
-          <SummaryRow label="UserAgent 검사" value={values.userAgentChk === 1 ? '사용' : '미사용'} />
-          {values.userAgentChk === 1 && <SummaryRow label="  UA 패턴" value={displayValue(values.userAgentRegex)} />}
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">DNIS 편집</div>
           <SummaryRow label="DNIS 편집 Digit수" required missing={missing('delCount')} value={displayValue(values.delCount)} />
           <SummaryRow label="DNIS 추가 Digit" value={displayValue(values.addDigit)} />
           <SummaryRow label="편집 옵션" required missing={missing('editOpt')} value={displayValue(getLabelByValue(EDIT_OPT_OPTIONS, values.editOpt))} />
@@ -578,14 +937,61 @@ export default function EndpointForm() {
               )}
             </>
           )}
+        </div>
+
+        <div className="border-t border-gray-100 my-3" />
+
+        {/* 장비 등록 */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">장비 등록</div>
+          <SummaryRow label="장비 등록" value={values.regUseYn === 1 ? '사용' : '미사용'} />
+          {values.regUseYn === 1 && (
+            <>
+              <SummaryRow label="  등록번호" required missing={missing('regNum')} value={displayValue(values.regNum)} />
+              <SummaryRow label="  등록 아이디" required missing={missing('regId')} value={displayValue(values.regId)} />
+              <SummaryRow label="  등록 비밀번호" required missing={missing('regPwd')} value={values.regPwd ? '••••••' : ''} />
+              <SummaryRow label="  등록 주기" required missing={missing('regInterval')} value={displayValue(values.regInterval)} />
+            </>
+          )}
+        </div>
+
+        <div className="border-t border-gray-100 my-3" />
+
+        {/* 네트워크 / 위치 */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">네트워크 / 위치</div>
+          <SummaryRow label="DR 노드" value={displayValue(drNodeOptions.find((n) => n.value === values.drnodeId)?.label)} />
+          <SummaryRow label="Transport 타입" value={displayValue(getLabelByValue(TRANSPORT_OPTIONS, values.transportType))} />
+          <SummaryRow label="SIP 프로파일" value={displayValue(sipProfileOptions.find((p) => p.value === values.sipProfileId)?.label)} />
+          <SummaryRow label="장비위치" value={displayValue(nodeOptions.find((n) => n.value === values.locationNodeId)?.label)} />
+          <SummaryRow label="라우팅위치" value={displayValue(nodeOptions.find((n) => n.value === values.routingNodeId)?.label)} />
+          {values.routingNodeId && <SummaryRow label="  라우팅 OID" required missing={missing('snmpOid')} value={displayValue(values.snmpOid)} />}
+          <SummaryRow label="서버 할당방식" value={displayValue(getLabelByValue(ALLOC_METHOD_OPTIONS, values.allocMethod))} />
+          <SummaryRow label="등록 방식" value={displayValue(getLabelByValue(REG_METHOD_OPTIONS, values.regMethod))} />
+          <SummaryRow label="도메인" value={displayValue(values.domainName)} />
+          <SummaryRow label="WAN IP" value={values.wanNetworkYn === 1 ? '사용' : '미사용'} />
+        </div>
+
+        <div className="border-t border-gray-100 my-3" />
+
+        {/* 모니터링 / 부가 */}
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">모니터링 / 부가</div>
+          <SummaryRow label="모니터링 여부" value={values.monitorYn === 1 ? '사용' : '미사용'} />
+          <SummaryRow label="감시 주기" value={displayValue(values.watchInterval)} />
+          <SummaryRow label="감시실패 제한수" value={displayValue(values.failCnt)} />
+          <SummaryRow label="호추적 여부" value={values.msgTraceYn === 1 ? '사용' : '미사용'} />
+          <SummaryRow label="블럭 여부" value={values.blockYn === 1 ? '설정' : '해제'} />
+          <SummaryRow label="UserAgent 검사" value={values.userAgentChk === 1 ? '사용' : '미사용'} />
+          {values.userAgentChk === 1 && <SummaryRow label="  UA 패턴" value={displayValue(values.userAgentRegex)} />}
           <SummaryRow label="국가번호" value={values.countryCodeUseYn === 1 ? '사용' : '미사용'} />
         </div>
 
         <div className="border-t border-gray-100 my-3" />
 
-        {/* Step 3: 중개NAT */}
+        {/* 중개 NAT */}
         <div className="space-y-2">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">3. 중개NAT</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">중개 NAT</div>
           <SummaryRow label="중개 옵션" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.natOption))} />
           <SummaryRow label="중개 옵션(DR)" value={displayValue(getLabelByValue(NAT_OPTION_OPTIONS, values.drnatOption))} />
           {values.natOption !== 0 && (
@@ -611,56 +1017,9 @@ export default function EndpointForm() {
     );
   }
 
-  // ─── Footer ─────────────────────────────────────────────────────────────────
-  function renderFooter() {
-    return (
-      <Row gutter={20} justify="center">
-        <Col>
-          <Button variant="solid" onClick={() => navigate('/ipron/line/endpoint')}>
-            취소
-          </Button>
-        </Col>
-        {currentStep > 0 && (
-          <Col>
-            <Button variant="solid" onClick={() => setCurrentStep((prev) => prev - 1)}>
-              이전
-            </Button>
-          </Col>
-        )}
-        {!isLastStep && (
-          <Col>
-            <Button variant="solid" color="primary" onClick={handleNext}>
-              다음
-            </Button>
-          </Col>
-        )}
-        {isLastStep && (
-          <Col>
-            <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending}>
-              {isEditMode ? '수정' : '등록'}
-            </Button>
-          </Col>
-        )}
-      </Row>
-    );
-  }
-
   // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* Steps bar */}
-      <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
-        <Steps
-          current={currentStep}
-          items={steps.map((s, idx) => ({ title: s.title, disabled: !canJumpToStep(idx) }))}
-          onChange={handleStepChange}
-          size="small"
-          className="max-w-10/12 min-w-1/3"
-          style={{ width: `${steps.length * 250}px` }}
-          responsive={false}
-        />
-      </div>
-
       {/* Main (left: form, right: summary) */}
       <div className="flex w-full flex-1 min-h-0 gap-4">
         {/* Left Form */}
@@ -677,407 +1036,13 @@ export default function EndpointForm() {
                   initialValues={{ ...ENDPOINT_INITIAL_VALUES, ...(defaultNodeId ? { nodeId: defaultNodeId } : {}) }}
                   layout="vertical"
                   onValuesChange={(_, allValues) => setFormValues(allValues)}
+                  onFinish={handleFinish}
+                  onFinishFailed={handleFinishFailed}
                 >
-                  {/* ══════════════════════════════════════════════════════════
-                   *  Step 1: 기본정보
-                   * ══════════════════════════════════════════════════════════ */}
-                  <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
-                    {/* 4열 균일 그리드(span 6). 긴 텍스트 필드만 span 12 예외 */}
-                    <Row gutter={20}>
-                      <Col span={12}>
-                        <Form.Item
-                          name="endptName"
-                          label="국선명"
-                          required
-                          hasFeedback
-                          rules={[
-                            { required: true, message: '국선명은 필수입니다' },
-                            { max: 100, message: '100자 이내여야 합니다' },
-                          ]}
-                        >
-                          <Input placeholder="국선명 입력" maxLength={100} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="endptType" label="구분" required rules={[{ required: true, message: '구분은 필수입니다' }]}>
-                          <Select options={[...ENDPOINT_TYPE_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="endptMaxchnl" label="인/아웃 최대채널" required rules={[{ required: true, message: '최대채널은 필수입니다' }]}>
-                          <InputNumber min={0} className="!w-full" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="endptDodchnl" label="아웃할당채널" required rules={[{ required: true, message: '아웃할당채널은 필수입니다' }]}>
-                          <InputNumber min={0} className="!w-full" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
-                          <Select options={nodeOptions} placeholder="노드 선택" disabled={isEditMode} />
-                        </Form.Item>
-                      </Col>
-                      {/* DR 노드: endptType=4(WebRTC)이면 숨김 → 행 뒤쪽에 배치해 숨김 시에도 열이 흐트러지지 않게 함 */}
-                      {String(endptType) !== '4' && (
-                        <Col span={6}>
-                          <Form.Item name="drnodeId" label="DR 노드">
-                            <Select options={drNodeOptions} allowClear placeholder="선택" />
-                          </Form.Item>
-                        </Col>
-                      )}
-                    </Row>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="transportType" label="Transport 타입">
-                          <Select options={[...TRANSPORT_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="srtpYn" label="음성보안" required rules={[{ required: true, message: '음성보안은 필수입니다' }]}>
-                          <Select options={[...SRTP_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
-                        <Form.Item name="sswVendor" label="SSW 벤더">
-                          <Select options={[...SSW_VENDOR_OPTIONS]} disabled={sswVendorDisabled} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="sipProfileId" label="SIP 프로파일">
-                          <Select options={sipProfileOptions} allowClear placeholder="선택" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">장비 등록</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="regUseYn" label="장비 등록 사용여부" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="regNum"
-                          label="장비 등록 번호"
-                          rules={
-                            regUseYn === 1
-                              ? [
-                                  { required: true, message: '등록번호는 필수입니다' },
-                                  { max: 50, message: '50자 이내여야 합니다' },
-                                  // SWAT IPR20S1010.jsp callProcess() line 1157-1161: 숫자+특수문자 패턴
-                                  { pattern: /^[0-9~!@#$%^&*()_+|<>?:{}]+$/, message: '숫자와 특수문자만 입력 가능합니다' },
-                                ]
-                              : []
-                          }
-                        >
-                          <Input placeholder="등록번호" maxLength={50} disabled={regUseYn !== 1} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="regId"
-                          label="장비 등록 아이디"
-                          rules={
-                            regUseYn === 1
-                              ? [
-                                  { required: true, message: '등록 아이디는 필수입니다' },
-                                  { max: 20, message: '20자 이내여야 합니다' },
-                                  // SWAT IPR20S1010.jsp iValidator line 1102: pattern ^[0-9a-zA-Z_]+$ 한글/특수문자 금지
-                                  { pattern: /^[0-9a-zA-Z_]+$/, message: '영문자·숫자·_만 입력 가능합니다' },
-                                ]
-                              : []
-                          }
-                        >
-                          <Input placeholder="등록 아이디" maxLength={20} disabled={regUseYn !== 1} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="regPwd" label="장비 등록 비밀번호" rules={regUseYn === 1 ? [{ required: true, message: '등록 비밀번호는 필수입니다' }] : []}>
-                          <Input.Password placeholder="비밀번호" disabled={regUseYn !== 1} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="regInterval" label="장비 등록 주기(초)" rules={regUseYn === 1 ? [{ required: true, message: '등록 주기는 필수입니다' }] : []}>
-                          <InputNumber min={0} className="!w-full" disabled={regUseYn !== 1} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">위치/라우팅/기타</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="locationNodeId" label="장비위치">
-                          <Select options={nodeOptions} allowClear placeholder="선택" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="routingNodeId" label="라우팅위치">
-                          <Select options={nodeOptions} allowClear placeholder="선택" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item
-                          name="snmpOid"
-                          label="라우팅 OID"
-                          rules={
-                            routingNodeId
-                              ? [
-                                  { required: true, message: '라우팅 OID는 필수입니다' },
-                                  { max: 50, message: '50자 이내여야 합니다' },
-                                ]
-                              : []
-                          }
-                        >
-                          <Input placeholder="OID" maxLength={50} disabled={!routingNodeId} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="allocMethod" label="서버 할당방식">
-                          <Select options={[...ALLOC_METHOD_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="regMethod" label="등록 방식">
-                          <Select options={[...REG_METHOD_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item name="domainName" label="도메인">
-                          <Input placeholder="도메인" maxLength={63} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="wanNetworkYn" label="WAN IP 사용여부" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* ══════════════════════════════════════════════════════════
-                   *  Step 2: 부가정보
-                   * ══════════════════════════════════════════════════════════ */}
-                  <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-                    <h4 className="text-xs text-gray-400 mb-2 pb-1 border-b border-gray-100">감시/추적</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="monitorYn" label="모니터링 여부" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        {/* SWAT IPR20S1010.jsp callProcess() line 1191-1195: 감시주기 1초 이상 */}
-                        <Form.Item name="watchInterval" label="감시 주기(초)">
-                          <InputNumber min={1} className="!w-full" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="failCnt" label="감시실패 제한수">
-                          <InputNumber min={0} className="!w-full" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="msgTraceYn" label="호추적 여부" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="blockYn" label="블럭 여부" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">UserAgent</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="userAgentChk" label="UserAgent 검사" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                      <Col span={12}>
-                        <Form.Item name="userAgentRegex" label="UA 패턴" rules={[{ max: 256, message: '256자 이내여야 합니다' }]}>
-                          <Input placeholder="정규식 패턴" maxLength={256} disabled={userAgentChk !== 1} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">DNIS 편집</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="delCount" label="DNIS 편집 Digit수" required rules={[{ required: true, message: 'DNIS 편집 Digit수는 필수입니다' }]}>
-                          <InputNumber min={-1} className="!w-full" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="addDigit"
-                          label="DNIS 추가 Digit"
-                          rules={[
-                            { max: 24, message: '24자 이내여야 합니다' },
-                            { pattern: /^[0-9]*$/, message: '숫자만 입력 가능합니다' },
-                          ]}
-                        >
-                          <Input placeholder="숫자" maxLength={24} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="editOpt" label="편집 옵션" required rules={[{ required: true, message: '편집 옵션은 필수입니다' }]}>
-                          <Select options={[...EDIT_OPT_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">업무시간</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        {/* SWAT IPR20S1010.jsp line 959: cbCreate('#poIeWorktimeId', 'worktime', 'tenantId=0', {text:'사용안함', value:'0'}) */}
-                        <Form.Item name="ieWorktimeId" label="업무시간 설정">
-                          <Select
-                            options={worktimeOptions}
-                            placeholder="사용안함"
-                            allowClear
-                            onChange={(val) => {
-                              // 업무시간 해제 시 하위 필드 초기화
-                              if (!val || val === 0) {
-                                form.setFieldsValue({ worktimeOpt: 0, guideMentId: null });
-                              }
-                            }}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="worktimeOpt"
-                          label="업무시간 외 제어"
-                          rules={ieWorktimeId && ieWorktimeId !== 0 ? [{ required: true, message: '업무시간 외 제어는 필수입니다' }] : []}
-                        >
-                          <Select options={[...WORKTIME_OPT_OPTIONS]} disabled={!ieWorktimeId || ieWorktimeId === 0} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        {/* SWAT IPR20S1010.jsp line 961: cbCreate('#poGuideMentId', 'ment', 'tenantId=0&nodeId='+nodeId, {text:'없음', value:'0'}) */}
-                        <Form.Item
-                          name="guideMentId"
-                          label="업무시간 외 안내멘트"
-                          rules={ieWorktimeId && ieWorktimeId !== 0 && (worktimeOpt === 2 || worktimeOpt === 4) ? [{ required: true, message: '안내멘트는 필수입니다' }] : []}
-                        >
-                          <Select options={mentOptions} placeholder="없음" allowClear disabled={!ieWorktimeId || ieWorktimeId === 0 || (worktimeOpt !== 2 && worktimeOpt !== 4)} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">국가번호</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="countryCodeUseYn" label="국가번호 사용" {...switchProps}>
-                          <Switch />
-                        </Form.Item>
-                      </Col>
-                      {/* 국가번호: 사용 시에만 노출 → 행 뒤쪽 배치 */}
-                      {countryCodeUseYn === 1 && (
-                        <Col span={6}>
-                          <Form.Item name="countryId" label="국가번호">
-                            <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
-                          </Form.Item>
-                        </Col>
-                      )}
-                    </Row>
-                  </div>
-
-                  {/* ══════════════════════════════════════════════════════════
-                   *  Step 3: 중개NAT
-                   * ══════════════════════════════════════════════════════════ */}
-                  <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
-                    <h4 className="text-xs text-gray-400 mb-2 pb-1 border-b border-gray-100">중개 설정</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="natOption" label="중개 옵션">
-                          <Select options={[...NAT_OPTION_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        {/* SWAT IPR20S1010.jsp line 787/1008: cbCreate('#poMsGroupId', 'msGroup', 'nodeId='+nodeId) */}
-                        <Form.Item name="msGroupId" label="MS그룹" rules={natOption !== 0 && natOption !== undefined ? [{ required: true, message: 'MS그룹은 필수입니다' }] : []}>
-                          <Select options={msGroupOptions} placeholder="미지정" disabled={!natOption || natOption === 0} allowClear />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="drnatOption" label="중개 옵션(DR)">
-                          <Select options={[...NAT_OPTION_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="msDrgroupId"
-                          label="MS그룹(DR)"
-                          rules={drnatOption !== 0 && drnatOption !== undefined ? [{ required: true, message: 'MS그룹(DR)은 필수입니다' }] : []}
-                        >
-                          {/* AS-IS: SWAT onChangedDrNode() — DR 노드 변경 시 해당 노드의 MS그룹 목록 재조회 */}
-                          <Select
-                            options={drMsGroupOptions}
-                            placeholder="미지정"
-                            disabled={!drnatOption || drnatOption === 0 || !watchedDrnodeId || watchedDrnodeId === 0}
-                            allowClear
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-xs text-gray-400 mt-4 mb-2 pb-1 border-b border-gray-100">NAT 설정</h4>
-
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="enatOption" label="NAT 동작옵션">
-                          <Select options={[...ENAT_OPTION_OPTIONS]} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="natIpAddress"
-                          label="NAT IP 주소"
-                          rules={[
-                            {
-                              pattern: /^((\d{1,3}\.){3}\d{1,3})?$/,
-                              message: '올바른 IPv4 형식이 아닙니다',
-                            },
-                          ]}
-                        >
-                          <Input placeholder="0.0.0.0" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
+                  <Collapse items={collapseItems} activeKey={activeKeys} onChange={handleCollapseChange} className="bg-transparent" />
                 </Form>
               </div>
-              <div className="w-full px-7 pb-7">{renderFooter()}</div>
+              <div className="w-full px-7 py-5">{renderFooter()}</div>
             </>
           )}
         </div>
@@ -1089,6 +1054,17 @@ export default function EndpointForm() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Section Label ────────────────────────────────────────────────────────────
+// required=true 인 섹션은 제목 옆에 "필수" 뱃지를 노출
+function renderSectionLabel(title: string, required: boolean) {
+  return (
+    <span className="flex items-center gap-2">
+      <span className="font-semibold text-gray-800">{title}</span>
+      {required && <span className="text-[11px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded">필수</span>}
+    </span>
   );
 }
 

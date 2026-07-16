@@ -19,7 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -39,7 +39,6 @@ import {
 import {
   ALLOC_METHOD_LABELS,
   ENDPOINT_TYPE_LABELS,
-  ENDPOINT_TYPE_OPTIONS,
   type Endpoint,
   type EndpointMember,
   type EndpointRegnum,
@@ -85,6 +84,44 @@ const LIST_COLUMNS: { key: string; label: string; width: string; align?: string 
 /** 컬럼키 → 폭·정렬 클래스. 데이터 행이 헤더와 같은 정의를 참조하도록 하는 용도. */
 const COL: Record<string, string> = Object.fromEntries(LIST_COLUMNS.map((c) => [c.key, `${c.width} ${c.align ?? ''}`]));
 
+/** 컬럼 align → flex 정렬 클래스(헤더 정렬 아이콘을 라벨과 함께 좌/우/중앙에 배치). */
+const ALIGN_JUSTIFY: Record<string, string> = { 'text-right': 'justify-end', 'text-center': 'justify-center' };
+
+/**
+ * 리스트형 헤더 정렬용 비교값 추출. 라벨 매핑된 컬럼은 화면 표시값(라벨) 기준으로 비교한다.
+ * null/undefined 는 정렬 방향과 무관하게 항상 뒤로 보낸다.
+ */
+function getSortValue(ep: Endpoint, key: string): string | number | null {
+  switch (key) {
+    case 'name':
+      return ep.endptName ?? null;
+    case 'type':
+      return ENDPOINT_TYPE_LABELS[ep.endptType] ?? null;
+    case 'profile':
+      return ep.sipProfileName ?? null;
+    case 'node':
+      return ep.nodeName ?? (ep.nodeId != null ? `노드 ${ep.nodeId}` : null);
+    case 'maxchnl':
+      return ep.endptMaxchnl ?? null;
+    case 'obchnl':
+      return ep.endptDodchnl ?? null;
+    case 'vendor':
+      return ep.sswVendor != null ? (SSW_VENDOR_LABELS[ep.sswVendor] ?? null) : null;
+    case 'alloc':
+      return ALLOC_METHOD_LABELS[ep.allocMethod] ?? null;
+    case 'reg':
+      return REG_METHOD_LABELS[ep.regMethod] ?? null;
+    case 'monitor':
+      return ep.monitorYn === 1 ? 'ON' : 'OFF';
+    case 'block':
+      return ep.blockYn === 1 ? '설정' : '해제';
+    case 'status':
+      return getEndpointStatusInfo(ep).label ?? null;
+    default:
+      return null;
+  }
+}
+
 export default function EndpointList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
@@ -111,8 +148,9 @@ export default function EndpointList() {
   const [viewMode, setViewMode] = useViewMode('ipron-endpoint');
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
-  const [filterEndptType, setFilterEndptType] = useState<number | null>(null);
-  const [filterLocationNodeId, setFilterLocationNodeId] = useState<number | null>(null);
+  // 리스트형 헤더 클릭 정렬 (카드형에는 영향 없음)
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [selectedMembers, setSelectedMembers] = useState<EndpointMember[]>([]);
   const [selectedRegnums, setSelectedRegnums] = useState<EndpointRegnum[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
@@ -205,28 +243,31 @@ export default function EndpointList() {
   // 검색어로 필터링 (검색 필드: endptName)
   const isSearching = searchText.trim().length > 0;
   const searchFilteredEndpoints = useMemo(() => {
-    let result = endpoints;
-    // endptName 텍스트 필터
-    if (isSearching) {
-      const kw = searchText.trim().toLowerCase();
-      result = result.filter((ep) => ep.endptName?.toLowerCase().includes(kw));
-    }
-    if (filterEndptType !== null) {
-      result = result.filter((ep) => ep.endptType === filterEndptType);
-    }
-    if (filterLocationNodeId !== null) {
-      result = result.filter((ep) => ep.locationNodeId === filterLocationNodeId);
-    }
-    return result;
-  }, [endpoints, isSearching, searchText, filterEndptType, filterLocationNodeId]);
+    if (!isSearching) return endpoints;
+    const kw = searchText.trim().toLowerCase();
+    return endpoints.filter((ep) => ep.endptName?.toLowerCase().includes(kw));
+  }, [endpoints, isSearching, searchText]);
 
-  const isFiltering = isSearching || filterEndptType !== null || filterLocationNodeId !== null;
-
-  // 검색/필터 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
+  // 검색 중이면 노드 선택 무시 (전체 표시), 아니면 노드 선택 적용
   const filteredEndpoints = useMemo(
-    () => (isFiltering || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
-    [searchFilteredEndpoints, selectedNodeId, isFiltering],
+    () => (isSearching || selectedNodeId === null ? searchFilteredEndpoints : searchFilteredEndpoints.filter((ep) => ep.nodeId === selectedNodeId)),
+    [searchFilteredEndpoints, selectedNodeId, isSearching],
   );
+
+  // 리스트형 헤더 클릭 정렬 결과. sortKey 없으면 원본 순서 유지. (카드형은 이 배열을 쓰지 않음)
+  const sortedEndpoints = useMemo(() => {
+    if (!sortKey) return filteredEndpoints;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filteredEndpoints].sort((a, b) => {
+      const va = getSortValue(a, sortKey);
+      const vb = getSortValue(b, sortKey);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1; // null 은 방향과 무관하게 항상 뒤로
+      if (vb == null) return -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), 'ko') * dir;
+    });
+  }, [filteredEndpoints, sortKey, sortDir]);
 
   // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
   useEffect(() => {
@@ -262,8 +303,6 @@ export default function EndpointList() {
     setSelectedNodeId(nodeId ?? null);
     setSelectedEndpointId(null);
     setSearchText('');
-    setFilterEndptType(null);
-    setFilterLocationNodeId(null);
   };
 
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -274,16 +313,14 @@ export default function EndpointList() {
     }
   };
 
-  const handleEndptTypeFilter = (val: number | null) => {
-    setFilterEndptType(val);
-    setSelectedNodeId(null);
-    setSelectedEndpointId(null);
-  };
-
-  const handleLocationNodeFilter = (val: number | null) => {
-    setFilterLocationNodeId(val);
-    setSelectedNodeId(null);
-    setSelectedEndpointId(null);
+  // 리스트형 헤더 클릭: 같은 컬럼이면 방향 토글, 다른 컬럼이면 그 컬럼 오름차순
+  const handleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
   };
 
   const handleCardSelect = (ep: Endpoint) => {
@@ -653,15 +690,6 @@ export default function EndpointList() {
 
             {/* 우측: 검색 + G/W 우회설정 + 추가 버튼 */}
             <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
-              <Select allowClear placeholder="구분" value={filterEndptType} onChange={handleEndptTypeFilter} options={[...ENDPOINT_TYPE_OPTIONS]} style={{ width: 120 }} />
-              <Select
-                allowClear
-                placeholder="장비위치"
-                value={filterLocationNodeId}
-                onChange={handleLocationNodeFilter}
-                options={nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }))}
-                style={{ width: 130 }}
-              />
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -704,23 +732,28 @@ export default function EndpointList() {
               // 리스트형 — 헤더 + 표 형태. 컬럼 폭은 헤더와 행이 같은 상수를 써서 어긋나지 않게 한다.
               // 장비위치·라우팅위치는 대부분 N/A 라 목록에서 제외(상세/수정 화면에서 확인).
               <div className="flex flex-col w-full h-full min-w-0">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-y border-gray-200 text-[11px] font-semibold text-gray-500 flex-shrink-0">
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border-y border-gray-200 text-xs font-semibold text-gray-500 flex-shrink-0">
                   {LIST_COLUMNS.map((c) => (
-                    <span key={c.key} className={`${c.width} ${c.align ?? ''} truncate`}>
+                    <span
+                      key={c.key}
+                      className={`${c.width} ${c.align ?? ''} truncate flex items-center gap-0.5 cursor-pointer select-none hover:text-gray-700 ${ALIGN_JUSTIFY[c.align ?? ''] ?? 'justify-start'}`}
+                      onClick={() => handleSort(c.key)}
+                    >
                       {c.label}
+                      {sortKey === c.key && (sortDir === 'asc' ? <ChevronUp className="size-3 flex-shrink-0" /> : <ChevronDown className="size-3 flex-shrink-0" />)}
                     </span>
                   ))}
                   <span className="w-6 flex-shrink-0" />
                 </div>
                 <div className="flex flex-col overflow-y-auto divide-y divide-gray-100">
-                  {filteredEndpoints.map((ep) => {
+                  {sortedEndpoints.map((ep) => {
                     const isRowSelected = selectedEndpointId === ep.endptId;
                     const status = getEndpointStatusInfo(ep);
                     return (
                       <div
                         key={ep.endptId}
                         id={`ep-row-${ep.endptId}`}
-                        className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors text-xs ${isRowSelected ? 'bg-[#405189]/5' : 'hover:bg-gray-50'}`}
+                        className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors text-xs ${isRowSelected ? 'bg-[#405189]/5' : 'hover:bg-gray-50'}`}
                         onClick={() => handleCardSelect(ep)}
                         onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
                       >
