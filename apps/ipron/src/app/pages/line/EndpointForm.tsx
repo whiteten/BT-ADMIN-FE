@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
-import { Activity, ChevronDown, ClipboardList, Network, Server, SlidersHorizontal, Waypoints } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -942,15 +942,15 @@ export default function EndpointForm() {
     );
   }
 
-  // ─── 섹션 구성 (기본정보=펼침·필수강조 / 나머지=접힘·요약 pill) ────────────────
+  // ─── 섹션 구성 (기본정보=펼침·필수 / 나머지=접힘·요약 pill) ────────────────────
   // content 는 항상 렌더 → 접힌 섹션 Form.Item 도 마운트 유지 → 값 등록/검증 정상 동작
   const sections = [
-    { key: SECTION_KEYS.BASIC, title: '기본정보', icon: <ClipboardList className="size-4" />, required: true, content: renderBasicSection() },
-    { key: SECTION_KEYS.EXTRA, title: '부가 설정', icon: <SlidersHorizontal className="size-4" />, required: false, content: renderExtraSection() },
-    { key: SECTION_KEYS.DEVICE, title: '장비 등록', icon: <Server className="size-4" />, required: false, content: renderDeviceSection() },
-    { key: SECTION_KEYS.NETWORK, title: '네트워크 / 위치', icon: <Network className="size-4" />, required: false, content: renderNetworkSection() },
-    { key: SECTION_KEYS.MONITOR, title: '모니터링 / 부가', icon: <Activity className="size-4" />, required: false, content: renderMonitorSection() },
-    { key: SECTION_KEYS.NAT, title: '중개 NAT', icon: <Waypoints className="size-4" />, required: false, content: renderNatSection() },
+    { key: SECTION_KEYS.BASIC, title: '기본정보', required: true, content: renderBasicSection() },
+    { key: SECTION_KEYS.EXTRA, title: '부가 설정', required: false, content: renderExtraSection() },
+    { key: SECTION_KEYS.DEVICE, title: '장비 등록', required: false, content: renderDeviceSection() },
+    { key: SECTION_KEYS.NETWORK, title: '네트워크 / 위치', required: false, content: renderNetworkSection() },
+    { key: SECTION_KEYS.MONITOR, title: '모니터링 / 부가', required: false, content: renderMonitorSection() },
+    { key: SECTION_KEYS.NAT, title: '중개 NAT', required: false, content: renderNatSection() },
   ];
 
   // ─── Footer ─────────────────────────────────────────────────────────────────
@@ -1143,7 +1143,6 @@ export default function EndpointForm() {
                         key={s.key}
                         sectionKey={s.key}
                         title={s.title}
-                        icon={s.icon}
                         required={s.required}
                         open={activeKeys.includes(s.key)}
                         onToggle={toggleSection}
@@ -1171,14 +1170,14 @@ export default function EndpointForm() {
   );
 }
 
-// ─── FormSection — 커스텀 아코디언 카드 ─────────────────────────────────────────
-// 필수 섹션: 옅은 brand 틴트 보더 + 우측 "필수 N개 미입력" 배지.
-// 선택 섹션: 중립 흰 카드 + (접힘 시) 헤더에 현재값 요약 pill(+N) 미리보기.
+// ─── FormSection — 커스텀 아코디언 카드 (미니멀·무채색 톤) ───────────────────────
+// 모든 섹션 = 흰 카드 + 옅은 그레이 보더. 아이콘 칩 없이 chevron + 섹션명 + 배지만.
+// 필수 섹션: 제목 옆 작은 옅은 "필수" 배지 + 우측 "필수 N개 미입력"(옅은 amber) 배지.
+// 선택 섹션: (접힘 시) 헤더에 현재값 요약 pill(+N) 미리보기 + 우측 "선택 · 기본값" 힌트.
 // children 은 항상 마운트, grid-rows 트랜지션으로 부드럽게 펼침/접힘 (Form 등록 유지).
 interface FormSectionProps {
   sectionKey: string;
   title: string;
-  icon: React.ReactNode;
   open: boolean;
   onToggle: (key: string) => void;
   required?: boolean;
@@ -1187,34 +1186,31 @@ interface FormSectionProps {
   children: React.ReactNode;
 }
 
-function FormSection({ sectionKey, title, icon, open, onToggle, required = false, missingCount = 0, pills = [], children }: FormSectionProps) {
-  const cardClass = required ? 'border-[#405189]/30 bg-[#405189]/[0.02]' : 'border-gray-200 bg-white';
-  const iconChipClass = required ? 'bg-[#405189] text-white' : 'bg-gray-100 text-gray-500 group-hover:text-[#405189]';
+function FormSection({ sectionKey, title, open, onToggle, required = false, missingCount = 0, pills = [], children }: FormSectionProps) {
   const gridClass = open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0';
   const showPills = !required && !open && pills.length > 0;
   const visiblePills = pills.slice(0, MAX_HEADER_PILLS);
   const overflowCount = pills.length - visiblePills.length;
 
   return (
-    <section className={`rounded-xl border ${cardClass} bt-shadow transition-colors`}>
+    <section className="rounded-lg border border-gray-200 bg-white">
       <button
         type="button"
         onClick={() => onToggle(sectionKey)}
         aria-expanded={open}
-        className="group flex items-center gap-3 w-full px-4 py-3 text-left rounded-xl hover:bg-black/[0.015] transition-colors"
+        className="flex items-center gap-2.5 w-full px-4 py-3 text-left rounded-lg hover:bg-gray-50/60 transition-colors"
       >
         <ChevronDown className={`size-4 text-gray-400 shrink-0 transition-transform duration-300 ${open ? '' : '-rotate-90'}`} />
-        <span className={`flex items-center justify-center size-8 rounded-lg shrink-0 transition-colors ${iconChipClass}`}>{icon}</span>
         <span className="flex items-center gap-2 shrink-0">
-          <span className="font-semibold text-gray-800 text-[15px]">{title}</span>
-          {required && <span className="text-[11px] font-medium text-[#405189] bg-[#405189]/10 px-1.5 py-0.5 rounded">필수</span>}
+          <span className="font-semibold text-gray-700 text-[15px]">{title}</span>
+          {required && <span className="text-[11px] font-medium text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded">필수</span>}
         </span>
 
         {/* 접힌 선택 섹션: 현재값 요약 pill 미리보기 */}
         {showPills && (
           <span className="hidden lg:flex items-center gap-1.5 min-w-0 overflow-hidden">
             {visiblePills.map((p) => (
-              <span key={p} className="text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md whitespace-nowrap">
+              <span key={p} className="text-[11px] text-gray-500 bg-gray-100 px-2 py-0.5 rounded whitespace-nowrap">
                 {p}
               </span>
             ))}
@@ -1234,12 +1230,12 @@ function FormSection({ sectionKey, title, icon, open, onToggle, required = false
   );
 }
 
-// 필수 섹션 헤더 우측 배지 — 미입력 있으면 amber, 다 채우면 emerald "완료"
+// 필수 섹션 헤더 우측 배지 — 미입력 있으면 옅은 amber, 다 채우면 옅은 emerald "완료"
 function SectionMissingBadge({ count }: { count: number }) {
   if (count > 0) {
-    return <span className="text-xs font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-2 py-0.5 whitespace-nowrap">필수 {count}개 미입력</span>;
+    return <span className="text-xs font-medium text-amber-600 bg-amber-50 rounded px-2 py-0.5 whitespace-nowrap">필수 {count}개 미입력</span>;
   }
-  return <span className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-0.5 whitespace-nowrap">완료</span>;
+  return <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-0.5 whitespace-nowrap">완료</span>;
 }
 
 // ─── Summary Group Header ──────────────────────────────────────────────────────
