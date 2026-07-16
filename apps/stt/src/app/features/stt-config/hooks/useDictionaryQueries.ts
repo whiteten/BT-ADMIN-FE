@@ -34,7 +34,7 @@ export const useCreateKeywordBoosting = ({ mutationOptions }: MutationHookOption
   });
 };
 
-export const useDeleteKeywordBoosting = ({ mutationOptions }: MutationHookOptions<unknown, { engineCode: string; keyword: string }> = {}) => {
+export const useDeleteKeywordBoosting = ({ mutationOptions }: MutationHookOptions<unknown, { tenantId: number; engineCode: string; keyword: string }> = {}) => {
   return useMutation({
     mutationFn: dictionaryApi.deleteKeywordBoosting,
     ...mutationOptions,
@@ -63,7 +63,7 @@ export const useUpdateSttDictionary = ({ mutationOptions }: MutationHookOptions<
   });
 };
 
-export const useDeleteSttDictionary = ({ mutationOptions }: MutationHookOptions<unknown, { beforeWord: string }> = {}) => {
+export const useDeleteSttDictionary = ({ mutationOptions }: MutationHookOptions<unknown, { tenantId: number; beforeWord: string }> = {}) => {
   return useMutation({
     mutationFn: dictionaryApi.deleteSttDictionary,
     ...mutationOptions,

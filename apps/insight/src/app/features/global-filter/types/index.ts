@@ -24,6 +24,12 @@ export interface GlobalFilter {
   searchValues: Record<string, unknown>;
   comparison: ComparisonType | null;
   conditions: GlobalConditions;
+  /**
+   * 운영자 모드 전용 — 조회 대상 테넌트 (필수 선행 조건).
+   * 선택 전에는 조회가 차단되고, 선택 시 하위 검색조건 옵션·패널 데이터가 모두
+   * 이 테넌트 기준으로 조회된다. 일반 모드에서는 null (컨텍스트 테넌트 사용).
+   */
+  tenantId?: string | null;
 }
 
 export const DEFAULT_GLOBAL_CONDITIONS: GlobalConditions = {

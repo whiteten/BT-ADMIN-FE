@@ -5,6 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Modal, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { Pause, Play } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { recogApi } from '../api/recogApi';
 import { modelQueryKeys, useExecuteRecogEvaluate, useGetRecogResultList } from '../hooks/useModelQueries';
@@ -104,25 +105,6 @@ const targetColumnDefs: ColDef<RecogTargetListItem>[] = [
   { headerName: '등록시간', field: 'loadTime', flex: 2, minWidth: 120, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
 ];
 
-const columnDefs: ColDef<RecogResultItem>[] = [
-  { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, minWidth: 160 },
-  { headerName: '정답지 내용', field: 'orgResult', flex: 3, minWidth: 160, tooltipField: 'orgResult' },
-  {
-    headerName: '화자',
-    field: 'rxtxKind',
-    flex: 1,
-    minWidth: 70,
-    valueFormatter: ({ value }) => ({ 1: '고객', 2: '상담원', 9: '통합' })[value as 1 | 2 | 9] ?? String(value),
-  },
-  { headerName: '진행상태', field: 'recogStatusName', flex: 1, minWidth: 80, cellRenderer: StatusBadge, cellStyle: { display: 'flex', alignItems: 'center' } },
-  { headerName: '인식률', field: 'recogRate', flex: 1, minWidth: 80, cellRenderer: 'percentBarRenderer', cellStyle: { display: 'flex', alignItems: 'center', padding: '0 8px' } },
-  { headerName: '음절개수', field: 'wordCnt', flex: 1, minWidth: 70 },
-  { headerName: 'HIT', field: 'hitCnt', flex: 1, minWidth: 70, headerTooltip: '정답지와 STT 결과가 일치한 음절 수' },
-  { headerName: 'Deletion', field: 'deletionCnt', flex: 1, minWidth: 70, headerTooltip: '정답지에 있으나 STT가 인식하지 못한 음절 수' },
-  { headerName: 'Substitution', field: 'substitutionCnt', flex: 1, minWidth: 70, headerTooltip: '정답지와 다른 음절로 인식한 음절 수' },
-  { headerName: 'Insertion', field: 'insertionCnt', flex: 1, minWidth: 70, headerTooltip: '정답지에 없는데 STT가 추가로 인식한 음절 수' },
-];
-
 interface RecogEvaluateProps {
   groupCode: string;
   groupName: string;
@@ -132,6 +114,38 @@ interface RecogEvaluateProps {
 export default function RecogEvaluate({ groupCode, groupName, engineCode }: RecogEvaluateProps) {
   const { gridOptions } = useAggridOptions();
   const queryClient = useQueryClient();
+
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — 사전관리 패턴 참고.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
+
+  const columnDefs: ColDef<RecogResultItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      minWidth: 100,
+      filter: true,
+      hide: !showTenantColumn,
+    },
+    { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, minWidth: 160 },
+    { headerName: '정답지 내용', field: 'orgResult', flex: 3, minWidth: 160, tooltipField: 'orgResult' },
+    {
+      headerName: '화자',
+      field: 'rxtxKind',
+      flex: 1,
+      minWidth: 70,
+      valueFormatter: ({ value }) => ({ 1: '고객', 2: '상담원', 9: '통합' })[value as 1 | 2 | 9] ?? String(value),
+    },
+    { headerName: '진행상태', field: 'recogStatusName', flex: 1, minWidth: 80, cellRenderer: StatusBadge, cellStyle: { display: 'flex', alignItems: 'center' } },
+    { headerName: '인식률', field: 'recogRate', flex: 1, minWidth: 80, cellRenderer: 'percentBarRenderer', cellStyle: { display: 'flex', alignItems: 'center', padding: '0 8px' } },
+    { headerName: '음절개수', field: 'wordCnt', flex: 1, minWidth: 70 },
+    { headerName: 'HIT', field: 'hitCnt', flex: 1, minWidth: 70, headerTooltip: '정답지와 STT 결과가 일치한 음절 수' },
+    { headerName: 'Deletion', field: 'deletionCnt', flex: 1, minWidth: 70, headerTooltip: '정답지에 있으나 STT가 인식하지 못한 음절 수' },
+    { headerName: 'Substitution', field: 'substitutionCnt', flex: 1, minWidth: 70, headerTooltip: '정답지와 다른 음절로 인식한 음절 수' },
+    { headerName: 'Insertion', field: 'insertionCnt', flex: 1, minWidth: 70, headerTooltip: '정답지에 없는데 STT가 추가로 인식한 음절 수' },
+  ];
 
   const [selectedRow, setSelectedRow] = useState<RecogResultItem | null>(null);
   const [targetPreview, setTargetPreview] = useState<{ open: boolean; targets: RecogTargetListItem[] }>({ open: false, targets: [] });

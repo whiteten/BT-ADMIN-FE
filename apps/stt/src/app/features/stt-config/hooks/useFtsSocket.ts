@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { LOG } from '@/log';
-import { WebSocketClient } from '@/shared-util';
+import { WebSocketClient, buildWsUrl } from '@/shared-util';
 
 const Log = new LOG('useFtsSocket');
 
@@ -32,8 +32,7 @@ export function useFtsSocket() {
 
     if (wsRef.current) return Promise.resolve();
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/proxy/stt/file-upload`;
+    const wsUrl = buildWsUrl('/ws/proxy/stt/file-upload');
 
     const client = new WebSocketClient(wsUrl, { messageLog: false });
     wsRef.current = client;

@@ -5,12 +5,13 @@ import { AgGridReact } from 'ag-grid-react';
 import { type BreadcrumbProps, Button, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { Pause, Play, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import RetryReqDrawer, { type RetryReqDrawerRef } from '../../features/stt-config/components/RetryReqDrawer';
 import RetryReqTree from '../../features/stt-config/components/RetryReqTree';
 import { retryReqQueryKeys, useDeleteRetryReq, useGetRetryReqList } from '../../features/stt-config/hooks/useRetryReqQueries';
 import type { RetryReqListItem } from '../../features/stt-config/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -56,6 +57,14 @@ export default function RetryReqList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): apiClient 가 X-Act-As-Tenant 주입 → X 테넌트로 조회 스코프
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshSeconds, setRefreshSeconds] = useState(3);
@@ -78,18 +87,11 @@ export default function RetryReqList() {
   });
 
   const handleDelete = (data: RetryReqListItem) => {
-    modal.confirm.delete({ onOk: () => deleteRetryReq(data.retryDate) });
+    modal.confirm.delete({ onOk: () => deleteRetryReq({ tenantId: data.tenantId, retryDate: data.retryDate }) });
   };
 
   const columnDefs: ColDef<RetryReqListItem>[] = [
-    {
-      headerName: '',
-      valueGetter: (p) => (p.node?.rowIndex ?? 0) + 1,
-      maxWidth: 58,
-      sortable: false,
-      filter: false,
-      cellStyle: { textAlign: 'center', color: '#6c757d' },
-    },
+    { headerName: '테넌트명', field: 'tenantName', flex: 1.5 },
     {
       headerName: '대상일자',
       field: 'retryDate',
@@ -138,6 +140,17 @@ export default function RetryReqList() {
         <div className="flex-1 min-h-0 bg-white bt-shadow overflow-hidden flex flex-col">
           {/* 필터 */}
           <div className="flex items-center gap-4 flex-wrap px-5 py-4 shrink-0">
+            {operatorMode && (
+              <ScopeSelect
+                kind="tenant"
+                options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+                value={actAsTenantId}
+                onChange={(id) => {
+                  setActAsTenant(id);
+                  void queryClient.invalidateQueries({ queryKey: retryReqQueryKeys._def });
+                }}
+              />
+            )}
             <div className="flex items-center gap-2 ml-auto">
               <span className="text-sm font-medium text-[#495057] shrink-0">모니터링</span>
               <Select

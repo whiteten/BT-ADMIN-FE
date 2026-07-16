@@ -15,7 +15,7 @@ export const retryReqApi = {
   createRetryReq: async (data: RetryReqCreateParams) => {
     await apiClient.post('/stt-retry-req-create', data);
   },
-  deleteRetryReq: async (retryDate: string) => {
-    await apiClient.delete('/stt-retry-req-delete', { params: { retryDate } });
+  deleteRetryReq: async ({ tenantId, retryDate }: { tenantId: number; retryDate: string }) => {
+    await apiClient.delete('/stt-retry-req-delete', { params: { tenantId, retryDate } });
   },
 };

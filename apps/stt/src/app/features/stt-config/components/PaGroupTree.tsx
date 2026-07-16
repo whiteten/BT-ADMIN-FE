@@ -4,9 +4,8 @@
  * 구조: "PA 그룹" 루트 폴더 + leaf 그룹 목록 (2-depth 고정).
  */
 import { useEffect, useRef } from 'react';
-import { useGetCodes } from '../hooks/useCommonQueries';
+import { PA_GROUP_OPTIONS } from '../constants/sttCodeConstants';
 import type { CodeItem } from '../types';
-import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { TreeCaret, TreeFolderIcon, TreeLabel, TreeRow } from '@/components/custom/TreeView';
 import useTreeView, { type TreeViewItem } from '@/libs/shared-ui/src/hooks/useTreeView';
 
@@ -35,7 +34,7 @@ function buildTreeData(groups: CodeItem[]): PaTreeNode[] {
 }
 
 export default function PaGroupTree({ selectedGroupId, onSelect }: PaGroupTreeProps) {
-  const { data: groups = [], isLoading } = useGetCodes({ params: { classCd: 'PA_GROUP' } });
+  const groups = PA_GROUP_OPTIONS;
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -81,15 +80,9 @@ export default function PaGroupTree({ selectedGroupId, onSelect }: PaGroupTreePr
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
       <span className="text-sm font-semibold text-[#495057]">PA 그룹 관리</span>
-      {isLoading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <FallbackSpinner />
-        </div>
-      ) : (
-        <div className="flex-1 overflow-auto">
-          <div {...rootProps}>{items.map(renderRow)}</div>
-        </div>
-      )}
+      <div className="flex-1 overflow-auto">
+        <div {...rootProps}>{items.map(renderRow)}</div>
+      </div>
     </div>
   );
 }

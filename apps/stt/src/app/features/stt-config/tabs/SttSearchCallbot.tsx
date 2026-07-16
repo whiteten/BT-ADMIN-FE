@@ -3,6 +3,7 @@ import type { ColDef, RowClickedEvent, RowDoubleClickedEvent } from 'ag-grid-com
 import { AgGridReact } from 'ag-grid-react';
 import { Button, DatePicker, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SttSearchDetailDrawer, { type SttSearchDetailDrawerRef } from '../components/SttSearchDetailDrawer';
 import { useGetSttSearchCallbot, useGetSttSearchCallbotDetail } from '../hooks/useSearchQueries';
@@ -12,6 +13,11 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 export default function SttSearchCallbot() {
   const { gridOptions } = useAggridOptions();
   const drawerRef = useRef<SttSearchDetailDrawerRef>(null);
+
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — CtiQueueTable 패턴 참고.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
 
   const [searchDate, setSearchDate] = useState<Dayjs | null>(dayjs());
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0).second(0));
@@ -77,6 +83,13 @@ export default function SttSearchCallbot() {
   };
 
   const listColumnDefs: ColDef<SttSearchCallbotItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     {
       headerName: '고유번호(UCID)',
       field: 'orgUcid',

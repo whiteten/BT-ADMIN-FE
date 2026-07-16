@@ -66,7 +66,7 @@ export function AnimatedTableCell({
           ...(!isHighlight ? getValueAnimationStyle(style) : {}),
         }}
       >
-        {formatWidgetValue(value, col.useThousandSep)}
+        {formatWidgetValue(value, col.useThousandSep, col.timeFormat)}
       </span>
     </td>
   );

@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Descriptions, Drawer, message } from 'antd';
 import { ChevronsDown, Copy, Pin } from 'lucide-react';
-import { toast } from '@/shared-util';
+import { toast, withBasePath } from '@/shared-util';
 import TrackingDialogView from './TrackingDialogView';
 import { useSendTrackingCommand } from '../hooks/useBotRealtimeQueries';
 import type { TrackingWsMessage } from '../hooks/useBotRealtimeSocket';
@@ -30,7 +30,7 @@ function copyToClipboard(text: string): Promise<void> {
   }
 }
 
-const TRACKING_COMMAND_URL = '/api/bff/bot-realtime-command';
+const TRACKING_COMMAND_PATH = '/api/bff/bot-realtime-command';
 
 export interface BotRealtimeDetailDrawerRef {
   open: (params: { ucid: string; nexthop: number; systemId: number; sleeChno: number; nodeId: number }) => void;
@@ -153,7 +153,7 @@ const BotRealtimeDetailDrawer = forwardRef<BotRealtimeDetailDrawerRef, BotRealti
       const { isTracking: tracking, params: p } = trackingRef.current;
       if (tracking && p) {
         const payload = JSON.stringify(buildCommandRequest(p, 2));
-        navigator.sendBeacon(TRACKING_COMMAND_URL, new Blob([payload], { type: 'application/json' }));
+        navigator.sendBeacon(withBasePath(TRACKING_COMMAND_PATH), new Blob([payload], { type: 'application/json' }));
       }
     };
 

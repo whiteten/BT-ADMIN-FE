@@ -46,8 +46,8 @@ function unwrapListResponse<T>(data: unknown): T[] {
 export const taskboardApi = {
   // ── 배경 API ─────────────────────────────────────────────────────────────
 
-  getTaskBoardBgs: async (params?: Record<string, unknown>): Promise<TaskboardBg[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardBg[] }>>('/taskboard-bglist', withAuth({ params }));
+  getTaskBoardBgs: async (params?: Record<string, unknown>, tenantIds?: string): Promise<TaskboardBg[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardBg[] }>>('/taskboard-bglist', withAuth({ params: { ...params, ...(tenantIds ? { tenantIds } : {}) } }));
     return response.data?.data?.items ?? [];
   },
 
@@ -68,8 +68,8 @@ export const taskboardApi = {
 
   // ── 레이아웃 API ──────────────────────────────────────────────────────────
 
-  getLayoutList: async (): Promise<TaskboardLayout[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardLayout[] }>>('/taskboard-layoutlist', withAuth());
+  getLayoutList: async (tenantIds?: string): Promise<TaskboardLayout[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardLayout[] }>>('/taskboard-layoutlist', withAuth(tenantIds ? { params: { tenantIds } } : undefined));
     return response.data?.data?.items ?? [];
   },
 
@@ -94,8 +94,8 @@ export const taskboardApi = {
 
   // ── 뷰 그룹 API (레이아웃과 매핑되지 않는 독립된 선택값 묶음) ───────────────────────
 
-  getDisplayList: async (): Promise<TaskboardDisplay[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: TaskboardDisplay[] }>>('/taskboard-display-list', withAuth());
+  getDisplayList: async (tenantIds?: string): Promise<TaskboardDisplay[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: TaskboardDisplay[] }>>('/taskboard-display-list', withAuth(tenantIds ? { params: { tenantIds } } : undefined));
     return response.data?.data?.items ?? [];
   },
 
@@ -116,8 +116,8 @@ export const taskboardApi = {
 
   // ── 롤링 그룹 API ────────────────────────────────────────────────────────
 
-  getRollingGroupList: async (): Promise<RollingGroup[]> => {
-    const response = await apiClient.get<ApiResponse<{ items: RollingGroup[] }>>('/taskboard-rollinggroup-list', withAuth());
+  getRollingGroupList: async (tenantIds?: string): Promise<RollingGroup[]> => {
+    const response = await apiClient.get<ApiResponse<{ items: RollingGroup[] }>>('/taskboard-rollinggroup-list', withAuth(tenantIds ? { params: { tenantIds } } : undefined));
     return response.data?.data?.items ?? [];
   },
 

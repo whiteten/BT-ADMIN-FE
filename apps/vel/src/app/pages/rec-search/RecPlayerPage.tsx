@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin, { type Region } from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import { withBasePath } from '@/shared-util';
 import { recSearchApi } from '../../features/rec-search/api/recSearchApi';
 import type { RecFileListItem } from '../../features/rec-search/types';
 
@@ -222,7 +223,7 @@ export default function RecPlayerPage() {
       media: audio,
       // 채널 분리(TX/RX)는 아래 Web Audio ChannelSplitter가 클라이언트단에서 처리하므로
       // 서버에는 항상 2채널 stereo를 요청한다(mono로 받으면 TX/RX 분리 불가).
-      url: `/api/bff/vel-rec-stream?recKey=${encodeURIComponent(recKey)}&type=stereo`,
+      url: withBasePath(`/api/bff/vel-rec-stream?recKey=${encodeURIComponent(recKey)}&type=stereo`),
       height: 100,
       cursorColor: '#6b7280',
       cursorWidth: 1,

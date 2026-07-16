@@ -5,6 +5,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown } from 'antd';
 import dayjs from 'dayjs';
 import { ChevronDown, Download, Trash2, Upload } from 'lucide-react';
+import { useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import SttDictionaryDrawer, { type SttDictionaryDrawerRef } from '../components/SttDictionaryDrawer';
@@ -19,7 +20,7 @@ const PAGE_SIZE = 20;
 
 interface DeleteCellRendererParams {
   data?: SttDictionaryItem;
-  onDelete: (beforeWord: string) => void;
+  onDelete: (data: SttDictionaryItem) => void;
 }
 
 function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
@@ -34,7 +35,7 @@ function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
 function DeleteCellRenderer({ data, onDelete }: DeleteCellRendererParams) {
   if (!data) return null;
   return (
-    <button onClick={() => onDelete(data.beforeWord)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
+    <button onClick={() => onDelete(data)} className="flex items-center justify-center text-red-400 hover:text-red-600 transition-colors">
       <Trash2 size={15} />
     </button>
   );
@@ -47,6 +48,12 @@ export default function SttDictionary() {
   const drawerRef = useRef<SttDictionaryDrawerRef>(null);
   const importModalRef = useRef<FileImportModalRef>(null);
   const importResultModalRef = useRef<ExcelImportResultModalRef>(null);
+
+  // 운영자 모드에서 "전체" 스코프(대행 테넌트 미지정)일 때만 테넌트 컬럼 노출 — CtiQueueTable 패턴 참고.
+  // 특정 테넌트를 대행 중이거나 일반 사용자면 모든 행이 같은 테넌트라 컬럼이 무의미해서 숨김.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const showTenantColumn = operatorMode && actAsTenantId === null;
 
   const { data: allData = [], isLoading } = useGetSttDictionaryList({});
 
@@ -96,11 +103,18 @@ export default function SttDictionary() {
     drawerRef.current?.open(event.data);
   };
 
-  const handleDelete = (beforeWord: string) => {
-    modal.confirm.delete({ onOk: () => deleteDictionary({ beforeWord }) });
+  const handleDelete = (data: SttDictionaryItem) => {
+    modal.confirm.delete({ onOk: () => deleteDictionary({ tenantId: data.tenantId, beforeWord: data.beforeWord }) });
   };
 
   const columnDefs: ColDef<SttDictionaryItem>[] = [
+    {
+      headerName: '테넌트',
+      field: 'tenantName',
+      flex: 2,
+      filter: true,
+      hide: !showTenantColumn,
+    },
     {
       headerName: '변경할 단어',
       field: 'beforeWord',
@@ -202,7 +216,7 @@ export default function SttDictionary() {
         />
       </div>
 
-      <SttDictionaryDrawer ref={drawerRef} />
+      <SttDictionaryDrawer ref={drawerRef} existingWords={allData.map((d) => d.beforeWord)} />
       <FileImportModal ref={importModalRef} title="Import" accept=".xlsx,.xls" onConfirm={handleImportDictionary} confirmLoading={isImporting} />
       <ExcelImportResultModal ref={importResultModalRef} nameColumnTitle="단어" />
     </div>

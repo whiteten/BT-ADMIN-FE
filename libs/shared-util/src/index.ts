@@ -1,4 +1,5 @@
 export * from './lib/util';
+export * from './lib/basePath';
 export { default, API_ERROR_EVENT } from './lib/apiClient';
 export type { ApiClientOptions, ApiErrorEvent, ApiRequestConfig } from './lib/apiClient';
 export { default as WebSocketClient } from './lib/webSocketClient';

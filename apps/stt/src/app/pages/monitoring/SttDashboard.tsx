@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, DatePicker, Select, Tooltip } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import type { EChartsOption } from 'echarts';
 import ReactECharts from 'echarts-for-react';
 import { Activity, CheckCircle2, Pause, PhoneIncoming, Play } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
-import { useGetDashboard } from '../../features/monitoring/hooks/useMonitoringQueries';
+import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { monitoringQueryKeys, useGetDashboard } from '../../features/monitoring/hooks/useMonitoringQueries';
 import type { DashboardChannelItem, DashboardItem } from '../../features/monitoring/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '모니터링', path: '/stt/monitoring' },
@@ -145,6 +147,16 @@ export default function SttDashboard() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
+  const queryClient = useQueryClient();
+
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → apiClient 가 X-View-All-Tenants 주입 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): apiClient 가 X-Act-As-Tenant 주입 → X 테넌트로 조회 스코프
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+
   const [callDate, setCallDate] = useState<Dayjs>(dayjs());
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshSeconds, setRefreshSeconds] = useState(3);
@@ -181,6 +193,17 @@ export default function SttDashboard() {
           <p className="mt-1 text-[13px] text-slate-500">일별 STT 인입·변환 현황과 채널 모니터링 현황을 한 화면에서 확인</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
+          {operatorMode && (
+            <ScopeSelect
+              kind="tenant"
+              options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                void queryClient.invalidateQueries({ queryKey: monitoringQueryKeys.getDashboard._def });
+              }}
+            />
+          )}
           <DatePicker value={callDate} onChange={(d) => d && setCallDate(d)} allowClear={false} format="YYYY-MM-DD" className="h-9" style={{ width: 160 }} />
           <span className="text-sm font-medium text-[#495057] shrink-0 pl-2">모니터링</span>
           <Select

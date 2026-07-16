@@ -8,8 +8,8 @@ export const fileUploadApi = {
     const response = await apiClient.get<ApiResponse<{ items: FileUploadItem[] }>>('/stt-file-upload-list', { params });
     return response.data?.data?.items ?? [];
   },
-  deleteFileUpload: async (ucidGkey: string) => {
-    return apiClient.delete('/stt-file-upload-delete', { params: { ucidGkey } });
+  deleteFileUpload: async ({ tenantId, ucidGkey }: { tenantId: number; ucidGkey: string }) => {
+    return apiClient.delete('/stt-file-upload-delete', { params: { tenantId, ucidGkey } });
   },
   uploadSttFile: async (file: File, menuId: string) => {
     const formData = new FormData();

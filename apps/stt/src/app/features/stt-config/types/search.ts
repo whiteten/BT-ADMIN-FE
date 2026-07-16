@@ -7,6 +7,8 @@ export interface SttSearchParams {
 
 // STT 검색 결과 (SttSearchResponse)
 export interface SttSearchItem {
+  tenantId: number;
+  tenantName: string;
   ucidGkey: string;
   analKind: string;
   callDatetime: string;
@@ -30,6 +32,8 @@ export interface SttSearchCallbotParams {
 
 // 음성봇 검색 결과 (SttSearchCallbotResponse)
 export interface SttSearchCallbotItem {
+  tenantId: number;
+  tenantName: string;
   detailCnt: number;
   orgUcid: string;
   callDatetime: string;

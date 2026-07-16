@@ -56,6 +56,8 @@ export interface RecogTargetSearchItem {
   dnNo: string;
   agentId: string;
   engineCode: string;
+  tenantId: number;
+  tenantName: string;
 }
 
 export interface RecogTargetListItem {
@@ -65,6 +67,8 @@ export interface RecogTargetListItem {
   armsoffset: number;
   rxtxKind: string;
   orgSentence: string;
+  tenantId: number;
+  tenantName: string;
   saLoadResult: number;
   loadUser: number;
   loadTime: string;
@@ -81,4 +85,6 @@ export interface RecogTargetCreateData {
   rxtxKind: number;
   orgSentence: string;
   engineCode: string;
+  /** 등록자 본인/대행 테넌트가 아니라 문장(검색 결과 행) 자체의 테넌트. */
+  tenantId: number;
 }

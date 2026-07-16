@@ -12,7 +12,7 @@ import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { toast } from '@/shared-util';
 import { useGetMentFiles } from '../../mentfile/hooks/useMentFileQueries';
-import { useUpdateScenarioMenuControl } from '../hooks/useScenarioQueries';
+import { useUpdateScenarioMenuControl } from '../hooks/useScenarioMenuControlQueries';
 import {
   SCENARIO_MENU_CONTROL_KIND,
   SCENARIO_MENU_CONTROL_KIND_LABELS,

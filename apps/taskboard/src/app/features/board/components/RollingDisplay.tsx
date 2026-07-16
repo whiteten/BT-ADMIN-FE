@@ -367,6 +367,10 @@ export function LayoutScreen({ layout, dataByHashKey = {} }: LayoutScreenProps) 
   const placeholderOptionValues = Object.fromEntries(placeholderDefs.map((d) => [d.dbQueryId, optionValuesById[d.dbQueryId] ?? []]));
   const validGroupIds = groupListDbQueryId !== undefined ? (optionValuesById[groupListDbQueryId] ?? []) : [];
 
+  // 이 레이아웃 기본 selection 기준 해시키별 선택 id — table 위젯의 행 필터(BE 초과분 방어)에 쓴다.
+  const layoutTargetGroupIds = resolveValidEntityIds(resolveGroupIdsFromSelection(selection, dbQueryDefs), validGroupIds);
+  const layoutSelectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, selection.dbQuerySelections, placeholderOptionValues, { groupId: layoutTargetGroupIds });
+
   useEffect(() => {
     if (!layout.fileName) return;
     const img = new Image();
@@ -393,7 +397,17 @@ export function LayoutScreen({ layout, dataByHashKey = {} }: LayoutScreenProps) 
       groupId: effectiveTargetGroupIds,
     });
     // table-redis/그룹·스킬 이석사유/조인 테이블은 RedisTableWidget 내부에서 표/차트 모두 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
+    if (isRedisTableWidget(widget))
+      return (
+        <RedisTableWidget
+          widget={widget}
+          fontScale={fontScale}
+          dataByHashKey={dataByHashKey}
+          targetIdsByPrefix={effectiveTargetIdsByPrefix}
+          // table 위젯 행 필터 — 이 레이아웃 selection 기준 선택 id로 BE 초과분(빈 큐)을 걸러낸다.
+          selectionIdsByHashKey={layoutSelectionIdsByHashKey}
+        />
+      );
     return (
       <RollingValueWidget
         widget={widget}
@@ -487,17 +501,14 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   allTargetIdsByPrefix['IC:GROUP:'] = allGroupReasonTargetGroupIds;
 
   // Redis 값/테이블 위젯 WS 구독 — 위젯이 실제 쓰는 hashKey만. 큐/그룹/상담사 마스터목록은 데이터소스 경로로 처리.
-  const widgetRedisSubscriptions = collectRedisWsSubscriptions(
-    allWidgets,
-    buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues, { groupId: allGroupReasonTargetGroupIds }),
-    allTargetIdsByPrefix,
-    allSelectedMediaTypes,
-  );
+  const allSelectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues, { groupId: allGroupReasonTargetGroupIds });
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(allWidgets, allSelectionIdsByHashKey, allTargetIdsByPrefix, allSelectedMediaTypes);
 
   // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다.
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
   // allowAllGroupsFallback=false — 실행 화면에서 그룹 스코프가 비면 전체로 새지 않고 0(TaskView와 동일 정책).
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix, false);
+  // selectionIdsByHashKey 전달 — 뷰그룹이 선택한 행 id만 구독(전체 * 대신). 선택 없는 해시키는 * 폴백.
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix, false, allSelectionIdsByHashKey);
 
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []

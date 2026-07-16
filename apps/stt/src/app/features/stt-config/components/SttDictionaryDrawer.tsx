@@ -11,7 +11,12 @@ export interface SttDictionaryDrawerRef {
   close: () => void;
 }
 
-const SttDictionaryDrawer = forwardRef<SttDictionaryDrawerRef>((_, ref) => {
+interface Props {
+  /** 이미 등록된 beforeWord 목록 — 등록 시 중복 검사에 사용(테넌트 스코프는 호출측이 로드한 목록 기준). */
+  existingWords: string[];
+}
+
+const SttDictionaryDrawer = forwardRef<SttDictionaryDrawerRef, Props>(({ existingWords }, ref) => {
   const [open, setOpen] = useState(false);
   const [editItem, setEditItem] = useState<SttDictionaryItem | null>(null);
   const isEdit = !!editItem;
@@ -69,9 +74,13 @@ const SttDictionaryDrawer = forwardRef<SttDictionaryDrawerRef>((_, ref) => {
   const onFinish: FormProps<SttDictionaryCreateData>['onFinish'] = (values) => {
     if (isEdit) {
       updateItem({ id: editItem.id, beforeWord: editItem.beforeWord, afterWord: values.afterWord, useYn: values.useYn });
-    } else {
-      createItem({ beforeWord: values.beforeWord, afterWord: values.afterWord, useYn: values.useYn });
+      return;
     }
+    if (existingWords.includes(values.beforeWord.trim())) {
+      toast.warning('이미 등록된 단어입니다.');
+      return;
+    }
+    createItem({ beforeWord: values.beforeWord, afterWord: values.afterWord, useYn: values.useYn });
   };
 
   const onFinishFailed: FormProps<SttDictionaryCreateData>['onFinishFailed'] = (errorInfo) => {

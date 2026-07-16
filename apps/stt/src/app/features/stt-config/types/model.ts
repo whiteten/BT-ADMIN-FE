@@ -55,6 +55,8 @@ export interface RecogResultItem {
   insertionCnt: number | null;
   orgResult: string;
   sttResult: string | null;
+  tenantId: number;
+  tenantName: string;
 }
 
 export interface RecogResultSummary {

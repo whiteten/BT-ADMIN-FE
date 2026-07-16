@@ -17,7 +17,7 @@ import type { DnisBatchCopyRequest, DnisBatchCopyResult, DnisCreateRequest, Dnis
 const apiClient = new ApiClient({ serviceURL: '/bff' });
 
 export const dnisApi = {
-  getDnisList: async (params: { nodeId: number; tenantId: number; dnisNo?: string }): Promise<DnisItem[]> => {
+  getDnisList: async (params: { nodeId: number; dnisNo?: string }): Promise<DnisItem[]> => {
     const response = await apiClient.get<ApiResponse<{ value: DnisItem[] }>>('/ivr-dnis-list', { params });
     return response.data?.data?.value ?? [];
   },

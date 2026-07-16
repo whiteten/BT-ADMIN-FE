@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { WebSocketClient } from '@/shared-util';
+import { WebSocketClient, buildWsUrl } from '@/shared-util';
 import { AOE_MONI_MSG, type AoeMoniServerMessage, type AoeMoniWidgetData, type AoeWidgetType } from '../types';
 
 export interface AoeMonitoringSocketOptions {
@@ -35,8 +35,7 @@ export function useAoeMonitoringSocket(options: AoeMonitoringSocketOptions): Aoe
 
   useEffect(() => {
     setData({});
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/proxy/aoe/monitoring`;
+    const wsUrl = buildWsUrl('/ws/proxy/aoe/monitoring');
     const client = new WebSocketClient(wsUrl, { messageLog: false });
     wsRef.current = client;
 

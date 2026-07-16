@@ -55,6 +55,11 @@ export interface TableColumn {
   verticalAlign?: 'top' | 'middle' | 'bottom';
   /** 천단위 콤마 표시 */
   useThousandSep?: boolean;
+  /**
+   * 컬럼명에 'time'(대소문자 무관)이 포함된 컬럼 전용 — 값 표시 방식.
+   * 'raw'(기본): 숫자 그대로. 'hms': 값을 초로 보고 HH:MM:SS 형식으로 변환해 표시.
+   */
+  timeFormat?: 'raw' | 'hms';
   /** 임계치 색상 사용 여부 — 단일값 위젯의 thresholdEnabled/thresholds를 컬럼 단위로 재사용 */
   thresholdEnabled?: boolean;
   thresholds?: WidgetThresholdRule[];
@@ -69,9 +74,30 @@ export interface TableColumn {
   nameLookupDbQueryId?: number;
 }
 
+/** 차트 종류 — recharts 기반. {name,value} 단일 시계열 데이터로 렌더 가능한 시각화 변형들. */
+export type ChartType =
+  | 'bar'
+  | 'barHorizontal'
+  | 'barRounded'
+  | 'line'
+  | 'lineStep'
+  | 'lineDashed'
+  | 'area'
+  | 'areaGradient'
+  | 'pie'
+  | 'donut'
+  | 'semiPie'
+  | 'radialBar'
+  | 'radar'
+  | 'scatter'
+  | 'bubble'
+  | 'composed'
+  | 'treemap'
+  | 'funnel';
+
 /** 차트형 위젯 설정 */
 export interface ChartConfig {
-  chartType: 'bar' | 'line' | 'pie' | 'donut';
+  chartType: ChartType;
   sampleData?: Array<{ name: string; value: number }>;
   /** 색상 모드 — rainbow(기본 팔레트 자동 적용) | custom(직접 선택) */
   colorMode?: 'rainbow' | 'custom';
@@ -166,6 +192,22 @@ export interface CallDataItem {
      * 일치하는 행끼리 컬럼을 합쳐 1행으로 보여주며, 어느 쪽에도 없는 키는 행에서 제외한다(INNER JOIN).
      */
     joinKey?: string;
+    /**
+     * 표시 방식 — 'table'(기본, 표) / 'cards'(카드 그리드). 같은 rows(해시 엔트리)를 표 대신 카드로 반복 렌더한다.
+     * cards일 때 각 행 = 카드 1개, 컬럼→슬롯 매핑(cardConfig)으로 프리셋 카드에 값을 채운다.
+     */
+    viewMode?: 'table' | 'cards';
+    /** viewMode='cards' 전용 — 카드 프리셋/색상/컬럼 매핑. */
+    cardConfig?: {
+      /** 고른 카드 프리셋 id (cardPresets.tsx). */
+      presetId: string;
+      /** 프리셋 슬롯키 → 이 표의 컬럼 key. 매핑 안 된 슬롯은 빈값. */
+      slotMap: Record<string, string>;
+      /** 강조 색상(프리셋이 사용). 미지정 시 프리셋 기본색. */
+      accent?: string;
+      /** 카드 그리드 열 수. 0/미지정 = 자동(auto-fill). */
+      columns?: number;
+    };
   };
   chartConfig?: ChartConfig;
   /** 개별 공지사항 ID — category=notice 위젯 전용 */

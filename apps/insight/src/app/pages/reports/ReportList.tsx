@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type BreadcrumbProps, Button, Drawer, Input } from 'antd';
+import { type BreadcrumbProps, Button, Drawer, Input, Tooltip } from 'antd';
 import { ChevronDown, Hash, Layers, type LucideIcon, Menu, Plus, Search, Share2, SlidersHorizontal, Tags, User } from 'lucide-react';
-import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore } from '@/shared-store';
+import { type MenuConfig, type MenuItem, useAuthStore, useBreadcrumbStore, useMenuStore, useOperatorScopeStore } from '@/shared-store';
 import { fuzzyFilter } from '@/shared-util';
 import { isBaseTag } from '../../components/statTag';
 import ReportRow from '../../features/report/components/ReportRow';
@@ -10,6 +10,7 @@ import { useGetReports } from '../../features/report/hooks/useReportQueries';
 import type { ReportListItem } from '../../features/report/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import { cn } from '@/lib/utils';
 
 type OwnershipFilter = 'ALL' | 'MINE' | 'PUBLISHED' | 'SYSTEM';
@@ -63,7 +64,20 @@ export default function ReportList() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const { data: reports = [], isFetching } = useGetReports();
+  // ── 운영자 모드 — 목록 스코프 테넌트 (필수 단일 선택, "전체" 없음) ──────────
+  // 기본값 = 운영자 모드 진입 전 로그인돼 있던 컨텍스트 테넌트. 선택 테넌트의
+  // 장표 목록을 조회하고, 장표를 열면 뷰어 테넌트 조건이 이 값으로 프리셋된다.
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const myTenantId = useAuthStore((s) => s.userInfo?.tenant ?? null);
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
+  const [scopeTenantId, setScopeTenantId] = useState<string | null>(null);
+  const effectiveScopeTenantId = scopeTenantId ?? myTenantId;
+  const isForeignScope = operatorMode && effectiveScopeTenantId != null && effectiveScopeTenantId !== myTenantId;
+  const tenantScopeOptions = (availableTenants ?? []).map((t) => ({ id: String(t.tenantId), name: t.tenantName }));
+
+  const { data: reports = [], isFetching } = useGetReports({
+    params: operatorMode && effectiveScopeTenantId ? { tenantId: effectiveScopeTenantId } : undefined,
+  });
 
   // 메뉴 등록 여부 판정 — host 가 적재한 메뉴 store 기준 (메뉴 path 의 ?reportId)
   const menuConfigs = useMenuStore((s) => s.menuConfigs);
@@ -73,13 +87,17 @@ export default function ReportList() {
   const myUserId = useAuthStore((s) => s.userInfo?.userId);
   const isMine = (r: ReportListItem) => myUserId != null && String(r.ownerUserId) === String(myUserId);
 
-  // 태그 집계 (빈도 내림차순) — 가시 범위(내 것/메뉴/공유) 기준
+  // 가시성 판정 — 일반: 내 것/메뉴 등록/공유만. 운영자 모드(admin): BE 가 스코프 테넌트
+  // 전체(개인 포함)를 내려주므로 클라이언트 필터를 걸지 않는다 (소유+역할 권한 모델).
+  const isVisible = (r: ReportListItem) => operatorMode || isMine(r) || registeredReportIds.has(r.reportId) || !!r.isSystem;
+
+  // 태그 집계 (빈도 내림차순) — 가시 범위 기준
   const sortedTags = useMemo(() => {
     const counts: Record<string, number> = {};
-    reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem).forEach((r) => (r.tags ?? []).forEach((t) => (counts[t] = (counts[t] ?? 0) + 1)));
+    reports.filter(isVisible).forEach((r) => (r.tags ?? []).forEach((t) => (counts[t] = (counts[t] ?? 0) + 1)));
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, registeredReportIds, myUserId]);
+  }, [reports, registeredReportIds, myUserId, operatorMode]);
 
   // 등록된 태그가 있으면 필터를 최초 1회 자동 펼침 (이후 수동 토글 존중)
   const autoOpenedRef = useRef(false);
@@ -100,8 +118,8 @@ export default function ReportList() {
   // 1) 가시성 + 태그 + 검색 적용 (소유 미적용) — 범위 탭 건수 기준.
   // 검색은 통합검색/메뉴검색과 동일한 fuzzy 매칭(초성·자모 지원). 제목 + 데이터셋명 + 태그 통합 대상.
   const visibleBase = useMemo(() => {
-    // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표만 노출
-    let visible = reports.filter((r) => isMine(r) || registeredReportIds.has(r.reportId) || r.isSystem);
+    // 기본 가시성: 내 보고서 / 메뉴 등록 / 시스템 기본 장표만 노출 (운영자 모드는 전체)
+    let visible = reports.filter(isVisible);
     // 태그 필터 (AND) — 선택 태그를 모두 가진 보고서만
     if (selectedTags.size) {
       visible = visible.filter((r) => {
@@ -111,7 +129,7 @@ export default function ReportList() {
     }
     return fuzzyFilter(searchValue, visible, (r) => `${r.title} ${(r.datasetNames ?? []).join(' ')} ${(r.tags ?? []).join(' ')}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reports, searchValue, registeredReportIds, myUserId, selectedTags]);
+  }, [reports, searchValue, registeredReportIds, myUserId, selectedTags, operatorMode]);
 
   // 범위(소유) 탭별 건수 (검색 반영)
   const ownCounts = useMemo<Record<OwnershipFilter, number>>(() => {
@@ -139,6 +157,25 @@ export default function ReportList() {
   const rangeLabel = OWNERSHIP_OPTIONS.find((o) => o.value === ownership)?.label ?? '전체';
 
   const handleNew = () => navigate('/insight/statistics/reports/new');
+
+  // 타 테넌트 스코프 열람 중엔 생성 차단 — 신규 장표 소유가 컨텍스트 테넌트로 박혀
+  // "보고 있는 테넌트 ≠ 생성되는 테넌트" 불일치가 생기는 것을 방지.
+  const newDisabled = isForeignScope;
+  const newDisabledTip = newDisabled ? '내 테넌트 스코프에서만 생성할 수 있습니다' : undefined;
+
+  // 운영자 스코프 셀렉트 (운영자 모드 전용, "전체" 없음 — 단일 테넌트 필수)
+  const renderTenantScope = (fullWidth?: boolean) =>
+    operatorMode ? (
+      <ScopeSelect
+        kind="tenant"
+        hideAll
+        options={tenantScopeOptions}
+        value={effectiveScopeTenantId}
+        onChange={(id) => setScopeTenantId(id)}
+        width={fullWidth ? 240 : 170}
+        className={fullWidth ? 'w-full' : undefined}
+      />
+    ) : null;
 
   // 활성 필터 수 — 좁은 화면 '필터' 버튼 뱃지
   const activeFilterCount = selectedTags.size + (ownership !== 'ALL' ? 1 : 0);
@@ -211,8 +248,9 @@ export default function ReportList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* 좁은 화면 전용 상단 툴바 — 레일 숨김 시 검색 + 필터(드로어) + 추가 */}
+      {/* 좁은 화면 전용 상단 툴바 — 레일 숨김 시 (운영자 스코프) + 검색 + 필터(드로어) + 추가 */}
       <div className="flex lg:hidden items-center gap-2 w-full bg-white bt-shadow px-4 py-3">
+        {renderTenantScope()}
         <Input
           allowClear
           prefix={<Search className="size-4 text-gray-400" />}
@@ -225,13 +263,21 @@ export default function ReportList() {
           필터
           {activeFilterCount > 0 && <span className="ml-1 rounded-full bg-[var(--color-bt-primary)] px-1.5 text-[10px] font-bold text-white">{activeFilterCount}</span>}
         </Button>
-        <Button type="primary" icon={<Plus className="size-4" />} onClick={handleNew} />
+        <Tooltip title={newDisabledTip}>
+          <Button type="primary" icon={<Plus className="size-4" />} disabled={newDisabled} onClick={handleNew} />
+        </Tooltip>
       </div>
 
       {/* datasets 페이지와 동일한 2분할: 좌측 검색+필터 레일 박스 / 우측 목록 박스 */}
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* 좌측: 검색 + 필터 레일 — 넓은 화면(lg+)만 표시 */}
+        {/* 좌측: (운영자 스코프) + 검색 + 필터 레일 — 넓은 화면(lg+)만 표시 */}
         <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-3 bg-white bt-shadow p-4 min-h-0">
+          {operatorMode && (
+            <>
+              {renderTenantScope(true)}
+              <div className="border-t border-gray-200" />
+            </>
+          )}
           <div className="flex items-center gap-2">
             <Input
               allowClear
@@ -241,9 +287,11 @@ export default function ReportList() {
               onChange={(e) => setSearchValue(e.target.value)}
               className="flex-1"
             />
-            <Button type="primary" icon={<Plus className="size-4" />} onClick={handleNew}>
-              추가
-            </Button>
+            <Tooltip title={newDisabledTip}>
+              <Button type="primary" icon={<Plus className="size-4" />} disabled={newDisabled} onClick={handleNew}>
+                추가
+              </Button>
+            </Tooltip>
           </div>
 
           <div className="border-t border-gray-200" />
@@ -278,7 +326,12 @@ export default function ReportList() {
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))]">
                   {ownFiltered.map((report) => (
                     <div key={report.reportId} className="min-w-0 border-r border-[#e9ebec]">
-                      <ReportRow report={report} query={searchValue} isMenuRegistered={registeredReportIds.has(report.reportId)} />
+                      <ReportRow
+                        report={report}
+                        query={searchValue}
+                        isMenuRegistered={registeredReportIds.has(report.reportId)}
+                        scopeTenantId={operatorMode ? (effectiveScopeTenantId ?? undefined) : undefined}
+                      />
                     </div>
                   ))}
                 </div>

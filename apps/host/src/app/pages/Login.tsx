@@ -4,7 +4,7 @@ import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
 import { Lock, TriangleAlert, User } from 'lucide-react';
 import { useAuthStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { toast, withBasePath } from '@/shared-util';
 import styles from './Login.module.scss';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '../components/ChangePasswordDialog';
 import { authApi } from '../features/auth/api/authApi';
@@ -199,7 +199,7 @@ export default function Login() {
       <div
         className="absolute top-0 left-0 right-0 w-full h-[557px]"
         style={{
-          background: 'url(/assets/images/login-bg.png) no-repeat 50% center',
+          background: `url(${withBasePath('/assets/images/login-bg.png')}) no-repeat 50% center`,
           backgroundSize: 'cover',
           backgroundColor: '#f3f3f9',
         }}
@@ -264,7 +264,7 @@ export default function Login() {
           </CardContent>
         </Card>
         <div className="absolute bottom-[-30px] flex justify-center p-1 z-10">
-          <img src="/assets/images/copyright.svg" alt="Copyright" />
+          <img src={withBasePath('/assets/images/copyright.svg')} alt="Copyright" />
         </div>
       </div>
 
