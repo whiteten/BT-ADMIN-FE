@@ -9,6 +9,7 @@ import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import type { RedisKeyDefinitionsResponse } from '../../features/board/api/ctiRedisApi';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
+import { CardEditorModal } from '../../features/board/cards/CardEditorModal';
 import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { CHART_COLORS_LIST, CHART_TYPE_OPTIONS, ChartWidget, buildChartDataFromRows } from '../../features/board/components/ChartWidget';
@@ -53,7 +54,7 @@ import type {
   WidgetThresholdRule,
 } from '../../features/board/types/taskboard.types';
 import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
-import { collapseIcVariableSegment, maskEntitySegment } from '../../features/board/utils/redisKeyDefinitions';
+import { collapseIcVariableSegment, maskEntitySegment, matchKeyDefinition } from '../../features/board/utils/redisKeyDefinitions';
 import { type RedisKeyNode, detectRedisKeyPattern, extractIcGroupIdSegment, filterRedisTree, findSiblingKeys, groupRedisKeys } from '../../features/board/utils/redisKeyPattern';
 import {
   CALC_WIDGET_ITEM,
@@ -244,8 +245,111 @@ function fromGridItem(item: RglItem): Pick<DroppedWidget, 'x' | 'y' | 'w' | 'h'>
 type DragInfo = { type: 'source'; item: CallDataItem } | { type: 'widget-ref'; widgetId: string; label: string };
 type LayoutMode = 'free' | 'grid';
 
+// ─── FieldSuggestInput ───────────────────────────────────────────────────────
+// table-redis 컬럼 필드명 자동완성 — 순수 React 커스텀 드롭다운(antd 미사용: host의 antd App cssVar 경고를
+// 유발하지 않도록). 왼쪽 위젯 트리와 동일하게 "한글명 위 + 영문 필드명 아래 작은 글씨" 2줄로 보여주고,
+// 목록을 body로 portal 렌더해 오른쪽 패널(overflow)에 잘리지 않고 넓게(320px)·길게(360px) 펼친다.
+function FieldSuggestInput({
+  value,
+  onChange,
+  onSelect,
+  fields,
+  nameMap,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (field: string, koLabel?: string) => void;
+  fields: string[];
+  nameMap?: Record<string, string>;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePos = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPos({ left: r.left, top: r.bottom + 2 });
+    };
+    updatePos();
+    const onDocMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (inputRef.current?.contains(t) || listRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open]);
+
+  const kw = value.trim().toLowerCase();
+  const filtered = fields.filter((f) => {
+    if (!kw) return true;
+    const ko = (nameMap?.[f] ?? '').toLowerCase();
+    return f.toLowerCase().includes(kw) || ko.includes(kw);
+  });
+
+  return (
+    <div className="w-1/2">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+      />
+      {open &&
+        pos &&
+        filtered.length > 0 &&
+        createPortal(
+          <div
+            ref={listRef}
+            style={{ position: 'fixed', left: pos.left, top: pos.top, width: 320, maxHeight: 360, zIndex: 200 }}
+            className="overflow-y-auto bg-white border border-slate-200 rounded shadow-lg"
+          >
+            {filtered.map((field) => {
+              const ko = nameMap?.[field];
+              return (
+                <button
+                  key={field}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onSelect(field, ko);
+                    setOpen(false);
+                  }}
+                  className="flex flex-col w-full text-left px-2 py-1 leading-tight border-b border-slate-50 last:border-b-0 hover:bg-slate-100"
+                >
+                  <span className="text-xs text-slate-700">{ko ?? field}</span>
+                  {ko && <span className="text-[9px] text-slate-400 font-mono">{field}</span>}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 // ─── DraggableSourceItem ─────────────────────────────────────────────────────
-function DraggableSourceItem({ item }: { item: CallDataItem }) {
+function DraggableSourceItem({ item, subLabel }: { item: CallDataItem; subLabel?: string }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `source-${item.id}`,
     data: { type: 'source', item } satisfies DragInfo,
@@ -263,7 +367,11 @@ function DraggableSourceItem({ item }: { item: CallDataItem }) {
       }`}
     >
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-      <span className="text-xs font-medium text-slate-700 truncate flex-1 min-w-0">{item.label}</span>
+      {/* 한글 라벨 + (있으면) 아래 작은 영문 키 */}
+      <span className="flex flex-col flex-1 min-w-0 leading-tight">
+        <span className="text-xs font-medium text-slate-700 truncate">{item.label}</span>
+        {subLabel && <span className="text-[9px] text-slate-400 font-mono truncate">{subLabel}</span>}
+      </span>
       {item.category === 'notice' && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold flex-shrink-0">공지</span>}
       {item.isRealtime && item.category !== 'Redis' && <span className="text-[9px] bg-cyan-100 text-cyan-600 px-1 py-0.5 rounded font-bold">실시간</span>}
       {item.displayType === 'table' && !item.isRealtime && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
@@ -425,6 +533,11 @@ function RedisHashFieldItems({ hashKey }: { hashKey: string }) {
   // 카테고리) 기존처럼 실제 키 그대로 — 이 경우도 hashSiblingKeys가 있으면 런타임 조회는 그쪽을 우선 쓴다.
   const maskedHashKey = maskEntitySegment(actualHashKey, redisKeyDefs) ?? actualHashKey;
 
+  // 이 해시키가 매칭되는 key-definition의 key-pattern으로 필드(영문 컬럼명) → 한글 표시명 맵을 찾는다.
+  // 매핑이 있으면 한글 라벨을 보여주고 영문 키는 hover(title)로 노출. 없으면 영문 그대로.
+  const matchedDef = matchKeyDefinition(actualHashKey, redisKeyDefs);
+  const fieldNameMap = matchedDef?.definition.keyPattern ? redisKeyDefs.fieldDisplayNames?.[matchedDef.definition.keyPattern] : undefined;
+
   const { data: hashEntries = {}, isLoading } = useGetRedisHashEntries(actualHashKey, {
     queryOptions: { enabled: true },
   });
@@ -466,22 +579,24 @@ function RedisHashFieldItems({ hashKey }: { hashKey: string }) {
   return (
     <div className="ml-4 border-l-2 border-rose-100 pl-0 py-1.5 flex flex-col gap-1">
       {displayItems.map(({ field, col, sampleValue }) => {
+        const koreanLabel = fieldNameMap?.[col]; // 한글 표시명(있으면)
         const callItem: CallDataItem = {
           id: `redis-${maskedHashKey}-${field}-${col}`,
           category: 'Redis',
-          label: col,
+          label: koreanLabel ?? col, // 한글 있으면 한글, 없으면 영문 키
           unit: '',
           sampleValue,
           color: '#e11d48',
           isRealtime: true,
           redisHashKey: maskedHashKey,
           redisField: field,
-          redisJsonField: col !== field ? col : undefined,
+          redisJsonField: col !== field ? col : undefined, // 데이터 바인딩은 영문 키 그대로
           hashSiblingKeys: resolvedSiblingKeys?.length ? resolvedSiblingKeys : undefined,
         };
+        // 한글 라벨일 때 영문 키를 아래 작은 글씨로 표기(+hover title). 한글 없으면 영문 단독.
         return (
-          <div key={`${field}-${col}`} className="pl-2 pr-2">
-            <DraggableSourceItem item={callItem} />
+          <div key={`${field}-${col}`} className="pl-2 pr-2" title={koreanLabel ? col : undefined}>
+            <DraggableSourceItem item={callItem} subLabel={koreanLabel ? col : undefined} />
           </div>
         );
       })}
@@ -551,8 +666,10 @@ function RedisTreeNode({ node, depth, forceExpand }: { node: RedisKeyNode; depth
         {hasChildren && !isHashGroup && <span className="flex-shrink-0 text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none">{node.leafCount}</span>}
       </button>
 
-      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시 */}
-      {isLeaf && !isHashGroup && isExpanded && representativeKey && <RedisHashFieldItems hashKey={representativeKey} />}
+      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시.
+          검색 강제펼침(forceExpand)만으로는 값을 조회하지 않는다 — 사용자가 실제로 클릭해 펼친(isExpandedState)
+          노드만 hash-entries를 조회한다. (검색 시 매칭된 키가 많으면 노드마다 개별 조회가 폭주하던 문제 차단) */}
+      {isLeaf && !isHashGroup && isExpandedState && representativeKey && <RedisHashFieldItems hashKey={representativeKey} />}
 
       {hasChildren && isExpanded && (
         <div className="border-l border-slate-100 ml-4">
@@ -2077,17 +2194,8 @@ function WidgetActionsMenu({
   const [sectionExpanded, setSectionExpanded] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const scheduleClose = () => {
-    closeTimerRef.current = setTimeout(() => setOpen(false), 150);
-  };
-  const cancelClose = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-  };
 
   const openMenu = () => {
-    cancelClose();
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const POPUP_HEIGHT_ESTIMATE = 260;
@@ -2101,18 +2209,32 @@ function WidgetActionsMenu({
     setOpen(true);
   };
 
+  // 클릭으로 열림 → 바깥(메뉴/트리거 외부) 클릭 시 닫기.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
   // 팝업에 표시할 구역 목록 — A,B,C는 항상 기본 표시 + 이미 추가된 구역(D,E,F...)
   const menuSections = ALL_SECTION_LETTERS.filter((l) => ['A', 'B', 'C'].includes(l) || sections.includes(l));
   // 다음에 추가 가능한 알파벳 (현재 목록에 없는 첫 글자)
   const nextLetter = ALL_SECTION_LETTERS.find((l) => !menuSections.includes(l)) ?? null;
 
   return (
-    <div className="absolute top-1.5 right-6 z-20 hidden group-hover:block">
+    <div className={`absolute top-1.5 right-6 z-20 ${open ? 'block' : 'hidden group-hover:block'}`}>
       <button
         ref={triggerRef}
-        onMouseEnter={openMenu}
-        onMouseLeave={scheduleClose}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (open) setOpen(false);
+          else openMenu();
+        }}
         className="w-5 h-5 bg-slate-700/90 text-white rounded text-[10px] flex items-center justify-center leading-none font-bold shadow-md backdrop-blur-sm"
         title="위젯 옵션"
       >
@@ -2123,8 +2245,6 @@ function WidgetActionsMenu({
         createPortal(
           <div
             ref={menuRef}
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
             onClick={(e) => e.stopPropagation()}
             className="fixed z-[1000] bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-52 flex flex-col tb-menu-pop-in"
             style={{ top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right }}
@@ -2694,6 +2814,7 @@ export default function TaskCreate() {
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
   const { guardWrite } = useTaskboardWriteGuard();
+  const [cardEditorOpen, setCardEditorOpen] = useState(false);
   // 데이터 소스 관리 탭에 등록된 전체 데이터소스 목록 — 테이블 컬럼의 "이름 매핑" 드롭다운에서 고를 수 있게 제공.
   // 플레이스홀더(예: 그룹 목록 {groupId})도 VALUE/NAME 쿼리라서 이름 매핑 소스로 그대로 쓸 수 있다 —
   // 그룹ID 컬럼을 그룹명으로 바꿔 보여주는 게 정확히 이 케이스라 제외하지 않는다.
@@ -2767,6 +2888,10 @@ export default function TaskCreate() {
   // 등록된 키를 그대로 서버에 보내 필터링하므로(실데이터 통신 전환 이후) 실제 필드명과 다르게 입력하면
   // 데이터가 안 보일 수 있어, 임의로 타이핑하는 대신 실제 값을 고를 수 있게 함(RedisHashSection과 같은 캐시 공유)
   const { data: redisColumnIndex = {} } = useGetRedisHashColumns();
+  // 테이블 컬럼 필드명 자동완성에서 영문 필드명 → 한글 표시명(왼쪽 위젯 트리와 동일한 맵)을 보여주기 위해 로드.
+  // 자동완성 option을 "한글명 위 + 영문명 아래 작은 글씨"로 렌더한다(왼쪽 위젯 항목과 동일).
+  const { data: redisKeyDefsData } = useGetRedisKeyDefinitions();
+  const redisKeyDefsForColumns: RedisKeyDefinitionsResponse = redisKeyDefsData ?? { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
 
   // ── 그리드 모드 컨테이너 크기 ────────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(1024);
@@ -3982,6 +4107,15 @@ export default function TaskCreate() {
 
   const selectedWidgetId = selectedWidgetIds.length === 1 ? selectedWidgetIds[0] : null;
   const selectedWidget = selectedWidgetId ? (droppedWidgets.find((w) => w.id === selectedWidgetId) ?? null) : null;
+  // table-redis 컬럼 필드명 자동완성 — 이 해시키에 실제 존재하는 필드 목록 + 영문→한글 표시명 맵(왼쪽 위젯 트리와 동일)
+  const selectedRedisHashKey = selectedWidget?.item.redisHashKey ?? '';
+  const columnFieldSuggestions = redisColumnIndex[selectedRedisHashKey] ?? [];
+  const matchedColumnDef = matchKeyDefinition(selectedRedisHashKey, redisKeyDefsForColumns);
+  const columnFieldNameMap = matchedColumnDef?.definition.keyPattern ? redisKeyDefsForColumns.fieldDisplayNames?.[matchedColumnDef.definition.keyPattern] : undefined;
+  // 선택 위젯의 현재 표시 방식(표/카드/차트) — 우측 패널에서 표시 방식별로 쓰지 않는 옵션을 숨기는 데 쓴다.
+  const selectedIsChartMode = selectedWidget?.item.displayType === 'chart';
+  const selectedIsCardMode = !!selectedWidget && !selectedIsChartMode && selectedWidget.item.tableConfig?.viewMode === 'cards';
+  const selectedIsTableMode = !!selectedWidget?.item.tableConfig && !selectedIsChartMode && !selectedIsCardMode;
   const gridLayout = droppedWidgets.map((w) => toGridItem(w, canvasLocked));
 
   return (
@@ -4710,31 +4844,71 @@ export default function TaskCreate() {
                     </div>
                   )}
 
-                  {/* 표시 방식 — 테이블형 위젯 전용 (표 ↔ 차트 전환) */}
+                  {/* 표시 방식 — 테이블형 위젯 전용 (표 / 카드 / 차트 전환) */}
                   {selectedWidget.item.tableConfig && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">표시 방식</label>
-                      <div className="flex gap-1">
-                        {(
-                          [
-                            { label: '표', value: 'table' as const },
-                            { label: '차트', value: 'chart' as const },
-                          ] as const
-                        ).map(({ label, value }) => (
-                          <button
-                            key={value}
-                            onClick={() => updateWidgetDisplayType(selectedWidget.id, value)}
-                            className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
-                              (selectedWidget.item.displayType ?? 'table') === value
-                                ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                                : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                      {(() => {
+                        const isChartMode = selectedWidget.item.displayType === 'chart';
+                        const isCardMode = !isChartMode && selectedWidget.item.tableConfig?.viewMode === 'cards';
+                        const current = isChartMode ? 'chart' : isCardMode ? 'cards' : 'table';
+                        const setMode = (mode: 'table' | 'cards' | 'chart') => {
+                          if (mode === 'chart') {
+                            updateWidgetTableConfig(selectedWidget.id, { viewMode: 'table' });
+                            updateWidgetDisplayType(selectedWidget.id, 'chart');
+                          } else if (mode === 'cards') {
+                            updateWidgetDisplayType(selectedWidget.id, 'table');
+                            updateWidgetTableConfig(selectedWidget.id, {
+                              viewMode: 'cards',
+                              cardConfig: selectedWidget.item.tableConfig?.cardConfig ?? { presetId: 'stat', slotMap: {} },
+                            });
+                          } else {
+                            updateWidgetDisplayType(selectedWidget.id, 'table');
+                            updateWidgetTableConfig(selectedWidget.id, { viewMode: 'table' });
+                          }
+                        };
+                        return (
+                          <>
+                            <div className="flex gap-1">
+                              {(
+                                [
+                                  { label: '표', value: 'table' as const },
+                                  { label: '카드', value: 'cards' as const },
+                                  { label: '차트', value: 'chart' as const },
+                                ] as const
+                              ).map(({ label, value }) => (
+                                <button
+                                  key={value}
+                                  onClick={() => setMode(value)}
+                                  className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                                    current === value ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                            {isCardMode && (
+                              <button
+                                onClick={() => setCardEditorOpen(true)}
+                                className="mt-1.5 w-full py-1 rounded border border-[#0f5b9e] text-[10px] font-semibold text-[#0f5b9e] bg-blue-50 hover:bg-blue-100 transition-colors"
+                              >
+                                🎴 카드 편집 (모양·색·컬럼 매핑)
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
+                  )}
+
+                  {cardEditorOpen && selectedWidget.item.tableConfig && (
+                    <CardEditorModal
+                      columns={selectedWidget.item.tableConfig.columns}
+                      cardConfig={selectedWidget.item.tableConfig.cardConfig}
+                      onChange={(next) => updateWidgetTableConfig(selectedWidget.id, { cardConfig: next })}
+                      onClose={() => setCardEditorOpen(false)}
+                    />
                   )}
 
                   {/* Redis 해시키 — table-redis 전용. 행은 이 해시에 실제로 존재하는 field를 그대로 쓴다(DB 마스터 조인 없음). */}
@@ -4989,6 +5163,28 @@ export default function TaskCreate() {
                                       />
                                     </button>
                                   </div>
+                                  {/* 시간 표시 형식 — 컬럼명에 'time'(대소문자 무관)이 포함된 컬럼만 노출. 값을 숫자 그대로 vs 초→HH:MM:SS */}
+                                  {/time/i.test(col.key) && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">시간</span>
+                                      {[
+                                        { value: 'raw' as const, label: '숫자' },
+                                        { value: 'hms' as const, label: 'HH:MM:SS' },
+                                      ].map((tf) => (
+                                        <button
+                                          key={tf.value}
+                                          onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { timeFormat: tf.value })}
+                                          className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                            (col.timeFormat ?? 'raw') === tf.value
+                                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                          }`}
+                                        >
+                                          {tf.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                   {/* 임계치 색상 */}
                                   <div>
                                     <div className="flex items-center justify-between">
@@ -5115,24 +5311,29 @@ export default function TaskCreate() {
                             제안됩니다.
                           </p>
                         )}
-                        <datalist id="redis-table-field-suggestions">
-                          {(redisColumnIndex[selectedWidget.item.redisHashKey ?? ''] ?? []).map((field) => (
-                            <option key={field} value={field} />
-                          ))}
-                        </datalist>
                         <div className="flex gap-1">
-                          <input
-                            type="text"
-                            list={selectedWidget.item.id === 'table-redis' ? 'redis-table-field-suggestions' : undefined}
-                            value={newColKey}
-                            onChange={(e) => setNewColKey(e.target.value)}
-                            placeholder={
-                              selectedWidget.item.id === 'table-redis'
-                                ? `필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`
-                                : '필드명 (RTS_LOGIN)'
-                            }
-                            className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                          />
+                          {selectedWidget.item.id === 'table-redis' ? (
+                            <FieldSuggestInput
+                              value={newColKey}
+                              onChange={setNewColKey}
+                              onSelect={(field, ko) => {
+                                setNewColKey(field);
+                                // 한글 표시명이 있으면 표시명 입력을 자동으로 채워준다(비어있을 때만 — 사용자가 이미 입력했으면 존중)
+                                if (ko && !newColLabel.trim()) setNewColLabel(ko);
+                              }}
+                              fields={columnFieldSuggestions}
+                              nameMap={columnFieldNameMap}
+                              placeholder={`필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`}
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={newColKey}
+                              onChange={(e) => setNewColKey(e.target.value)}
+                              placeholder="필드명 (RTS_LOGIN)"
+                              className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                            />
+                          )}
                           <input
                             type="text"
                             value={newColLabel}
@@ -5155,8 +5356,8 @@ export default function TaskCreate() {
                       </div>
                     )}
 
-                  {/* 표 설정 — table-queue/table-group/table-agent/table-redis. 행 간격은 숫자로, 열 너비는 캔버스 드래그로 직접 조절 */}
-                  {['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
+                  {/* 표 설정 — 표 모드에서만(카드·차트에선 행간격/구분선/컬럼숨김 등이 무의미) */}
+                  {selectedIsTableMode && ['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">표 설정</label>
                       <div>
@@ -5243,7 +5444,7 @@ export default function TaskCreate() {
                   )}
 
                   {/* PIVOT — table-redis 전용, rowKey+colKey를 지정하면 PIVOT 렌더 활성화 */}
-                  {selectedWidget.item.id === 'table-redis' && selectedWidget.item.tableConfig && (
+                  {selectedIsTableMode && selectedWidget.item.id === 'table-redis' && selectedWidget.item.tableConfig && (
                     <div className="mt-2">
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">PIVOT</label>
                       <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
@@ -5461,12 +5662,12 @@ export default function TaskCreate() {
                   {selectedWidget.item.tableConfig && selectedWidget.item.displayType === 'chart' && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">차트 종류</label>
-                      <div className="flex gap-1">
+                      <div className="grid grid-cols-3 gap-1">
                         {CHART_TYPE_OPTIONS.map(({ label, value }) => (
                           <button
                             key={value}
                             onClick={() => updateWidgetChartType(selectedWidget.id, value)}
-                            className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            className={`py-1 px-0.5 rounded border text-[10px] font-semibold transition-colors truncate ${
                               (selectedWidget.item.chartConfig?.chartType ?? 'bar') === value
                                 ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
                                 : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'

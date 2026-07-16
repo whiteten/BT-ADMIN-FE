@@ -726,12 +726,6 @@ export default function DataSourceQueryTab() {
                   placeholder="이름 (예: CTIQ 목록)"
                   className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#0f5b9e]"
                 />
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="설명 (선택)"
-                  className="w-full border border-slate-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#0f5b9e]"
-                />
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-semibold text-slate-500 flex-shrink-0">저장 용도</span>
@@ -1009,7 +1003,6 @@ export default function DataSourceQueryTab() {
 
             {savedTab === 'dataSource' && (
               <div className="flex flex-col gap-1.5">
-                <p className="text-[10px] text-slate-400 leading-snug">뷰그룹에서 직접 고르는 데이터 목록입니다(연동 Redis 키 등록분). 위젯 값이 여기 선택으로 스코핑됩니다.</p>
                 {dataSourceDefs.length === 0 ? (
                   <p className="text-[11px] text-slate-400 italic">저장된 쿼리 없음</p>
                 ) : (
@@ -1146,7 +1139,6 @@ export default function DataSourceQueryTab() {
           <label className="block text-xs font-semibold text-slate-600 mb-1 flex-shrink-0">
             결과{result && result.length > 0 ? ` (${visibleResult.length}/${result.length}건 표시)` : ''}
           </label>
-          <p className="text-[10px] text-slate-400 mb-2 flex-shrink-0">보안상 VALUE, NAME 컬럼만 표시됩니다.</p>
           <div className="overflow-auto min-h-0 flex-1" onScroll={handleResultScroll}>
             {result === null ? (
               <p className="text-[11px] text-slate-400 italic">아직 실행하지 않았습니다.</p>

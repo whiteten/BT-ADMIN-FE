@@ -40,6 +40,8 @@ export interface RedisKeyDefinition {
   fieldParts: string[];
   /** 각 파트의 고정 길이(0 또는 마지막 파트 = 나머지 전체) */
   fieldLengths: number[];
+  /** (선택) TB_BT_IS_MON_REDIS_FIELD.KEY_PATTERN — 이 키의 필드 영문명을 한글로 매핑하는 키 패턴 */
+  keyPattern?: string;
 }
 
 /** GET /api/taskboard/redis/key-definitions 응답 전체 */
@@ -47,6 +49,8 @@ export interface RedisKeyDefinitionsResponse {
   mediaType: Record<string, string>;
   prefixMap: Record<string, string>;
   keyDefinitions: Record<string, RedisKeyDefinition>;
+  /** keyPattern → {영문 필드명 → 한글 표시명}. yml key-pattern 지정분만. */
+  fieldDisplayNames?: Record<string, Record<string, string>>;
 }
 
 export const ctiRedisApi = {

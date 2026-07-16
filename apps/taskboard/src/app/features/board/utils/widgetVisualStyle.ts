@@ -106,11 +106,26 @@ export function getThresholdColor(value: unknown, style: Pick<WidgetStyle, 'thre
   return matched;
 }
 
+/** 초 단위 숫자를 HH:MM:SS로 변환. 음수·소수는 버림 처리. */
+function formatSecondsAsHms(totalSeconds: number): string {
+  const total = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
 /**
  * 1000단위 콤마 — useThousandSep이 켜져 있고 값이 숫자로 해석될 때만 적용.
  * 실행화면(TaskView/RollingDisplay)의 Redis/계산식 값은 문자열로 내려오므로 숫자 문자열도 처리한다.
+ * timeFormat='hms'면 값을 초로 보고 HH:MM:SS로 변환(콤마 설정보다 우선).
  */
-export function formatWidgetValue(value: string | number, useThousandSep?: boolean): string {
+export function formatWidgetValue(value: string | number, useThousandSep?: boolean, timeFormat?: 'raw' | 'hms'): string {
+  if (timeFormat === 'hms') {
+    const sec = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+    if (Number.isNaN(sec)) return String(value);
+    return formatSecondsAsHms(sec);
+  }
   if (!useThousandSep) return String(value);
   const num = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
   if (Number.isNaN(num)) return String(value);

@@ -389,7 +389,7 @@ function SingleLayoutView({
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
   // allowAllGroupsFallback=false — 실행 화면에서 그룹 스코프가 비면(선택 불일치·데이터소스 미등록) 전체
   // 그룹으로 새지 않고 0. 편집 미리보기(TaskCreate)만 전체 폴백을 쓴다.
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix, false);
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix, false, selectionIdsByHashKey);
 
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []
@@ -452,7 +452,19 @@ function SingleLayoutView({
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} />;
     // table-redis/그룹·스킬 이석사유/조인 테이블은 RedisTableWidget 내부에서 표/차트 모두 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
+    if (isRedisTableWidget(widget))
+      return (
+        <RedisTableWidget
+          widget={widget}
+          fontScale={fontScale}
+          dataByHashKey={dataByHashKey}
+          targetIdsByPrefix={effectiveTargetIdsByPrefix}
+          // table 위젯의 행 필터는 "실제 구독한 id"와 일치해야 하므로, 값 위젯용 섹션별(effective) 대신
+          // 구독 생성과 동일한 화면 전체 selection(selectionIdsByHashKey)을 넘긴다 — 안 그러면 구독은 1개인데
+          // 필터 기준엔 그 id가 없어 BE 초과분(빈 큐)을 못 걸러낸다.
+          selectionIdsByHashKey={selectionIdsByHashKey}
+        />
+      );
     return (
       <ViewValueWidget
         widget={widget}
