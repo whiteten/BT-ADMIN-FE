@@ -14,7 +14,7 @@
 
 **무엇을**: FE 모노레포를 Nx+Webpack에서 turborepo+Rsbuild로 재구축. MF(Module Federation)는 유지.
 **왜**: dev 기동·빌드 속도 (실측 — prod 3앱 병렬 7.6초, dev host 0.5초대 / 원본 webpack은 앱당 수십 초).
-**현재**: PoC(host+fca+custom) 완료, 핵심 게이트 전부 통과. 남은 것은 잔여 게이트 3건 → remote 9개 확장 → 주변 정비 → 전환 판정.
+**현재**: **마이그레이션 완료(2026-07-16)** — P1~P4 전 단계 종결(팀 합의·공지 포함). 결과물은 원본 저장소 `feature/turborepo-rsbuild` 브랜치. 잔여는 P3-9 원본 잠복 버그 수정 1건(보류 — 별도 안건)뿐.
 
 ## 1. 진행 현황 (2026-07-15 기준)
 
@@ -114,8 +114,9 @@
 - [x] **P3-4. eslint·husky·commitlint**: 완료(2026-07-15) — 원본 flat config를 Nx 레이어만 제거하고
       루트 단일 `eslint.config.mjs`로 이관(실질 규칙 동일). husky 훅 3종(pre-commit lint-staged·
       commit-msg commitlint·post-rewrite 타입검사, origin/main 교정) + commitlint(이모지 타입·
-      scope=apps 디렉토리 SoT) + cz-git + typecheck-staged.js 이관. **스캐폴드 packages/
-      (eslint-config·typescript-config)는 미사용 확정(자기 참조뿐) — 삭제는 사용자 확인 대기**
+      scope=apps 디렉토리 SoT) + cz-git + typecheck-staged.js 이관. 스캐폴드 packages/
+      (eslint-config·typescript-config)는 미사용 확정(자기 참조뿐) — **해소(2026-07-16 확인:
+      현 브랜치에 packages/ 부재)**
 - [x] **P3-5. 테스트**: 완료(2026-07-15) — **Vitest 전환**(사용자 결정: 원본 테스트 실질 0건).
       루트 vitest.config.ts(jsdom·네이티브 tsconfigPaths), smoke 4케이스 통과, `pnpm test`
 - [x] **P3-6. prod 배포 산출물 구조**: 완료(2026-07-15) — `pnpm build:deploy`(scripts/build-deploy.js,
@@ -126,10 +127,12 @@
 - [x] **P3-7. basePath(root context) 게이트**: 완료(2026-07-15) — /bt-admin 하위 서빙 + base href
       치환으로 브라우저 실측: host 청크·API·remote entry 10개 전부 /bt-admin 접두 200,
       loadRemote('manager/Routes') 실로드 성공. runtime plugin 원본 c10756ae 규격 동작 확인
-- [ ] **P3-8. 문서**: README 확충, AGENTS.md(신규 repo용 지침 — 원본과 차이점: 명령어·구조·스킬 인덱스 재작성) — 사용자 요청 시
-- [ ] **P3-9. 원본 잠복 버그 수정 제안**: ipron `EndpointList.tsx` "Maximum update depth"
+- [x] **P3-8. 문서**: 완료(2026-07-16) — AGENTS.md 전면 재작성(turbo·rsbuild 기준, 스킬 인덱스 포함),
+      README·DEVELOPER_GUIDE·CUSTOM 가이드 갱신(빌드 명령 재배치 반영)
+- [ ] **P3-9. 원본 잠복 버그 수정 제안**: **보류(2026-07-16, 사용자 결정) — 별도 안건으로 추후 진행.**
+      ipron `EndpointList.tsx` "Maximum update depth"
       (구조분해 기본값 `= []` + effect setState 루프 — 게이트 5차에서 원본 재현 확인).
-      수정은 원본 저장소에서(신규 repo에서 고치면 소스 드리프트) — effect 제거하고 useMemo 파생 권장
+      수정은 master에서(브랜치에서 고치면 소스 드리프트) — effect 제거하고 useMemo 파생 권장
 
 ## 5. 전환 판정 (P4)
 
@@ -180,8 +183,11 @@
 
 - [x] 잔여 실측: 완료(2026-07-15, 게이트 9차) — aoe·ivr·campaign·vel·stt 대표 화면, 로그아웃,
       탭 모델(상태 보존), picker variant 카드 전부 통과. **P4-1 체크리스트 전 항목 ✅**
-- [ ] 팀 합의: 신규 repo를 본선으로 승격할지, 원본 repo에 역이식할지 결정
-- [ ] 승격 시 미이관 자산 처리 (아래 목록)
+- [x] 이식 방식 확정·수행: 원본 저장소 `feature/turborepo-rsbuild` 브랜치로 역이식 완료 —
+      P4-4 자산(doc/·.claude/skills/·Jenkinsfile+infra/·components.json 등)과 git 이력이
+      원본 저장소 안에서 그대로 유지됨(fresh start 불필요해짐)
+- [x] 팀 합의·공지: 완료(2026-07-16) — 전환 승인. **마이그레이션 전 단계 종결**
+      (잔여는 P3-9 원본 잠복 버그 수정 1건 — 보류, 별도 안건)
 
 ### P4-4. 승격 시 미이관 자산 목록 (원본 → 신규)
 

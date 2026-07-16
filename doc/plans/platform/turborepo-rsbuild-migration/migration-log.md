@@ -464,3 +464,18 @@ turborepo 방식 유지, 명령 이름만 재배치.
 - `build:deploy` 이름 제거. Jenkinsfile·Dockerfile은 스크립트 직접 호출이라 무변.
 - 문서 갱신: AGENTS·README·DEVELOPER_GUIDE·CUSTOM 가이드. 검증: `pnpm build host manager`
   (FULL TURBO + dist/deploy 조립), `pnpm build:raw`(12/12 캐시) 각각 정상.
+
+### 2026-07-16 — 마이그레이션 종결: 팀 합의·공지 완료, 계획서 상태 정리
+
+코드 작업 없음 — 계획서(migration-plan.md) 상태를 실상에 맞게 갱신.
+
+- **P4-3 팀 합의·공지 완료** — 전환 승인. 마이그레이션 전 단계 종결.
+- **이식 방식 확정 기록**: 신규 repo 승격 대신 원본 저장소 `feature/turborepo-rsbuild`
+  브랜치로 역이식 완료(master보다 13커밋 앞, 최근 master 병합 반영). P4-4 자산
+  (doc/·.claude/skills/·Jenkinsfile+infra/·components.json 등)·git 이력이 원본 안에서
+  유지되어 fresh start 불필요해짐.
+- **P3-8 문서**: 완료 체크 — AGENTS.md 전면 재작성(turbo·rsbuild 기준)·README·
+  DEVELOPER_GUIDE·CUSTOM 가이드 갱신은 이미 반영돼 있었음(체크박스만 낡음).
+- **P3-9 원본 잠복 버그(ipron EndpointList "Maximum update depth")**: **보류 처리
+  (사용자 결정)** — 별도 안건으로 추후 진행.
+- **P3-4 스캐폴드 packages/**: 해소 확인 — 현 브랜치에 폴더 부재.
