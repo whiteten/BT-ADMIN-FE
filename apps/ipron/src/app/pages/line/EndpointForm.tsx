@@ -1,13 +1,15 @@
 /**
- * 국선 등록/수정 -- 단일 스크롤 폼(Collapse) + 우측 입력 정보 요약
+ * 국선 등록/수정 -- 단일 스크롤 폼(커스텀 아코디언 카드) + 우측 입력 정보 요약
  * AS-IS IPR20S1010.jsp 필드/검증 규칙을 그대로 유지하되, 3단계 위저드를 없애고
- * 필수 섹션(기본정보 / DNIS 편집)은 펼침, 선택 섹션(장비 등록 / 네트워크·위치 /
- * 모니터링·부가 / 중개 NAT)은 기본 접힘으로 배치.
+ * 필수값만 앞 섹션(기본정보 / DNIS 편집)에 펼쳐 두고, 선택 섹션(장비 등록 /
+ * 네트워크·위치 / 모니터링·부가 / 중개 NAT)은 기본 접힘으로 배치.
+ * 접이식 UI는 antd Collapse 대신 브랜드 톤 커스텀 카드(FormSection)로 구현.
  */
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Col, Collapse, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
+import { Button, Col, Form, Input, InputNumber, Row, Select, Switch } from 'antd';
+import { Activity, ChevronDown, ClipboardList, Hash, Network, Server, Waypoints } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -72,7 +74,7 @@ const ENAT_OPTION_OPTIONS = [
   { label: 'Dynamic NAT', value: 2 },
 ] as const;
 
-// ─── 섹션(Collapse) 키 + 필드 소속 매핑 ──────────────────────────────────────
+// ─── 섹션 키 + 필드 소속 매핑 ────────────────────────────────────────────────
 // 검증 실패 시 해당 필드가 속한 섹션을 자동으로 펼치기 위한 역방향 맵의 원본.
 const SECTION_KEYS = {
   BASIC: 'basic',
@@ -83,12 +85,14 @@ const SECTION_KEYS = {
   NAT: 'nat',
 } as const;
 
+// 필수값만 앞 섹션(basic/dnis)에 두고, 선택 필드는 접힌 섹션으로 이동.
+// (sswVendor → device, addDigit → monitor)
 const SECTION_FIELDS: Record<string, string[]> = {
-  [SECTION_KEYS.BASIC]: ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn', 'sswVendor'],
-  [SECTION_KEYS.DNIS]: ['delCount', 'addDigit', 'editOpt', 'ieWorktimeId', 'worktimeOpt', 'guideMentId'],
-  [SECTION_KEYS.DEVICE]: ['regUseYn', 'regNum', 'regId', 'regPwd', 'regInterval'],
+  [SECTION_KEYS.BASIC]: ['endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'nodeId', 'srtpYn'],
+  [SECTION_KEYS.DNIS]: ['delCount', 'editOpt', 'ieWorktimeId', 'worktimeOpt', 'guideMentId'],
+  [SECTION_KEYS.DEVICE]: ['sswVendor', 'regUseYn', 'regNum', 'regId', 'regPwd', 'regInterval'],
   [SECTION_KEYS.NETWORK]: ['drnodeId', 'transportType', 'sipProfileId', 'locationNodeId', 'routingNodeId', 'snmpOid', 'allocMethod', 'regMethod', 'domainName', 'wanNetworkYn'],
-  [SECTION_KEYS.MONITOR]: ['monitorYn', 'watchInterval', 'failCnt', 'msgTraceYn', 'blockYn', 'userAgentChk', 'userAgentRegex', 'countryCodeUseYn', 'countryId'],
+  [SECTION_KEYS.MONITOR]: ['monitorYn', 'watchInterval', 'failCnt', 'msgTraceYn', 'blockYn', 'userAgentChk', 'userAgentRegex', 'addDigit', 'countryCodeUseYn', 'countryId'],
   [SECTION_KEYS.NAT]: ['natOption', 'msGroupId', 'drnatOption', 'msDrgroupId', 'enatOption', 'natIpAddress'],
 };
 
@@ -99,6 +103,14 @@ const FIELD_SECTION: Record<string, string> = Object.entries(SECTION_FIELDS).red
   });
   return acc;
 }, {});
+
+// 선택 섹션 헤더의 "N개 설정됨" 힌트 계산용 시그널 필드 (기본값/off 는 미설정 취급)
+const OPTIONAL_SIGNAL_FIELDS: Record<string, string[]> = {
+  [SECTION_KEYS.DEVICE]: ['sswVendor', 'regUseYn'],
+  [SECTION_KEYS.NETWORK]: ['drnodeId', 'transportType', 'sipProfileId', 'locationNodeId', 'routingNodeId', 'domainName', 'wanNetworkYn', 'allocMethod', 'regMethod'],
+  [SECTION_KEYS.MONITOR]: ['msgTraceYn', 'blockYn', 'userAgentChk', 'addDigit', 'countryCodeUseYn'],
+  [SECTION_KEYS.NAT]: ['natOption', 'drnatOption', 'enatOption', 'natIpAddress'],
+};
 
 // 진입 시 펼쳐두는 필수 섹션
 const DEFAULT_ACTIVE_KEYS = [SECTION_KEYS.BASIC, SECTION_KEYS.DNIS];
@@ -328,14 +340,18 @@ export default function EndpointForm() {
   // 값 존재 여부 (0/false 는 채워진 값으로 취급)
   const isFilled = (v: unknown) => v !== null && v !== undefined && v !== '';
 
-  // ─── 섹션 자동 펼침 헬퍼 ──────────────────────────────────────────────────
+  // ─── 섹션 펼침/접힘 헬퍼 ──────────────────────────────────────────────────
   const expandSections = (keys: string[]) => {
     setActiveKeys((prev) => Array.from(new Set([...prev, ...keys])));
   };
 
-  const handleCollapseChange = (keys: string | string[]) => {
-    setActiveKeys(Array.isArray(keys) ? keys : [keys]);
+  const toggleSection = (key: string) => {
+    setActiveKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   };
+
+  // 선택 섹션 헤더 힌트: 설정된(기본값 아님) 시그널 필드 개수
+  const isConfigured = (v: unknown) => v !== null && v !== undefined && v !== '' && v !== 0 && v !== '0';
+  const configuredCount = (key: string) => (OPTIONAL_SIGNAL_FIELDS[key] ?? []).filter((f) => isConfigured(currentValues[f])).length;
 
   // ─── Submit ───────────────────────────────────────────────────────────────
   // onFinish: antd 필수/패턴 검증 통과 후 비즈니스 교차 검증 + payload 생성
@@ -465,7 +481,7 @@ export default function EndpointForm() {
   };
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  섹션 렌더 함수 (각 Collapse 패널 children)
+  //  섹션 렌더 함수 (각 FormSection 카드 children)
   // ══════════════════════════════════════════════════════════════════════════
 
   // 기본정보 (필수)
@@ -515,12 +531,6 @@ export default function EndpointForm() {
               <Select options={[...SRTP_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={6}>
-            {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
-            <Form.Item name="sswVendor" label="SSW 벤더">
-              <Select options={[...SSW_VENDOR_OPTIONS]} disabled={sswVendorDisabled} />
-            </Form.Item>
-          </Col>
         </Row>
       </>
     );
@@ -534,18 +544,6 @@ export default function EndpointForm() {
           <Col span={6}>
             <Form.Item name="delCount" label="DNIS 편집 Digit수" required rules={[{ required: true, message: 'DNIS 편집 Digit수는 필수입니다' }]}>
               <InputNumber min={-1} className="!w-full" />
-            </Form.Item>
-          </Col>
-          <Col span={6}>
-            <Form.Item
-              name="addDigit"
-              label="DNIS 추가 Digit"
-              rules={[
-                { max: 24, message: '24자 이내여야 합니다' },
-                { pattern: /^[0-9]*$/, message: '숫자만 입력 가능합니다' },
-              ]}
-            >
-              <Input placeholder="숫자" maxLength={24} />
             </Form.Item>
           </Col>
           <Col span={6}>
@@ -594,16 +592,25 @@ export default function EndpointForm() {
     );
   }
 
-  // 장비 등록 (regUseYn===1 일 때만 필수)
+  // 장비 등록 (regUseYn===1 일 때만 필수) + SSW 벤더
   function renderDeviceSection() {
     return (
       <>
         <Row gutter={20}>
           <Col span={6}>
+            {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
+            <Form.Item name="sswVendor" label="SSW 벤더">
+              <Select options={[...SSW_VENDOR_OPTIONS]} disabled={sswVendorDisabled} />
+            </Form.Item>
+          </Col>
+          <Col span={6}>
             <Form.Item name="regUseYn" label="장비 등록 사용여부" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
+        </Row>
+
+        <Row gutter={20}>
           <Col span={6}>
             <Form.Item
               name="regNum"
@@ -792,9 +799,21 @@ export default function EndpointForm() {
           </Col>
         </Row>
 
-        <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">국가번호</h4>
+        <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">DNIS 추가 / 국가번호</h4>
 
         <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item
+              name="addDigit"
+              label="DNIS 추가 Digit"
+              rules={[
+                { max: 24, message: '24자 이내여야 합니다' },
+                { pattern: /^[0-9]*$/, message: '숫자만 입력 가능합니다' },
+              ]}
+            >
+              <Input placeholder="숫자" maxLength={24} />
+            </Form.Item>
+          </Col>
           <Col span={6}>
             <Form.Item name="countryCodeUseYn" label="국가번호 사용" {...switchProps}>
               <Switch />
@@ -869,15 +888,15 @@ export default function EndpointForm() {
     );
   }
 
-  // ─── Collapse items ─────────────────────────────────────────────────────────
-  // forceRender: 접힌 섹션의 Form.Item 도 항상 마운트되어야 값 등록/검증이 정상 동작
-  const collapseItems = [
-    { key: SECTION_KEYS.BASIC, label: renderSectionLabel('기본정보', true), children: renderBasicSection(), forceRender: true },
-    { key: SECTION_KEYS.DNIS, label: renderSectionLabel('DNIS 편집', true), children: renderDnisSection(), forceRender: true },
-    { key: SECTION_KEYS.DEVICE, label: renderSectionLabel('장비 등록', false), children: renderDeviceSection(), forceRender: true },
-    { key: SECTION_KEYS.NETWORK, label: renderSectionLabel('네트워크 / 위치', false), children: renderNetworkSection(), forceRender: true },
-    { key: SECTION_KEYS.MONITOR, label: renderSectionLabel('모니터링 / 부가', false), children: renderMonitorSection(), forceRender: true },
-    { key: SECTION_KEYS.NAT, label: renderSectionLabel('중개 NAT', false), children: renderNatSection(), forceRender: true },
+  // ─── 섹션 구성 (필수=펼침 강조, 선택=중립 카드) ─────────────────────────────
+  // content 는 항상 렌더 → 접힌 섹션 Form.Item 도 마운트 유지 → 값 등록/검증 정상 동작
+  const sections = [
+    { key: SECTION_KEYS.BASIC, title: '기본정보', icon: <ClipboardList className="size-4" />, required: true, content: renderBasicSection() },
+    { key: SECTION_KEYS.DNIS, title: 'DNIS 편집', icon: <Hash className="size-4" />, required: true, content: renderDnisSection() },
+    { key: SECTION_KEYS.DEVICE, title: '장비 등록', icon: <Server className="size-4" />, required: false, content: renderDeviceSection() },
+    { key: SECTION_KEYS.NETWORK, title: '네트워크 / 위치', icon: <Network className="size-4" />, required: false, content: renderNetworkSection() },
+    { key: SECTION_KEYS.MONITOR, title: '모니터링 / 부가', icon: <Activity className="size-4" />, required: false, content: renderMonitorSection() },
+    { key: SECTION_KEYS.NAT, title: '중개 NAT', icon: <Waypoints className="size-4" />, required: false, content: renderNatSection() },
   ];
 
   // ─── Footer ─────────────────────────────────────────────────────────────────
@@ -917,7 +936,6 @@ export default function EndpointForm() {
           <SummaryRow label="아웃할당채널" required missing={missing('endptDodchnl')} value={displayValue(values.endptDodchnl)} />
           <SummaryRow label="노드" required missing={missing('nodeId')} value={displayValue(nodeOptions.find((n) => n.value === values.nodeId)?.label)} />
           <SummaryRow label="음성보안" required missing={missing('srtpYn')} value={displayValue(getLabelByValue(SRTP_OPTIONS, values.srtpYn))} />
-          <SummaryRow label="SSW 벤더" value={displayValue(getLabelByValue(SSW_VENDOR_OPTIONS, values.sswVendor))} />
         </div>
 
         <div className="border-t border-gray-100 my-3" />
@@ -926,7 +944,6 @@ export default function EndpointForm() {
         <div className="space-y-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">DNIS 편집</div>
           <SummaryRow label="DNIS 편집 Digit수" required missing={missing('delCount')} value={displayValue(values.delCount)} />
-          <SummaryRow label="DNIS 추가 Digit" value={displayValue(values.addDigit)} />
           <SummaryRow label="편집 옵션" required missing={missing('editOpt')} value={displayValue(getLabelByValue(EDIT_OPT_OPTIONS, values.editOpt))} />
           <SummaryRow label="업무시간 설정" value={displayValue(worktimeOptions.find((w) => w.value === values.ieWorktimeId)?.label ?? values.ieWorktimeId)} />
           {worktimeOn && (
@@ -944,6 +961,7 @@ export default function EndpointForm() {
         {/* 장비 등록 */}
         <div className="space-y-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">장비 등록</div>
+          <SummaryRow label="SSW 벤더" value={displayValue(getLabelByValue(SSW_VENDOR_OPTIONS, values.sswVendor))} />
           <SummaryRow label="장비 등록" value={values.regUseYn === 1 ? '사용' : '미사용'} />
           {values.regUseYn === 1 && (
             <>
@@ -984,6 +1002,7 @@ export default function EndpointForm() {
           <SummaryRow label="블럭 여부" value={values.blockYn === 1 ? '설정' : '해제'} />
           <SummaryRow label="UserAgent 검사" value={values.userAgentChk === 1 ? '사용' : '미사용'} />
           {values.userAgentChk === 1 && <SummaryRow label="  UA 패턴" value={displayValue(values.userAgentRegex)} />}
+          <SummaryRow label="DNIS 추가 Digit" value={displayValue(values.addDigit)} />
           <SummaryRow label="국가번호" value={values.countryCodeUseYn === 1 ? '사용' : '미사용'} />
         </div>
 
@@ -1030,7 +1049,7 @@ export default function EndpointForm() {
             </div>
           ) : (
             <>
-              <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
+              <div className="w-full flex-1 min-h-0 overflow-y-auto bg-gray-50/50 p-7 pb-4">
                 <Form
                   form={form}
                   initialValues={{ ...ENDPOINT_INITIAL_VALUES, ...(defaultNodeId ? { nodeId: defaultNodeId } : {}) }}
@@ -1039,7 +1058,22 @@ export default function EndpointForm() {
                   onFinish={handleFinish}
                   onFinishFailed={handleFinishFailed}
                 >
-                  <Collapse items={collapseItems} activeKey={activeKeys} onChange={handleCollapseChange} className="bg-transparent" />
+                  <div className="flex flex-col gap-3 pb-2">
+                    {sections.map((s) => (
+                      <FormSection
+                        key={s.key}
+                        sectionKey={s.key}
+                        title={s.title}
+                        icon={s.icon}
+                        required={s.required}
+                        open={activeKeys.includes(s.key)}
+                        onToggle={toggleSection}
+                        hint={s.required ? undefined : renderSectionHint(configuredCount(s.key))}
+                      >
+                        {s.content}
+                      </FormSection>
+                    ))}
+                  </div>
                 </Form>
               </div>
               <div className="w-full px-7 py-5">{renderFooter()}</div>
@@ -1057,14 +1091,57 @@ export default function EndpointForm() {
   );
 }
 
-// ─── Section Label ────────────────────────────────────────────────────────────
-// required=true 인 섹션은 제목 옆에 "필수" 뱃지를 노출
-function renderSectionLabel(title: string, required: boolean) {
+// ─── 선택 섹션 헤더 힌트 ("N개 설정됨" / "선택 항목") ────────────────────────
+function renderSectionHint(count: number) {
+  if (count > 0) {
+    return <span className="text-xs font-medium text-[#405189]">{count}개 설정됨</span>;
+  }
+  return <span className="text-xs text-gray-300">선택 항목</span>;
+}
+
+// ─── FormSection — 커스텀 아코디언 카드 ─────────────────────────────────────────
+// 필수 섹션: 옅은 brand 틴트 보더로 강조 / 선택 섹션: 중립 흰 카드.
+// children 은 항상 마운트, grid-rows 트랜지션으로 부드럽게 펼침/접힘 (Form 등록 유지).
+interface FormSectionProps {
+  sectionKey: string;
+  title: string;
+  icon: React.ReactNode;
+  open: boolean;
+  onToggle: (key: string) => void;
+  required?: boolean;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function FormSection({ sectionKey, title, icon, open, onToggle, required = false, hint, children }: FormSectionProps) {
+  const cardClass = required ? 'border-[#405189]/30 bg-[#405189]/[0.02]' : 'border-gray-200 bg-white';
+  const iconChipClass = required ? 'bg-[#405189] text-white' : 'bg-gray-100 text-gray-500 group-hover:text-[#405189]';
+  const gridClass = open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0';
+
   return (
-    <span className="flex items-center gap-2">
-      <span className="font-semibold text-gray-800">{title}</span>
-      {required && <span className="text-[11px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded">필수</span>}
-    </span>
+    <section className={`rounded-xl border ${cardClass} bt-shadow transition-colors`}>
+      <button
+        type="button"
+        onClick={() => onToggle(sectionKey)}
+        aria-expanded={open}
+        className="group flex items-center gap-3 w-full px-4 py-3.5 text-left rounded-xl hover:bg-black/[0.015] transition-colors"
+      >
+        <span className={`flex items-center justify-center size-8 rounded-lg shrink-0 transition-colors ${iconChipClass}`}>{icon}</span>
+        <span className="flex items-center gap-2 min-w-0">
+          <span className="font-semibold text-gray-800 text-[15px] truncate">{title}</span>
+          {required && <span className="size-1.5 rounded-full bg-[#405189] shrink-0" aria-label="필수 섹션" />}
+        </span>
+        <span className="ml-auto flex items-center gap-3 shrink-0">
+          {hint}
+          <ChevronDown className={`size-4 text-gray-400 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+        </span>
+      </button>
+      <div className={`grid transition-all duration-300 ease-in-out ${gridClass}`}>
+        <div className="overflow-hidden min-h-0">
+          <div className="px-4 pb-4 pt-1">{children}</div>
+        </div>
+      </div>
+    </section>
   );
 }
 
