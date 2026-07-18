@@ -1,7 +1,10 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@source "../../../apps";
-@source "../../../libs";
+/* 이 파일 기준 저장소 루트는 4단계 위 — 3단계(libs/apps·libs/libs)는 오기였음.
+   webpack(cwd=루트 자동 스캔)에선 잠복했지만 rsbuild(cwd=앱 폴더)에선 유틸리티 전멸 —
+   poc/nx23-rspack2 브랜치 실측(2026-07-14 2차 함정 ⑸) 이월 교정. */
+@source "../../../../apps";
+@source "../../../../libs";
 
 @custom-variant dark (&:is(.dark *));
 

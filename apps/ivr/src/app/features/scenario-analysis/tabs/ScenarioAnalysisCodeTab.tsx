@@ -51,7 +51,6 @@ export default function ScenarioAnalysisCodeTab({ serviceId, scenarioName }: Pro
 
   const columnDefs: ColDef<ScenarioAnalysisCodeRow>[] = useMemo(
     () => [
-      { headerName: '시나리오 버전', field: 'serviceVer', flex: 1, minWidth: 110 },
       { headerName: '시나리오 코드', field: 'serviceCode', flex: 1, minWidth: 120 },
       { headerName: '시나리오 코드명', field: 'serviceCodeName', flex: 1.5, minWidth: 150 },
       {

@@ -83,20 +83,8 @@ export default function ScenarioAnalysisMenuTab({ serviceId, scenarioName }: Pro
   const columnDefs: ColDef<MenuTreeRow>[] = useMemo(
     () => [
       { headerName: '메뉴ID', field: 'menuId', flex: 1, minWidth: 100 },
-      { headerName: '깊이', field: 'menuDepth', width: 80 },
+      { headerName: '버전', field: 'serviceVer', width: 90 },
       { headerName: '정렬순서', field: 'sortSeq', width: 100 },
-      {
-        headerName: '사용자정의',
-        field: 'custMenu',
-        width: 110,
-        cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => p.data?.custMenu || '-',
-      },
-      {
-        headerName: '메뉴필터',
-        field: 'menuFilter',
-        width: 110,
-        cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => p.data?.menuFilter || '-',
-      },
       {
         headerName: '표시여부',
         colId: 'visibleYn',

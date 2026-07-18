@@ -79,7 +79,7 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 0, gcT
 
 export function App() {
   const useReactQueryDevtools = React.useMemo(() => {
-    return process.env.NX_PUBLIC_REACT_QUERY_DEVTOOLS === 'ON';
+    return process.env.PUBLIC_REACT_QUERY_DEVTOOLS === 'ON';
   }, []);
   const toastOptions = React.useMemo(() => {
     return {

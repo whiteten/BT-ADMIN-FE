@@ -1,6 +1,5 @@
 packages:
-  - apps/*
-  - libs/*
+  - "apps/*"
 
 patchedDependencies:
   ag-grid-enterprise: patches/ag-grid-enterprise.patch
