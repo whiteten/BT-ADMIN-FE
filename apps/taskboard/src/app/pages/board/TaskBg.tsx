@@ -542,7 +542,7 @@ export default function TaskBg() {
       };
       await createBgMutate({ params: { data: JSON.stringify(requestData) }, data: file });
       toast.success('정상적으로 저장되었습니다!');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList._def });
     } catch {
       toast.error('업로드 중 오류가 발생했습니다.');
     } finally {
@@ -567,7 +567,7 @@ export default function TaskBg() {
     try {
       await deleteBgMutate(deleteTargetId);
       toast.success('성공적으로 삭제되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList._def });
     } catch {
       toast.error('삭제 중 오류가 발생했습니다.');
     } finally {
@@ -1247,7 +1247,7 @@ export default function TaskBg() {
                                               };
                                               await createBgMutate({ params: { data: JSON.stringify(requestData) }, data: imageFile });
                                               toast.success('저장되었습니다!');
-                                              await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+                                              await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList._def });
                                             } catch {
                                               toast.error('저장 중 오류가 발생했습니다.');
                                             }

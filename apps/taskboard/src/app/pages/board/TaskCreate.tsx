@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { Lock, Pipette, Search, Unlock } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { createUUID, toast } from '@/shared-util';
 import type { RedisKeyDefinitionsResponse } from '../../features/board/api/ctiRedisApi';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
 import { CardEditorModal } from '../../features/board/cards/CardEditorModal';
@@ -53,7 +53,7 @@ import type {
   WidgetStyle,
   WidgetThresholdRule,
 } from '../../features/board/types/taskboard.types';
-import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
+import { AMPM_CLOCK_FORMAT, DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
 import { collapseIcVariableSegment, maskEntitySegment, matchKeyDefinition } from '../../features/board/utils/redisKeyDefinitions';
 import { type RedisKeyNode, detectRedisKeyPattern, extractIcGroupIdSegment, filterRedisTree, findSiblingKeys, groupRedisKeys } from '../../features/board/utils/redisKeyPattern';
 import {
@@ -3451,7 +3451,7 @@ export default function TaskCreate() {
     }
 
     const newWidget: DroppedWidget = {
-      id: `widget-${Date.now()}`,
+      id: `widget-${createUUID()}`,
       item: info.item,
       x: finalX,
       y: finalY,
@@ -3482,7 +3482,7 @@ export default function TaskCreate() {
     const offsetY = Math.min(99 - (src.h ?? DEFAULT_H), src.y + 3);
     const copy: DroppedWidget = {
       ...src,
-      id: `widget-${Date.now()}`,
+      id: `widget-${createUUID()}`,
       x: offsetX,
       y: offsetY,
     };
@@ -3532,7 +3532,7 @@ export default function TaskCreate() {
       const h = src.h ?? DEFAULT_H;
       const newX = Math.max(0, Math.min(100 - w, targetX + (src.x - minX)));
       const newY = Math.max(0, Math.min(100 - h, targetY + (src.y - minY)));
-      return { ...src, id: `widget-${Date.now()}-${i}`, x: newX, y: newY };
+      return { ...src, id: `widget-${createUUID()}`, x: newX, y: newY };
     });
     setDroppedWidgets((prev) => [...prev, ...pasted]);
     setSelectedWidgetIds(pasted.map((w) => w.id));
@@ -3667,10 +3667,12 @@ export default function TaskCreate() {
   const addCalcOperand = (id: string) => {
     setDroppedWidgets((prev) =>
       prev.map((w) => {
-        if (w.id !== id || !w.calc) return w;
-        const usedVars = new Set(w.calc.operands.map((op) => op.var));
+        if (w.id !== id) return w;
+        // calc가 아직 없으면(초기화 누락 방어) 여기서 만들어 준다 — 버튼 무반응 방지.
+        const calc = w.calc ?? { formula: '', operands: [] };
+        const usedVars = new Set(calc.operands.map((op) => op.var));
         const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
-        return { ...w, calc: { ...w.calc, operands: [...w.calc.operands, { var: nextVar }] } };
+        return { ...w, calc: { ...calc, operands: [...calc.operands, { var: nextVar }] } };
       }),
     );
   };
@@ -5959,6 +5961,25 @@ export default function TaskCreate() {
                   {selectedWidget.item.id === 'etc-custom' && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">시계 포맷</label>
+                      {/* 빠른 프리셋 — 24시간제 / 오전·오후(AM·PM) */}
+                      <div className="flex gap-1 mb-1.5">
+                        {[
+                          { label: '24시간', value: DEFAULT_CUSTOM_CLOCK_FORMAT },
+                          { label: '오전·오후', value: AMPM_CLOCK_FORMAT },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            onClick={() => updateWidgetMeta(selectedWidget.id, { clockFormat: preset.value })}
+                            className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                              (selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT) === preset.value
+                                ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
                       <input
                         type="text"
                         value={selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT}
@@ -5969,7 +5990,9 @@ export default function TaskCreate() {
                       <p className="text-[9px] text-slate-400 mt-1 leading-snug">
                         토큰: <span className="font-mono text-slate-500">yyyy</span> 연도 · <span className="font-mono text-slate-500">mm</span> 월 ·{' '}
                         <span className="font-mono text-slate-500">dd</span> 일 · <span className="font-mono text-slate-500">hh24</span> 시(0~23) ·{' '}
-                        <span className="font-mono text-slate-500">mi</span> 분 · <span className="font-mono text-slate-500">ss</span> 초. 그 외 글자는 그대로 표시됩니다.
+                        <span className="font-mono text-slate-500">hh12</span> 시(1~12) · <span className="font-mono text-slate-500">mi</span> 분 ·{' '}
+                        <span className="font-mono text-slate-500">ss</span> 초 · <span className="font-mono text-slate-500">ampm</span> AM/PM ·{' '}
+                        <span className="font-mono text-slate-500">apk</span> 오전/오후. 그 외 글자는 그대로 표시됩니다.
                       </p>
                       <p className="text-[10px] text-slate-500 mt-1 font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1">
                         {formatCustomClock(new Date(), selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT)}
