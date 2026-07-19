@@ -309,7 +309,7 @@ export default function TaskList() {
     try {
       await deleteLayout(deleteTarget.layoutId);
       toast.success('삭제되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList._def });
     } catch {
       toast.error('삭제 중 오류가 발생했습니다.');
     } finally {

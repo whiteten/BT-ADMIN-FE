@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { createUUID, toast } from '@/shared-util';
 import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
 import TenantBadge from '../../features/board/components/TenantBadge';
 import { taskboardQueryKeys, useCreateTaskboardBg, useDeleteTaskboardBg, useGetTaskboardBg } from '../../features/board/hooks/useTaskboardQueries';
@@ -511,7 +511,7 @@ export default function TaskBg() {
     }
     const name = customLayoutName.trim() || `커스텀 ${customLayouts.length + 1}`;
     const newLayout: LayoutTemplate = {
-      id: `custom-${Date.now()}`,
+      id: `custom-${createUUID()}`,
       name,
       description: `직접 만든 레이아웃 (${cells.length}개 영역)`,
       zones: cells.map(({ nodeId: _n, ...zone }) => zone),
