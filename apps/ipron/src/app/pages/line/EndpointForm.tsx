@@ -89,10 +89,10 @@ const SECTION_KEYS = {
 
 // 필수값은 전부 basic 에. 나머지 선택 필드는 성격별 접힌 섹션에.
 const SECTION_FIELDS: Record<string, string[]> = {
-  [SECTION_KEYS.BASIC]: ['nodeId', 'endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'srtpYn', 'delCount', 'editOpt'],
+  [SECTION_KEYS.BASIC]: ['nodeId', 'endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'srtpYn', 'delCount', 'editOpt', 'sipProfileId'],
   [SECTION_KEYS.EXTRA]: ['sswVendor', 'addDigit', 'ieWorktimeId', 'worktimeOpt', 'guideMentId', 'countryCodeUseYn', 'countryId'],
   [SECTION_KEYS.DEVICE]: ['regUseYn', 'regNum', 'regId', 'regPwd', 'regInterval'],
-  [SECTION_KEYS.NETWORK]: ['drnodeId', 'transportType', 'sipProfileId', 'locationNodeId', 'routingNodeId', 'snmpOid', 'allocMethod', 'regMethod', 'domainName', 'wanNetworkYn'],
+  [SECTION_KEYS.NETWORK]: ['drnodeId', 'transportType', 'locationNodeId', 'routingNodeId', 'snmpOid', 'allocMethod', 'regMethod', 'domainName', 'wanNetworkYn'],
   [SECTION_KEYS.MONITOR]: ['monitorYn', 'watchInterval', 'failCnt', 'msgTraceYn', 'blockYn', 'userAgentChk', 'userAgentRegex'],
   [SECTION_KEYS.NAT]: ['natOption', 'msGroupId', 'drnatOption', 'msDrgroupId', 'enatOption', 'natIpAddress'],
 };
@@ -105,8 +105,8 @@ const FIELD_SECTION: Record<string, string> = Object.entries(SECTION_FIELDS).red
   return acc;
 }, {});
 
-// 진행바/미입력 배지 산정 기준 = 기본정보의 8개 필수 필드 (조건부 필수는 제출 시 검증 + 자동 펼침으로 처리)
-const REQUIRED_BASE_FIELDS = ['nodeId', 'endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'srtpYn', 'delCount', 'editOpt'];
+// 진행바/미입력 배지 산정 기준 = 기본정보의 9개 필수 필드 (조건부 필수는 제출 시 검증 + 자동 펼침으로 처리)
+const REQUIRED_BASE_FIELDS = ['nodeId', 'endptName', 'endptType', 'endptMaxchnl', 'endptDodchnl', 'srtpYn', 'delCount', 'editOpt', 'sipProfileId'];
 
 // 진입 시 펼쳐두는 필수 섹션 (기본정보만)
 const DEFAULT_ACTIVE_KEYS = [SECTION_KEYS.BASIC];
@@ -377,7 +377,6 @@ export default function EndpointForm() {
     if (key === SECTION_KEYS.NETWORK) {
       return [
         `Transport 타입 ${optLabel(TRANSPORT_OPTIONS, v.transportType, 'UDP')}`,
-        `SIP 프로파일 ${optLabel(sipProfileOptions, v.sipProfileId, '선택안함')}`,
         `DR 노드 ${optLabel(drNodeOptions, v.drnodeId, '선택안함')}`,
         `서버 할당방식 ${optLabel(ALLOC_METHOD_OPTIONS, v.allocMethod, '우선순위')}`,
         `등록 방식 ${optLabel(REG_METHOD_OPTIONS, v.regMethod, '우선순위')}`,
@@ -590,6 +589,11 @@ export default function EndpointForm() {
               <Select options={[...EDIT_OPT_OPTIONS]} />
             </Form.Item>
           </Col>
+          <Col span={6}>
+            <Form.Item name="sipProfileId" label="SIP 프로파일" required rules={[{ required: true, message: 'SIP 프로파일은 필수입니다' }]}>
+              <Select options={sipProfileOptions} placeholder="선택" />
+            </Form.Item>
+          </Col>
         </Row>
       </>
     );
@@ -659,14 +663,14 @@ export default function EndpointForm() {
         <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">국가번호</h4>
 
         <Row gutter={20}>
-          <Col span={6}>
+          <Col span={4}>
             <Form.Item name="countryCodeUseYn" label="국가번호 사용" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
           {/* 국가번호: 사용 시에만 노출 → 행 뒤쪽 배치 */}
           {countryCodeUseYn === 1 && (
-            <Col span={6}>
+            <Col span={5}>
               <Form.Item name="countryId" label="국가번호">
                 <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
               </Form.Item>
@@ -681,16 +685,14 @@ export default function EndpointForm() {
   function renderDeviceSection() {
     return (
       <>
+        {/* 스위치·숫자는 좁게, 텍스트는 넓게 — 5필드를 한 행에 담는다. */}
         <Row gutter={20}>
-          <Col span={6}>
+          <Col span={4}>
             <Form.Item name="regUseYn" label="장비 등록 사용여부" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={20}>
-          <Col span={6}>
+          <Col span={5}>
             <Form.Item
               name="regNum"
               label="장비 등록 번호"
@@ -708,7 +710,7 @@ export default function EndpointForm() {
               <Input placeholder="등록번호" maxLength={50} disabled={regUseYn !== 1} />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Form.Item
               name="regId"
               label="장비 등록 아이디"
@@ -726,14 +728,11 @@ export default function EndpointForm() {
               <Input placeholder="등록 아이디" maxLength={20} disabled={regUseYn !== 1} />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Form.Item name="regPwd" label="장비 등록 비밀번호" rules={regUseYn === 1 ? [{ required: true, message: '등록 비밀번호는 필수입니다' }] : []}>
               <Input.Password placeholder="비밀번호" disabled={regUseYn !== 1} />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={20}>
           <Col span={4}>
             <Form.Item name="regInterval" label="장비 등록 주기(초)" rules={regUseYn === 1 ? [{ required: true, message: '등록 주기는 필수입니다' }] : []}>
               <InputNumber min={0} className="!w-full" disabled={regUseYn !== 1} />
@@ -751,35 +750,30 @@ export default function EndpointForm() {
         <Row gutter={20}>
           {/* DR 노드: endptType=4(WebRTC)이면 숨김 → 행 앞쪽에 배치, 숨김 시 열 정렬 유지 위해 뒤 필드가 채움 */}
           {String(endptType) !== '4' && (
-            <Col span={6}>
+            <Col span={5}>
               <Form.Item name="drnodeId" label="DR 노드">
                 <Select options={drNodeOptions} allowClear placeholder="선택" />
               </Form.Item>
             </Col>
           )}
-          <Col span={6}>
+          <Col span={5}>
             <Form.Item name="transportType" label="Transport 타입">
               <Select options={[...TRANSPORT_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={6}>
-            <Form.Item name="sipProfileId" label="SIP 프로파일">
-              <Select options={sipProfileOptions} allowClear placeholder="선택" />
+          <Col span={5}>
+            <Form.Item name="locationNodeId" label="장비위치">
+              <Select options={nodeOptions} allowClear placeholder="선택" />
+            </Form.Item>
+          </Col>
+          <Col span={5}>
+            <Form.Item name="routingNodeId" label="라우팅위치">
+              <Select options={nodeOptions} allowClear placeholder="선택" />
             </Form.Item>
           </Col>
         </Row>
 
         <Row gutter={20}>
-          <Col span={6}>
-            <Form.Item name="locationNodeId" label="장비위치">
-              <Select options={nodeOptions} allowClear placeholder="선택" />
-            </Form.Item>
-          </Col>
-          <Col span={6}>
-            <Form.Item name="routingNodeId" label="라우팅위치">
-              <Select options={nodeOptions} allowClear placeholder="선택" />
-            </Form.Item>
-          </Col>
           <Col span={6}>
             <Form.Item
               name="snmpOid"
@@ -796,15 +790,12 @@ export default function EndpointForm() {
               <Input placeholder="OID" maxLength={50} disabled={!routingNodeId} />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={20}>
-          <Col span={6}>
+          <Col span={5}>
             <Form.Item name="allocMethod" label="서버 할당방식">
               <Select options={[...ALLOC_METHOD_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col span={5}>
             <Form.Item name="regMethod" label="등록 방식">
               <Select options={[...REG_METHOD_OPTIONS]} />
             </Form.Item>
@@ -814,11 +805,9 @@ export default function EndpointForm() {
               <Input placeholder="도메인" maxLength={63} />
             </Form.Item>
           </Col>
-        </Row>
 
-        <Row gutter={20}>
-          <Col span={6}>
-            <Form.Item name="wanNetworkYn" label="WAN IP 사용여부" {...switchProps}>
+          <Col span={5}>
+            <Form.Item name="wanNetworkYn" label="WAN IP 사용여부" tooltip="IE 설치 시 입력된 WAN IP 주소를 사용합니다" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
@@ -831,32 +820,30 @@ export default function EndpointForm() {
   function renderMonitorSection() {
     return (
       <>
+        {/* 스위치 3개 + 숫자 2개 — 좁게 잡아 한 행에 담는다. */}
         <Row gutter={20}>
-          <Col span={6}>
+          <Col span={4}>
             <Form.Item name="monitorYn" label="모니터링 여부" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
             {/* SWAT IPR20S1010.jsp callProcess() line 1191-1195: 감시주기 1초 이상 */}
-            <Form.Item name="watchInterval" label="감시 주기(초)" style={{ maxWidth: 160 }}>
+            <Form.Item name="watchInterval" label="감시 주기(초)">
               <InputNumber min={1} className="!w-full" />
             </Form.Item>
           </Col>
-          <Col span={6}>
-            <Form.Item name="failCnt" label="감시실패 제한수" style={{ maxWidth: 160 }}>
+          <Col span={4}>
+            <Form.Item name="failCnt" label="감시실패 제한수">
               <InputNumber min={0} className="!w-full" />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={20}>
-          <Col span={6}>
+          <Col span={4}>
             <Form.Item name="msgTraceYn" label="호추적 여부" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col span={4}>
             <Form.Item name="blockYn" label="블럭 여부" {...switchProps}>
               <Switch />
             </Form.Item>
@@ -866,7 +853,7 @@ export default function EndpointForm() {
         <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">UserAgent</h4>
 
         <Row gutter={20}>
-          <Col span={6}>
+          <Col span={4}>
             <Form.Item name="userAgentChk" label="UserAgent 검사" {...switchProps}>
               <Switch />
             </Form.Item>
