@@ -537,7 +537,7 @@ export default function EndpointForm() {
     return (
       <>
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
               <Select options={nodeOptions} placeholder="노드 선택" disabled={isEditMode} />
             </Form.Item>
@@ -556,38 +556,36 @@ export default function EndpointForm() {
               <Input placeholder="국선명 입력" maxLength={100} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={5}>
             <Form.Item name="endptType" label="구분" required rules={[{ required: true, message: '구분은 필수입니다' }]}>
               <Select options={[...ENDPOINT_TYPE_OPTIONS]} />
             </Form.Item>
           </Col>
-        </Row>
-
-        <Row gutter={20}>
-          <Col span={8}>
-            <Form.Item name="endptMaxchnl" label="인/아웃 최대채널" required rules={[{ required: true, message: '최대채널은 필수입니다' }]}>
-              <InputNumber min={0} className="!w-full" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item name="endptDodchnl" label="아웃할당채널" required rules={[{ required: true, message: '아웃할당채널은 필수입니다' }]}>
-              <InputNumber min={0} className="!w-full" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
+          <Col span={5}>
             <Form.Item name="srtpYn" label="음성보안" required rules={[{ required: true, message: '음성보안은 필수입니다' }]}>
               <Select options={[...SRTP_OPTIONS]} />
             </Form.Item>
           </Col>
         </Row>
 
+        {/* 숫자 입력은 텍스트/셀렉트와 같은 폭을 쓸 이유가 없어 span 을 좁게(4) 잡는다. */}
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={4}>
+            <Form.Item name="endptMaxchnl" label="인/아웃 최대채널" required rules={[{ required: true, message: '최대채널은 필수입니다' }]}>
+              <InputNumber min={0} className="!w-full" />
+            </Form.Item>
+          </Col>
+          <Col span={4}>
+            <Form.Item name="endptDodchnl" label="아웃할당채널" required rules={[{ required: true, message: '아웃할당채널은 필수입니다' }]}>
+              <InputNumber min={0} className="!w-full" />
+            </Form.Item>
+          </Col>
+          <Col span={4}>
             <Form.Item name="delCount" label="DNIS 편집 Digit수" required rules={[{ required: true, message: 'DNIS 편집 Digit수는 필수입니다' }]}>
               <InputNumber min={-1} className="!w-full" />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="editOpt" label="편집 옵션" required rules={[{ required: true, message: '편집 옵션은 필수입니다' }]}>
               <Select options={[...EDIT_OPT_OPTIONS]} />
             </Form.Item>
@@ -602,13 +600,13 @@ export default function EndpointForm() {
     return (
       <>
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             {/* SWAT IPR20S1010.jsp doUpdate() line 911-916: 인증번호 1건 이상이면 SSW벤더 disabled */}
             <Form.Item name="sswVendor" label="SSW 벤더">
               <Select options={[...SSW_VENDOR_OPTIONS]} disabled={sswVendorDisabled} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item
               name="addDigit"
               label="DNIS 추가 Digit"
@@ -625,7 +623,7 @@ export default function EndpointForm() {
         <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">업무시간</h4>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             {/* SWAT IPR20S1010.jsp line 959: cbCreate('#poIeWorktimeId', 'worktime', 'tenantId=0', {text:'사용안함', value:'0'}) */}
             <Form.Item name="ieWorktimeId" label="업무시간 설정">
               <Select
@@ -641,12 +639,12 @@ export default function EndpointForm() {
               />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="worktimeOpt" label="업무시간 외 제어" rules={ieWorktimeId && ieWorktimeId !== 0 ? [{ required: true, message: '업무시간 외 제어는 필수입니다' }] : []}>
               <Select options={[...WORKTIME_OPT_OPTIONS]} disabled={!ieWorktimeId || ieWorktimeId === 0} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             {/* SWAT IPR20S1010.jsp line 961: cbCreate('#poGuideMentId', 'ment', 'tenantId=0&nodeId='+nodeId, {text:'없음', value:'0'}) */}
             <Form.Item
               name="guideMentId"
@@ -661,14 +659,14 @@ export default function EndpointForm() {
         <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">국가번호</h4>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="countryCodeUseYn" label="국가번호 사용" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
           {/* 국가번호: 사용 시에만 노출 → 행 뒤쪽 배치 */}
           {countryCodeUseYn === 1 && (
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item name="countryId" label="국가번호">
                 <Select options={countryOptions} showSearch optionFilterProp="label" placeholder="미지정" allowClear className="!w-full" />
               </Form.Item>
@@ -684,7 +682,7 @@ export default function EndpointForm() {
     return (
       <>
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="regUseYn" label="장비 등록 사용여부" {...switchProps}>
               <Switch />
             </Form.Item>
@@ -692,7 +690,7 @@ export default function EndpointForm() {
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item
               name="regNum"
               label="장비 등록 번호"
@@ -710,7 +708,7 @@ export default function EndpointForm() {
               <Input placeholder="등록번호" maxLength={50} disabled={regUseYn !== 1} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item
               name="regId"
               label="장비 등록 아이디"
@@ -728,7 +726,7 @@ export default function EndpointForm() {
               <Input placeholder="등록 아이디" maxLength={20} disabled={regUseYn !== 1} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="regPwd" label="장비 등록 비밀번호" rules={regUseYn === 1 ? [{ required: true, message: '등록 비밀번호는 필수입니다' }] : []}>
               <Input.Password placeholder="비밀번호" disabled={regUseYn !== 1} />
             </Form.Item>
@@ -736,7 +734,7 @@ export default function EndpointForm() {
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={4}>
             <Form.Item name="regInterval" label="장비 등록 주기(초)" rules={regUseYn === 1 ? [{ required: true, message: '등록 주기는 필수입니다' }] : []}>
               <InputNumber min={0} className="!w-full" disabled={regUseYn !== 1} />
             </Form.Item>
@@ -753,18 +751,18 @@ export default function EndpointForm() {
         <Row gutter={20}>
           {/* DR 노드: endptType=4(WebRTC)이면 숨김 → 행 앞쪽에 배치, 숨김 시 열 정렬 유지 위해 뒤 필드가 채움 */}
           {String(endptType) !== '4' && (
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item name="drnodeId" label="DR 노드">
                 <Select options={drNodeOptions} allowClear placeholder="선택" />
               </Form.Item>
             </Col>
           )}
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="transportType" label="Transport 타입">
               <Select options={[...TRANSPORT_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="sipProfileId" label="SIP 프로파일">
               <Select options={sipProfileOptions} allowClear placeholder="선택" />
             </Form.Item>
@@ -772,17 +770,17 @@ export default function EndpointForm() {
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="locationNodeId" label="장비위치">
               <Select options={nodeOptions} allowClear placeholder="선택" />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="routingNodeId" label="라우팅위치">
               <Select options={nodeOptions} allowClear placeholder="선택" />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item
               name="snmpOid"
               label="라우팅 OID"
@@ -801,17 +799,17 @@ export default function EndpointForm() {
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="allocMethod" label="서버 할당방식">
               <Select options={[...ALLOC_METHOD_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="regMethod" label="등록 방식">
               <Select options={[...REG_METHOD_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="domainName" label="도메인">
               <Input placeholder="도메인" maxLength={63} />
             </Form.Item>
@@ -819,7 +817,7 @@ export default function EndpointForm() {
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="wanNetworkYn" label="WAN IP 사용여부" {...switchProps}>
               <Switch />
             </Form.Item>
@@ -834,31 +832,31 @@ export default function EndpointForm() {
     return (
       <>
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="monitorYn" label="모니터링 여부" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             {/* SWAT IPR20S1010.jsp callProcess() line 1191-1195: 감시주기 1초 이상 */}
-            <Form.Item name="watchInterval" label="감시 주기(초)">
+            <Form.Item name="watchInterval" label="감시 주기(초)" style={{ maxWidth: 160 }}>
               <InputNumber min={1} className="!w-full" />
             </Form.Item>
           </Col>
-          <Col span={8}>
-            <Form.Item name="failCnt" label="감시실패 제한수">
+          <Col span={6}>
+            <Form.Item name="failCnt" label="감시실패 제한수" style={{ maxWidth: 160 }}>
               <InputNumber min={0} className="!w-full" />
             </Form.Item>
           </Col>
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="msgTraceYn" label="호추적 여부" {...switchProps}>
               <Switch />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="blockYn" label="블럭 여부" {...switchProps}>
               <Switch />
             </Form.Item>
@@ -868,7 +866,7 @@ export default function EndpointForm() {
         <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">UserAgent</h4>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="userAgentChk" label="UserAgent 검사" {...switchProps}>
               <Switch />
             </Form.Item>
@@ -888,12 +886,12 @@ export default function EndpointForm() {
     return (
       <>
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="natOption" label="중개 옵션">
               <Select options={[...NAT_OPTION_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             {/* SWAT IPR20S1010.jsp line 787/1008: cbCreate('#poMsGroupId', 'msGroup', 'nodeId='+nodeId) */}
             <Form.Item name="msGroupId" label="MS그룹" rules={natOption !== 0 && natOption !== undefined ? [{ required: true, message: 'MS그룹은 필수입니다' }] : []}>
               <Select options={msGroupOptions} placeholder="미지정" disabled={!natOption || natOption === 0} allowClear />
@@ -902,12 +900,12 @@ export default function EndpointForm() {
         </Row>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="drnatOption" label="중개 옵션(DR)">
               <Select options={[...NAT_OPTION_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="msDrgroupId" label="MS그룹(DR)" rules={drnatOption !== 0 && drnatOption !== undefined ? [{ required: true, message: 'MS그룹(DR)은 필수입니다' }] : []}>
               {/* AS-IS: SWAT onChangedDrNode() — DR 노드 변경 시 해당 노드의 MS그룹 목록 재조회 */}
               <Select options={drMsGroupOptions} placeholder="미지정" disabled={!drnatOption || drnatOption === 0 || !watchedDrnodeId || watchedDrnodeId === 0} allowClear />
@@ -918,12 +916,12 @@ export default function EndpointForm() {
         <h4 className="text-xs text-gray-400 mt-2 mb-2 pb-1 border-b border-gray-100">NAT 설정</h4>
 
         <Row gutter={20}>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item name="enatOption" label="NAT 동작옵션">
               <Select options={[...ENAT_OPTION_OPTIONS]} />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Form.Item
               name="natIpAddress"
               label="NAT IP 주소"
@@ -1137,7 +1135,9 @@ export default function EndpointForm() {
                   onFinish={handleFinish}
                   onFinishFailed={handleFinishFailed}
                 >
-                  <div className="flex flex-col gap-3 pb-2">
+                  {/* 3열 그리드가 화면 폭을 그대로 나눠 갖는 구조라, 넓은 모니터에서 입력창 하나가
+                      400px 이상으로 벌어진다. 콘텐츠 폭에 상한을 둬 열당 ~320px 로 묶는다. */}
+                  <div className="flex flex-col gap-3 pb-2 w-full max-w-[1040px] mx-auto">
                     {sections.map((s) => (
                       <FormSection
                         key={s.key}
