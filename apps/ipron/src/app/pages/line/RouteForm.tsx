@@ -233,7 +233,7 @@ export default function RouteForm() {
       { title: '호 라우팅' },
       { title: '발신라우트', path: '/ipron/line/route' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? '발신라우트 수정' : '발신라우트 등록',
         path: isEditMode && id ? `/ipron/line/route/${id}` : '/ipron/line/route/create',
       },
     ]);

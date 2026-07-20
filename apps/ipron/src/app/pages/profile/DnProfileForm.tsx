@@ -326,7 +326,7 @@ export default function DnProfileForm() {
       { title: '프로파일', path: '/ipron/profile' },
       { title: '내선 프로파일', path: '/ipron/profile/dn-profile' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? '내선 프로파일 수정' : '내선 프로파일 등록',
         path: isEditMode && id ? `/ipron/profile/dn-profile/${id}/edit` : '/ipron/profile/dn-profile/create',
       },
     ]);

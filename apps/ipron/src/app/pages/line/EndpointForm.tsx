@@ -506,7 +506,7 @@ export default function EndpointForm() {
       { title: '호 라우팅' },
       { title: '국선관리', path: '/ipron/line/endpoint' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? '국선 수정' : '국선 등록',
         path: isEditMode && id ? `/ipron/line/endpoint/${id}` : '/ipron/line/endpoint/create',
       },
     ]);
