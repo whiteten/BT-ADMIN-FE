@@ -934,7 +934,7 @@ function ExternalApiSection() {
     }
     const sampleVal = jsonPath ? extractJsonByPath(sourceJson, jsonPath) : typeof sourceJson === 'string' ? sourceJson : JSON.stringify(sourceJson);
     const newItem: CallDataItem = {
-      id: `ext-api-${Date.now()}`,
+      id: `ext-api-${createUUID()}`,
       category: 'ExternalApi',
       label: label || '외부 API',
       sampleValue: sampleVal,
@@ -1128,7 +1128,7 @@ function WebEmbedSection() {
       return;
     }
     const newItem: CallDataItem = {
-      id: `web-embed-${Date.now()}`,
+      id: `web-embed-${createUUID()}`,
       category: 'WebEmbed',
       label: label || '웹 방송',
       sampleValue: '',
@@ -1231,7 +1231,7 @@ function DbQuerySection() {
 
   const handleAdd = () => {
     const newItem: CallDataItem = {
-      id: `db-query-${Date.now()}`,
+      id: `db-query-${createUUID()}`,
       category: 'DbQuery',
       label: label || 'DB Query',
       sampleValue: previewValue,
@@ -3243,7 +3243,7 @@ export default function TaskCreate() {
               undoStack.current = [...undoStack.current, guideDragStartStateRef.current].slice(-50);
               redoStack.current = [];
             }
-            setGuides((prev) => [...prev, { id: `guide-${Date.now()}`, axis: guideDrag.axis, pct: pos.pct }]);
+            setGuides((prev) => [...prev, { id: `guide-${createUUID()}`, axis: guideDrag.axis, pct: pos.pct }]);
           } else if (guideDrag.type === 'existing' && pos.willDelete && guideDrag.draggedGuides) {
             if (guideDragStartStateRef.current) {
               undoStack.current = [...undoStack.current, guideDragStartStateRef.current].slice(-50);
@@ -3527,7 +3527,7 @@ export default function TaskCreate() {
     const mousePos = lastCanvasMousePosRef.current;
     const targetX = mousePos ? mousePos.x : minX + 3;
     const targetY = mousePos ? mousePos.y : minY + 3;
-    const pasted = parsed.widgets.map((src, i) => {
+    const pasted = parsed.widgets.map((src) => {
       const w = src.w ?? DEFAULT_W;
       const h = src.h ?? DEFAULT_H;
       const newX = Math.max(0, Math.min(100 - w, targetX + (src.x - minX)));
@@ -4036,7 +4036,7 @@ export default function TaskCreate() {
       initialStateRef.current = { widgets: JSON.stringify(droppedWidgets), title: boardTitle };
       unblockNavRef.current?.();
       toast.success('레이아웃이 저장되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList._def });
       navigate('/taskboard/board/task-list');
     } catch {
       toast.error('저장 중 오류가 발생했습니다.');
@@ -6607,13 +6607,13 @@ export default function TaskCreate() {
         </div>
 
         <DragOverlay>
-          {activeDrag && activeDrag.type === 'widget-ref' && (
+          {activeDrag?.type === 'widget-ref' && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-violet-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
               <span className="text-xs">🔗</span>
               <span className="text-xs font-medium text-slate-700">{activeDrag.label}</span>
             </div>
           )}
-          {activeDrag && activeDrag.type === 'source' && (
+          {activeDrag?.type === 'source' && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeDrag.item.color }} />
               <span className="text-xs font-medium text-slate-700">{activeDrag.item.label}</span>

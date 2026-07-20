@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
 import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from './RedisTableWidget';
 import { WebEmbedWidget, isWebEmbedWidget } from './WebEmbedWidget';
+import { WsReconnectBanner } from './WsReconnectBanner';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
 import { useGetDbQueryDefList, useGetDbQueryDefOptionsMulti, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
@@ -513,7 +514,8 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []
     : mergeWsSubscriptions([...widgetRedisSubscriptions, ...redisTableSubscriptions, ...collectDbQueryWsSubscriptions(allWidgets)]);
-  const { dataByHashKey } = useCtiqWebSocket(subscriptions);
+  const { dataByHashKey, status: wsStatus } = useCtiqWebSocket(subscriptions);
+  const hasLiveSubscription = subscriptions.length > 0;
 
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
@@ -571,6 +573,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
       <style dangerouslySetInnerHTML={{ __html: styleContent }} />
+      {hasLiveSubscription && <WsReconnectBanner status={wsStatus} />}
       <div key={currentIndex} className="absolute inset-0" style={{ animation }}>
         <LayoutScreen layout={current} dataByHashKey={dataByHashKey} />
       </div>

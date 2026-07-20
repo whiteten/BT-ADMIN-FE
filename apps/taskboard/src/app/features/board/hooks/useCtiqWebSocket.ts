@@ -15,12 +15,19 @@ export interface CtiWsSubscription {
 /** hashKey → (id → KPI record) */
 export type CtiWsDataByHashKey = Record<string, Record<string, CtiqRecord>>;
 
+/** WS 연결 상태 — 배너 표시용. connecting: 최초 연결 시도, connected: 정상, reconnecting: 끊겨서 재시도 중. */
+export type CtiWsStatus = 'connecting' | 'connected' | 'reconnecting';
+
 export interface CtiWsResult {
   dataByHashKey: CtiWsDataByHashKey;
   isConnected: boolean;
+  /** 배너/상태 표시용 3단계 상태. isConnected는 status==='connected'와 동일(하위호환). */
+  status: CtiWsStatus;
 }
 
-const RECONNECT_DELAY_MS = 3000;
+/** 재연결 간격 — 최초 3초에서 실패할수록 1.5배씩 늘리되 30초 상한. 연결 성공 시 3초로 리셋. */
+const RECONNECT_BASE_MS = 3000;
+const RECONNECT_MAX_MS = 30000;
 
 function subscriptionsKey(subs: CtiWsSubscription[]): string {
   return subs
@@ -53,7 +60,7 @@ function subscriptionsKey(subs: CtiWsSubscription[]): string {
  */
 export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResult {
   const [dataByHashKey, setDataByHashKey] = useState<CtiWsDataByHashKey>({});
-  const [isConnected, setIsConnected] = useState(false);
+  const [status, setStatus] = useState<CtiWsStatus>('connecting');
 
   const subsKey = subscriptionsKey(subscriptions);
   const subsRef = useRef(subscriptions);
@@ -64,16 +71,32 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
 
     // 구독 대상이 바뀌면(디스플레이 전환 등) 이전 화면의 누적값을 들고 있지 않도록 리셋.
     setDataByHashKey({});
+    setStatus('connecting');
 
     let destroyed = false;
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let reconnectDelay = RECONNECT_BASE_MS;
     // 공개(client-credentials) 토큰은 브라우저 WebSocket API 제약상 Authorization 헤더로 실어 보낼 수
     // 없어 /ws/proxy/**(인증 필수) 핸드셰이크가 항상 실패한다(세션 쿠키가 있는 "로그인 상태로 공개
     // URL 접속" 케이스는 예외 — 그 경우 아래에서 실제 연결에 성공하면 정상적으로 무한 재연결로 전환됨).
     // 세션 없는 순수 공개 접근에서 매번 재연결을 시도하면 콘솔에 실패 로그만 계속 쌓이므로,
     // 한 번도 연결에 성공한 적이 없으면 재시도를 포기한다.
     let everConnected = false;
+
+    // 끊김 시 재연결 예약. 이미 예약돼 있으면 중복 예약하지 않는다(onerror + onclose가 함께 와도 1번만).
+    // 간격은 실패할수록 1.5배씩 늘려 30초 상한(서버 장기 다운 시 3초마다 무한 재시도로 인한 부하 완화).
+    const scheduleReconnect = () => {
+      if (destroyed || reconnectTimer) return;
+      // 순수 공개 접근에서 한 번도 연결 못 했으면 재시도 포기(위 주석 참조).
+      if (isPublicMode() && !everConnected) return;
+      setStatus('reconnecting');
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        reconnectDelay = Math.min(reconnectDelay * 1.5, RECONNECT_MAX_MS);
+        connect();
+      }, reconnectDelay);
+    };
 
     const connect = () => {
       if (destroyed) return;
@@ -82,7 +105,8 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
 
       ws.onopen = () => {
         everConnected = true;
-        setIsConnected(true);
+        reconnectDelay = RECONNECT_BASE_MS; // 성공했으니 백오프 리셋
+        setStatus('connected');
         if (subsRef.current.length > 0) {
           ws?.send(JSON.stringify({ action: 'subscribe', subscriptions: subsRef.current }));
         }
@@ -107,13 +131,20 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
       };
 
       ws.onclose = () => {
-        setIsConnected(false);
-        if (!destroyed && (everConnected || !isPublicMode())) {
-          reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
-        }
+        if (!destroyed) scheduleReconnect();
       };
 
-      ws.onerror = () => setIsConnected(false);
+      // onerror만 오고 onclose가 안 오는 브라우저/네트워크 상황 대비 — 소켓을 명시적으로 닫아 onclose를
+      // 유발하고, 그 경로에서 재연결이 예약되게 한다(scheduleReconnect 중복은 위 가드가 막음).
+      ws.onerror = () => {
+        if (destroyed) return;
+        try {
+          ws?.close();
+        } catch {
+          /* 이미 닫히는 중 */
+        }
+        scheduleReconnect();
+      };
     };
 
     connect();
@@ -125,5 +156,5 @@ export function useCtiqWebSocket(subscriptions: CtiWsSubscription[]): CtiWsResul
     };
   }, [subsKey]);
 
-  return { dataByHashKey, isConnected };
+  return { dataByHashKey, isConnected: status === 'connected', status };
 }

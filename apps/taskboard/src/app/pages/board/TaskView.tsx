@@ -5,6 +5,7 @@ import { taskboardApi } from '../../features/board/api/taskboardApi';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
 import { WebEmbedWidget, isWebEmbedWidget } from '../../features/board/components/WebEmbedWidget';
+import { WsReconnectBanner } from '../../features/board/components/WsReconnectBanner';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, useCtiqWebSocket } from '../../features/board/hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../../features/board/hooks/useResponsiveFontScale';
 import {
@@ -394,7 +395,7 @@ function SingleLayoutView({
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []
     : mergeWsSubscriptions([...widgetRedisSubscriptions, ...redisTableSubscriptions, ...collectDbQueryWsSubscriptions(widgets)]);
-  const { dataByHashKey, isConnected: wsConnected } = useCtiqWebSocket(subscriptions);
+  const { dataByHashKey, isConnected: wsConnected, status: wsStatus } = useCtiqWebSocket(subscriptions);
 
   useEffect(() => {
     if (!layout.fileName) return;
@@ -482,6 +483,7 @@ function SingleLayoutView({
 
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
+      {hasLiveSelection && <WsReconnectBanner status={wsStatus} />}
       <div className="absolute inset-0 flex items-center justify-center">
         <div
           className="relative overflow-hidden flex-shrink-0"
