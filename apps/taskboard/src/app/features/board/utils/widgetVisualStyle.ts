@@ -145,7 +145,7 @@ export function getWidgetVisualStyle(style: WidgetStyle, fontScale = 1): React.C
     color: style.color,
     backgroundColor: style.bgColor,
     border,
-    borderRadius: `${style.borderRadius ?? 8}px`,
+    borderRadius: `${style.borderRadius ?? 0}px`,
     opacity: (style.opacity ?? 100) / 100,
     boxShadow: shadowCss,
     overflow: 'hidden',

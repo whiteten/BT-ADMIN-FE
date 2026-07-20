@@ -323,7 +323,8 @@ function RollingValueWidget({
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {isCalc && widget.calc?.showPercent && (
           <span
-            className="font-normal ml-0.5 opacity-70"
+            // 굵기는 지정하지 않고 값 영역에서 상속 — % 표시가 값 폰트를 그대로 따라간다
+            className="ml-0.5 opacity-70"
             style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * (widget.calc?.percentFontScale ?? 0.65) * fontScale))}px` }}
           >
             %
