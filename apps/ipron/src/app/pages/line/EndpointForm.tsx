@@ -1135,9 +1135,7 @@ export default function EndpointForm() {
                   onFinish={handleFinish}
                   onFinishFailed={handleFinishFailed}
                 >
-                  {/* 3열 그리드가 화면 폭을 그대로 나눠 갖는 구조라, 넓은 모니터에서 입력창 하나가
-                      400px 이상으로 벌어진다. 콘텐츠 폭에 상한을 둬 열당 ~320px 로 묶는다. */}
-                  <div className="flex flex-col gap-3 pb-2 w-full max-w-[1040px] mx-auto">
+                  <div className="flex flex-col gap-3 pb-2">
                     {sections.map((s) => (
                       <FormSection
                         key={s.key}
