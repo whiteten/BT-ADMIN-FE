@@ -115,10 +115,19 @@ export const useDeleteTaskboardDisplay = ({ mutationOptions }: MutationHookOptio
 
 // ── 저장된 DB 쿼리 정의 훅 (뷰그룹 체크박스 옵션 소스) ──────────────────────────
 
+/**
+ * 데이터소스 정의·옵션은 운영자가 데이터소스관리에서 저장할 때만 바뀌는 마스터 데이터다.
+ * host QueryClient가 `gcTime: 0` + 기본 `staleTime: 0`이라 이 값들을 그대로 두면
+ * 롤링(슬라이드 전환마다 LayoutScreen 재마운트)에서 매 전환마다 정의·옵션을 전부 다시 조회한다.
+ * 변경은 데이터소스관리 화면의 `refetch()`가 즉시 반영하므로 캐시를 길게 잡아도 최신성이 깨지지 않는다.
+ */
+const DB_QUERY_DEF_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 10 * 60 * 1000 } as const;
+
 export const useGetDbQueryDefList = ({ queryOptions }: QueryHookWithParamsOptions<DbQueryDef[]> = {}) => {
   return useQuery({
     queryKey: taskboardQueryKeys.getDbQueryDefList().queryKey,
     queryFn: () => taskboardApi.listDbQueryDefs(),
+    ...DB_QUERY_DEF_CACHE,
     ...queryOptions,
   });
 };
@@ -168,6 +177,7 @@ export const useGetDbQueryDefOptions = (id: number, { queryOptions }: QueryHookW
     queryKey: taskboardQueryKeys.getDbQueryDefOptions(id).queryKey,
     queryFn: () => taskboardApi.getDbQueryDefOptions(id),
     enabled: !!id,
+    ...DB_QUERY_DEF_CACHE,
     ...queryOptions,
   });
 };
@@ -179,6 +189,7 @@ export const useGetDbQueryDefOptionsMulti = (ids: number[]) => {
       queryKey: taskboardQueryKeys.getDbQueryDefOptions(id).queryKey,
       queryFn: () => taskboardApi.getDbQueryDefOptions(id),
       enabled: !!id,
+      ...DB_QUERY_DEF_CACHE,
     })),
   });
 };

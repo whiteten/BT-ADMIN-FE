@@ -323,7 +323,8 @@ function RollingValueWidget({
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {isCalc && widget.calc?.showPercent && (
           <span
-            className="font-normal ml-0.5 opacity-70"
+            // 굵기는 지정하지 않고 값 영역에서 상속 — % 표시가 값 폰트를 그대로 따라간다
+            className="ml-0.5 opacity-70"
             style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * (widget.calc?.percentFontScale ?? 0.65) * fontScale))}px` }}
           >
             %
@@ -464,6 +465,8 @@ export interface RollingPlayerProps {
 export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', onStop }: RollingPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  // 일시정지 — 자동 전환 타이머만 멈춘다(WS 구독·화면은 그대로). 재생 시 현재 슬라이드부터 인터벌을 새로 시작.
+  const [isPaused, setIsPaused] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -531,7 +534,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   }, [resetHideTimer]);
 
   useEffect(() => {
-    if (layouts.length <= 1) return;
+    if (layouts.length <= 1 || isPaused) return;
     setProgress(0);
     let elapsed = 0;
     const totalMs = intervalSec * 1000;
@@ -544,7 +547,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
       clearInterval(progressInterval);
       clearTimeout(slideTimer);
     };
-  }, [currentIndex, layouts.length, intervalSec]);
+  }, [currentIndex, layouts.length, intervalSec, isPaused]);
 
   const toggleFullscreen = async () => {
     if (!document.fullscreenElement) await containerRef.current?.requestFullscreen();
@@ -594,7 +597,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
             </span>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <span className="text-white/40 text-xs">{intervalSec}초마다 전환</span>
+            <span className="text-white/40 text-xs">{isPaused ? '일시정지됨' : `${intervalSec}초마다 전환`}</span>
             <button
               onClick={toggleFullscreen}
               className="text-white/70 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors"
@@ -616,7 +619,22 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
 
       <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         {layouts.length > 1 && (
-          <div className="flex justify-center gap-2 pb-3 pt-4 bg-gradient-to-t from-black/60 to-transparent">
+          <div className="flex justify-center items-center gap-2 pb-3 pt-4 bg-gradient-to-t from-black/60 to-transparent">
+            <button
+              onClick={() => setIsPaused((prev) => !prev)}
+              className="mr-1 w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-white/15 text-white/80 hover:bg-white/30 hover:text-white transition-colors"
+              title={isPaused ? '자동 전환 재생' : '자동 전환 일시정지'}
+            >
+              {isPaused ? (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                  <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                </svg>
+              )}
+            </button>
             {layouts.map((l, i) => (
               <button
                 key={i}

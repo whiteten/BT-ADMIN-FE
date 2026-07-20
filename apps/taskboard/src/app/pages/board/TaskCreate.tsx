@@ -111,11 +111,11 @@ const DEFAULT_STYLE: WidgetStyle = {
   borderWidth: 0,
   borderColor: '#ffffff',
   borderStyle: 'solid',
-  borderRadius: 8,
+  borderRadius: 0,
   opacity: 100,
   shadow: 'soft',
-  paddingX: 8,
-  paddingY: 8,
+  paddingX: 0,
+  paddingY: 0,
 };
 
 const FONT_FAMILIES: { label: string; value: string }[] = [
@@ -127,7 +127,12 @@ const FONT_FAMILIES: { label: string; value: string }[] = [
   { label: '코드 (고정폭)', value: "'Courier New', 'Consolas', monospace" },
 ];
 
+/** 폰트 크기 프리셋 — number 입력의 datalist 추천값으로만 사용(직접 입력 제한 아님) */
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 80, 88, 96];
+const FONT_SIZE_MIN = 1;
+const FONT_SIZE_MAX = 500;
+/** 값을 비운 채 입력란을 벗어났을 때 되돌릴 기본 폰트 크기 */
+const FONT_SIZE_FALLBACK = 24;
 
 const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight']> }[] = [
   { label: '얇게', value: '300' },
@@ -140,6 +145,118 @@ type GuideItem = { id: string; axis: 'h' | 'v'; pct: number };
 type UndoEntry = { widgets: DroppedWidget[]; guides: GuideItem[] };
 
 type ResizeHandle = 'se' | 'sw' | 'ne' | 'nw';
+
+/**
+ * 자유 모드 위젯 드래그 판정 임계값(px).
+ * 이 거리를 넘기 전에는 포인터 이동을 "클릭"으로 보고 위치 변경·가이드 셀 스냅·undo 적립을 모두 하지 않는다.
+ * 임계값이 없으면 속성 확인용 클릭에도 1px 흔들림만으로 드래그가 성립해 위젯이 가이드 셀 크기로 붙어버린다.
+ */
+const FREE_DRAG_THRESHOLD_PX = 5;
+
+// ─── 폰트 크기 자동 맞춤 계산 ─────────────────────────────────────────────────
+/** 값 영역 line-height(leading-tight)와 타이틀·단위의 em 배율 — 실제 렌더 마크업과 같은 값을 써야 계산이 맞는다 */
+const FIT_LINE_HEIGHT = 1.25;
+const FIT_TITLE_SCALE = 0.65;
+const FIT_SUFFIX_SCALE = 0.65;
+/** 타이틀 아래 여백(mb-0.5) / 값과 접미(단위·%) 사이 간격(gap-1) */
+const FIT_TITLE_GAP_PX = 2;
+const FIT_SUFFIX_GAP_PX = 4;
+/** 계산값을 그대로 쓰면 폰트 힌팅·자간 때문에 아슬아슬하게 잘리므로 살짝 줄여 여유를 둔다 */
+const FIT_SAFETY_RATIO = 0.96;
+
+/** 텍스트 폭 측정용 canvas 컨텍스트 — 자동 맞춤에서만 쓰므로 모듈 단위로 1개 재사용 */
+let fitMeasureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** 주어진 폰트로 텍스트가 차지하는 폭을 em 단위로 반환(1em = font-size 1px 기준) */
+function measureTextEm(text: string, fontFamily: string | undefined, fontWeight: string): number {
+  if (!text) return 0;
+  fitMeasureCtx ??= document.createElement('canvas').getContext('2d');
+  // 측정 불가 환경(canvas 미지원) 폴백 — 숫자·영문 기준 대략치
+  if (!fitMeasureCtx) return text.length * 0.6;
+  const family = !fontFamily || fontFamily === 'inherit' ? 'sans-serif' : fontFamily;
+  fitMeasureCtx.font = `${fontWeight === 'normal' ? '400' : fontWeight} 100px ${family}`;
+  return fitMeasureCtx.measureText(text).width / 100;
+}
+
+/**
+ * 위젯 박스에 값이 꽉 차도록 들어가는 폰트 크기(px)를 계산한다.
+ * 높이 제약(타이틀 줄 포함)과 가로 제약(현재 표시값 + 단위·% 접미) 중 작은 쪽을 택한다.
+ * 계산 결과는 style.fontSize에 실제 숫자로 기록되므로 이후 사용자가 자유롭게 수정할 수 있다.
+ */
+function calcFitFontSize(widget: DroppedWidget, valueText: string, suffixText: string, containerWidth: number, containerHeight: number): number {
+  const border = widget.style.borderWidth ?? 0;
+  const innerW = ((widget.w ?? DEFAULT_W) / 100) * containerWidth - (widget.style.paddingX ?? 0) * 2 - border * 2;
+  const innerH = ((widget.h ?? DEFAULT_H) / 100) * containerHeight - (widget.style.paddingY ?? 0) * 2 - border * 2;
+  if (innerW <= 0 || innerH <= 0) return widget.style.fontSize;
+
+  const showTitle = widget.showTitle !== false;
+  const weight = String(widget.style.fontWeight ?? 'normal');
+
+  // 높이 — 값 줄 + (타이틀 줄 + 타이틀 하단 여백)
+  const heightEmUnits = FIT_LINE_HEIGHT * (1 + (showTitle ? FIT_TITLE_SCALE : 0));
+  const byHeight = (innerH - (showTitle ? FIT_TITLE_GAP_PX : 0)) / heightEmUnits;
+
+  // 가로 — 값 문자열 + 접미(단위·%)는 0.65em. 타이틀은 원래 truncate 대상이라 제약에서 제외.
+  const totalEm = measureTextEm(valueText, widget.style.fontFamily, weight) + measureTextEm(suffixText, widget.style.fontFamily, weight) * FIT_SUFFIX_SCALE;
+  const byWidth = totalEm > 0 ? (innerW - (suffixText ? FIT_SUFFIX_GAP_PX : 0)) / totalEm : Number.POSITIVE_INFINITY;
+
+  const fit = Math.floor(Math.min(byHeight, byWidth) * FIT_SAFETY_RATIO);
+  return Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, fit));
+}
+
+/**
+ * 폰트 크기 직접 입력 — 입력 중에는 빈 값을 그대로 두고(지우기 가능), 값이 유효할 때만 스타일에 반영한다.
+ * 매 입력마다 최소값으로 클램프하면 지워도 '1'이 남아 다시 지울 수 없으므로 확정은 blur 시점으로 미룬다.
+ * blur 시 빈 값·범위 밖이면 기본값(24px)으로 되돌린다.
+ */
+function FontSizeInput({ value, onChange, onAutoFit }: { value: number; onChange: (next: number) => void; onAutoFit: () => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commitDraft = () => {
+    const parsed = Number(draft);
+    if (draft === null || draft.trim() === '' || Number.isNaN(parsed)) onChange(FONT_SIZE_FALLBACK);
+    else onChange(Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, parsed)));
+    setDraft(null);
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex-1 min-w-0 flex items-center gap-1 border border-slate-200 rounded px-2 py-1 bg-white focus-within:border-[#0f5b9e]">
+        <input
+          type="number"
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
+          step={1}
+          list="taskboard-font-size-presets"
+          value={draft ?? String(value)}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setDraft(raw);
+            const parsed = Number(raw);
+            // 입력 도중에는 범위 안의 값만 즉시 반영 — 빈 값·범위 밖은 blur에서 정리한다.
+            if (raw.trim() !== '' && !Number.isNaN(parsed) && parsed >= FONT_SIZE_MIN && parsed <= FONT_SIZE_MAX) onChange(parsed);
+          }}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          className="flex-1 min-w-0 text-xs bg-transparent outline-none"
+        />
+        <span className="text-[10px] text-slate-400 flex-shrink-0">px</span>
+      </div>
+      <button
+        onClick={() => {
+          setDraft(null);
+          onAutoFit();
+        }}
+        className="flex-shrink-0 px-2 py-1 rounded border border-slate-200 bg-white text-[10px] text-slate-500 hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors"
+        title="위젯 크기에 맞는 폰트 크기를 계산해 채운다 (이후 직접 수정 가능)"
+      >
+        자동
+      </button>
+    </div>
+  );
+}
 
 function snapResizeToGuides(
   x: number,
@@ -2115,7 +2232,11 @@ function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget
       >
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {isCalc && widget.calc?.showPercent && (
-          <span className="font-normal opacity-70" style={{ fontSize: `${widget.calc?.percentFontScale ?? 0.65}em` }}>
+          <span
+            // 굵기는 지정하지 않고 값 영역에서 상속 — 크기와 마찬가지로 % 표시가 값 폰트를 그대로 따라간다
+            className="opacity-70"
+            style={{ fontSize: `${widget.calc?.percentFontScale ?? 0.65}em` }}
+          >
             %
           </span>
         )}
@@ -2505,7 +2626,7 @@ function CanvasWidgetFree({
 
       <div
         className={`w-full h-full flex flex-col justify-center ${locked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
-        style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
+        style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (locked) return;
@@ -2639,7 +2760,7 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
 
       <div
         className={`${locked ? '' : 'drag-handle cursor-grab active:cursor-grabbing'} w-full h-full flex flex-col justify-center`}
-        style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
+        style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
       >
         <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} />
       </div>
@@ -3058,6 +3179,10 @@ export default function TaskCreate() {
     startMouseX: number;
     startMouseY: number;
     multiDragPositions: Array<{ id: string; startX: number; startY: number; w: number; h: number }>;
+    /** 임계값을 넘겨 실제 드래그로 확정됐는지 — false면 클릭으로 간주해 스냅·undo를 건너뛴다 */
+    moved: boolean;
+    /** 드래그 확정 시점에 적립할 undo 스냅샷(클릭만 하고 끝나면 버려짐) */
+    undoSnapshot: UndoEntry;
   } | null>(null);
   const freeDragFinalRef = useRef<{ x: number; y: number; mouseX: number; mouseY: number } | null>(null);
   const guidesStateRef = useRef({ guides, showGuides });
@@ -3070,7 +3195,6 @@ export default function TaskCreate() {
     const isInSelection = selectedWidgetIds.includes(widgetId);
     const idsToMove = isInSelection ? selectedWidgetIds : [widgetId];
     if (!isInSelection) setSelectedWidgetIds([widgetId]);
-    pushUndo(droppedWidgets, guides);
     lastDragOccurredRef.current = false;
     const positions = droppedWidgets.filter((w) => idsToMove.includes(w.id)).map((w) => ({ id: w.id, startX: w.x, startY: w.y, w: w.w ?? DEFAULT_W, h: w.h ?? DEFAULT_H }));
     freeDragRef.current = {
@@ -3078,6 +3202,9 @@ export default function TaskCreate() {
       startMouseX: e.clientX,
       startMouseY: e.clientY,
       multiDragPositions: positions,
+      moved: false,
+      // undo 적립은 임계값을 넘겨 실제 드래그가 시작될 때로 미룬다(클릭만으로 undo 스택이 쌓이지 않도록).
+      undoSnapshot: { widgets: droppedWidgets, guides },
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -3178,6 +3305,12 @@ export default function TaskCreate() {
 
       const drag = freeDragRef.current;
       if (drag) {
+        // 임계값 미만 이동은 클릭으로 간주 — 위치 변경·스냅·undo 모두 보류
+        if (!drag.moved) {
+          if (Math.hypot(e.clientX - drag.startMouseX, e.clientY - drag.startMouseY) < FREE_DRAG_THRESHOLD_PX) return;
+          drag.moved = true;
+          pushUndo(drag.undoSnapshot.widgets, drag.undoSnapshot.guides);
+        }
         const dx = ((e.clientX - drag.startMouseX) / rect.width) * 100;
         const dy = ((e.clientY - drag.startMouseY) / rect.height) * 100;
         lastDragOccurredRef.current = true;
@@ -3267,7 +3400,7 @@ export default function TaskCreate() {
       }
       const drag = freeDragRef.current;
       const finalPos = freeDragFinalRef.current;
-      if (drag && finalPos && drag.multiDragPositions.length === 1) {
+      if (drag?.moved && finalPos && drag.multiDragPositions.length === 1) {
         const { guides: gs, showGuides: sg } = guidesStateRef.current;
         const cx = finalPos.mouseX;
         const cy = finalPos.mouseY;
@@ -3352,7 +3485,10 @@ export default function TaskCreate() {
         setDroppedWidgets((prev) =>
           prev.map((w) =>
             w.id === calcWidgetId && w.calc
-              ? { ...w, calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: 'none' } : op)) } }
+              ? {
+                  ...w,
+                  calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: op.aggregation ?? 'sum' } : op)) },
+                }
               : w,
           ),
         );
@@ -3672,7 +3808,8 @@ export default function TaskCreate() {
         const calc = w.calc ?? { formula: '', operands: [] };
         const usedVars = new Set(calc.operands.map((op) => op.var));
         const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
-        return { ...w, calc: { ...calc, operands: [...calc.operands, { var: nextVar }] } };
+        // 집계 기본값은 '합계' — 대부분의 계산식이 해시 그룹 전체 합을 쓰므로 매번 ∑를 누르지 않도록 함
+        return { ...w, calc: { ...calc, operands: [...calc.operands, { var: nextVar, aggregation: 'sum' }] } };
       }),
     );
   };
@@ -6244,17 +6381,24 @@ export default function TaskCreate() {
                     <div className="flex gap-2 mb-2">
                       <div className="flex-1">
                         <label className="text-[10px] text-slate-500 font-semibold block mb-1">폰트 크기</label>
-                        <select
+                        <FontSizeInput
+                          key={selectedWidget.id}
                           value={selectedWidget.style.fontSize}
-                          onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontSize: Number(e.target.value) })}
-                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
-                        >
+                          onChange={(next) => updateWidgetStyle(selectedWidget.id, { fontSize: next })}
+                          onAutoFit={() => {
+                            const rawValue = selectedWidget.item.category === 'Calc' ? getCalcDisplayValue(selectedWidget, droppedWidgets) : selectedWidget.item.sampleValue;
+                            const valueText = String(formatWidgetValue(rawValue, selectedWidget.style.useThousandSep) ?? '');
+                            const suffixText = `${selectedWidget.calc?.showPercent ? '%' : ''}${selectedWidget.item.unit ?? ''}`;
+                            updateWidgetStyle(selectedWidget.id, {
+                              fontSize: calcFitFontSize(selectedWidget, valueText, suffixText, containerWidth, containerHeight),
+                            });
+                          }}
+                        />
+                        <datalist id="taskboard-font-size-presets">
                           {FONT_SIZES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}px
-                            </option>
+                            <option key={s} value={s} />
                           ))}
-                        </select>
+                        </datalist>
                       </div>
                     </div>
 
@@ -6373,13 +6517,13 @@ export default function TaskCreate() {
                     <div className="mb-2">
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">
                         모서리 둥글기
-                        <span className="ml-1 text-slate-400 font-normal">{selectedWidget.style.borderRadius ?? 8}px</span>
+                        <span className="ml-1 text-slate-400 font-normal">{selectedWidget.style.borderRadius ?? 0}px</span>
                       </label>
                       <input
                         type="range"
                         min={0}
                         max={32}
-                        value={selectedWidget.style.borderRadius ?? 8}
+                        value={selectedWidget.style.borderRadius ?? 0}
                         onChange={(e) => updateWidgetStyle(selectedWidget.id, { borderRadius: Number(e.target.value) })}
                         className="w-full accent-[#0f5b9e]"
                       />
@@ -6463,8 +6607,8 @@ export default function TaskCreate() {
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">내부 여백</label>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: '좌우', field: 'paddingX' as const, value: selectedWidget.style.paddingX ?? 8 },
-                          { label: '상하', field: 'paddingY' as const, value: selectedWidget.style.paddingY ?? 8 },
+                          { label: '좌우', field: 'paddingX' as const, value: selectedWidget.style.paddingX ?? 0 },
+                          { label: '상하', field: 'paddingY' as const, value: selectedWidget.style.paddingY ?? 0 },
                         ].map(({ label, field, value }) => (
                           <div key={field} className="flex items-center gap-1 bg-slate-50 rounded border border-slate-200 px-2 py-1">
                             <span className="text-[9px] text-slate-400 flex-shrink-0 w-5">{label}</span>
@@ -6487,11 +6631,11 @@ export default function TaskCreate() {
                       onClick={() =>
                         updateWidgetStyle(selectedWidget.id, {
                           borderWidth: 0,
-                          borderRadius: 8,
+                          borderRadius: 0,
                           opacity: 100,
                           shadow: 'soft',
-                          paddingX: 8,
-                          paddingY: 8,
+                          paddingX: 0,
+                          paddingY: 0,
                         })
                       }
                       className="w-full py-1 text-[9px] text-slate-400 border border-slate-200 rounded hover:bg-slate-50 transition-colors"
