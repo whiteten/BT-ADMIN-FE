@@ -114,8 +114,8 @@ const DEFAULT_STYLE: WidgetStyle = {
   borderRadius: 8,
   opacity: 100,
   shadow: 'soft',
-  paddingX: 8,
-  paddingY: 8,
+  paddingX: 0,
+  paddingY: 0,
 };
 
 const FONT_FAMILIES: { label: string; value: string }[] = [
@@ -127,7 +127,10 @@ const FONT_FAMILIES: { label: string; value: string }[] = [
   { label: '코드 (고정폭)', value: "'Courier New', 'Consolas', monospace" },
 ];
 
+/** 폰트 크기 프리셋 — number 입력의 datalist 추천값으로만 사용(직접 입력 제한 아님) */
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 80, 88, 96];
+const FONT_SIZE_MIN = 1;
+const FONT_SIZE_MAX = 500;
 
 const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight']> }[] = [
   { label: '얇게', value: '300' },
@@ -2505,7 +2508,7 @@ function CanvasWidgetFree({
 
       <div
         className={`w-full h-full flex flex-col justify-center ${locked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
-        style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
+        style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (locked) return;
@@ -2639,7 +2642,7 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
 
       <div
         className={`${locked ? '' : 'drag-handle cursor-grab active:cursor-grabbing'} w-full h-full flex flex-col justify-center`}
-        style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
+        style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
       >
         <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} />
       </div>
@@ -3352,7 +3355,10 @@ export default function TaskCreate() {
         setDroppedWidgets((prev) =>
           prev.map((w) =>
             w.id === calcWidgetId && w.calc
-              ? { ...w, calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: 'none' } : op)) } }
+              ? {
+                  ...w,
+                  calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: op.aggregation ?? 'sum' } : op)) },
+                }
               : w,
           ),
         );
@@ -3672,7 +3678,8 @@ export default function TaskCreate() {
         const calc = w.calc ?? { formula: '', operands: [] };
         const usedVars = new Set(calc.operands.map((op) => op.var));
         const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
-        return { ...w, calc: { ...calc, operands: [...calc.operands, { var: nextVar }] } };
+        // 집계 기본값은 '합계' — 대부분의 계산식이 해시 그룹 전체 합을 쓰므로 매번 ∑를 누르지 않도록 함
+        return { ...w, calc: { ...calc, operands: [...calc.operands, { var: nextVar, aggregation: 'sum' }] } };
       }),
     );
   };
@@ -6244,17 +6251,28 @@ export default function TaskCreate() {
                     <div className="flex gap-2 mb-2">
                       <div className="flex-1">
                         <label className="text-[10px] text-slate-500 font-semibold block mb-1">폰트 크기</label>
-                        <select
-                          value={selectedWidget.style.fontSize}
-                          onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontSize: Number(e.target.value) })}
-                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
-                        >
+                        <div className="flex items-center gap-1 border border-slate-200 rounded px-2 py-1 bg-white focus-within:border-[#0f5b9e]">
+                          <input
+                            type="number"
+                            min={FONT_SIZE_MIN}
+                            max={FONT_SIZE_MAX}
+                            step={1}
+                            list="taskboard-font-size-presets"
+                            value={selectedWidget.style.fontSize}
+                            onChange={(e) => {
+                              const next = Number(e.target.value);
+                              if (Number.isNaN(next)) return;
+                              updateWidgetStyle(selectedWidget.id, { fontSize: Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, next)) });
+                            }}
+                            className="flex-1 min-w-0 text-xs bg-transparent outline-none"
+                          />
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">px</span>
+                        </div>
+                        <datalist id="taskboard-font-size-presets">
                           {FONT_SIZES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}px
-                            </option>
+                            <option key={s} value={s} />
                           ))}
-                        </select>
+                        </datalist>
                       </div>
                     </div>
 
@@ -6463,8 +6481,8 @@ export default function TaskCreate() {
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">내부 여백</label>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: '좌우', field: 'paddingX' as const, value: selectedWidget.style.paddingX ?? 8 },
-                          { label: '상하', field: 'paddingY' as const, value: selectedWidget.style.paddingY ?? 8 },
+                          { label: '좌우', field: 'paddingX' as const, value: selectedWidget.style.paddingX ?? 0 },
+                          { label: '상하', field: 'paddingY' as const, value: selectedWidget.style.paddingY ?? 0 },
                         ].map(({ label, field, value }) => (
                           <div key={field} className="flex items-center gap-1 bg-slate-50 rounded border border-slate-200 px-2 py-1">
                             <span className="text-[9px] text-slate-400 flex-shrink-0 w-5">{label}</span>
@@ -6490,8 +6508,8 @@ export default function TaskCreate() {
                           borderRadius: 8,
                           opacity: 100,
                           shadow: 'soft',
-                          paddingX: 8,
-                          paddingY: 8,
+                          paddingX: 0,
+                          paddingY: 0,
                         })
                       }
                       className="w-full py-1 text-[9px] text-slate-400 border border-slate-200 rounded hover:bg-slate-50 transition-colors"
