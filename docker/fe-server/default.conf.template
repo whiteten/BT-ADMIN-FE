@@ -1,0 +1,102 @@
+# FE 정적 서빙 + BFF 리버스 프록시.
+#
+# 프록시 대상 경로는 apps/host/proxy.config.js(dev 서버 설정)와 동일하게 맞춘다.
+#   /api, /oauth  → BFF
+#   /ws           → BFF (WebSocket upgrade)
+#   /remotes/custom → BFF (현장 커스텀 remote 는 BFF 가 외부 경로에서 서빙. 미배포면 404)
+#
+# FE 와 API 를 같은 오리진으로 묶는 게 핵심이다. 오리진이 갈리면
+#   - BFF 의 bff.security.cors.enabled=false 라 브라우저가 응답을 차단하고
+#   - 세션 쿠키(SameSite) 가 안 붙는다.
+
+# WebSocket upgrade 용 (conf.d 는 http 컨텍스트 안이라 map 사용 가능)
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # 업로드(녹취/파일) 여유
+    client_max_body_size 50m;
+
+    gzip on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/plain text/css text/javascript application/javascript application/json application/xml image/svg+xml;
+
+    # ── API / 인증 ────────────────────────────────────────────────
+    location /api {
+        proxy_pass ${BFF_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # 대용량 조회(콜트래킹 등) 대비
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    location /oauth {
+        proxy_pass ${BFF_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── WebSocket ─────────────────────────────────────────────────
+    location /ws {
+        proxy_pass ${BFF_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade           $http_upgrade;
+        proxy_set_header Connection        $connection_upgrade;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # ── 현장 커스텀 remote (BFF 가 외부 디렉터리에서 서빙) ─────────
+    location /remotes/custom {
+        proxy_pass ${BFF_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # ── 정적 자산 ─────────────────────────────────────────────────
+    # 해시 파일명이라 장기 캐시. 없으면 404 로 끝낸다.
+    # (SPA fallback 을 태우면 없는 .js 요청에 index.html(HTML)이 실려 파싱 에러가 난다)
+    location ~* ^/(static|assets)/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location /remotes/ {
+        try_files $uri =404;
+    }
+
+    # MF 매니페스트·런타임 설정은 캐시 금지 (배포 즉시 반영돼야 함)
+    location ~* ^/(config\.js|mf-manifest\.json|mf-stats\.json)$ {
+        add_header Cache-Control "no-store";
+        try_files $uri =404;
+    }
+
+    # ── SPA fallback ──────────────────────────────────────────────
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-store";
+    }
+}

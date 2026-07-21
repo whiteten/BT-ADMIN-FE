@@ -247,7 +247,7 @@ export default function DidRouteForm() {
       { title: '호 라우팅' },
       { title: 'DID라우트관리', path: '/ipron/line/did-route' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? 'DID라우트 수정' : 'DID라우트 등록',
         path: isEditMode && id ? `/ipron/line/did-route/form/${id}` : '/ipron/line/did-route/form',
       },
     ]);

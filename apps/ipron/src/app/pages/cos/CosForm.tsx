@@ -327,7 +327,7 @@ export default function CosForm() {
       { title: '교환기 번호관리' },
       { title: 'COS 설정', path: '/ipron/cos' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? 'COS 수정' : 'COS 등록',
         path: isEditMode && cosIdParam ? `/ipron/cos/${cosIdParam}/edit` : '/ipron/cos/create',
       },
     ]);

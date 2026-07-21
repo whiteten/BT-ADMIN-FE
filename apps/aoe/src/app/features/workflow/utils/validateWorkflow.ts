@@ -40,30 +40,48 @@ const validateDatabaseSearchNode = (node: FlowNode): WorkflowValidationError | n
   return null;
 };
 
+/** 모델 설정 공통 검증 — LLM 노드와 조건(prompt) 노드가 공유. 모델 필수 + vLLM 최대 토큰 제한 */
+const validateModelSettings = (node: FlowNode, nodeTypeLabel: string): WorkflowValidationError | null => {
+  const data = asRecord(node.data);
+  const label = node.nodeLabel ?? node.nodeId;
+
+  if (!data.modelId || String(data.modelId).trim().length === 0) {
+    return { nodeId: node.nodeId, message: `${nodeTypeLabel}(${label}): 모델을 선택해 주세요.` };
+  }
+
+  const modelTypeName = String(data.modelTypeName ?? '').toLowerCase();
+  const maxTokens = Number(data.maxTokens ?? 0);
+  if (modelTypeName === 'vllm' && maxTokens > VLLM_MAX_TOKENS_LIMIT) {
+    return {
+      nodeId: node.nodeId,
+      message: `${nodeTypeLabel}(${label}): vLLM 모델의 최대 토큰은 ${VLLM_MAX_TOKENS_LIMIT}을 초과할 수 없습니다. (현재: ${maxTokens})`,
+    };
+  }
+
+  return null;
+};
+
+/** 조건 노드 — prompt 모드는 LLM 이 의도 라우팅을 판단하므로 모델 설정 검증 필요. operator 모드는 검사 없음 */
+const validateConditionNode = (node: FlowNode): WorkflowValidationError | null => {
+  const data = asRecord(node.data);
+  const conditionType = (data.condition_type as string | undefined) ?? 'operator';
+  if (conditionType !== 'prompt') return null;
+  return validateModelSettings(node, '조건 노드');
+};
+
 const validateLlmNode = (node: FlowNode, graph: WorkflowGraph): WorkflowValidationError | null => {
   const data = asRecord(node.data);
   const label = node.nodeLabel ?? node.nodeId;
 
-  // 모델 필수
-  if (!data.modelId || String(data.modelId).trim().length === 0) {
-    return { nodeId: node.nodeId, message: `LLM 노드(${label}): 모델을 선택해 주세요.` };
-  }
+  // 모델 필수 + vLLM 최대 토큰 제한
+  const modelError = validateModelSettings(node, 'LLM 노드');
+  if (modelError) return modelError;
 
   // User 프롬프트 필수 (빈 값 차단)
   const tpl = (data.prompt_template as PromptTemplateItem[] | undefined) ?? [];
   const userPrompt = tpl.find((p) => p?.role === 'user')?.text ?? '';
   if (userPrompt.trim().length === 0) {
     return { nodeId: node.nodeId, message: `LLM 노드(${label}): User 프롬프트를 입력해 주세요.` };
-  }
-
-  // vLLM 모델의 최대 토큰 제한
-  const modelTypeName = String(data.modelTypeName ?? '').toLowerCase();
-  const maxTokens = Number(data.maxTokens ?? 0);
-  if (modelTypeName === 'vllm' && maxTokens > VLLM_MAX_TOKENS_LIMIT) {
-    return {
-      nodeId: node.nodeId,
-      message: `LLM 노드(${label}): vLLM 모델의 최대 토큰은 ${VLLM_MAX_TOKENS_LIMIT}을 초과할 수 없습니다. (현재: ${maxTokens})`,
-    };
   }
 
   // User 프롬프트에 이전 노드의 출력 변수 참조가 있어야 함 (sys.* 글로벌은 제외하고 실제 upstream 변수가 있을 때만)
@@ -114,6 +132,7 @@ const validateStartNode = (node: FlowNode): WorkflowValidationError | null => {
 const NODE_VALIDATORS: Record<string, (node: FlowNode, graph: WorkflowGraph) => WorkflowValidationError | null> = {
   start: validateStartNode,
   llm: validateLlmNode,
+  condition: validateConditionNode,
   a2a_agent: validateA2ANode,
   knowledgeSearch: validateKnowledgeSearchNode,
   databaseSearch: validateDatabaseSearchNode,

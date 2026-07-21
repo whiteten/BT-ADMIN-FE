@@ -6,21 +6,56 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { Ban, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { ENDPOINT_TYPE_LABELS } from '../../features/endpoint/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import RoutePointDialog, { type RoutePointDialogRef } from '../../features/route/components/RoutePointDialog';
 import { routeQueryKeys, useDeleteRoute, useDeleteRoutePointsBatch, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
 import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../../features/route/types';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { title: '발신라우트', path: '/ipron/line/route' }];
+
+/**
+ * 리스트형 상태 컬럼 뱃지.
+ * getRouteStatusInfo 는 차단일 때만 { label: '차단' } 을 주고 정상이면 null 을 반환하므로,
+ * 그리드에서는 null 을 '정상'으로 표기하고 라벨 기준으로 색상을 매핑한다.
+ * (add-grid 스킬 2-2: 정상=emerald / 차단=red)
+ */
+const ROUTE_STATUS_NORMAL_LABEL = '정상';
+const ROUTE_STATUS_BADGE_CLASS: Record<string, string> = {
+  [ROUTE_STATUS_NORMAL_LABEL]: 'text-emerald-600 bg-emerald-50',
+  차단: 'text-red-600 bg-red-50',
+};
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+
+/** 카드 더보기 / 리스트형 액션 컬럼이 공유하는 메뉴 구성. */
+function buildRouteMenuItems(route: Route, onEdit: (route: Route) => void, onDelete: (route: Route) => void) {
+  return [
+    {
+      key: 'edit',
+      label: '수정',
+      onClick: () => onEdit(route),
+    },
+    {
+      key: 'delete',
+      label: '삭제',
+      icon: <Trash2 className="size-4" />,
+      danger: true,
+      onClick: () => onDelete(route),
+    },
+  ];
+}
 
 export default function RouteList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -44,10 +79,14 @@ export default function RouteList() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(initRouteId);
+  // 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 국선(ipron-endpoint)과 별도.
+  const [viewMode, setViewMode] = useViewMode('ipron-route');
   const [searchText, setSearchText] = useState('');
   const [selectedRoutePoints, setSelectedRoutePoints] = useState<RoutePoint[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const routePointDialogRef = useRef<RoutePointDialogRef>(null);
+  // 리스트형 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const routeGridApiRef = useRef<GridApi<Route> | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: routes = [] } = useGetRoutes();
@@ -127,6 +166,12 @@ export default function RouteList() {
     }
   }, [filteredRoutes, selectedRouteId]);
 
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) routeGridApiRef.current?.redrawRows();
+  }, [selectedRouteId, viewMode]);
+
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeChange = (nodeId: number | null) => {
     setSelectedNodeId(nodeId);
@@ -196,20 +241,92 @@ export default function RouteList() {
     invalidateRoutes();
   }, [invalidateRoutePoints, invalidateRoutes]);
 
-  const getCardMenuItems = (route: Route) => [
-    {
-      key: 'edit',
-      label: '수정',
-      onClick: () => handleEdit(route),
-    },
-    {
-      key: 'delete',
-      label: '삭제',
-      icon: <Trash2 className="size-4" />,
-      danger: true,
-      onClick: () => handleDelete(route),
-    },
-  ];
+  const getCardMenuItems = (route: Route) => buildRouteMenuItems(route, handleEdit, handleDelete);
+
+  // ─── ag-Grid: Route columns (리스트형 목록) ──────────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const routeColumnDefs: ColDef<Route>[] = useMemo(
+    () => [
+      {
+        headerName: '라우트명',
+        field: 'routeName',
+        flex: 2,
+        minWidth: 140,
+        tooltipField: 'routeName',
+      },
+      {
+        headerName: '노드',
+        field: 'nodeName',
+        flex: 1,
+        minWidth: 90,
+        valueGetter: (params) => params.data?.nodeName ?? (params.data ? `Node ${params.data.nodeId}` : null),
+      },
+      {
+        headerName: '분배방식',
+        field: 'routeType',
+        flex: 1,
+        minWidth: 100,
+        valueGetter: (params) => (params.data ? (ROUTE_TYPE_LABELS[params.data.routeType] ?? String(params.data.routeType)) : null),
+      },
+      {
+        headerName: 'ANI 유형',
+        field: 'aniType',
+        flex: 1,
+        minWidth: 100,
+        valueGetter: (params) => (params.data ? (ANI_TYPE_LABELS[params.data.aniType] ?? String(params.data.aniType)) : null),
+      },
+      {
+        headerName: 'ANI 번호',
+        field: 'aniNo',
+        flex: 1,
+        minWidth: 100,
+        valueGetter: (params) => params.data?.aniNo ?? '-',
+      },
+      {
+        headerName: '배정 국선',
+        field: 'routePointCount',
+        flex: 1,
+        minWidth: 90,
+        filter: 'agNumberColumnFilter',
+        valueGetter: (params) => params.data?.routePointCount ?? 0,
+      },
+      {
+        headerName: '상태',
+        colId: 'status',
+        flex: 1,
+        minWidth: 90,
+        filterValueGetter: (params) => (params.data ? (getRouteStatusInfo(params.data)?.label ?? ROUTE_STATUS_NORMAL_LABEL) : null),
+        cellRenderer: (params: ICellRendererParams<Route>) => {
+          if (!params.data) return null;
+          const label = getRouteStatusInfo(params.data)?.label ?? ROUTE_STATUS_NORMAL_LABEL;
+          return <Badge className={cn(BADGE_CLASS, ROUTE_STATUS_BADGE_CLASS[label] ?? DEFAULT_BADGE_CLASS)}>{label}</Badge>;
+        },
+      },
+      {
+        headerName: '',
+        colId: 'actions',
+        width: 56,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: ICellRendererParams<Route>) => {
+          if (!params.data) return null;
+          const route = params.data;
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Dropdown menu={{ items: buildRouteMenuItems(route, handleEdit, handleDelete) }} trigger={['click']} placement="bottomRight">
+                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="size-3.5 text-gray-400" />
+                </button>
+              </Dropdown>
+            </div>
+          );
+        },
+      },
+    ],
+    [handleEdit, handleDelete],
+  );
 
   // ─── ag-Grid: RoutePoint columns ────────────────────────────────────────
   const pointColumnDefs: ColDef<RoutePoint>[] = useMemo(
@@ -334,14 +451,44 @@ export default function RouteList() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 ===== */}
+        {/* ===== 발신라우트 목록 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body */}
-          <div className="flex items-center px-4 py-3 h-[185px]">
+          {/* 목록 헤더: 타이틀 + 건수 / 우측 표기방식 토글 */}
+          <div className="flex items-center gap-2 px-4 h-[44px] border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">발신라우트</span>
+            <span className="text-xs text-gray-400">{filteredRoutes.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
+          <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[185px]' : 'h-[240px]'}`}>
             {filteredRoutes.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3">
                 <Empty description={false} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 라우트가 없습니다'}</span>
+              </div>
+            ) : viewMode === VIEW_MODE.LIST ? (
+              // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 상세로 이동한다.
+              <div className="w-full h-full">
+                <AgGridReact<Route>
+                  rowData={filteredRoutes}
+                  columnDefs={routeColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => String(params.data.routeId)}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.routeId === selectedRouteId }}
+                  onGridReady={(e) => {
+                    routeGridApiRef.current = e.api;
+                  }}
+                  onRowClicked={(e) => {
+                    if (e.data) handleCardSelect(e.data);
+                  }}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) navigate(`/ipron/line/route/${e.data.routeId}`);
+                  }}
+                />
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">

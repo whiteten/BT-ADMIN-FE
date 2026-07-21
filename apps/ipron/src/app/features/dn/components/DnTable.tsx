@@ -128,7 +128,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         valueFormatter: (params) => params.value ?? '-',
       },
       {
-        headerName: '글로벌여부',
+        headerName: '글로벌',
         field: 'globalDnYn',
         minWidth: 80,
         maxWidth: 90,

@@ -38,7 +38,11 @@ export type RedisKeyPattern = 'fields' | 'keyed';
  * 같은 카테고리에서 시스템ID 세그먼트만 다른 "형제 키"를 찾는다(예: IC:GROUP:REASON:1번그룹:0 ↔
  * IC:GROUP:REASON:2번그룹:0). hashKey 자신은 결과에서 제외.
  *
- * 판정 기준: 미디어타입을 뗀 나머지 세그먼트 개수가 같고, 정확히 1개 세그먼트만 다른 키.
+ * 판정 기준: 미디어타입을 뗀 나머지 세그먼트 개수가 같고, 정확히 1개 세그먼트만 다르되 그 다른 세그먼트가
+ * **index 2 이상(카테고리 뒤쪽 시스템ID 자리)**이어야 한다. 카테고리(IC:CTIQ / IC:SKILL / IC:GROUP처럼
+ * 두 번째 세그먼트가 업무 종류)만 다른 키는 형제가 아니라 완전히 다른 엔티티이므로 제외한다 —
+ * 이 조건이 없으면 IC:CTIQ:0 이 IC:SKILL:0·IC:GROUP:0 을 형제로 오인해, 큐 테이블에 스킬/그룹 행이
+ * 섞여 들어오는 버그가 있었다(2026-07-16).
  */
 export function findSiblingKeys(hashKey: string, allKeys: string[]): string[] {
   const { baseKey, mediaType } = parseTrailingMediaType(hashKey);
@@ -49,8 +53,8 @@ export function findSiblingKeys(hashKey: string, allKeys: string[]): string[] {
     if ((parsed.mediaType ?? '') !== (mediaType ?? '')) return false;
     const kBaseSegs = parsed.baseKey.split(':');
     if (kBaseSegs.length !== baseSegs.length) return false;
-    const diffCount = kBaseSegs.filter((seg, i) => seg !== baseSegs[i]).length;
-    return diffCount === 1;
+    const diffIndices = kBaseSegs.map((seg, i) => (seg !== baseSegs[i] ? i : -1)).filter((i) => i >= 0);
+    return diffIndices.length === 1 && diffIndices[0] >= 2;
   });
 }
 

@@ -1,5 +1,8 @@
 node_modules
 dist
+# 단, FE 웹서버 이미지(docker/fe-server)는 dist/deploy 를 COPY 해야 한다.
+# .dockerignore 는 마지막에 매칭된 규칙이 이기므로 dist 제외 뒤에 예외를 둔다.
+!dist/deploy
 .git
 .gitignore
 .nx

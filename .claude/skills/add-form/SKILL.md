@@ -117,6 +117,13 @@ Drawer/Modal 푸터에서 제출할 때는 `form.submit()`으로 Form의 `onFini
 </Drawer>
 ```
 
+## 멀티테넌트 등록 폼
+
+테넌트 소유 자원의 등록/수정 폼은 두 가지를 지켜야 한다 (정본: **BT-ADMIN-BE/docs/iam/MULTITENANT_ISOLATION.md**):
+
+1. **테넌트 선택 필드는 `hidden={!operatorMode}`** — 운영자 모드(시스템 관리자)에서만 노출하고, 일반 사용자는 로그인 테넌트로 고정한다. `operatorMode`는 `useOperatorScopeStore`에서 읽는다.
+2. **`TENANT_OWNED` 엔티티의 create api 는 `{ actAsTenantFromBody: true }` 필수** — 없으면 운영자 "전체(view-all)" 모드에서 다른 테넌트를 골라 등록할 때 백엔드가 **403** 을 낸다(폼 tenantId 와 요청 스코프 헤더가 분리되기 때문). 예: `apiClient.post('/ipron-dn-create', data, { actAsTenantFromBody: true })`. update/delete·batch·`SHARED_POOL` 엔티티는 대상 아님.
+
 ## 체크리스트
 
 - [ ] `useState`가 아닌 `Form.useForm`으로 폼 상태를 관리하는가?
@@ -126,4 +133,5 @@ Drawer/Modal 푸터에서 제출할 때는 `form.submit()`으로 Form의 `onFini
 - [ ] `onFinishFailed`에서 첫 에러를 `toast.error`로 안내하는가?
 - [ ] 수정 시 `form.setFieldsValue`로 API 데이터를 세팅하는가?
 - [ ] Drawer라면 열릴 때 세팅 + 닫힐 때 `form.resetFields()`가 있는가?
+- [ ] (테넌트 자원) 테넌트 필드가 `hidden={!operatorMode}`이고, `TENANT_OWNED` create api에 `actAsTenantFromBody: true`가 붙어 있는가? (→ 멀티테넌트 등록 폼)
 - [ ] 파일 수정 후 `npx eslint --fix <file-path>`를 실행했는가?

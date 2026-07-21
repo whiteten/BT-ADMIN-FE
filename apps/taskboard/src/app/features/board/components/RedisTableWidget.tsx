@@ -3,7 +3,8 @@ import { AnimatedTableCell } from './AnimatedTableCell';
 import { ChartWidget, buildChartDataFromRows } from './ChartWidget';
 import { TableColumnResizeContext, handleColumnResizePointerDown } from './TableColumnGapContext';
 import type { RedisKeyDefinitionsResponse } from '../api/ctiRedisApi';
-import type { CtiWsDataByHashKey, CtiWsSubscription } from '../hooks/useCtiqWebSocket';
+import { RedisCardsView } from '../cards/RedisCardsView';
+import type { CtiWsDataByHashKey, CtiWsSubscription, CtiqRecord } from '../hooks/useCtiqWebSocket';
 import { useGetDbQueryDefOptionsMulti, useGetRedisHashKeys, useGetRedisKeyDefinitions } from '../hooks/useTaskboardQueries';
 import type { DroppedWidget, TableColumn } from '../types/taskboard.types';
 import { extractCompositeLeadPart, isCompositeFieldKey, matchKeyDefinition } from '../utils/redisKeyDefinitions';
@@ -119,7 +120,17 @@ export function collectRedisTableWsSubscriptions(
   allHashKeys: string[],
   targetIdsByPrefix: Record<string, string[]> = {},
   allowAllGroupsFallback = true,
+  // 뷰그룹(데이터소스)이 이 해시키에 대해 선택한 행 id(field) 목록. 값이 있으면 전체(*) 대신 그 id들만
+  // 구독한다 — 안 그러면 BE가 해시에 존재하는 모든 field를 매 주기 조회해 전광판에 전체 리스트가 뜬다.
+  // 선택값이 없는 해시키는 기존처럼 '*'(전체)로 폴백(단일값 위젯 collectRedisWsSubscriptions와 동일 규칙).
+  selectionIdsByHashKey: Record<string, string[]> = {},
 ): CtiWsSubscription[] {
+  // 이 해시키에 뷰그룹 선택 id가 있으면 그 id들만, 없으면 전체(*) — join B/단일값 groupBy처럼 "선택 없어도
+  // 전체가 필요한" 자리에서 쓰는 느슨한 규칙.
+  const idsFor = (key: string): string[] => {
+    const selected = selectionIdsByHashKey[key];
+    return selected && selected.length > 0 ? selected : ['*'];
+  };
   const tableSubs = widgets.filter(isRedisTableWidget).flatMap((widget) => {
     const hashKey = widget.item.redisHashKey ?? '';
     if (!hashKey) return [];
@@ -130,11 +141,25 @@ export function collectRedisTableWsSubscriptions(
     const isPivotMode = !!(widget.item.tableConfig?.pivot?.rowKey && widget.item.tableConfig?.pivot?.colKey);
     const isGroupReasonHash = !!parseGroupReasonHashKey(hashKey);
     const neededColumns = isPivotMode || isGroupReasonHash ? [] : collectNeededColumns(widget.item.tableConfig?.columns ?? [], widget.item.tableConfig?.groupBy);
-    const primarySubs = categoryKeys.map((key) => ({ hashKey: key, ids: ['*'], columns: neededColumns.length > 0 ? neededColumns : undefined }));
-    // table-join 전용: 두 번째 해시키도 와일드카드 전체 구독
+    // table-redis 본 해시키의 행(field) 구독 규칙. 뷰그룹 선택이 있으면 그 id만.
+    // 선택이 없을 때: 편집 미리보기(allowAllGroupsFallback=true)는 데이터 확인용으로 전체(*)를 받지만,
+    // 실행 화면(false)은 "등록된 리스트 갯수만큼"만 보이도록 아예 구독하지 않는다(null → sub 제외) —
+    // 안 그러면 뷰그룹에 등록 안 된 해시(예: IC:SKILL:0)가 서버의 전체 20개+ 리스트로 떠버린다.
+    // REASON 패밀리(IC:GROUP:REASON 등)는 field 필터를 하지 않으므로 예외적으로 항상 전체(*)를 받는다.
+    const idsForPrimary = (key: string): string[] | null => {
+      if (isGroupReasonHash) return ['*'];
+      const selected = selectionIdsByHashKey[key];
+      if (selected && selected.length > 0) return selected;
+      return allowAllGroupsFallback ? ['*'] : null;
+    };
+    const primarySubs = categoryKeys.flatMap((key) => {
+      const ids = idsForPrimary(key);
+      return ids ? [{ hashKey: key, ids, columns: neededColumns.length > 0 ? neededColumns : undefined }] : [];
+    });
+    // table-join 전용: 두 번째 해시키도 뷰그룹 선택 id(있으면)만, 없으면 와일드카드 전체 구독
     const joinHashKeyB = widget.item.id === 'table-join' ? (widget.item.joinHashKeyB ?? '') : '';
     if (!joinHashKeyB) return primarySubs;
-    const bSubs: CtiWsSubscription[] = [{ hashKey: joinHashKeyB, ids: ['*'] }];
+    const bSubs: CtiWsSubscription[] = [{ hashKey: joinHashKeyB, ids: idsFor(joinHashKeyB) }];
     return [...primarySubs, ...bSubs];
   });
   const groupByValueSubs = widgets.filter(isGroupByValueWidget).flatMap((widget) => {
@@ -142,7 +167,7 @@ export function collectRedisTableWsSubscriptions(
     const pattern = widget.item.redisKeyPattern ?? 'fields';
     const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix, allowAllGroupsFallback);
     const { byKey, aggKey } = widget.item.groupBy!;
-    return categoryKeys.map((key) => ({ hashKey: key, ids: ['*'], columns: [byKey, aggKey] }));
+    return categoryKeys.map((key) => ({ hashKey: key, ids: idsFor(key), columns: [byKey, aggKey] }));
   });
   return mergeWsSubscriptions([...tableSubs, ...groupByValueSubs]);
 }
@@ -176,6 +201,7 @@ export function RedisTableWidget({
   editable = false,
   dataByHashKey,
   targetIdsByPrefix = {},
+  selectionIdsByHashKey = {},
 }: {
   widget: DroppedWidget;
   fontScale?: number;
@@ -185,6 +211,10 @@ export function RedisTableWidget({
   /** REASON 패밀리(그룹/스킬 등) 전용 — basePrefix별 디스플레이 선택 엔티티 ID 목록(없으면 에디터 미리보기처럼
    * 컨텍스트 없음). buildReasonFamilyTargetIdsByPrefix로 만든다. */
   targetIdsByPrefix?: Record<string, string[]>;
+  /** 뷰그룹(데이터소스)이 이 해시키에 대해 선택한 행 id(field) 목록 — buildDataSourceKeySelectionIds 결과.
+   * BE가 구독 id를 무시하고 초과분(선택 안 한 큐 등)을 보내더라도, 렌더 단계에서 이 id들만 남겨 방어한다.
+   * 값이 없는 해시키(미선택)나 REASON 패밀리는 필터하지 않음. 편집 미리보기(TaskCreate)는 전달 안 함(=전체). */
+  selectionIdsByHashKey?: Record<string, string[]>;
 }) {
   const setColumnWidth = useContext(TableColumnResizeContext);
   const hashKey = widget.item.redisHashKey ?? '';
@@ -196,6 +226,23 @@ export function RedisTableWidget({
   const groupReason = parseGroupReasonHashKey(hashKey);
   // 실행 화면(editable=false)은 스코프 비면 전체로 새지 않고 0. 편집 미리보기(editable=true)만 전체 표시.
   const categoryKeys = resolveCategoryKeys(hashKey, pattern, allHashKeys, targetIdsByPrefix, editable);
+
+  // BE가 구독 id를 무시하고 초과분(선택 안 한 큐 등을 0값으로)을 보내면 화면에 빈 행이 섞이므로, 렌더 전에
+  // 뷰그룹이 선택한 id만 남긴다. 선택이 없는 해시키(미등록)나 REASON 패밀리는 필터하지 않는다(그대로).
+  const scopeEntries = (key: string, entries: Record<string, CtiqRecord>): Record<string, CtiqRecord> => {
+    const selected = selectionIdsByHashKey[key];
+    if (groupReason || !selected || selected.length === 0) return entries;
+    const out: Record<string, CtiqRecord> = {};
+    for (const id of selected) {
+      if (entries[id] != null) out[id] = entries[id];
+    }
+    return out;
+  };
+  const scopedData: CtiWsDataByHashKey = {};
+  for (const key of Object.keys(dataByHashKey)) {
+    scopedData[key] = scopeEntries(key, dataByHashKey[key]);
+  }
+
   let columns = widget.item.tableConfig?.columns ?? [];
   const groupBy = widget.item.tableConfig?.groupBy;
   const showTitle = widget.showTitle !== false;
@@ -204,9 +251,9 @@ export function RedisTableWidget({
   // 컬럼이 하나도 설정되지 않은 경우 — 첫 번째 WS 데이터 항목에서 JSON 키를 읽어 자동 생성.
   // 사용자가 아직 컬럼을 드래그·추가하지 않았을 때 "행은 많은데 전부 빈값" 현상을 방지한다.
   if (columns.length === 0 && !groupBy) {
-    const firstKey = categoryKeys.find((k) => Object.keys(dataByHashKey[k] ?? {}).length > 0);
+    const firstKey = categoryKeys.find((k) => Object.keys(scopedData[k] ?? {}).length > 0);
     if (firstKey) {
-      const entries = dataByHashKey[firstKey];
+      const entries = scopedData[firstKey];
       const firstEntryVal = Object.values(entries)[0];
       if (firstEntryVal && typeof firstEntryVal === 'object' && !Array.isArray(firstEntryVal)) {
         columns = Object.keys(firstEntryVal as Record<string, unknown>).map((k) => ({ key: k, label: k }));
@@ -242,7 +289,7 @@ export function RedisTableWidget({
 
     // 컬럼 값 = 각 entry JSON 안의 pivotColKey 필드값 (예: REASON_CODE → '0','1',...,'12')
     const uniqueCols = [
-      ...new Set(categoryKeys.flatMap((key) => Object.values(dataByHashKey[key] ?? {}).map((entry) => String((entry as Record<string, unknown>)[pivotColKey] ?? '')))),
+      ...new Set(categoryKeys.flatMap((key) => Object.values(scopedData[key] ?? {}).map((entry) => String((entry as Record<string, unknown>)[pivotColKey] ?? '')))),
     ]
       .filter(Boolean)
       .sort((a, b) => Number(a) - Number(b) || a.localeCompare(b));
@@ -250,7 +297,7 @@ export function RedisTableWidget({
     // 행 = entry[pivotRowKey](예: NODE_ID), 셀 = pivotValueKey 합산
     const pivotMap = new Map<string, Map<string, number>>();
     for (const key of categoryKeys) {
-      const entries = dataByHashKey[key] ?? {};
+      const entries = scopedData[key] ?? {};
       for (const [, entry] of Object.entries(entries)) {
         const rowVal = String((entry as Record<string, unknown>)[pivotRowKey] ?? '');
         const colVal = String((entry as Record<string, unknown>)[pivotColKey] ?? '');
@@ -487,8 +534,8 @@ export function RedisTableWidget({
   if (widget.item.id === 'table-join') {
     const joinHashKeyB = widget.item.joinHashKeyB ?? '';
     const joinKey = widget.item.tableConfig?.joinKey ?? '';
-    const entriesA = dataByHashKey[hashKey] ?? {};
-    const entriesB = joinHashKeyB ? (dataByHashKey[joinHashKeyB] ?? {}) : {};
+    const entriesA = scopedData[hashKey] ?? {};
+    const entriesB = joinHashKeyB ? (scopedData[joinHashKeyB] ?? {}) : {};
     // B를 joinKey 값으로 인덱싱 (O(n))
     const bByJoinKey = new Map<string, Record<string, unknown>>();
     if (joinKey) {
@@ -515,11 +562,23 @@ export function RedisTableWidget({
     // keyed 패턴이면 형제 키(시스템ID별 키)마다 따로 행을 뽑아 합치고, 어느 시스템ID에서 왔는지 태그한다.
     // fields 패턴(기본)은 categoryKeys가 [hashKey] 하나뿐이라 기존과 동일하게 동작.
     rows = categoryKeys.flatMap((key) => {
-      const entries = dataByHashKey[key] ?? {};
+      const entries = scopedData[key] ?? {};
       const keyRows = buildRowsForEntries(entries);
       if (pattern === 'keyed' || groupReason) keyRows.forEach((row) => (row[SYSTEM_ID_COLUMN_KEY] = extractSystemIdSegment(key, hashKey)));
       return keyRows;
     });
+  }
+
+  // 실제 값이 하나도 없는(모든 표시 데이터 컬럼이 빈 문자열/null) 행은 항상 제외한다. 뷰그룹에 리스트 1건만
+  // 등록됐는데도 구독이 전체(*)로 나가 빈 큐 20개를 받아오면, top N(limit) 설정 탓에 빈 값 20행이 그대로
+  // 깔려 보였다 — limit은 "최대 N개"이지 "데이터가 없어도 N행을 빈 값으로 채워라"가 아니다. (0은 유효값이라
+  // 유지 — 0까지 지우는 더 강한 필터는 tableConfig.hideEmptyRows 옵션이 담당.) __id/__systemId/__rowNum 같은
+  // 가상 컬럼은 항상 값이 있으므로 판단에서 제외한다.
+  {
+    const realDataKeys = columns.filter((c) => c.key !== ROW_NUMBER_COLUMN_KEY && c.key !== ROW_ID_COLUMN_KEY && c.key !== SYSTEM_ID_COLUMN_KEY && !c.hidden).map((c) => c.key);
+    if (realDataKeys.length > 0) {
+      rows = rows.filter((row) => realDataKeys.some((k) => row[k] !== '' && row[k] != null));
+    }
   }
 
   const sortKey = widget.item.tableConfig?.sortKey;
@@ -562,6 +621,11 @@ export function RedisTableWidget({
   }
 
   const visibleColumns = columns.filter((c) => !c.hidden);
+
+  // 표시 방식이 카드면 같은 rows(정렬/limit/그룹합계/이름매핑 반영)를 카드 그리드로 렌더한다. (차트가 우선)
+  if (widget.item.displayType !== 'chart' && widget.item.tableConfig?.viewMode === 'cards') {
+    return <RedisCardsView widget={widget} rows={rows} showTitle={showTitle} displayTitle={displayTitle} fontScale={fontScale} />;
+  }
 
   // 표시 방식이 차트면 같은 rows(정렬/limit/그룹합계까지 반영됨)를 {name,value}로 변환해 차트로 렌더
   if (widget.item.displayType === 'chart') {

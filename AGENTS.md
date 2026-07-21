@@ -47,27 +47,28 @@
 | **Node.js** | v22.17.0 |
 | **pnpm**    | 10.29.2  |
 
-> Nx, TypeScript, Webpack 등 나머지 도구는 `package.json`에 버전이 명시되어 있으며, `pnpm install` 시 자동 설치됩니다.
+> turbo, TypeScript, Rsbuild 등 나머지 도구는 `package.json`에 버전이 명시되어 있으며, `pnpm install` 시 자동 설치됩니다.
 
 ## 프로젝트 아키텍처
 
-**Nx 모노레포** + **Module Federation** 기반 마이크로 프론트엔드. `apps/host`(셸, 로그인·레이아웃) + remote 앱들(`apps/manager`, `apps/fca`, `apps/ipron`, `apps/aoe`, `apps/insight`, `apps/ivr`, `apps/stt`, `apps/taskboard`) + 공유 라이브러리 `libs/shared-{ui,api,store,util}`. 각 remote는 `module-federation.config.ts`로 모듈을 노출하고 host가 런타임에 통합·라우팅. 상세 구조는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) "2. 프로젝트 구조 이해하기" 참조.
+**turborepo(pnpm workspace) 모노레포** + **Module Federation** 기반 마이크로 프론트엔드. `apps/host`(셸, 로그인·레이아웃) + remote 앱들(`apps/manager`, `apps/fca`, `apps/ipron`, `apps/aoe`, `apps/insight`, `apps/ivr`, `apps/stt`, `apps/taskboard`) + 공유 라이브러리 `libs/shared-{ui,api,store,util}`. 각 remote는 `module-federation.config.ts`(번들러 중립 — name·exposes만)로 모듈을 노출하고, 표준 빌드 설정은 `tools/rsbuild/remote-config.ts` 팩토리가 SoT로 제공하며, host가 런타임에 통합·라우팅. 포트는 `tools/mf/app-ports.ts`가 SoT. 상세 구조는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) "2. 프로젝트 구조 이해하기" 참조.
 
 > ⚠️ **`apps/custom`은 일반 업무 remote가 아닙니다** — 현장 커스터마이징 오버라이드 운반체(host remotes 배열 미등록, 런타임 동적 등록, 라우트·메뉴 없음)입니다. "모든 remote"를 대상으로 하는 작업(remote 점검·정규화, 빌드/serve 목록, 매뉴얼 생성, routes.tsx 일괄 수정 등)에서 **custom은 항상 제외**할 것. 상세는 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) 참조.
 
 ## 개발 명령어
 
-- **빌드·개발 서버**: `pnpm run build` / `pnpm run serve` (대화형 앱 선택 + 의존성 확인 포함). 특정 옵션이 필요한 경우에만 `npx nx <target> <project>` 사용.
-- **새 Remote 생성**: 반드시 `pnpm run create-remote` 사용. Module Federation 설정·라우팅 등록 등 자동화 로직이 포함되어 수동 생성 시 정상 동작 안 함.
-- **현장 커스텀 오버라이드 생성**: `pnpm run create-custom` 사용 (대화형, 인자 전달 시 비대화형). 원본 미러링 복사 + exposes·site-manifest 등록을 자동화하며, `--check`로 키 정합성 검증. 상세 절차는 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) "4. 개발 절차" 참조.
-- **lint·typecheck**: husky + lint-staged가 pre-commit hook에서 스테이징된 `.{js,jsx,ts,tsx}`에 자동으로 `eslint --fix` + `prettier --write` 실행. 별도로 돌릴 때는 `npx nx lint <project>` / `npx nx typecheck <project>`.
+- **빌드·개발 서버**: `pnpm build`(대화형 앱 선택 — turbo 빌드 + 배포 트리 조립: dist/deploy + remotes/) / `pnpm serve`(대화형 앱 선택). 조립 없는 raw 빌드는 `pnpm build:raw`(전체) 또는 `npx turbo run <build|dev> --filter=@bridgetec/ui-remote-<app>`(host는 `@bridgetec/ui-host`).
+- **새 Remote 생성**: 반드시 `pnpm gen remote` 사용(turbo gen). 골격 생성 + 포트 SoT·serve 메뉴·host 로더 3종·remotes.d.ts 등록을 자동화하므로 수동 생성 시 정상 동작 안 함.
+- **현장 커스텀 오버라이드 생성**: `pnpm run create-custom` (대화형·비대화형·`--dry-run`·`--check`). 절차·규칙은 [doc/CUSTOM_DEVELOPMENT_GUIDE.md](doc/CUSTOM_DEVELOPMENT_GUIDE.md) 참조.
+- **lint·typecheck**: husky + lint-staged가 pre-commit hook에서 스테이징된 `.{js,jsx,ts,tsx}`에 자동으로 `eslint --fix` + `prettier --write` + 파일 단위 타입검사 실행. 별도로 돌릴 때는 `pnpm lint`(전량 eslint) / `pnpm check-types`(전 앱) 또는 `npx tsc -p apps/<app>/tsconfig.app.json --noEmit`(앱 단위).
+- **테스트**: `pnpm test` (Vitest, 루트 단일 설정).
 - **shadcn 컴포넌트 추가**: `pnpm run shadcn:add <name>`.
 
 자세한 워크플로우(브랜치, 커밋, 푸시 포함)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md) "14. 개발 워크플로우" 참조.
 
 ### 새 Remote 생성 후 수동 단계 — 뱃지 아이콘
 
-`create-remote`는 사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))의 remote 뱃지 아이콘을 자동 처리하지 않습니다(미등록 시 lucide `SquareDashed` placeholder 표시). 신규 remote 정식 출시 전 다음 절차로 교체:
+`pnpm gen remote`는 사이드바 좌측 60px 컬럼([PanelAppBadgeStrip.tsx](apps/host/src/app/features/layout/panel/PanelAppBadgeStrip.tsx))의 remote 뱃지 아이콘을 자동 처리하지 않습니다(미등록 시 lucide `SquareDashed` placeholder 표시). 신규 remote 정식 출시 전 다음 절차로 교체:
 
 1. 디자인팀에 SVG 의뢰 (기존 `icon-remote-fca.svg`/`icon-remote-ipron.svg` 스펙 가이드로 첨부)
 2. [libs/shared-ui/src/assets/images/icon/](libs/shared-ui/src/assets/images/icon/)에 `icon-remote-<appId>.svg`로 저장 (`<appId>`는 kebab-case)
@@ -78,7 +79,7 @@
 
 ## 기술 스택
 
-React 19 + TypeScript 5.8, Webpack 5 + Module Federation, Nx 21, pnpm. UI는 Tailwind CSS v4 + shadcn/ui + Ant Design v6 + AG-Grid Enterprise + Lucide. 상태는 Zustand, 서버 상태는 TanStack Query, 폼은 React Hook Form + Zod, 라우팅은 React Router DOM 6.29. 날짜는 date-fns/dayjs, 유틸은 lodash, 테스트는 Jest + Testing Library. 정확한 버전은 `package.json` 참조.
+React 19 + TypeScript 5.8, Rsbuild 2(rspack) + Module Federation, turborepo, pnpm. UI는 Tailwind CSS v4 + shadcn/ui + Ant Design v6 + AG-Grid Enterprise + Lucide. 상태는 Zustand, 서버 상태는 TanStack Query, 폼은 React Hook Form + Zod, 라우팅은 React Router DOM 6.29. 날짜는 date-fns/dayjs, 유틸은 lodash, 테스트는 Vitest + Testing Library. React Compiler는 babel 플러그인으로 전 소스에 적용(정합성 필수 — `tools/rsbuild/react-compiler.ts`). 정확한 버전은 `package.json` 참조. 빌드 체계 전환 배경·성능 비교는 [doc/plans/platform/turborepo-rsbuild-migration/](doc/plans/platform/turborepo-rsbuild-migration/INDEX.md) 참조.
 
 ## API 통합 가이드라인
 
@@ -100,6 +101,10 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 - **절차·규칙**: 커밋 메시지 작성 시 반드시 [.claude/skills/commit/SKILL.md](.claude/skills/commit/SKILL.md) 스킬을 먼저 확인하고, 해당 스킬의 카테고리(이모지)·scope 판정 규칙·절차를 따를 것.
 - **본문 필수**: 타이틀은 간결하게 작성하고, 반드시 본문(body)에 변경 사항의 상세 내용을 포함할 것. 타이틀만으로 커밋을 생성하지 말 것.
 - **사람이 직접 커밋**: 이 프로젝트는 **commitizen** + cz-git을 사용합니다. `pnpm commit`(대화형)을 사용하세요.
+
+## RFC(변경 제안서, doc/plans/)
+
+**큰 작업이나 프로젝트에 영향이 큰 변경은, 착수 전에 [doc/plans/](doc/plans/)에 RFC(변경 제안서)를 먼저 작성하고 팀과 공유한 뒤 진행할 것.** 되돌리기 어려운 결정(아키텍처·API 계약·마이그레이션), 모두의 환경에 영향 주는 변경(의존성 메이저 업그레이드·번들러/turborepo/Module Federation 구조·공통 설정), 여러 remote나 `libs/shared-*`에 걸치는 넓은 변경, 여러 세션에 걸치는 긴 작업이 대상. 판정 기준은 "착수 전에 다른 팀원이 알아야 하나?" — 예면 RFC를 쓴다(승인 게이트 아님, 사전 공유가 목적). 단일 화면·버그 수정·소규모 리팩터는 불필요. 트리거 상세·폴더 규칙(platform/feature·이니셔티브 하위폴더·INDEX·파일명)은 [doc/plans/README.md](doc/plans/README.md) 참조.
 
 ## 파일 구조 컨벤션
 
@@ -323,7 +328,12 @@ import { toast } from '@/shared-util';
 toast.success('봇이 저장되었습니다.');
 toast.error('오류가 발생했습니다.');
 toast.warning('학습이 완료된 모델만 배포할 수 있습니다.');
+
+// 옵션: autoClose(ms 또는 false=수동 닫기만), toastId(같은 id가 떠 있는 동안 중복 발행 무시)
+toast.warning('세션이 만료되었습니다.', { autoClose: false, toastId: 'session-expired' });
 ```
+
+토스트는 외부 라이브러리 없이 자체 구현(`useToastStore` + 좌하단 스택 UI — 위아래 넘김·펼치기 지원)이다. 렌더는 앱 루트에 1회 마운트하는 `ToastProvider`(`@/components/custom/ToastProvider`)가 담당하며 host와 campaign standalone 셸에는 이미 마운트돼 있다 — 페이지에서는 `toast` 호출만 하면 된다. 새 standalone 셸을 만들면 루트에 `<ToastProvider />`를 마운트할 것(헤더 있는 셸은 `headerHeight` 전달).
 
 #### 확인 모달 (useModal)
 
@@ -385,7 +395,7 @@ if (isLoading) return <FallbackSpinner />;
 | `buildWsUrl(path)` | WS 접속 URL 조립(프로토콜·호스트·basePath 포함) — `new WebSocket`/`WebSocketClient`용 |
 | `stripBasePath(pathname)` | raw `window.location.pathname`을 라우트 경로와 비교할 때 정규화 |
 
-2. **자동 처리라 손대지 않는 것**: 라우터 내부 이동(`navigate`·`<Link>`·`<Navigate>` — basename 자동), TanStack Query 훅 경유 API(apiClient가 접두), webpack chunk·MF remote entry(host 런타임 플러그인 `mf-basepath-runtime-plugin`이 처리)
+2. **자동 처리라 손대지 않는 것**: 라우터 내부 이동(`navigate`·`<Link>`·`<Navigate>` — basename 자동), TanStack Query 훅 경유 API(apiClient가 접두), 번들 chunk(`publicPath: 'auto'`)·MF remote entry(host 런타임 플러그인 `mf-basepath-runtime-plugin`이 처리)
 3. **수동 접두 필수**: `window.open`, apiClient를 우회하는 직접 `fetch`/`axios`, `new WebSocket`/`WebSocketClient`(→ `buildWsUrl`), `navigator.sendBeacon`, 정적 자산 절대경로. **URL을 `${...}/api/...`처럼 템플릿 리터럴로 조립하는 것도 동일 대상** — 리터럴 검색에 안 걸린다고 예외 아님
 4. **`useLocation()`의 pathname은 basename이 이미 제거돼 있어 그대로 사용.** 라우터 밖에서 `window.location.pathname`을 라우트와 비교하면 반드시 `stripBasePath()` 경유 (예: `RouteShell`·`SharedInfoProvider`)
 5. **신규 앱 index.html에는 `<base href="/" />` 앵커 필수** (charset meta 다음 줄) — 이 앵커가 배포 시 치환 지점이자 standalone 딥링크에서 baseURI 오인 방지 장치
@@ -439,7 +449,7 @@ if (isLoading) return <FallbackSpinner />;
 3. **DynamicElement 래퍼**: 변형 지원 path는 `routes.tsx`에서 `<DynamicElement variants={...} />`로 감싸 element를 런타임 lookup으로 전환
 4. **컴포넌트 prop 호환성 필수**: 같은 variants 그룹의 모든 컴포넌트는 동일 prop·context·query key를 사용. 본질이 다르면 variant가 아니라 별도 path로 분리
 5. **점진적 도입**: 변형 필요 없는 path는 정적 element 그대로 두고 건드리지 않음. variant 요구사항 생긴 page만 합류
-6. **variant 전용 sub 컴포넌트는 폴더 승격으로 격리**: 변형이 단일 파일을 넘어 자기 전용 sub 컴포넌트(탭·드로어 등)를 가지면 `variants/<Variant>/` 폴더로 승격해 진입점을 `index.tsx`로 둠(`*.variants.ts`의 lazy import 경로는 그대로 폴더를 가리킴 — webpack이 index로 해석). 정식 `features/<feature>/...`에 variant 전용 코드를 섞지 않음
+6. **variant 전용 sub 컴포넌트는 폴더 승격으로 격리**: 변형이 단일 파일을 넘어 자기 전용 sub 컴포넌트(탭·드로어 등)를 가지면 `variants/<Variant>/` 폴더로 승격해 진입점을 `index.tsx`로 둠(`*.variants.ts`의 lazy import 경로는 그대로 폴더를 가리킴 — 번들러가 index로 해석). 정식 `features/<feature>/...`에 variant 전용 코드를 섞지 않음
 
 #### 데이터 흐름
 
@@ -486,7 +496,7 @@ if (isLoading) return <FallbackSpinner />;
 
 같은 path를 여러 메뉴가 공유할 때 메뉴 A→B 전환 시 React가 같은 컴포넌트 인스턴스를 재사용해 form state·scroll·진행 중 mutation이 유지됩니다. 페이지에서 outer/inner 분할 + `<Inner key={queryValue} />`로 강제 remount 필요. 분기 키 문자열은 routes의 `handle.queryParams[].key`·페이지의 `searchParams.get(...)`·(있다면) TanStack Query key 세 곳에 박아야 하며 non-data router 환경에서 자동 동기화는 불가하므로 작성자가 일관성을 챙겨야 함(키가 1~2개로 짧으면 하드코딩, 재사용·오타 위험·키 2개 이상이면 `<Page>.consts.ts`로 상수화). 자동화 메커니즘은 검토했으나 효과가 없어 React 표준 `key` 패턴을 정공법으로 채택([DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드 → 주의사항 — 컴포넌트 remount 처리" 참조).
 
-상세 절차(새 selector 추가, create-remote 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.
+상세 절차(새 selector 추가, remote 생성기 자동화 등)는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 섹션 참조.
 
 ### chromeless 화면(새창·standalone) 패턴
 
@@ -497,7 +507,7 @@ if (isLoading) return <FallbackSpinner />;
 1. **routes.tsx leaf를 `Chromeless` 래퍼로 감쌈**: `element: <Chromeless>{pv('<key>', Page)}</Chromeless>`(`@/components/custom/Chromeless`). pv 소켓은 유지(변형·custom 키 보존). 페이지는 host `/<remote>` 아래라 Layout을 거친다. **예외 — 공개 라우트(`handle: { public: true }`) leaf는 래퍼를 두지 않음**: host `PublicRouteGate`가 Chromeless를 강제하므로 중복("라우팅 컨벤션" 핵심 규칙 14 참조).
 2. **host에 전용 prefix 라우트 만들지 말 것**: `/aoe-workflow`·`/vel-player` 같은 별도 host 라우트 추가 금지. 그 방식을 없애려고 이 메커니즘이 있다.
 3. **새창은 Layout 통과 경로로**: `window.open(withBasePath('/<remote>/...'))`. 창 크기·named window 옵션은 그대로 유지. `window.open`은 라우터 밖이라 basename이 자동 적용되지 않으므로 `withBasePath` 필수("root context(basePath) 경로 규칙" 참조).
-4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal`·`toast` 그대로 동작).
+4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal` 그대로 동작. `toast`는 antd와 무관한 자체 구현이라 어디서든 동작).
 5. **페이지 안에서 `useChromeless` 직접 호출 금지**: 반드시 `Chromeless` 래퍼가 담당. 래퍼 없이 lazy 페이지 내부에서 호출하면 로딩 구간 내내 chrome이 보이는 깜빡임이 생긴다.
 
 #### 데이터 흐름

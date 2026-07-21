@@ -201,7 +201,7 @@ export default function MediaDeliveryForm() {
     setBreadcrumb([
       { title: '미디어 관리', path: '/ipron/line/media-delivery' },
       { title: '미디어전달관리', path: '/ipron/line/media-delivery' },
-      { title: isEditMode ? '수정' : '등록', path: '/ipron/line/media-delivery/form' },
+      { title: isEditMode ? '미디어전달 수정' : '미디어전달 등록', path: '/ipron/line/media-delivery/form' },
     ]);
     return () => clearBreadcrumb();
   }, [isEditMode, setBreadcrumb, clearBreadcrumb]);

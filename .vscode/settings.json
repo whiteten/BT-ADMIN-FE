@@ -1,5 +1,5 @@
 {
-  "nxConsole.generateAiAgentRules": true,
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
   "eslint.useFlatConfig": true,
   "prettier.prettierPath": "node_modules/prettier",
   "editor.codeActionsOnSave": {

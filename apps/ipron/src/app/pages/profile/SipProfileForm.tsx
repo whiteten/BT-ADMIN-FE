@@ -139,7 +139,7 @@ export default function SipProfileForm() {
       { title: '프로파일', path: '/ipron/profile' },
       { title: 'SIP 프로파일', path: '/ipron/profile/sip-profile' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? 'SIP 프로파일 수정' : 'SIP 프로파일 등록',
         path: isEditMode && id ? `/ipron/profile/sip-profile/${id}` : '/ipron/profile/sip-profile/create',
       },
     ]);

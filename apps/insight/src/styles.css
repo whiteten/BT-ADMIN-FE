@@ -1,8 +1,16 @@
-/* host와 동일한 공용 tailwind 컨텍스트 상속:
- * tailwindcss + shadcn base(`* { @apply border-border }`) + `--border` 등 토큰을 함께 가져온다.
- * 자체 `@import 'tailwindcss'`로 preflight를 재생성하면 border base가 빠져
- * DropdownMenuContent 등 공용 컴포넌트 테두리가 currentColor(검정)로 떨어진다. */
-@import '../../../libs/shared-ui/src/styles/global.css';
+/* host 통합 시엔 host가 전역 CSS(preflight·유틸리티·토큰)를 공급하지만,
+ * insight는 아래 `@theme`(--color-bt-st-* 등)에서 파생되는 유틸리티를 스스로 생성해야 하고
+ * (host theme엔 해당 변수가 없어 대리 생성 불가) standalone 진입도 있어 자체 Tailwind 단위를 구성한다.
+ * tokens.css로 shadcn base(`* { @apply border-border }`)·공용 토큰을 host와 동일하게 재적용 —
+ * 자체 preflight 재생성으로 border base가 빠져 DropdownMenuContent 등 공용 컴포넌트 테두리가
+ * currentColor(검정)로 떨어지는 문제(기존 global.css import의 이유)를 같은 방식으로 방지한다.
+ * `@source`는 자기 앱(src)과 libs만 — apps 광역 스캔 금지
+ * (host 파일 저장 시 insight가 함께 재빌드되던 교차 HMR의 원인). */
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '../../../libs/shared-ui/src/styles/tokens.css';
+@source './';
+@source '../../../libs';
 
 @theme {
   /* BT 디자인 시스템 색상 — insight 앱 전용 (03-full-flow.html 기준) */

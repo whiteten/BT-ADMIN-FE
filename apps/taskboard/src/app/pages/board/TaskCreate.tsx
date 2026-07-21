@@ -6,9 +6,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { Lock, Pipette, Search, Unlock } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { createUUID, toast } from '@/shared-util';
 import type { RedisKeyDefinitionsResponse } from '../../features/board/api/ctiRedisApi';
 import { taskboardApi } from '../../features/board/api/taskboardApi';
+import { CardEditorModal } from '../../features/board/cards/CardEditorModal';
 import { AnimatedTableCell } from '../../features/board/components/AnimatedTableCell';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { CHART_COLORS_LIST, CHART_TYPE_OPTIONS, ChartWidget, buildChartDataFromRows } from '../../features/board/components/ChartWidget';
@@ -52,8 +53,8 @@ import type {
   WidgetStyle,
   WidgetThresholdRule,
 } from '../../features/board/types/taskboard.types';
-import { DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
-import { collapseIcVariableSegment, maskEntitySegment } from '../../features/board/utils/redisKeyDefinitions';
+import { AMPM_CLOCK_FORMAT, DEFAULT_CUSTOM_CLOCK_FORMAT, formatCustomClock } from '../../features/board/utils/clockFormat';
+import { collapseIcVariableSegment, maskEntitySegment, matchKeyDefinition } from '../../features/board/utils/redisKeyDefinitions';
 import { type RedisKeyNode, detectRedisKeyPattern, extractIcGroupIdSegment, filterRedisTree, findSiblingKeys, groupRedisKeys } from '../../features/board/utils/redisKeyPattern';
 import {
   CALC_WIDGET_ITEM,
@@ -110,11 +111,11 @@ const DEFAULT_STYLE: WidgetStyle = {
   borderWidth: 0,
   borderColor: '#ffffff',
   borderStyle: 'solid',
-  borderRadius: 8,
+  borderRadius: 0,
   opacity: 100,
   shadow: 'soft',
-  paddingX: 8,
-  paddingY: 8,
+  paddingX: 0,
+  paddingY: 0,
 };
 
 const FONT_FAMILIES: { label: string; value: string }[] = [
@@ -126,7 +127,12 @@ const FONT_FAMILIES: { label: string; value: string }[] = [
   { label: '코드 (고정폭)', value: "'Courier New', 'Consolas', monospace" },
 ];
 
+/** 폰트 크기 프리셋 — number 입력의 datalist 추천값으로만 사용(직접 입력 제한 아님) */
 const FONT_SIZES = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64, 72, 80, 88, 96];
+const FONT_SIZE_MIN = 1;
+const FONT_SIZE_MAX = 500;
+/** 값을 비운 채 입력란을 벗어났을 때 되돌릴 기본 폰트 크기 */
+const FONT_SIZE_FALLBACK = 24;
 
 const FONT_WEIGHTS: { label: string; value: NonNullable<WidgetStyle['fontWeight']> }[] = [
   { label: '얇게', value: '300' },
@@ -139,6 +145,118 @@ type GuideItem = { id: string; axis: 'h' | 'v'; pct: number };
 type UndoEntry = { widgets: DroppedWidget[]; guides: GuideItem[] };
 
 type ResizeHandle = 'se' | 'sw' | 'ne' | 'nw';
+
+/**
+ * 자유 모드 위젯 드래그 판정 임계값(px).
+ * 이 거리를 넘기 전에는 포인터 이동을 "클릭"으로 보고 위치 변경·가이드 셀 스냅·undo 적립을 모두 하지 않는다.
+ * 임계값이 없으면 속성 확인용 클릭에도 1px 흔들림만으로 드래그가 성립해 위젯이 가이드 셀 크기로 붙어버린다.
+ */
+const FREE_DRAG_THRESHOLD_PX = 5;
+
+// ─── 폰트 크기 자동 맞춤 계산 ─────────────────────────────────────────────────
+/** 값 영역 line-height(leading-tight)와 타이틀·단위의 em 배율 — 실제 렌더 마크업과 같은 값을 써야 계산이 맞는다 */
+const FIT_LINE_HEIGHT = 1.25;
+const FIT_TITLE_SCALE = 0.65;
+const FIT_SUFFIX_SCALE = 0.65;
+/** 타이틀 아래 여백(mb-0.5) / 값과 접미(단위·%) 사이 간격(gap-1) */
+const FIT_TITLE_GAP_PX = 2;
+const FIT_SUFFIX_GAP_PX = 4;
+/** 계산값을 그대로 쓰면 폰트 힌팅·자간 때문에 아슬아슬하게 잘리므로 살짝 줄여 여유를 둔다 */
+const FIT_SAFETY_RATIO = 0.96;
+
+/** 텍스트 폭 측정용 canvas 컨텍스트 — 자동 맞춤에서만 쓰므로 모듈 단위로 1개 재사용 */
+let fitMeasureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** 주어진 폰트로 텍스트가 차지하는 폭을 em 단위로 반환(1em = font-size 1px 기준) */
+function measureTextEm(text: string, fontFamily: string | undefined, fontWeight: string): number {
+  if (!text) return 0;
+  fitMeasureCtx ??= document.createElement('canvas').getContext('2d');
+  // 측정 불가 환경(canvas 미지원) 폴백 — 숫자·영문 기준 대략치
+  if (!fitMeasureCtx) return text.length * 0.6;
+  const family = !fontFamily || fontFamily === 'inherit' ? 'sans-serif' : fontFamily;
+  fitMeasureCtx.font = `${fontWeight === 'normal' ? '400' : fontWeight} 100px ${family}`;
+  return fitMeasureCtx.measureText(text).width / 100;
+}
+
+/**
+ * 위젯 박스에 값이 꽉 차도록 들어가는 폰트 크기(px)를 계산한다.
+ * 높이 제약(타이틀 줄 포함)과 가로 제약(현재 표시값 + 단위·% 접미) 중 작은 쪽을 택한다.
+ * 계산 결과는 style.fontSize에 실제 숫자로 기록되므로 이후 사용자가 자유롭게 수정할 수 있다.
+ */
+function calcFitFontSize(widget: DroppedWidget, valueText: string, suffixText: string, containerWidth: number, containerHeight: number): number {
+  const border = widget.style.borderWidth ?? 0;
+  const innerW = ((widget.w ?? DEFAULT_W) / 100) * containerWidth - (widget.style.paddingX ?? 0) * 2 - border * 2;
+  const innerH = ((widget.h ?? DEFAULT_H) / 100) * containerHeight - (widget.style.paddingY ?? 0) * 2 - border * 2;
+  if (innerW <= 0 || innerH <= 0) return widget.style.fontSize;
+
+  const showTitle = widget.showTitle !== false;
+  const weight = String(widget.style.fontWeight ?? 'normal');
+
+  // 높이 — 값 줄 + (타이틀 줄 + 타이틀 하단 여백)
+  const heightEmUnits = FIT_LINE_HEIGHT * (1 + (showTitle ? FIT_TITLE_SCALE : 0));
+  const byHeight = (innerH - (showTitle ? FIT_TITLE_GAP_PX : 0)) / heightEmUnits;
+
+  // 가로 — 값 문자열 + 접미(단위·%)는 0.65em. 타이틀은 원래 truncate 대상이라 제약에서 제외.
+  const totalEm = measureTextEm(valueText, widget.style.fontFamily, weight) + measureTextEm(suffixText, widget.style.fontFamily, weight) * FIT_SUFFIX_SCALE;
+  const byWidth = totalEm > 0 ? (innerW - (suffixText ? FIT_SUFFIX_GAP_PX : 0)) / totalEm : Number.POSITIVE_INFINITY;
+
+  const fit = Math.floor(Math.min(byHeight, byWidth) * FIT_SAFETY_RATIO);
+  return Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, fit));
+}
+
+/**
+ * 폰트 크기 직접 입력 — 입력 중에는 빈 값을 그대로 두고(지우기 가능), 값이 유효할 때만 스타일에 반영한다.
+ * 매 입력마다 최소값으로 클램프하면 지워도 '1'이 남아 다시 지울 수 없으므로 확정은 blur 시점으로 미룬다.
+ * blur 시 빈 값·범위 밖이면 기본값(24px)으로 되돌린다.
+ */
+function FontSizeInput({ value, onChange, onAutoFit }: { value: number; onChange: (next: number) => void; onAutoFit: () => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+
+  const commitDraft = () => {
+    const parsed = Number(draft);
+    if (draft === null || draft.trim() === '' || Number.isNaN(parsed)) onChange(FONT_SIZE_FALLBACK);
+    else onChange(Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, parsed)));
+    setDraft(null);
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex-1 min-w-0 flex items-center gap-1 border border-slate-200 rounded px-2 py-1 bg-white focus-within:border-[#0f5b9e]">
+        <input
+          type="number"
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
+          step={1}
+          list="taskboard-font-size-presets"
+          value={draft ?? String(value)}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setDraft(raw);
+            const parsed = Number(raw);
+            // 입력 도중에는 범위 안의 값만 즉시 반영 — 빈 값·범위 밖은 blur에서 정리한다.
+            if (raw.trim() !== '' && !Number.isNaN(parsed) && parsed >= FONT_SIZE_MIN && parsed <= FONT_SIZE_MAX) onChange(parsed);
+          }}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          className="flex-1 min-w-0 text-xs bg-transparent outline-none"
+        />
+        <span className="text-[10px] text-slate-400 flex-shrink-0">px</span>
+      </div>
+      <button
+        onClick={() => {
+          setDraft(null);
+          onAutoFit();
+        }}
+        className="flex-shrink-0 px-2 py-1 rounded border border-slate-200 bg-white text-[10px] text-slate-500 hover:border-[#0f5b9e] hover:text-[#0f5b9e] transition-colors"
+        title="위젯 크기에 맞는 폰트 크기를 계산해 채운다 (이후 직접 수정 가능)"
+      >
+        자동
+      </button>
+    </div>
+  );
+}
 
 function snapResizeToGuides(
   x: number,
@@ -244,8 +362,111 @@ function fromGridItem(item: RglItem): Pick<DroppedWidget, 'x' | 'y' | 'w' | 'h'>
 type DragInfo = { type: 'source'; item: CallDataItem } | { type: 'widget-ref'; widgetId: string; label: string };
 type LayoutMode = 'free' | 'grid';
 
+// ─── FieldSuggestInput ───────────────────────────────────────────────────────
+// table-redis 컬럼 필드명 자동완성 — 순수 React 커스텀 드롭다운(antd 미사용: host의 antd App cssVar 경고를
+// 유발하지 않도록). 왼쪽 위젯 트리와 동일하게 "한글명 위 + 영문 필드명 아래 작은 글씨" 2줄로 보여주고,
+// 목록을 body로 portal 렌더해 오른쪽 패널(overflow)에 잘리지 않고 넓게(320px)·길게(360px) 펼친다.
+function FieldSuggestInput({
+  value,
+  onChange,
+  onSelect,
+  fields,
+  nameMap,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSelect: (field: string, koLabel?: string) => void;
+  fields: string[];
+  nameMap?: Record<string, string>;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const updatePos = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPos({ left: r.left, top: r.bottom + 2 });
+    };
+    updatePos();
+    const onDocMouseDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (inputRef.current?.contains(t) || listRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocMouseDown);
+    window.addEventListener('scroll', updatePos, true);
+    window.addEventListener('resize', updatePos);
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown);
+      window.removeEventListener('scroll', updatePos, true);
+      window.removeEventListener('resize', updatePos);
+    };
+  }, [open]);
+
+  const kw = value.trim().toLowerCase();
+  const filtered = fields.filter((f) => {
+    if (!kw) return true;
+    const ko = (nameMap?.[f] ?? '').toLowerCase();
+    return f.toLowerCase().includes(kw) || ko.includes(kw);
+  });
+
+  return (
+    <div className="w-1/2">
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        className="w-full px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+      />
+      {open &&
+        pos &&
+        filtered.length > 0 &&
+        createPortal(
+          <div
+            ref={listRef}
+            style={{ position: 'fixed', left: pos.left, top: pos.top, width: 320, maxHeight: 360, zIndex: 200 }}
+            className="overflow-y-auto bg-white border border-slate-200 rounded shadow-lg"
+          >
+            {filtered.map((field) => {
+              const ko = nameMap?.[field];
+              return (
+                <button
+                  key={field}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onSelect(field, ko);
+                    setOpen(false);
+                  }}
+                  className="flex flex-col w-full text-left px-2 py-1 leading-tight border-b border-slate-50 last:border-b-0 hover:bg-slate-100"
+                >
+                  <span className="text-xs text-slate-700">{ko ?? field}</span>
+                  {ko && <span className="text-[9px] text-slate-400 font-mono">{field}</span>}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 // ─── DraggableSourceItem ─────────────────────────────────────────────────────
-function DraggableSourceItem({ item }: { item: CallDataItem }) {
+function DraggableSourceItem({ item, subLabel }: { item: CallDataItem; subLabel?: string }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `source-${item.id}`,
     data: { type: 'source', item } satisfies DragInfo,
@@ -263,7 +484,11 @@ function DraggableSourceItem({ item }: { item: CallDataItem }) {
       }`}
     >
       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-      <span className="text-xs font-medium text-slate-700 truncate flex-1 min-w-0">{item.label}</span>
+      {/* 한글 라벨 + (있으면) 아래 작은 영문 키 */}
+      <span className="flex flex-col flex-1 min-w-0 leading-tight">
+        <span className="text-xs font-medium text-slate-700 truncate">{item.label}</span>
+        {subLabel && <span className="text-[9px] text-slate-400 font-mono truncate">{subLabel}</span>}
+      </span>
       {item.category === 'notice' && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded font-bold flex-shrink-0">공지</span>}
       {item.isRealtime && item.category !== 'Redis' && <span className="text-[9px] bg-cyan-100 text-cyan-600 px-1 py-0.5 rounded font-bold">실시간</span>}
       {item.displayType === 'table' && !item.isRealtime && <span className="text-[9px] bg-slate-100 text-slate-500 px-1 py-0.5 rounded font-bold">표</span>}
@@ -425,6 +650,11 @@ function RedisHashFieldItems({ hashKey }: { hashKey: string }) {
   // 카테고리) 기존처럼 실제 키 그대로 — 이 경우도 hashSiblingKeys가 있으면 런타임 조회는 그쪽을 우선 쓴다.
   const maskedHashKey = maskEntitySegment(actualHashKey, redisKeyDefs) ?? actualHashKey;
 
+  // 이 해시키가 매칭되는 key-definition의 key-pattern으로 필드(영문 컬럼명) → 한글 표시명 맵을 찾는다.
+  // 매핑이 있으면 한글 라벨을 보여주고 영문 키는 hover(title)로 노출. 없으면 영문 그대로.
+  const matchedDef = matchKeyDefinition(actualHashKey, redisKeyDefs);
+  const fieldNameMap = matchedDef?.definition.keyPattern ? redisKeyDefs.fieldDisplayNames?.[matchedDef.definition.keyPattern] : undefined;
+
   const { data: hashEntries = {}, isLoading } = useGetRedisHashEntries(actualHashKey, {
     queryOptions: { enabled: true },
   });
@@ -466,22 +696,24 @@ function RedisHashFieldItems({ hashKey }: { hashKey: string }) {
   return (
     <div className="ml-4 border-l-2 border-rose-100 pl-0 py-1.5 flex flex-col gap-1">
       {displayItems.map(({ field, col, sampleValue }) => {
+        const koreanLabel = fieldNameMap?.[col]; // 한글 표시명(있으면)
         const callItem: CallDataItem = {
           id: `redis-${maskedHashKey}-${field}-${col}`,
           category: 'Redis',
-          label: col,
+          label: koreanLabel ?? col, // 한글 있으면 한글, 없으면 영문 키
           unit: '',
           sampleValue,
           color: '#e11d48',
           isRealtime: true,
           redisHashKey: maskedHashKey,
           redisField: field,
-          redisJsonField: col !== field ? col : undefined,
+          redisJsonField: col !== field ? col : undefined, // 데이터 바인딩은 영문 키 그대로
           hashSiblingKeys: resolvedSiblingKeys?.length ? resolvedSiblingKeys : undefined,
         };
+        // 한글 라벨일 때 영문 키를 아래 작은 글씨로 표기(+hover title). 한글 없으면 영문 단독.
         return (
-          <div key={`${field}-${col}`} className="pl-2 pr-2">
-            <DraggableSourceItem item={callItem} />
+          <div key={`${field}-${col}`} className="pl-2 pr-2" title={koreanLabel ? col : undefined}>
+            <DraggableSourceItem item={callItem} subLabel={koreanLabel ? col : undefined} />
           </div>
         );
       })}
@@ -551,8 +783,10 @@ function RedisTreeNode({ node, depth, forceExpand }: { node: RedisKeyNode; depth
         {hasChildren && !isHashGroup && <span className="flex-shrink-0 text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full leading-none">{node.leafCount}</span>}
       </button>
 
-      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시 */}
-      {isLeaf && !isHashGroup && isExpanded && representativeKey && <RedisHashFieldItems hashKey={representativeKey} />}
+      {/* 단독 리프: 펼치면 곧바로 그 키의 JSON 필드 드래그 아이템 표시.
+          검색 강제펼침(forceExpand)만으로는 값을 조회하지 않는다 — 사용자가 실제로 클릭해 펼친(isExpandedState)
+          노드만 hash-entries를 조회한다. (검색 시 매칭된 키가 많으면 노드마다 개별 조회가 폭주하던 문제 차단) */}
+      {isLeaf && !isHashGroup && isExpandedState && representativeKey && <RedisHashFieldItems hashKey={representativeKey} />}
 
       {hasChildren && isExpanded && (
         <div className="border-l border-slate-100 ml-4">
@@ -817,7 +1051,7 @@ function ExternalApiSection() {
     }
     const sampleVal = jsonPath ? extractJsonByPath(sourceJson, jsonPath) : typeof sourceJson === 'string' ? sourceJson : JSON.stringify(sourceJson);
     const newItem: CallDataItem = {
-      id: `ext-api-${Date.now()}`,
+      id: `ext-api-${createUUID()}`,
       category: 'ExternalApi',
       label: label || '외부 API',
       sampleValue: sampleVal,
@@ -1011,7 +1245,7 @@ function WebEmbedSection() {
       return;
     }
     const newItem: CallDataItem = {
-      id: `web-embed-${Date.now()}`,
+      id: `web-embed-${createUUID()}`,
       category: 'WebEmbed',
       label: label || '웹 방송',
       sampleValue: '',
@@ -1114,7 +1348,7 @@ function DbQuerySection() {
 
   const handleAdd = () => {
     const newItem: CallDataItem = {
-      id: `db-query-${Date.now()}`,
+      id: `db-query-${createUUID()}`,
       category: 'DbQuery',
       label: label || 'DB Query',
       sampleValue: previewValue,
@@ -1924,7 +2158,18 @@ function isCalcRefExcludedWidget(widget: DroppedWidget): boolean {
   return isWebEmbedWidget(widget) || isAnnouncementWidget(widget) || (widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id));
 }
 
-function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget; widgets: DroppedWidget[]; redisWsData: CtiWsDataByHashKey }) {
+function WidgetContent({
+  widget,
+  widgets,
+  redisWsData,
+  fontScale = 1,
+}: {
+  widget: DroppedWidget;
+  widgets: DroppedWidget[];
+  redisWsData: CtiWsDataByHashKey;
+  /** 값 위치 세밀조정(px)에 곱할 배율 — 폰트와 같은 기준으로 축소·확대해야 실행 화면과 위치가 일치한다 */
+  fontScale?: number;
+}) {
   const isEtcClock = widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
 
@@ -1992,13 +2237,17 @@ function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget
           fontFamily: widget.style.fontFamily,
           fontWeight: widget.style.fontWeight ?? 'normal',
           color: thresholdColor,
-          ...getValueOffsetStyle(widget.style),
+          ...getValueOffsetStyle(widget.style, fontScale),
           ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {isCalc && widget.calc?.showPercent && (
-          <span className="font-normal opacity-70" style={{ fontSize: `${widget.calc?.percentFontScale ?? 0.65}em` }}>
+          <span
+            // 굵기는 지정하지 않고 값 영역에서 상속 — 크기와 마찬가지로 % 표시가 값 폰트를 그대로 따라간다
+            className="opacity-70"
+            style={{ fontSize: `${widget.calc?.percentFontScale ?? 0.65}em` }}
+          >
             %
           </span>
         )}
@@ -2077,17 +2326,8 @@ function WidgetActionsMenu({
   const [sectionExpanded, setSectionExpanded] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const scheduleClose = () => {
-    closeTimerRef.current = setTimeout(() => setOpen(false), 150);
-  };
-  const cancelClose = () => {
-    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-  };
 
   const openMenu = () => {
-    cancelClose();
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const POPUP_HEIGHT_ESTIMATE = 260;
@@ -2101,18 +2341,32 @@ function WidgetActionsMenu({
     setOpen(true);
   };
 
+  // 클릭으로 열림 → 바깥(메뉴/트리거 외부) 클릭 시 닫기.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (menuRef.current?.contains(t) || triggerRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
   // 팝업에 표시할 구역 목록 — A,B,C는 항상 기본 표시 + 이미 추가된 구역(D,E,F...)
   const menuSections = ALL_SECTION_LETTERS.filter((l) => ['A', 'B', 'C'].includes(l) || sections.includes(l));
   // 다음에 추가 가능한 알파벳 (현재 목록에 없는 첫 글자)
   const nextLetter = ALL_SECTION_LETTERS.find((l) => !menuSections.includes(l)) ?? null;
 
   return (
-    <div className="absolute top-1.5 right-6 z-20 hidden group-hover:block">
+    <div className={`absolute top-1.5 right-6 z-20 ${open ? 'block' : 'hidden group-hover:block'}`}>
       <button
         ref={triggerRef}
-        onMouseEnter={openMenu}
-        onMouseLeave={scheduleClose}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (open) setOpen(false);
+          else openMenu();
+        }}
         className="w-5 h-5 bg-slate-700/90 text-white rounded text-[10px] flex items-center justify-center leading-none font-bold shadow-md backdrop-blur-sm"
         title="위젯 옵션"
       >
@@ -2123,8 +2377,6 @@ function WidgetActionsMenu({
         createPortal(
           <div
             ref={menuRef}
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
             onClick={(e) => e.stopPropagation()}
             className="fixed z-[1000] bg-white border border-slate-200 rounded-lg shadow-xl py-1 w-52 flex flex-col tb-menu-pop-in"
             style={{ top: menuPos.top, bottom: menuPos.bottom, right: menuPos.right }}
@@ -2385,14 +2637,14 @@ function CanvasWidgetFree({
 
       <div
         className={`w-full h-full flex flex-col justify-center ${locked ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'}`}
-        style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
+        style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (locked) return;
           onDragStart(widget.id, e);
         }}
       >
-        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} />
+        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} fontScale={fontScale} />
       </div>
 
       {!locked && (
@@ -2519,9 +2771,9 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
 
       <div
         className={`${locked ? '' : 'drag-handle cursor-grab active:cursor-grabbing'} w-full h-full flex flex-col justify-center`}
-        style={{ padding: `${widget.style.paddingY ?? 8}px ${widget.style.paddingX ?? 8}px` }}
+        style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
       >
-        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} />
+        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} fontScale={fontScale} />
       </div>
     </div>
   );
@@ -2694,6 +2946,7 @@ export default function TaskCreate() {
   const layout = state?.layout;
   const userInfo = useAuthStore((s) => s.userInfo);
   const { guardWrite } = useTaskboardWriteGuard();
+  const [cardEditorOpen, setCardEditorOpen] = useState(false);
   // 데이터 소스 관리 탭에 등록된 전체 데이터소스 목록 — 테이블 컬럼의 "이름 매핑" 드롭다운에서 고를 수 있게 제공.
   // 플레이스홀더(예: 그룹 목록 {groupId})도 VALUE/NAME 쿼리라서 이름 매핑 소스로 그대로 쓸 수 있다 —
   // 그룹ID 컬럼을 그룹명으로 바꿔 보여주는 게 정확히 이 케이스라 제외하지 않는다.
@@ -2767,6 +3020,10 @@ export default function TaskCreate() {
   // 등록된 키를 그대로 서버에 보내 필터링하므로(실데이터 통신 전환 이후) 실제 필드명과 다르게 입력하면
   // 데이터가 안 보일 수 있어, 임의로 타이핑하는 대신 실제 값을 고를 수 있게 함(RedisHashSection과 같은 캐시 공유)
   const { data: redisColumnIndex = {} } = useGetRedisHashColumns();
+  // 테이블 컬럼 필드명 자동완성에서 영문 필드명 → 한글 표시명(왼쪽 위젯 트리와 동일한 맵)을 보여주기 위해 로드.
+  // 자동완성 option을 "한글명 위 + 영문명 아래 작은 글씨"로 렌더한다(왼쪽 위젯 항목과 동일).
+  const { data: redisKeyDefsData } = useGetRedisKeyDefinitions();
+  const redisKeyDefsForColumns: RedisKeyDefinitionsResponse = redisKeyDefsData ?? { mediaType: {}, prefixMap: {}, keyDefinitions: {} };
 
   // ── 그리드 모드 컨테이너 크기 ────────────────────────────────────────
   const [containerWidth, setContainerWidth] = useState(1024);
@@ -2933,6 +3190,10 @@ export default function TaskCreate() {
     startMouseX: number;
     startMouseY: number;
     multiDragPositions: Array<{ id: string; startX: number; startY: number; w: number; h: number }>;
+    /** 임계값을 넘겨 실제 드래그로 확정됐는지 — false면 클릭으로 간주해 스냅·undo를 건너뛴다 */
+    moved: boolean;
+    /** 드래그 확정 시점에 적립할 undo 스냅샷(클릭만 하고 끝나면 버려짐) */
+    undoSnapshot: UndoEntry;
   } | null>(null);
   const freeDragFinalRef = useRef<{ x: number; y: number; mouseX: number; mouseY: number } | null>(null);
   const guidesStateRef = useRef({ guides, showGuides });
@@ -2945,7 +3206,6 @@ export default function TaskCreate() {
     const isInSelection = selectedWidgetIds.includes(widgetId);
     const idsToMove = isInSelection ? selectedWidgetIds : [widgetId];
     if (!isInSelection) setSelectedWidgetIds([widgetId]);
-    pushUndo(droppedWidgets, guides);
     lastDragOccurredRef.current = false;
     const positions = droppedWidgets.filter((w) => idsToMove.includes(w.id)).map((w) => ({ id: w.id, startX: w.x, startY: w.y, w: w.w ?? DEFAULT_W, h: w.h ?? DEFAULT_H }));
     freeDragRef.current = {
@@ -2953,6 +3213,9 @@ export default function TaskCreate() {
       startMouseX: e.clientX,
       startMouseY: e.clientY,
       multiDragPositions: positions,
+      moved: false,
+      // undo 적립은 임계값을 넘겨 실제 드래그가 시작될 때로 미룬다(클릭만으로 undo 스택이 쌓이지 않도록).
+      undoSnapshot: { widgets: droppedWidgets, guides },
     };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -3053,6 +3316,12 @@ export default function TaskCreate() {
 
       const drag = freeDragRef.current;
       if (drag) {
+        // 임계값 미만 이동은 클릭으로 간주 — 위치 변경·스냅·undo 모두 보류
+        if (!drag.moved) {
+          if (Math.hypot(e.clientX - drag.startMouseX, e.clientY - drag.startMouseY) < FREE_DRAG_THRESHOLD_PX) return;
+          drag.moved = true;
+          pushUndo(drag.undoSnapshot.widgets, drag.undoSnapshot.guides);
+        }
         const dx = ((e.clientX - drag.startMouseX) / rect.width) * 100;
         const dy = ((e.clientY - drag.startMouseY) / rect.height) * 100;
         lastDragOccurredRef.current = true;
@@ -3118,7 +3387,7 @@ export default function TaskCreate() {
               undoStack.current = [...undoStack.current, guideDragStartStateRef.current].slice(-50);
               redoStack.current = [];
             }
-            setGuides((prev) => [...prev, { id: `guide-${Date.now()}`, axis: guideDrag.axis, pct: pos.pct }]);
+            setGuides((prev) => [...prev, { id: `guide-${createUUID()}`, axis: guideDrag.axis, pct: pos.pct }]);
           } else if (guideDrag.type === 'existing' && pos.willDelete && guideDrag.draggedGuides) {
             if (guideDragStartStateRef.current) {
               undoStack.current = [...undoStack.current, guideDragStartStateRef.current].slice(-50);
@@ -3142,7 +3411,7 @@ export default function TaskCreate() {
       }
       const drag = freeDragRef.current;
       const finalPos = freeDragFinalRef.current;
-      if (drag && finalPos && drag.multiDragPositions.length === 1) {
+      if (drag?.moved && finalPos && drag.multiDragPositions.length === 1) {
         const { guides: gs, showGuides: sg } = guidesStateRef.current;
         const cx = finalPos.mouseX;
         const cy = finalPos.mouseY;
@@ -3227,7 +3496,10 @@ export default function TaskCreate() {
         setDroppedWidgets((prev) =>
           prev.map((w) =>
             w.id === calcWidgetId && w.calc
-              ? { ...w, calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: 'none' } : op)) } }
+              ? {
+                  ...w,
+                  calc: { ...w.calc, operands: w.calc.operands.map((op) => (op.var === varName ? { var: op.var, source: info.item, aggregation: op.aggregation ?? 'sum' } : op)) },
+                }
               : w,
           ),
         );
@@ -3326,7 +3598,7 @@ export default function TaskCreate() {
     }
 
     const newWidget: DroppedWidget = {
-      id: `widget-${Date.now()}`,
+      id: `widget-${createUUID()}`,
       item: info.item,
       x: finalX,
       y: finalY,
@@ -3357,7 +3629,7 @@ export default function TaskCreate() {
     const offsetY = Math.min(99 - (src.h ?? DEFAULT_H), src.y + 3);
     const copy: DroppedWidget = {
       ...src,
-      id: `widget-${Date.now()}`,
+      id: `widget-${createUUID()}`,
       x: offsetX,
       y: offsetY,
     };
@@ -3402,12 +3674,12 @@ export default function TaskCreate() {
     const mousePos = lastCanvasMousePosRef.current;
     const targetX = mousePos ? mousePos.x : minX + 3;
     const targetY = mousePos ? mousePos.y : minY + 3;
-    const pasted = parsed.widgets.map((src, i) => {
+    const pasted = parsed.widgets.map((src) => {
       const w = src.w ?? DEFAULT_W;
       const h = src.h ?? DEFAULT_H;
       const newX = Math.max(0, Math.min(100 - w, targetX + (src.x - minX)));
       const newY = Math.max(0, Math.min(100 - h, targetY + (src.y - minY)));
-      return { ...src, id: `widget-${Date.now()}-${i}`, x: newX, y: newY };
+      return { ...src, id: `widget-${createUUID()}`, x: newX, y: newY };
     });
     setDroppedWidgets((prev) => [...prev, ...pasted]);
     setSelectedWidgetIds(pasted.map((w) => w.id));
@@ -3542,10 +3814,13 @@ export default function TaskCreate() {
   const addCalcOperand = (id: string) => {
     setDroppedWidgets((prev) =>
       prev.map((w) => {
-        if (w.id !== id || !w.calc) return w;
-        const usedVars = new Set(w.calc.operands.map((op) => op.var));
+        if (w.id !== id) return w;
+        // calc가 아직 없으면(초기화 누락 방어) 여기서 만들어 준다 — 버튼 무반응 방지.
+        const calc = w.calc ?? { formula: '', operands: [] };
+        const usedVars = new Set(calc.operands.map((op) => op.var));
         const nextVar = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)).find((v) => !usedVars.has(v)) ?? 'A';
-        return { ...w, calc: { ...w.calc, operands: [...w.calc.operands, { var: nextVar }] } };
+        // 집계 기본값은 '합계' — 대부분의 계산식이 해시 그룹 전체 합을 쓰므로 매번 ∑를 누르지 않도록 함
+        return { ...w, calc: { ...calc, operands: [...calc.operands, { var: nextVar, aggregation: 'sum' }] } };
       }),
     );
   };
@@ -3909,7 +4184,7 @@ export default function TaskCreate() {
       initialStateRef.current = { widgets: JSON.stringify(droppedWidgets), title: boardTitle };
       unblockNavRef.current?.();
       toast.success('레이아웃이 저장되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getLayoutList._def });
       navigate('/taskboard/board/task-list');
     } catch {
       toast.error('저장 중 오류가 발생했습니다.');
@@ -3982,6 +4257,15 @@ export default function TaskCreate() {
 
   const selectedWidgetId = selectedWidgetIds.length === 1 ? selectedWidgetIds[0] : null;
   const selectedWidget = selectedWidgetId ? (droppedWidgets.find((w) => w.id === selectedWidgetId) ?? null) : null;
+  // table-redis 컬럼 필드명 자동완성 — 이 해시키에 실제 존재하는 필드 목록 + 영문→한글 표시명 맵(왼쪽 위젯 트리와 동일)
+  const selectedRedisHashKey = selectedWidget?.item.redisHashKey ?? '';
+  const columnFieldSuggestions = redisColumnIndex[selectedRedisHashKey] ?? [];
+  const matchedColumnDef = matchKeyDefinition(selectedRedisHashKey, redisKeyDefsForColumns);
+  const columnFieldNameMap = matchedColumnDef?.definition.keyPattern ? redisKeyDefsForColumns.fieldDisplayNames?.[matchedColumnDef.definition.keyPattern] : undefined;
+  // 선택 위젯의 현재 표시 방식(표/카드/차트) — 우측 패널에서 표시 방식별로 쓰지 않는 옵션을 숨기는 데 쓴다.
+  const selectedIsChartMode = selectedWidget?.item.displayType === 'chart';
+  const selectedIsCardMode = !!selectedWidget && !selectedIsChartMode && selectedWidget.item.tableConfig?.viewMode === 'cards';
+  const selectedIsTableMode = !!selectedWidget?.item.tableConfig && !selectedIsChartMode && !selectedIsCardMode;
   const gridLayout = droppedWidgets.map((w) => toGridItem(w, canvasLocked));
 
   return (
@@ -4710,31 +4994,71 @@ export default function TaskCreate() {
                     </div>
                   )}
 
-                  {/* 표시 방식 — 테이블형 위젯 전용 (표 ↔ 차트 전환) */}
+                  {/* 표시 방식 — 테이블형 위젯 전용 (표 / 카드 / 차트 전환) */}
                   {selectedWidget.item.tableConfig && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">표시 방식</label>
-                      <div className="flex gap-1">
-                        {(
-                          [
-                            { label: '표', value: 'table' as const },
-                            { label: '차트', value: 'chart' as const },
-                          ] as const
-                        ).map(({ label, value }) => (
-                          <button
-                            key={value}
-                            onClick={() => updateWidgetDisplayType(selectedWidget.id, value)}
-                            className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
-                              (selectedWidget.item.displayType ?? 'table') === value
-                                ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
-                                : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
-                            }`}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
+                      {(() => {
+                        const isChartMode = selectedWidget.item.displayType === 'chart';
+                        const isCardMode = !isChartMode && selectedWidget.item.tableConfig?.viewMode === 'cards';
+                        const current = isChartMode ? 'chart' : isCardMode ? 'cards' : 'table';
+                        const setMode = (mode: 'table' | 'cards' | 'chart') => {
+                          if (mode === 'chart') {
+                            updateWidgetTableConfig(selectedWidget.id, { viewMode: 'table' });
+                            updateWidgetDisplayType(selectedWidget.id, 'chart');
+                          } else if (mode === 'cards') {
+                            updateWidgetDisplayType(selectedWidget.id, 'table');
+                            updateWidgetTableConfig(selectedWidget.id, {
+                              viewMode: 'cards',
+                              cardConfig: selectedWidget.item.tableConfig?.cardConfig ?? { presetId: 'stat', slotMap: {} },
+                            });
+                          } else {
+                            updateWidgetDisplayType(selectedWidget.id, 'table');
+                            updateWidgetTableConfig(selectedWidget.id, { viewMode: 'table' });
+                          }
+                        };
+                        return (
+                          <>
+                            <div className="flex gap-1">
+                              {(
+                                [
+                                  { label: '표', value: 'table' as const },
+                                  { label: '카드', value: 'cards' as const },
+                                  { label: '차트', value: 'chart' as const },
+                                ] as const
+                              ).map(({ label, value }) => (
+                                <button
+                                  key={value}
+                                  onClick={() => setMode(value)}
+                                  className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                                    current === value ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]' : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                            {isCardMode && (
+                              <button
+                                onClick={() => setCardEditorOpen(true)}
+                                className="mt-1.5 w-full py-1 rounded border border-[#0f5b9e] text-[10px] font-semibold text-[#0f5b9e] bg-blue-50 hover:bg-blue-100 transition-colors"
+                              >
+                                🎴 카드 편집 (모양·색·컬럼 매핑)
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
+                  )}
+
+                  {cardEditorOpen && selectedWidget.item.tableConfig && (
+                    <CardEditorModal
+                      columns={selectedWidget.item.tableConfig.columns}
+                      cardConfig={selectedWidget.item.tableConfig.cardConfig}
+                      onChange={(next) => updateWidgetTableConfig(selectedWidget.id, { cardConfig: next })}
+                      onClose={() => setCardEditorOpen(false)}
+                    />
                   )}
 
                   {/* Redis 해시키 — table-redis 전용. 행은 이 해시에 실제로 존재하는 field를 그대로 쓴다(DB 마스터 조인 없음). */}
@@ -4989,6 +5313,28 @@ export default function TaskCreate() {
                                       />
                                     </button>
                                   </div>
+                                  {/* 시간 표시 형식 — 컬럼명에 'time'(대소문자 무관)이 포함된 컬럼만 노출. 값을 숫자 그대로 vs 초→HH:MM:SS */}
+                                  {/time/i.test(col.key) && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[9px] text-slate-400 flex-shrink-0 w-10">시간</span>
+                                      {[
+                                        { value: 'raw' as const, label: '숫자' },
+                                        { value: 'hms' as const, label: 'HH:MM:SS' },
+                                      ].map((tf) => (
+                                        <button
+                                          key={tf.value}
+                                          onClick={() => updateWidgetTableColumn(selectedWidget.id, col.key, { timeFormat: tf.value })}
+                                          className={`flex-1 py-0.5 rounded border text-[9px] transition-colors ${
+                                            (col.timeFormat ?? 'raw') === tf.value
+                                              ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                              : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                                          }`}
+                                        >
+                                          {tf.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                   {/* 임계치 색상 */}
                                   <div>
                                     <div className="flex items-center justify-between">
@@ -5115,24 +5461,29 @@ export default function TaskCreate() {
                             제안됩니다.
                           </p>
                         )}
-                        <datalist id="redis-table-field-suggestions">
-                          {(redisColumnIndex[selectedWidget.item.redisHashKey ?? ''] ?? []).map((field) => (
-                            <option key={field} value={field} />
-                          ))}
-                        </datalist>
                         <div className="flex gap-1">
-                          <input
-                            type="text"
-                            list={selectedWidget.item.id === 'table-redis' ? 'redis-table-field-suggestions' : undefined}
-                            value={newColKey}
-                            onChange={(e) => setNewColKey(e.target.value)}
-                            placeholder={
-                              selectedWidget.item.id === 'table-redis'
-                                ? `필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`
-                                : '필드명 (RTS_LOGIN)'
-                            }
-                            className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
-                          />
+                          {selectedWidget.item.id === 'table-redis' ? (
+                            <FieldSuggestInput
+                              value={newColKey}
+                              onChange={setNewColKey}
+                              onSelect={(field, ko) => {
+                                setNewColKey(field);
+                                // 한글 표시명이 있으면 표시명 입력을 자동으로 채워준다(비어있을 때만 — 사용자가 이미 입력했으면 존중)
+                                if (ko && !newColLabel.trim()) setNewColLabel(ko);
+                              }}
+                              fields={columnFieldSuggestions}
+                              nameMap={columnFieldNameMap}
+                              placeholder={`필드명 (CTIQ_NAME, 행 키 자체는 ${ROW_ID_COLUMN_KEY}, 번호는 ${ROW_NUMBER_COLUMN_KEY})`}
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={newColKey}
+                              onChange={(e) => setNewColKey(e.target.value)}
+                              placeholder="필드명 (RTS_LOGIN)"
+                              className="w-1/2 px-1.5 py-1 text-[10px] font-mono border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#0f5b9e]"
+                            />
+                          )}
                           <input
                             type="text"
                             value={newColLabel}
@@ -5155,8 +5506,8 @@ export default function TaskCreate() {
                       </div>
                     )}
 
-                  {/* 표 설정 — table-queue/table-group/table-agent/table-redis. 행 간격은 숫자로, 열 너비는 캔버스 드래그로 직접 조절 */}
-                  {['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
+                  {/* 표 설정 — 표 모드에서만(카드·차트에선 행간격/구분선/컬럼숨김 등이 무의미) */}
+                  {selectedIsTableMode && ['table-queue', 'table-group', 'table-agent', 'table-redis'].includes(selectedWidget.item.id) && selectedWidget.item.tableConfig && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">표 설정</label>
                       <div>
@@ -5243,7 +5594,7 @@ export default function TaskCreate() {
                   )}
 
                   {/* PIVOT — table-redis 전용, rowKey+colKey를 지정하면 PIVOT 렌더 활성화 */}
-                  {selectedWidget.item.id === 'table-redis' && selectedWidget.item.tableConfig && (
+                  {selectedIsTableMode && selectedWidget.item.id === 'table-redis' && selectedWidget.item.tableConfig && (
                     <div className="mt-2">
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">PIVOT</label>
                       <div className="flex flex-col gap-1.5 p-2 bg-white rounded border border-slate-200">
@@ -5461,12 +5812,12 @@ export default function TaskCreate() {
                   {selectedWidget.item.tableConfig && selectedWidget.item.displayType === 'chart' && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">차트 종류</label>
-                      <div className="flex gap-1">
+                      <div className="grid grid-cols-3 gap-1">
                         {CHART_TYPE_OPTIONS.map(({ label, value }) => (
                           <button
                             key={value}
                             onClick={() => updateWidgetChartType(selectedWidget.id, value)}
-                            className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                            className={`py-1 px-0.5 rounded border text-[10px] font-semibold transition-colors truncate ${
                               (selectedWidget.item.chartConfig?.chartType ?? 'bar') === value
                                 ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
                                 : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
@@ -5758,6 +6109,25 @@ export default function TaskCreate() {
                   {selectedWidget.item.id === 'etc-custom' && (
                     <div>
                       <label className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide block mb-1">시계 포맷</label>
+                      {/* 빠른 프리셋 — 24시간제 / 오전·오후(AM·PM) */}
+                      <div className="flex gap-1 mb-1.5">
+                        {[
+                          { label: '24시간', value: DEFAULT_CUSTOM_CLOCK_FORMAT },
+                          { label: '오전·오후', value: AMPM_CLOCK_FORMAT },
+                        ].map((preset) => (
+                          <button
+                            key={preset.label}
+                            onClick={() => updateWidgetMeta(selectedWidget.id, { clockFormat: preset.value })}
+                            className={`flex-1 py-1 rounded border text-[10px] font-semibold transition-colors ${
+                              (selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT) === preset.value
+                                ? 'bg-[#0f5b9e] text-white border-[#0f5b9e]'
+                                : 'bg-white text-slate-500 border-slate-200 hover:border-[#0f5b9e]'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
                       <input
                         type="text"
                         value={selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT}
@@ -5768,7 +6138,9 @@ export default function TaskCreate() {
                       <p className="text-[9px] text-slate-400 mt-1 leading-snug">
                         토큰: <span className="font-mono text-slate-500">yyyy</span> 연도 · <span className="font-mono text-slate-500">mm</span> 월 ·{' '}
                         <span className="font-mono text-slate-500">dd</span> 일 · <span className="font-mono text-slate-500">hh24</span> 시(0~23) ·{' '}
-                        <span className="font-mono text-slate-500">mi</span> 분 · <span className="font-mono text-slate-500">ss</span> 초. 그 외 글자는 그대로 표시됩니다.
+                        <span className="font-mono text-slate-500">hh12</span> 시(1~12) · <span className="font-mono text-slate-500">mi</span> 분 ·{' '}
+                        <span className="font-mono text-slate-500">ss</span> 초 · <span className="font-mono text-slate-500">ampm</span> AM/PM ·{' '}
+                        <span className="font-mono text-slate-500">apk</span> 오전/오후. 그 외 글자는 그대로 표시됩니다.
                       </p>
                       <p className="text-[10px] text-slate-500 mt-1 font-mono bg-slate-50 border border-slate-200 rounded px-2 py-1">
                         {formatCustomClock(new Date(), selectedWidget.clockFormat ?? DEFAULT_CUSTOM_CLOCK_FORMAT)}
@@ -6020,17 +6392,24 @@ export default function TaskCreate() {
                     <div className="flex gap-2 mb-2">
                       <div className="flex-1">
                         <label className="text-[10px] text-slate-500 font-semibold block mb-1">폰트 크기</label>
-                        <select
+                        <FontSizeInput
+                          key={selectedWidget.id}
                           value={selectedWidget.style.fontSize}
-                          onChange={(e) => updateWidgetStyle(selectedWidget.id, { fontSize: Number(e.target.value) })}
-                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 bg-white focus:outline-none focus:border-[#0f5b9e]"
-                        >
+                          onChange={(next) => updateWidgetStyle(selectedWidget.id, { fontSize: next })}
+                          onAutoFit={() => {
+                            const rawValue = selectedWidget.item.category === 'Calc' ? getCalcDisplayValue(selectedWidget, droppedWidgets) : selectedWidget.item.sampleValue;
+                            const valueText = String(formatWidgetValue(rawValue, selectedWidget.style.useThousandSep) ?? '');
+                            const suffixText = `${selectedWidget.calc?.showPercent ? '%' : ''}${selectedWidget.item.unit ?? ''}`;
+                            updateWidgetStyle(selectedWidget.id, {
+                              fontSize: calcFitFontSize(selectedWidget, valueText, suffixText, containerWidth, containerHeight),
+                            });
+                          }}
+                        />
+                        <datalist id="taskboard-font-size-presets">
                           {FONT_SIZES.map((s) => (
-                            <option key={s} value={s}>
-                              {s}px
-                            </option>
+                            <option key={s} value={s} />
                           ))}
-                        </select>
+                        </datalist>
                       </div>
                     </div>
 
@@ -6149,13 +6528,13 @@ export default function TaskCreate() {
                     <div className="mb-2">
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">
                         모서리 둥글기
-                        <span className="ml-1 text-slate-400 font-normal">{selectedWidget.style.borderRadius ?? 8}px</span>
+                        <span className="ml-1 text-slate-400 font-normal">{selectedWidget.style.borderRadius ?? 0}px</span>
                       </label>
                       <input
                         type="range"
                         min={0}
                         max={32}
-                        value={selectedWidget.style.borderRadius ?? 8}
+                        value={selectedWidget.style.borderRadius ?? 0}
                         onChange={(e) => updateWidgetStyle(selectedWidget.id, { borderRadius: Number(e.target.value) })}
                         className="w-full accent-[#0f5b9e]"
                       />
@@ -6239,8 +6618,8 @@ export default function TaskCreate() {
                       <label className="text-[10px] text-slate-500 font-semibold block mb-1">내부 여백</label>
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: '좌우', field: 'paddingX' as const, value: selectedWidget.style.paddingX ?? 8 },
-                          { label: '상하', field: 'paddingY' as const, value: selectedWidget.style.paddingY ?? 8 },
+                          { label: '좌우', field: 'paddingX' as const, value: selectedWidget.style.paddingX ?? 0 },
+                          { label: '상하', field: 'paddingY' as const, value: selectedWidget.style.paddingY ?? 0 },
                         ].map(({ label, field, value }) => (
                           <div key={field} className="flex items-center gap-1 bg-slate-50 rounded border border-slate-200 px-2 py-1">
                             <span className="text-[9px] text-slate-400 flex-shrink-0 w-5">{label}</span>
@@ -6263,11 +6642,11 @@ export default function TaskCreate() {
                       onClick={() =>
                         updateWidgetStyle(selectedWidget.id, {
                           borderWidth: 0,
-                          borderRadius: 8,
+                          borderRadius: 0,
                           opacity: 100,
                           shadow: 'soft',
-                          paddingX: 8,
-                          paddingY: 8,
+                          paddingX: 0,
+                          paddingY: 0,
                         })
                       }
                       className="w-full py-1 text-[9px] text-slate-400 border border-slate-200 rounded hover:bg-slate-50 transition-colors"
@@ -6383,13 +6762,13 @@ export default function TaskCreate() {
         </div>
 
         <DragOverlay>
-          {activeDrag && activeDrag.type === 'widget-ref' && (
+          {activeDrag?.type === 'widget-ref' && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-violet-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
               <span className="text-xs">🔗</span>
               <span className="text-xs font-medium text-slate-700">{activeDrag.label}</span>
             </div>
           )}
-          {activeDrag && activeDrag.type === 'source' && (
+          {activeDrag?.type === 'source' && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-300 bg-white shadow-xl cursor-grabbing" style={{ opacity: 0.9 }}>
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: activeDrag.item.color }} />
               <span className="text-xs font-medium text-slate-700">{activeDrag.item.label}</span>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnnouncementWidget, isAnnouncementWidget } from './AnnouncementWidget';
 import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from './RedisTableWidget';
 import { WebEmbedWidget, isWebEmbedWidget } from './WebEmbedWidget';
+import { WsReconnectBanner } from './WsReconnectBanner';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, type CtiqRecord, useCtiqWebSocket } from '../hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../hooks/useResponsiveFontScale';
 import { useGetDbQueryDefList, useGetDbQueryDefOptionsMulti, useGetRedisHashKeys } from '../hooks/useTaskboardQueries';
@@ -315,14 +316,15 @@ function RollingValueWidget({
           fontSize: widget.style.fontSize * fontScale,
           textAlign: widget.style.valueAlign ?? 'left',
           color: thresholdColor,
-          ...getValueOffsetStyle(widget.style),
+          ...getValueOffsetStyle(widget.style, fontScale),
           ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {isCalc && widget.calc?.showPercent && (
           <span
-            className="font-normal ml-0.5 opacity-70"
+            // 굵기는 지정하지 않고 값 영역에서 상속 — % 표시가 값 폰트를 그대로 따라간다
+            className="ml-0.5 opacity-70"
             style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * (widget.calc?.percentFontScale ?? 0.65) * fontScale))}px` }}
           >
             %
@@ -367,6 +369,10 @@ export function LayoutScreen({ layout, dataByHashKey = {} }: LayoutScreenProps) 
   const placeholderOptionValues = Object.fromEntries(placeholderDefs.map((d) => [d.dbQueryId, optionValuesById[d.dbQueryId] ?? []]));
   const validGroupIds = groupListDbQueryId !== undefined ? (optionValuesById[groupListDbQueryId] ?? []) : [];
 
+  // 이 레이아웃 기본 selection 기준 해시키별 선택 id — table 위젯의 행 필터(BE 초과분 방어)에 쓴다.
+  const layoutTargetGroupIds = resolveValidEntityIds(resolveGroupIdsFromSelection(selection, dbQueryDefs), validGroupIds);
+  const layoutSelectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, selection.dbQuerySelections, placeholderOptionValues, { groupId: layoutTargetGroupIds });
+
   useEffect(() => {
     if (!layout.fileName) return;
     const img = new Image();
@@ -379,8 +385,9 @@ export function LayoutScreen({ layout, dataByHashKey = {} }: LayoutScreenProps) 
   const renderWidget = (widget: DroppedWidget) => {
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} />;
-    // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc fallback, 그것도 없으면 기본 selection
-    const effectiveSel = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
+    // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc(기본 그룹) fallback, 그것도 없으면 기본 selection.
+    // 구역 미배정 위젯(sectionKey 없음)도 __etc를 타야 한다 — TaskView.tsx의 effectiveSelection과 동일 규칙.
+    const effectiveSel = sectionSelections ? ((widget.sectionKey ? sectionSelections[widget.sectionKey] : undefined) ?? sectionSelections['__etc'] ?? selection) : selection;
     // REASON 패밀리(그룹/스킬 등)용 targetIdsByPrefix도 이 위젯의 sectionKey 기준 selection을 따라야 한다(레이아웃 전체 기준 X)
     const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSel, dbQueryDefs);
     const effectiveMediaTypes = resolveMediaTypesFromSelection(effectiveSel, dbQueryDefs);
@@ -393,7 +400,17 @@ export function LayoutScreen({ layout, dataByHashKey = {} }: LayoutScreenProps) 
       groupId: effectiveTargetGroupIds,
     });
     // table-redis/그룹·스킬 이석사유/조인 테이블은 RedisTableWidget 내부에서 표/차트 모두 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
+    if (isRedisTableWidget(widget))
+      return (
+        <RedisTableWidget
+          widget={widget}
+          fontScale={fontScale}
+          dataByHashKey={dataByHashKey}
+          targetIdsByPrefix={effectiveTargetIdsByPrefix}
+          // table 위젯 행 필터 — 이 레이아웃 selection 기준 선택 id로 BE 초과분(빈 큐)을 걸러낸다.
+          selectionIdsByHashKey={layoutSelectionIdsByHashKey}
+        />
+      );
     return (
       <RollingValueWidget
         widget={widget}
@@ -449,6 +466,8 @@ export interface RollingPlayerProps {
 export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', onStop }: RollingPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  // 일시정지 — 자동 전환 타이머만 멈춘다(WS 구독·화면은 그대로). 재생 시 현재 슬라이드부터 인터벌을 새로 시작.
+  const [isPaused, setIsPaused] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -487,22 +506,20 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   allTargetIdsByPrefix['IC:GROUP:'] = allGroupReasonTargetGroupIds;
 
   // Redis 값/테이블 위젯 WS 구독 — 위젯이 실제 쓰는 hashKey만. 큐/그룹/상담사 마스터목록은 데이터소스 경로로 처리.
-  const widgetRedisSubscriptions = collectRedisWsSubscriptions(
-    allWidgets,
-    buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues, { groupId: allGroupReasonTargetGroupIds }),
-    allTargetIdsByPrefix,
-    allSelectedMediaTypes,
-  );
+  const allSelectionIdsByHashKey = buildDataSourceKeySelectionIds(dbQueryDefs, mergedDbQuerySelections, allPlaceholderOptionValues, { groupId: allGroupReasonTargetGroupIds });
+  const widgetRedisSubscriptions = collectRedisWsSubscriptions(allWidgets, allSelectionIdsByHashKey, allTargetIdsByPrefix, allSelectedMediaTypes);
 
   // table-redis(임의 해시 통째로 보여주는 위젯) 구독도 같이 모아서 화면당 단일 소켓에 합친다.
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
   // allowAllGroupsFallback=false — 실행 화면에서 그룹 스코프가 비면 전체로 새지 않고 0(TaskView와 동일 정책).
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix, false);
+  // selectionIdsByHashKey 전달 — 뷰그룹이 선택한 행 id만 구독(전체 * 대신). 선택 없는 해시키는 * 폴백.
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(allWidgets, allRedisHashKeysForTable, allTargetIdsByPrefix, false, allSelectionIdsByHashKey);
 
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []
     : mergeWsSubscriptions([...widgetRedisSubscriptions, ...redisTableSubscriptions, ...collectDbQueryWsSubscriptions(allWidgets)]);
-  const { dataByHashKey } = useCtiqWebSocket(subscriptions);
+  const { dataByHashKey, status: wsStatus } = useCtiqWebSocket(subscriptions);
+  const hasLiveSubscription = subscriptions.length > 0;
 
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
@@ -518,7 +535,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   }, [resetHideTimer]);
 
   useEffect(() => {
-    if (layouts.length <= 1) return;
+    if (layouts.length <= 1 || isPaused) return;
     setProgress(0);
     let elapsed = 0;
     const totalMs = intervalSec * 1000;
@@ -531,7 +548,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
       clearInterval(progressInterval);
       clearTimeout(slideTimer);
     };
-  }, [currentIndex, layouts.length, intervalSec]);
+  }, [currentIndex, layouts.length, intervalSec, isPaused]);
 
   const toggleFullscreen = async () => {
     if (!document.fullscreenElement) await containerRef.current?.requestFullscreen();
@@ -560,6 +577,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
       <style dangerouslySetInnerHTML={{ __html: styleContent }} />
+      {hasLiveSubscription && <WsReconnectBanner status={wsStatus} />}
       <div key={currentIndex} className="absolute inset-0" style={{ animation }}>
         <LayoutScreen layout={current} dataByHashKey={dataByHashKey} />
       </div>
@@ -580,7 +598,7 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
             </span>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
-            <span className="text-white/40 text-xs">{intervalSec}초마다 전환</span>
+            <span className="text-white/40 text-xs">{isPaused ? '일시정지됨' : `${intervalSec}초마다 전환`}</span>
             <button
               onClick={toggleFullscreen}
               className="text-white/70 hover:text-white p-1.5 rounded hover:bg-white/10 transition-colors"
@@ -602,7 +620,22 @@ export function RollingPlayer({ layouts, intervalSec, transitionType = 'fade', o
 
       <div className={`absolute bottom-0 left-0 right-0 z-50 transition-all duration-500 ${showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         {layouts.length > 1 && (
-          <div className="flex justify-center gap-2 pb-3 pt-4 bg-gradient-to-t from-black/60 to-transparent">
+          <div className="flex justify-center items-center gap-2 pb-3 pt-4 bg-gradient-to-t from-black/60 to-transparent">
+            <button
+              onClick={() => setIsPaused((prev) => !prev)}
+              className="mr-1 w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full bg-white/15 text-white/80 hover:bg-white/30 hover:text-white transition-colors"
+              title={isPaused ? '자동 전환 재생' : '자동 전환 일시정지'}
+            >
+              {isPaused ? (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                  <path d="M6 5h4v14H6zm8 0h4v14h-4z" />
+                </svg>
+              )}
+            </button>
             {layouts.map((l, i) => (
               <button
                 key={i}

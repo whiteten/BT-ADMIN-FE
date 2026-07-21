@@ -5,6 +5,7 @@ import { taskboardApi } from '../../features/board/api/taskboardApi';
 import { AnnouncementWidget, isAnnouncementWidget } from '../../features/board/components/AnnouncementWidget';
 import { RedisTableWidget, collectRedisTableWsSubscriptions, isRedisTableWidget } from '../../features/board/components/RedisTableWidget';
 import { WebEmbedWidget, isWebEmbedWidget } from '../../features/board/components/WebEmbedWidget';
+import { WsReconnectBanner } from '../../features/board/components/WsReconnectBanner';
 import { type CtiWsDataByHashKey, type CtiWsSubscription, useCtiqWebSocket } from '../../features/board/hooks/useCtiqWebSocket';
 import { useResponsiveFontScale } from '../../features/board/hooks/useResponsiveFontScale';
 import {
@@ -252,14 +253,15 @@ function ViewValueWidget({
           fontSize: widget.style.fontSize * fontScale,
           textAlign: widget.style.valueAlign ?? 'left',
           color: thresholdColor,
-          ...getValueOffsetStyle(widget.style),
+          ...getValueOffsetStyle(widget.style, fontScale),
           ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
         {formatWidgetValue(displayValue, widget.style.useThousandSep)}
         {isCalc && widget.calc?.showPercent && (
           <span
-            className="font-normal ml-0.5 opacity-70"
+            // 굵기는 지정하지 않고 값 영역에서 상속 — % 표시가 값 폰트를 그대로 따라간다
+            className="ml-0.5 opacity-70"
             style={{ fontSize: `${Math.max(8, Math.round(widget.style.fontSize * (widget.calc?.percentFontScale ?? 0.65) * fontScale))}px` }}
           >
             %
@@ -389,12 +391,12 @@ function SingleLayoutView({
   const { data: allRedisHashKeysForTable = [] } = useGetRedisHashKeys();
   // allowAllGroupsFallback=false — 실행 화면에서 그룹 스코프가 비면(선택 불일치·데이터소스 미등록) 전체
   // 그룹으로 새지 않고 0. 편집 미리보기(TaskCreate)만 전체 폴백을 쓴다.
-  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix, false);
+  const redisTableSubscriptions = collectRedisTableWsSubscriptions(widgets, allRedisHashKeysForTable, targetIdsByPrefix, false, selectionIdsByHashKey);
 
   const subscriptions: CtiWsSubscription[] = isMasterLoading
     ? []
     : mergeWsSubscriptions([...widgetRedisSubscriptions, ...redisTableSubscriptions, ...collectDbQueryWsSubscriptions(widgets)]);
-  const { dataByHashKey, isConnected: wsConnected } = useCtiqWebSocket(subscriptions);
+  const { dataByHashKey, isConnected: wsConnected, status: wsStatus } = useCtiqWebSocket(subscriptions);
 
   useEffect(() => {
     if (!layout.fileName) return;
@@ -435,8 +437,10 @@ function SingleLayoutView({
   }, []);
 
   const renderWidget = (widget: DroppedWidget) => {
-    // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. sectionKey가 없으면 합산 selection(전체 공통).
-    const effectiveSelection = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
+    // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. 구역 미배정 위젯(sectionKey 없음)은 __etc(기본
+    // 그룹) 선택값을 쓴다 — 예전엔 `widget.sectionKey &&` 가드에 막혀 __etc 폴백을 못 타고 selection(=첫 번째
+    // 구역의 뷰그룹)을 써서, WS 구독은 union이라 데이터가 내려오는데 화면엔 값이 안 뜨던 문제.
+    const effectiveSelection = sectionSelections ? ((widget.sectionKey ? sectionSelections[widget.sectionKey] : undefined) ?? sectionSelections['__etc'] ?? selection) : selection;
     const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSelection, dbQueryDefs);
     const effectiveMediaTypes = resolveMediaTypesFromSelection(effectiveSelection, dbQueryDefs);
     // REASON 패밀리(그룹/스킬 등) 위젯 전용 — 그룹은 "선택 없음=전체(그룹 데이터소스 전체)" 폴백, 그 외 엔티티는
@@ -452,7 +456,19 @@ function SingleLayoutView({
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} />;
     // table-redis/그룹·스킬 이석사유/조인 테이블은 RedisTableWidget 내부에서 표/차트 모두 처리(실데이터 fetch가 거기 있어서)
-    if (isRedisTableWidget(widget)) return <RedisTableWidget widget={widget} fontScale={fontScale} dataByHashKey={dataByHashKey} targetIdsByPrefix={effectiveTargetIdsByPrefix} />;
+    if (isRedisTableWidget(widget))
+      return (
+        <RedisTableWidget
+          widget={widget}
+          fontScale={fontScale}
+          dataByHashKey={dataByHashKey}
+          targetIdsByPrefix={effectiveTargetIdsByPrefix}
+          // table 위젯의 행 필터는 "실제 구독한 id"와 일치해야 하므로, 값 위젯용 섹션별(effective) 대신
+          // 구독 생성과 동일한 화면 전체 selection(selectionIdsByHashKey)을 넘긴다 — 안 그러면 구독은 1개인데
+          // 필터 기준엔 그 id가 없어 BE 초과분(빈 큐)을 못 걸러낸다.
+          selectionIdsByHashKey={selectionIdsByHashKey}
+        />
+      );
     return (
       <ViewValueWidget
         widget={widget}
@@ -470,6 +486,7 @@ function SingleLayoutView({
 
   return (
     <div ref={containerRef} className="w-full h-screen bg-black overflow-hidden relative select-none" onMouseMove={resetHideTimer} onTouchStart={resetHideTimer}>
+      {hasLiveSelection && <WsReconnectBanner status={wsStatus} />}
       <div className="absolute inset-0 flex items-center justify-center">
         <div
           className="relative overflow-hidden flex-shrink-0"

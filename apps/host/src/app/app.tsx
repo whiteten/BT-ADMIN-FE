@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { type Theme, ToastContainer, type ToastPosition } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './features/layout/Layout';
+import { SUB_HEADER_HEIGHT } from './features/layout/SubHeader';
+import { TOP_HEADER_HEIGHT } from './features/layout/TopHeader';
 import CsrfGuard from './features/router/CsrfGuard';
 import GuestGuard from './features/router/GuestGuard';
 import RouteShell from './features/router/RouteShell';
@@ -15,6 +15,7 @@ import { createPageVariantSocket } from '@/components/custom/DynamicElement';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { Forbidden } from '@/components/custom/Forbidden';
 import { NotFound } from '@/components/custom/NotFound';
+import ToastProvider from '@/components/custom/ToastProvider';
 import '../assets/styles/common.css';
 import '../styles.scss';
 import '@/libs/shared-ui/src/lib/aggridSetup';
@@ -79,22 +80,13 @@ const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 0, gcT
 
 export function App() {
   const useReactQueryDevtools = React.useMemo(() => {
-    return process.env.NX_PUBLIC_REACT_QUERY_DEVTOOLS === 'ON';
-  }, []);
-  const toastOptions = React.useMemo(() => {
-    return {
-      position: 'top-center' as ToastPosition,
-      autoClose: 5000,
-      theme: 'light' as Theme,
-      pauseOnHover: true,
-      pauseOnFocusLoss: false,
-    };
+    return process.env.PUBLIC_REACT_QUERY_DEVTOOLS === 'ON';
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
       <React.Suspense fallback={<FallbackSpinner useFullScreen />}>
         <AppRoutes />
-        <ToastContainer {...toastOptions} />
+        <ToastProvider headerHeight={TOP_HEADER_HEIGHT + SUB_HEADER_HEIGHT} />
       </React.Suspense>
       {useReactQueryDevtools && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />}
     </QueryClientProvider>

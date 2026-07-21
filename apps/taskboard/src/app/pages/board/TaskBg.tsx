@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
-import { toast } from '@/shared-util';
+import { createUUID, toast } from '@/shared-util';
 import TaskboardTenantBar from '../../features/board/components/TaskboardTenantBar';
 import TenantBadge from '../../features/board/components/TenantBadge';
 import { taskboardQueryKeys, useCreateTaskboardBg, useDeleteTaskboardBg, useGetTaskboardBg } from '../../features/board/hooks/useTaskboardQueries';
@@ -511,7 +511,7 @@ export default function TaskBg() {
     }
     const name = customLayoutName.trim() || `커스텀 ${customLayouts.length + 1}`;
     const newLayout: LayoutTemplate = {
-      id: `custom-${Date.now()}`,
+      id: `custom-${createUUID()}`,
       name,
       description: `직접 만든 레이아웃 (${cells.length}개 영역)`,
       zones: cells.map(({ nodeId: _n, ...zone }) => zone),
@@ -542,7 +542,7 @@ export default function TaskBg() {
       };
       await createBgMutate({ params: { data: JSON.stringify(requestData) }, data: file });
       toast.success('정상적으로 저장되었습니다!');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList._def });
     } catch {
       toast.error('업로드 중 오류가 발생했습니다.');
     } finally {
@@ -567,7 +567,7 @@ export default function TaskBg() {
     try {
       await deleteBgMutate(deleteTargetId);
       toast.success('성공적으로 삭제되었습니다.');
-      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+      await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList._def });
     } catch {
       toast.error('삭제 중 오류가 발생했습니다.');
     } finally {
@@ -1247,7 +1247,7 @@ export default function TaskBg() {
                                               };
                                               await createBgMutate({ params: { data: JSON.stringify(requestData) }, data: imageFile });
                                               toast.success('저장되었습니다!');
-                                              await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList().queryKey });
+                                              await queryClient.invalidateQueries({ queryKey: taskboardQueryKeys.getBgList._def });
                                             } catch {
                                               toast.error('저장 중 오류가 발생했습니다.');
                                             }

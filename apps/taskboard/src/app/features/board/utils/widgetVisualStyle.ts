@@ -78,12 +78,16 @@ export function getValueAnimationStyle(style: WidgetStyle): React.CSSProperties 
 /**
  * 값 텍스트 위치 세밀조정(valueOffsetX/Y) 적용 — 평상시엔 단순 translate, 애니메이션 재생 중에는
  * 위 keyframes가 같은 --tb-offset-x/y 변수를 베이스로 사용해 모션과 오프셋이 항상 함께 움직인다.
+ *
+ * 저장값은 디자인 기준폭(DESIGN_WIDTH) 환산 px이므로 폰트와 동일하게 fontScale을 곱해야
+ * 편집기에서 잡은 위치가 해상도가 다른 실행 화면에서도 같은 비율로 재현된다.
+ * (미적용 시 원본 px 그대로라 화면이 커질수록 이동량이 상대적으로 작아 보임)
  */
-export function getValueOffsetStyle(style: WidgetStyle): React.CSSProperties {
+export function getValueOffsetStyle(style: WidgetStyle, fontScale = 1): React.CSSProperties {
   return {
     transform: 'translate(var(--tb-offset-x, 0px), var(--tb-offset-y, 0px))',
-    '--tb-offset-x': `${style.valueOffsetX ?? 0}px`,
-    '--tb-offset-y': `${style.valueOffsetY ?? 0}px`,
+    '--tb-offset-x': `${(style.valueOffsetX ?? 0) * fontScale}px`,
+    '--tb-offset-y': `${(style.valueOffsetY ?? 0) * fontScale}px`,
   } as React.CSSProperties;
 }
 
@@ -106,11 +110,26 @@ export function getThresholdColor(value: unknown, style: Pick<WidgetStyle, 'thre
   return matched;
 }
 
+/** 초 단위 숫자를 HH:MM:SS로 변환. 음수·소수는 버림 처리. */
+function formatSecondsAsHms(totalSeconds: number): string {
+  const total = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
 /**
  * 1000단위 콤마 — useThousandSep이 켜져 있고 값이 숫자로 해석될 때만 적용.
  * 실행화면(TaskView/RollingDisplay)의 Redis/계산식 값은 문자열로 내려오므로 숫자 문자열도 처리한다.
+ * timeFormat='hms'면 값을 초로 보고 HH:MM:SS로 변환(콤마 설정보다 우선).
  */
-export function formatWidgetValue(value: string | number, useThousandSep?: boolean): string {
+export function formatWidgetValue(value: string | number, useThousandSep?: boolean, timeFormat?: 'raw' | 'hms'): string {
+  if (timeFormat === 'hms') {
+    const sec = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+    if (Number.isNaN(sec)) return String(value);
+    return formatSecondsAsHms(sec);
+  }
   if (!useThousandSep) return String(value);
   const num = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
   if (Number.isNaN(num)) return String(value);
@@ -130,7 +149,7 @@ export function getWidgetVisualStyle(style: WidgetStyle, fontScale = 1): React.C
     color: style.color,
     backgroundColor: style.bgColor,
     border,
-    borderRadius: `${style.borderRadius ?? 8}px`,
+    borderRadius: `${style.borderRadius ?? 0}px`,
     opacity: (style.opacity ?? 100) / 100,
     boxShadow: shadowCss,
     overflow: 'hidden',

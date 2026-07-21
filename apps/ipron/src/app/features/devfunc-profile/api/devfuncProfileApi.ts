@@ -87,7 +87,7 @@ export const devfuncProfileApi = {
    * @flow ipron-devfunc-profile-create
    */
   createProfile: async (data: ProfileCreateData): Promise<DevfuncProfile> => {
-    const response = await apiClient.post<ApiResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-create', data);
+    const response = await apiClient.post<ApiResponse<DevfuncProfileResponse>>('/ipron-devfunc-profile-create', data, { actAsTenantFromBody: true });
     return transformProfile(response.data?.data);
   },
 

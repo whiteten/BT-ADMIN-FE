@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Checkbox, Form, type FormProps, Input } from 'antd';
 import type { AxiosError } from 'axios';
 import { Lock, TriangleAlert, User } from 'lucide-react';
-import { useAuthStore } from '@/shared-store';
+import { useAuthStore, useOpenTabsStore } from '@/shared-store';
 import { toast, withBasePath } from '@/shared-util';
 import styles from './Login.module.scss';
 import { ChangePasswordDialog, type ChangePasswordDialogRef, type ChangePasswordMode } from '../components/ChangePasswordDialog';
@@ -11,6 +11,7 @@ import { authApi } from '../features/auth/api/authApi';
 import { useLogin, useResetPassword } from '../features/auth/hooks/useAuthQueries';
 import { useRememberMeStore } from '../features/auth/hooks/useRememberMeStore';
 import type { LoginErrorResponse, LoginResponse, PasswordPolicy } from '../features/auth/types/auth';
+import { clearTabHistoryKeyLedger } from '../features/layout/hooks/useTabSync';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Log } from '@/libs/shared-util/src/lib/log';
 
@@ -71,6 +72,12 @@ export default function Login() {
           userAccount: rememberMeData.rememberMe ? form.getFieldValue('userAccount') : '',
           rememberMe: rememberMeData.rememberMe,
         });
+        // 열린 탭 목록 초기화 — 탭 스토어는 sessionStorage persist라 로그아웃·세션 만료를 넘어 살아남는다.
+        // 로그아웃 경로가 여럿(버튼·WS 강제 로그아웃·401·가드 리다이렉트)이라 진입점인 로그인 성공 시점에
+        // 무조건 비워, 같은 브라우저 탭에서 다음 사용자가 이전 사용자의 탭 목록을 이어받지 않게 한다.
+        // 히스토리 칸→탭 장부도 세트로 삭제(reset으로 탭 id가 1부터 재발급돼 옛 장부와 오매핑 위험).
+        useOpenTabsStore.getState().reset();
+        clearTabHistoryKeyLedger();
         // Navigate to main page
         navigate('/');
       },

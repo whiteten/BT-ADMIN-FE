@@ -41,7 +41,7 @@ export const callScreenApi = {
    * @flow ipron-call-screen-create
    */
   create: async (data: CallScreenCreateRequest): Promise<CallScreen> => {
-    const response = await apiClient.post<ApiResponse<CallScreen>>('/ipron-call-screen-create', data);
+    const response = await apiClient.post<ApiResponse<CallScreen>>('/ipron-call-screen-create', data, { actAsTenantFromBody: true });
     return response.data?.data;
   },
 

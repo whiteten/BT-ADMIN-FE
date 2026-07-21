@@ -1,6 +1,9 @@
-import type { ModuleFederationConfig } from '@nx/module-federation';
-
-const config: ModuleFederationConfig = {
+/**
+ * aoe remote의 MF 노출 정의 (번들러 중립 — tools/rsbuild/remote-config.ts가 소비).
+ *
+ * './AgentChatPanel': host Layout이 직접 소비하는 추가 노출 (일반 4종 외 aoe 특수분).
+ */
+export default {
   name: 'aoe',
   exposes: {
     './Module': './src/remote-entry.ts',
@@ -9,10 +12,4 @@ const config: ModuleFederationConfig = {
     './QuerySelectors': './src/app/features/router/querySelectors.ts',
     './AgentChatPanel': './src/app/features/agent-config/components/AgentChatPanel.tsx',
   },
-  additionalShared: [['@/shared-store', { singleton: true, strictVersion: true, requiredVersion: false }]],
 };
-
-/**
- * Nx requires a default export of the config to allow correct resolution of the module federation graph.
- **/
-export default config;

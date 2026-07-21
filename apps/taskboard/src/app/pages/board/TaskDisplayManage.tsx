@@ -599,7 +599,6 @@ export default function TaskDisplayManage() {
           <div className="flex items-center gap-2">
             <Settings2 className="w-5 h-5 text-slate-400" />
             <h1 className="text-2xl font-bold text-slate-800 tracking-tight">데이터 소스 관리</h1>
-            <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[11px] font-bold">고급 · 관리자</span>
           </div>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">

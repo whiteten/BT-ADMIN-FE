@@ -51,7 +51,7 @@ export const dnProfileApi = {
    * @flow ipron-dn-profile-create
    */
   create: async (data: DnProfileCreateRequest): Promise<DnProfile> => {
-    const response = await apiClient.post<ApiResponse<DnProfileResponse>>('/ipron-dn-profile-create', data);
+    const response = await apiClient.post<ApiResponse<DnProfileResponse>>('/ipron-dn-profile-create', data, { actAsTenantFromBody: true });
     return transformProfile(response.data?.data);
   },
 

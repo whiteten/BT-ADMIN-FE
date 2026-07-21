@@ -359,7 +359,7 @@ export default function DnForm() {
     return ['■ 자동 설정 (내선에서 수정 불가)', groupRows || '  (없음)', '', '■ 편집 허용 여부', editRows || '  (없음)'].join('\n');
   }, [cosEffect]);
   // Personal 필드: editable=false면 disabled.
-  const personalDisabled = (name: string) => cosEffect?.editable != null && cosEffect.editable[name] === false;
+  const personalDisabled = (name: string) => cosEffect?.editable?.[name] === false;
   // Personal 필드 여부: COS 효과가 로드됐고 editable 맵에 키가 있으면 COS 의존 필드
   const cosControlled = (name: string) => cosEffect?.editable != null && name in cosEffect.editable;
 
@@ -808,7 +808,7 @@ export default function DnForm() {
       { title: '교환기 번호관리' },
       { title: '내선', path: '/ipron/dn' },
       {
-        title: isEditMode ? '수정' : '등록',
+        title: isEditMode ? '내선 수정' : '내선 등록',
         path: isEditMode && id ? `/ipron/dn/${id}/edit` : '/ipron/dn/create',
       },
     ]);
