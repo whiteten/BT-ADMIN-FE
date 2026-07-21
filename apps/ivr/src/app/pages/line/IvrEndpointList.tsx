@@ -16,15 +16,14 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Dropdown, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, Layers, MoreVertical, Network, Plus, Search, Trash2, Users } from 'lucide-react';
+import { type BreadcrumbProps, Button, Dropdown, Empty, Input, Select } from 'antd';
+import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2, Users } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IvrEndpointMasterSheet, { type IvrEndpointMasterSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMasterSheet';
 import IvrEndpointMemberSheet, { type IvrEndpointMemberSheetRef } from '../../features/ivr-endpoint/components/IvrEndpointMemberSheet';
 import { ivrEndpointQueryKeys, useDeleteMaster, useDeleteMember, useGetMasters, useGetMembers, useGetNodes } from '../../features/ivr-endpoint/hooks/useIvrEndpointQueries';
 import { ALLOC_METHOD_LABELS, CONN_TYPE_LABELS, type IvrEndpointMaster, type IvrEndpointMember, LINE_TYPE_LABELS, getMasterTagList } from '../../features/ivr-endpoint/types';
-import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -154,19 +153,6 @@ export default function IvrEndpointList() {
     if (!selectedEndpointId) return null;
     return endpoints.find((ep) => ep.endptId === selectedEndpointId) ?? null;
   }, [endpoints, selectedEndpointId]);
-
-  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
-    () => [
-      { id: 'all', label: '전체', icon: Layers, count: searchFilteredEndpoints.length },
-      ...nodes.map((node) => ({
-        id: node.nodeId,
-        label: node.nodeName,
-        icon: Network,
-        count: searchFilteredEndpoints.filter((ep) => ep.nodeId === node.nodeId).length,
-      })),
-    ],
-    [nodes, searchFilteredEndpoints],
-  );
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeSelect = (nodeId: number) => {
@@ -362,21 +348,31 @@ export default function IvrEndpointList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 노드 탭 바 (별도 박스) ===== */}
-        <TabBar<number | 'all'>
-          items={nodeTabItems}
-          selectedId={isSearching ? null : (selectedNodeId ?? 'all')}
-          onSelect={(id) => {
-            if (id === 'all') {
-              setSelectedNodeId(null);
-              setSearchText('');
-              setSelectedEndpointId(null);
-            } else {
-              handleNodeSelect(id);
-            }
-          }}
-          rightContent={
-            <>
+        {/* ===== 상단: 노드 선택 툴바 (별도 박스) ===== */}
+        <div className="bg-white bt-shadow flex-shrink-0 px-5 h-[56px]">
+          <header className="flex items-center gap-2 flex-wrap h-full">
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select<number | 'all'>
+                size="small"
+                variant="borderless"
+                value={isSearching ? undefined : (selectedNodeId ?? 'all')}
+                onChange={(id) => {
+                  if (id === 'all') {
+                    setSelectedNodeId(null);
+                    setSearchText('');
+                    setSelectedEndpointId(null);
+                  } else {
+                    handleNodeSelect(id);
+                  }
+                }}
+                options={[{ value: 'all' as const, label: '전체' }, ...nodes.map((node) => ({ value: node.nodeId, label: node.nodeName }))]}
+                placeholder="노드 선택"
+                style={{ width: 190 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -388,12 +384,17 @@ export default function IvrEndpointList() {
               <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
                 추가
               </Button>
-            </>
-          }
-        />
+            </div>
+          </header>
+        </div>
 
         {/* ===== 카드 슬라이더 박스 (별도 박스) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100">
+            <Network className="size-4 text-[#405189]" />
+            <h3 className="text-sm font-semibold text-gray-800">EndPoint</h3>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredEndpoints.length}개</span>
+          </div>
           <div className="flex items-center px-4 py-3 h-[185px]">
             {filteredEndpoints.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
