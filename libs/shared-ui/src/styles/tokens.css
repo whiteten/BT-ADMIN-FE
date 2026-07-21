@@ -294,6 +294,16 @@
   width: 100%;
 }
 
+/*
+ * ag-Grid 상태바(페이지네이션 영역) 좌우 여백 축소.
+ * 기본값은 calc(var(--ag-grid-size) * 4) = spacing 6 기준 24px 이라 본문 셀(12px)보다 넓어
+ * 페이지 버튼이 안쪽으로 밀려 보인다. 좌우 padding 전용 테마 파라미터가 없어 CSS 로 맞춘다.
+ */
+.ag-status-bar {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
 /* 운영자 모드: 오른쪽 드로어(추가/수정)의 상단 헤더를 다크 차콜로 통일.
    Drawer 는 body 포털로 렌더되므로 루트의 data-operator-theme 속성을 기준으로 전역 오버라이드한다. */
 :root[data-operator-theme='true'] .ant-drawer-header {

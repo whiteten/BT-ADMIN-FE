@@ -20,14 +20,41 @@ const GridLoadingOverlay = () => createElement(FallbackSpinner);
 
 export default function useAggridOptions() {
   // theme도 useMemo로 메모이제이션 (무한 리렌더링 방지)
+  // 2026-07-21: 국선관리(EndpointList) 리스트형 표기의 룩을 전역 그리드 테마로 이식.
+  //   기준 마크업 — 헤더 `bg-gray-50 border-y border-gray-200 text-xs font-semibold text-gray-500`,
+  //   행 `px-3 py-2.5 text-xs text-gray-600 divide-y divide-gray-100`,
+  //   hover `bg-gray-50`, 선택행 `bg-[#405189]/5`.
+  //   Tailwind 색상 토큰은 ag-Grid 파라미터가 클래스를 못 받으므로 hex 로 환산해 둔다.
   const theme = useMemo(
     () =>
       themeQuartz.withParams({
         browserColorScheme: 'light',
+        // 셀 — text-xs(12px) / text-gray-600 / px-3(12px)
+        fontSize: 12,
+        cellTextColor: '#4b5563',
+        cellHorizontalPadding: 12,
         cellHorizontalPaddingScale: 1,
-        fontSize: 13,
-        headerFontSize: 13,
+        // 행 — py-2.5(10px) 상하 + 18px 라인 = 38px, 구분선은 divide-gray-100
+        rowHeight: 38,
         rowVerticalPaddingScale: 1,
+        rowBorder: { style: 'solid', width: 1, color: '#f3f4f6' },
+        rowHoverColor: '#f9fafb',
+        selectedRowBackgroundColor: 'rgba(64, 81, 137, 0.05)',
+        oddRowBackgroundColor: 'transparent',
+        // 헤더 — bg-gray-50 / text-xs semibold gray-500 / 하단 border-gray-200, 컬럼 구분선 없음
+        headerHeight: 38,
+        headerFontSize: 12,
+        headerFontWeight: 600,
+        headerTextColor: '#6b7280',
+        headerBackgroundColor: '#f9fafb',
+        headerRowBorder: { style: 'solid', width: 1, color: '#e5e7eb' },
+        headerColumnBorder: false,
+        // 리스트형에는 바깥 테두리·세로 구분선이 없다.
+        // 행번호·체크박스 컬럼은 pinned:'left' 라 columnBorder 가 아니라 pinnedColumnBorder 가 그린다.
+        columnBorder: false,
+        pinnedColumnBorder: false,
+        wrapperBorder: false,
+        borderColor: '#e5e7eb',
         spacing: 6,
       }),
     [],
@@ -111,7 +138,7 @@ export default function useAggridOptions() {
       pagination: true,
       paginationPageSize: 20,
       suppressPaginationPanel: true,
-      rowNumbers: true,
+      rowNumbers: false,
       noRowsOverlayComponent: AggridNoRowsOverlay,
       noRowsOverlayComponentParams: {
         message: '검색된 데이터가 없습니다.',
