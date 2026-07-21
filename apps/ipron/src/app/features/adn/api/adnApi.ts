@@ -55,7 +55,7 @@ export const adnApi = {
   // ─── Mutations ────────────────────────────────────────────────────────────
 
   create: async (body: AdnCreateRequest): Promise<AdnResponse> => {
-    const res = await apiClient.post<ApiResponse<AdnResponse>>('/ipron-dn-adn-create', body);
+    const res = await apiClient.post<ApiResponse<AdnResponse>>('/ipron-dn-adn-create', body, { actAsTenantFromBody: true });
     return res.data?.data;
   },
 

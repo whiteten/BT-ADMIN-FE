@@ -49,7 +49,7 @@ export const cosApi = {
    * @flow ipron-cos-create
    */
   create: async (data: CosCreateRequest): Promise<Cos> => {
-    const response = await apiClient.post<ApiResponse<Cos>>('/ipron-cos-create', data);
+    const response = await apiClient.post<ApiResponse<Cos>>('/ipron-cos-create', data, { actAsTenantFromBody: true });
     return response.data?.data;
   },
 

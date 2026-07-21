@@ -6,7 +6,20 @@ import { createShortId, getCookie } from './util';
 
 const Log = new LOG('Api');
 
-/** 운영자 모드 스코프 헤더 주입 (sessionStorage 의 operator-scope-store 를 직접 파싱 — 순환의존 회피). */
+/**
+ * 운영자 모드 스코프 헤더 주입 (sessionStorage 의 operator-scope-store 를 직접 파싱 — 순환의존 회피).
+ *
+ * 운영자 모드에서 대행 테넌트를 고른 상태(actAsTenantId 있음)면 그 값을, 전체(view-all)면
+ * X-View-All-Tenants 를 보낸다.
+ *
+ * ⚠ actAsTenantFromBody(=true) 예외 — "전체(view-all)" 상태에서의 등록 버그 대응:
+ *   운영자 전체 모드에서는 actAsTenantId 가 null 이라 X-View-All-Tenants 만 나가고 X-Tenant-Id 가
+ *   실리지 않는다. 이때 등록 폼에서 "다른 테넌트 B"를 골라 저장하면, 백엔드 active 가 로그인
+ *   테넌트로 폴백해 TenantGuard 가 403 을 낸다(TENANT_OWNED 엔티티 한정).
+ *   → create mutation 이 actAsTenantFromBody:true 를 지정하면, 전체 모드에서도 요청 body 의
+ *     top-level tenantId 를 X-Act-As-Tenant 로 승격한다("폼에서 고른 테넌트 = 그 요청의 작업 대상").
+ *   보안: BFF 가 X-Act-As-Tenant 를 isSystemAdmin 재검증 후에만 수용하므로 FE 승격은 안전.
+ */
 function applyOperatorScopeHeaders(config: InternalAxiosRequestConfig): void {
   try {
     const raw = sessionStorage.getItem('operator-scope-store');
@@ -15,12 +28,26 @@ function applyOperatorScopeHeaders(config: InternalAxiosRequestConfig): void {
     if (!state?.operatorMode) return;
     if (state.actAsTenantId) {
       config.headers['X-Act-As-Tenant'] = state.actAsTenantId;
+      return;
+    }
+    // 전체(view-all) 상태 — 단, 등록 요청이 body 의 tenantId 를 작업 대상으로 선언하면 그 값으로 승격.
+    const bodyTenantId = (config as ExtendedAxiosRequestConfig).actAsTenantFromBody ? readBodyTenantId(config.data) : null;
+    if (bodyTenantId != null) {
+      config.headers['X-Act-As-Tenant'] = String(bodyTenantId);
     } else {
       config.headers['X-View-All-Tenants'] = 'true';
     }
   } catch {
     // sessionStorage 접근 불가/파싱 실패 시 무시 (일반 콘솔로 동작)
   }
+}
+
+/** 요청 body 에서 top-level tenantId(숫자/문자) 를 안전하게 추출. 없거나 형태가 다르면 null. */
+function readBodyTenantId(data: unknown): number | string | null {
+  if (data == null || typeof data !== 'object') return null;
+  const tid = (data as { tenantId?: unknown }).tenantId;
+  if (typeof tid === 'number' || (typeof tid === 'string' && tid.trim() !== '')) return tid;
+  return null;
 }
 
 /** API 에러 이벤트명 */
@@ -34,6 +61,7 @@ interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
   silent?: boolean;
   redirectOnForbidden?: boolean;
+  actAsTenantFromBody?: boolean;
 }
 
 export interface ApiRequestConfig extends AxiosRequestConfig {
@@ -44,6 +72,13 @@ export interface ApiRequestConfig extends AxiosRequestConfig {
    * POST 등으로 body에 조건을 실어 "조회"하는 경우 true로 지정하면 GET과 동일하게 이동시킨다.
    */
   redirectOnForbidden?: boolean;
+  /**
+   * 운영자 "전체(view-all)" 모드에서, 요청 body 의 top-level tenantId 를 작업 대상 테넌트로 승격한다.
+   * TENANT_OWNED 엔티티의 등록 mutation 이 지정한다("폼에서 고른 테넌트 = 그 요청의 작업 대상").
+   * 지정하지 않으면 전체 모드는 X-View-All-Tenants(읽기 스코프)로만 나가 등록이 403 이 된다.
+   * 상세: applyOperatorScopeHeaders 주석 참조.
+   */
+  actAsTenantFromBody?: boolean;
 }
 
 export interface ApiClientOptions {

@@ -97,7 +97,7 @@ export const accessProfileApi = {
    * @flow ipron-access-profile-create
    */
   createProfile: async (data: ProfileCreateData): Promise<AccessProfile> => {
-    const response = await apiClient.post<ApiResponse<AccessProfileResponse>>('/ipron-access-profile-create', data);
+    const response = await apiClient.post<ApiResponse<AccessProfileResponse>>('/ipron-access-profile-create', data, { actAsTenantFromBody: true });
     return transformProfile(response.data?.data);
   },
 

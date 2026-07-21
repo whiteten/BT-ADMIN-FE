@@ -82,7 +82,7 @@ export const dnApi = {
    * @flow ipron-dn-create
    */
   create: async (data: DnCreateRequest): Promise<DnResponse> => {
-    const response = await apiClient.post<ApiResponse<DnResponse>>('/ipron-dn-create', data);
+    const response = await apiClient.post<ApiResponse<DnResponse>>('/ipron-dn-create', data, { actAsTenantFromBody: true });
     return response.data?.data;
   },
 
