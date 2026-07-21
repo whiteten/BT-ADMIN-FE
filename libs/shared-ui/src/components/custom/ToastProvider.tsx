@@ -215,7 +215,10 @@ export default function ToastProvider({ headerHeight = 0 }: ToastProviderProps) 
           </div>
         </div>
       ) : (
+        // key=id 필수 — 없으면 활성 항목이 바뀌어도 같은 인스턴스가 재사용돼
+        // elapsedAtMountRef와 링 CSS 애니메이션이 이전 카드 것을 그대로 이어간다(링이 첫 카드 타이머를 따라감).
         <ToastCard
+          key={active.id}
           item={active}
           onDismiss={dismiss}
           footer={
