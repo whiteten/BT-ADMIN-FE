@@ -437,8 +437,10 @@ function SingleLayoutView({
   }, []);
 
   const renderWidget = (widget: DroppedWidget) => {
-    // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. sectionKey가 없으면 합산 selection(전체 공통).
-    const effectiveSelection = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
+    // 섹션 모드 시 위젯의 sectionKey에 맞는 selection을 사용. 구역 미배정 위젯(sectionKey 없음)은 __etc(기본
+    // 그룹) 선택값을 쓴다 — 예전엔 `widget.sectionKey &&` 가드에 막혀 __etc 폴백을 못 타고 selection(=첫 번째
+    // 구역의 뷰그룹)을 써서, WS 구독은 union이라 데이터가 내려오는데 화면엔 값이 안 뜨던 문제.
+    const effectiveSelection = sectionSelections ? ((widget.sectionKey ? sectionSelections[widget.sectionKey] : undefined) ?? sectionSelections['__etc'] ?? selection) : selection;
     const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSelection, dbQueryDefs);
     const effectiveMediaTypes = resolveMediaTypesFromSelection(effectiveSelection, dbQueryDefs);
     // REASON 패밀리(그룹/스킬 등) 위젯 전용 — 그룹은 "선택 없음=전체(그룹 데이터소스 전체)" 폴백, 그 외 엔티티는
