@@ -569,6 +569,11 @@ export default function EndpointForm() {
 
         {/* 숫자 입력은 텍스트/셀렉트와 같은 폭을 쓸 이유가 없어 span 을 좁게(4) 잡는다. */}
         <Row gutter={20}>
+          <Col span={6}>
+            <Form.Item name="sipProfileId" label="SIP 프로파일" required rules={[{ required: true, message: 'SIP 프로파일은 필수입니다' }]}>
+              <Select options={sipProfileOptions} placeholder="선택" />
+            </Form.Item>
+          </Col>
           <Col span={4}>
             <Form.Item name="endptMaxchnl" label="인/아웃 최대채널" required rules={[{ required: true, message: '최대채널은 필수입니다' }]}>
               <InputNumber min={0} className="!w-full" />
@@ -587,11 +592,6 @@ export default function EndpointForm() {
           <Col span={6}>
             <Form.Item name="editOpt" label="편집 옵션" required rules={[{ required: true, message: '편집 옵션은 필수입니다' }]}>
               <Select options={[...EDIT_OPT_OPTIONS]} />
-            </Form.Item>
-          </Col>
-          <Col span={6}>
-            <Form.Item name="sipProfileId" label="SIP 프로파일" required rules={[{ required: true, message: 'SIP 프로파일은 필수입니다' }]}>
-              <Select options={sipProfileOptions} placeholder="선택" />
             </Form.Item>
           </Col>
         </Row>

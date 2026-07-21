@@ -50,15 +50,21 @@ export const IP_VERSION_OPTIONS = [
   { label: 'IPv6', value: 6 },
 ] as const;
 
-/** 전송 방식 (TRANSPORT_TYPE) — DB 기준 */
+/**
+ * 전송 방식 (TRANSPORT_TYPE) — 국선에서 선택 가능한 값.
+ *
+ * 공통코드에는 5개(UDP/TCP/TLS/WS·DTLS/WSS·DTLS)가 있지만 국선은 앞 3개만 쓴다.
+ * AS-IS IPR20S1010.jsp:474-477 이 공통코드를 읽은 뒤 splice(0, 3) 으로 잘라 콤보를 만든다.
+ * WS·DTLS(8) / WSS·DTLS(16) 은 WebRTC 전송 방식이라 국선 대상이 아니며,
+ * 실제로 TB_IE_ENDPOINT 에 8/16 을 쓰는 행은 0건이다.
+ */
 export const TRANSPORT_OPTIONS = [
   { label: 'UDP', value: 1 },
   { label: 'TCP', value: 2 },
   { label: 'TLS', value: 4 },
-  { label: 'WS / DTLS', value: 8 },
-  { label: 'WSS / DTLS', value: 16 },
 ] as const;
 
+/** 표시용 — 선택 대상이 아닌 8/16 도 과거 데이터 표시를 위해 남긴다. */
 export const TRANSPORT_LABELS: Record<number, string> = {
   1: 'UDP',
   2: 'TCP',
