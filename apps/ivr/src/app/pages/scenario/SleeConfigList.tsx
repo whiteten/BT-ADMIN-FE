@@ -17,6 +17,8 @@ import {
   Folder,
   History,
   Info,
+  ListChecks,
+  type LucideIcon,
   MoreVertical,
   Search,
   Server,
@@ -51,6 +53,18 @@ import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb: BreadcrumbProps['items'] = [{ title: '시나리오 관리' }, { title: '시나리오 환경변수', path: '/ivr/scenario/slee-config' }];
+
+function SectionHeader({ icon: Icon, label, suffix }: { icon: LucideIcon; label: string; suffix?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-1.5">
+        <Icon className="size-3.5 text-[#405189]" />
+        <span className="text-[13px] font-semibold text-slate-700">{label}</span>
+      </div>
+      {suffix && <span className="text-[12px] text-slate-400">{suffix}</span>}
+    </div>
+  );
+}
 
 export default function SleeConfigList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -580,142 +594,148 @@ export default function SleeConfigList() {
 
         <div className="flex flex-1 min-h-0 gap-4">
           {/* ===== 좌측: 환경파일 목록 (검색 + flat list — ScenarioMenuControlList.tsx 시나리오 목록 패턴) ===== */}
-          <div className="w-[340px] flex-shrink-0 bg-white bt-shadow p-4 flex flex-col gap-3 overflow-hidden">
-            <div className="flex items-center gap-2">
-              <FileCog className="size-4 text-[#405189]" />
-              <h3 className="text-sm font-semibold text-gray-800">환경파일</h3>
-              <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredConfigFiles.length}개</span>
+          <div className="bg-white bt-shadow flex flex-col flex-[1] min-w-0 min-h-0 overflow-hidden">
+            <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <FileCog className="size-4 text-[#405189]" />
+                <h3 className="text-sm font-semibold text-gray-800">환경파일</h3>
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredConfigFiles.length}개</span>
+              </div>
             </div>
+            <div className="border-t border-gray-200" />
+            <div className="flex-1 min-h-0 flex flex-col gap-3 p-5 overflow-hidden">
+              <Input allowClear prefix={<Search className="size-3.5 text-gray-400" />} placeholder="환경파일 검색" value={searchText} onChange={handleSearchChange} />
 
-            <Input allowClear prefix={<Search className="size-3.5 text-gray-400" />} placeholder="환경파일 검색" value={searchText} onChange={handleSearchChange} />
+              <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
+                {filteredConfigFiles.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+                    <Empty description={false} styles={{ image: { height: 40 } }} />
+                    <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 환경파일이 없습니다'}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-0.5">
+                    {filteredConfigFiles.map((file) => {
+                      const isSelected = selectedConfigFile === file.configFile && selectedFileTenantId === file.tenantId;
+                      return (
+                        <div
+                          key={`${file.tenantId}-${file.configFile}`}
+                          onClick={() => handleCardSelect(file)}
+                          title={file.configFile}
+                          className={cn(
+                            'group flex items-center gap-2 cursor-pointer rounded-md border-l-[3px] px-3 py-2 transition-colors',
+                            isSelected ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]' : 'border-transparent hover:bg-gray-50',
+                          )}
+                        >
+                          <FileCog className={cn('size-4 flex-shrink-0', isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-400')} />
+                          <div className="flex-1 min-w-0">
+                            <div className={cn('truncate text-sm', isSelected ? 'text-[var(--color-bt-primary)] font-medium' : 'text-gray-700')}>{file.configFile}</div>
+                            <div className="text-[11px] text-gray-400 truncate">카테고리 {file.categoryCount}개</div>
+                          </div>
+                          {showTenantLabel && file.tenantName && (
+                            <Badge variant="secondary" className="text-[10px] leading-4 !h-5 shrink-0 text-amber-700 bg-amber-50 border border-amber-200">
+                              {file.tenantName}
+                            </Badge>
+                          )}
+                          <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 opacity-0 group-hover:opacity-100">
+                            <Dropdown menu={{ items: getCardMenuItems(file) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-3.5 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
-              {filteredConfigFiles.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-                  <Empty description={false} styles={{ image: { height: 40 } }} />
-                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 환경파일이 없습니다'}</span>
-                </div>
+          {/* 카테고리 그리드 */}
+          {/* 카테고리는 USERCONFIG (속성) 의 컬럼일 뿐 별도 마스터 없음 → 단독 CUD 불요 (레거시 IPR30S3030 도 없음) */}
+          <div className="bg-white bt-shadow flex flex-col flex-[1] min-w-0 min-h-0 overflow-hidden">
+            <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <Folder className="size-4 text-[#405189]" />
+                <h3 className="text-sm font-semibold text-gray-800">
+                  카테고리 — <span className="text-[#405189]">{selectedConfigFile ?? ''}</span>
+                </h3>
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{allCategories.length}개</span>
+              </div>
+            </div>
+            <div className="border-t border-gray-200" />
+            <div className="flex-1 min-h-0 p-5">
+              {selectedConfigFile ? (
+                <AgGridReact<SleeConfigCategory>
+                  rowData={allCategories}
+                  columnDefs={categoryColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => params.data.category}
+                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                  rowSelection="single"
+                  // 카테고리 목록 로드 시 선택된 행이 없으면 첫 번째 행 자동 선택
+                  onRowDataUpdated={(e) => {
+                    if (e.api.getSelectedRows().length > 0) return;
+                    e.api.getDisplayedRowAtIndex(0)?.setSelected(true);
+                  }}
+                  onSelectionChanged={(e) => {
+                    const selected = e.api.getSelectedRows();
+                    setSelectedCategory(selected.length > 0 ? selected[0].category : null);
+                  }}
+                />
               ) : (
-                <div className="flex flex-col gap-0.5">
-                  {filteredConfigFiles.map((file) => {
-                    const isSelected = selectedConfigFile === file.configFile && selectedFileTenantId === file.tenantId;
-                    return (
-                      <div
-                        key={`${file.tenantId}-${file.configFile}`}
-                        onClick={() => handleCardSelect(file)}
-                        title={file.configFile}
-                        className={cn(
-                          'group flex items-center gap-2 cursor-pointer rounded-md border-l-[3px] px-3 py-2 transition-colors',
-                          isSelected ? 'border-[var(--color-bt-primary)] bg-[var(--color-bt-primary-soft)]' : 'border-transparent hover:bg-gray-50',
-                        )}
-                      >
-                        <FileCog className={cn('size-4 flex-shrink-0', isSelected ? 'text-[var(--color-bt-primary)]' : 'text-gray-400')} />
-                        <div className="flex-1 min-w-0">
-                          <div className={cn('truncate text-sm', isSelected ? 'text-[var(--color-bt-primary)] font-medium' : 'text-gray-700')}>{file.configFile}</div>
-                          <div className="text-[11px] text-gray-400 truncate">카테고리 {file.categoryCount}개</div>
-                        </div>
-                        {showTenantLabel && file.tenantName && (
-                          <Badge variant="secondary" className="text-[10px] leading-4 !h-5 shrink-0 text-amber-700 bg-amber-50 border border-amber-200">
-                            {file.tenantName}
-                          </Badge>
-                        )}
-                        <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 opacity-0 group-hover:opacity-100">
-                          <Dropdown menu={{ items: getCardMenuItems(file) }} trigger={['click']} placement="bottomRight">
-                            <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
-                              <MoreVertical className="size-3.5 text-gray-400" />
-                            </button>
-                          </Dropdown>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex items-center justify-center h-full">
+                  <Empty description="환경파일을 선택하세요" />
                 </div>
               )}
             </div>
           </div>
 
-          {/* ===== 우측: 카테고리(좌) + 속성(우) ===== */}
-          <div className="flex flex-1 min-h-0 gap-4">
-            {/* 카테고리 그리드 */}
-            {/* 카테고리는 USERCONFIG (속성) 의 컬럼일 뿐 별도 마스터 없음 → 단독 CUD 불요 (레거시 IPR30S3030 도 없음) */}
-            <div className="bg-white bt-shadow flex flex-col w-[420px] flex-shrink-0 min-h-0 overflow-hidden">
-              <div className="px-5 py-5 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <Folder className="size-4 text-[#405189]" />
-                  <h3 className="text-sm font-semibold text-gray-800">
-                    카테고리 — <span className="text-[#405189]">{selectedConfigFile ?? ''}</span>
-                  </h3>
-                  <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{allCategories.length}개</span>
-                </div>
+          {/* 속성 그리드 */}
+          <div className="bg-white bt-shadow flex flex-col flex-[2] min-w-0 min-h-0 overflow-hidden">
+            <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="size-4 text-[#405189]" />
+                <h3 className="text-sm font-semibold text-gray-800">
+                  속성 — <span className="text-[#405189]">{selectedCategory ?? ''}</span>
+                </h3>
+                <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{properties.length}개</span>
               </div>
-              <div className="border-t border-gray-200" />
-              <div className="flex-1 min-h-0 p-5">
-                {selectedConfigFile ? (
-                  <AgGridReact<SleeConfigCategory>
-                    rowData={allCategories}
-                    columnDefs={categoryColumnDefs}
-                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                    getRowId={(params) => params.data.category}
-                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                    rowSelection="single"
-                    onSelectionChanged={(e) => {
-                      const selected = e.api.getSelectedRows();
-                      setSelectedCategory(selected.length > 0 ? selected[0].category : null);
-                    }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <Empty description="환경파일을 선택하세요" />
-                  </div>
-                )}
+              <div className="flex gap-2 items-center">
+                <Button type="primary" icon={<span className="text-base leading-none">+</span>} disabled={!selectedConfigFile} onClick={handleOpenPropertyCreate}>
+                  속성 추가
+                </Button>
+                <Button color="purple" variant="solid" icon={<CheckSquareIcon className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
+                  항목단위 적용 ({selectedPropertyKeys.size})
+                </Button>
+                <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
+                  파일단위 적용
+                </Button>
+                <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
+                  예약 적용 결과
+                </Button>
               </div>
             </div>
-
-            {/* 속성 그리드 */}
-            <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="size-4 text-[#405189]" />
-                  <h3 className="text-sm font-semibold text-gray-800">
-                    속성 — <span className="text-[#405189]">{selectedCategory ?? ''}</span>
-                  </h3>
-                  <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{properties.length}개</span>
+            <div className="border-t border-gray-200" />
+            <div className="flex-1 min-h-0 p-5">
+              {selectedCategory ? (
+                <AgGridReact<SleeConfigProperty>
+                  rowData={properties}
+                  columnDefs={propertyColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => `${params.data.category}::${params.data.property}`}
+                  defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+                  rowSelection="multiple"
+                  suppressRowClickSelection
+                  onSelectionChanged={(e) => handlePropertySelectionChanged(e.api)}
+                  onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <Empty description="카테고리를 선택하세요" />
                 </div>
-                <div className="flex gap-2 items-center">
-                  <Button type="primary" icon={<span className="text-base leading-none">+</span>} disabled={!selectedConfigFile} onClick={handleOpenPropertyCreate}>
-                    속성 추가
-                  </Button>
-                  <Button color="purple" variant="solid" icon={<CheckSquareIcon className="size-3.5" />} disabled={selectedPropertyKeys.size === 0} onClick={handleOpenItemApply}>
-                    항목단위 적용 ({selectedPropertyKeys.size})
-                  </Button>
-                  <Button color="purple" variant="solid" icon={<FileCog className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenFileApply}>
-                    파일단위 적용
-                  </Button>
-                  <Button color="blue" variant="filled" icon={<ClipboardList className="size-3.5" />} disabled={!selectedConfigFile} onClick={handleOpenReservationResult}>
-                    예약 적용 결과
-                  </Button>
-                </div>
-              </div>
-              <div className="border-t border-gray-200" />
-              <div className="flex-1 min-h-0 p-5">
-                {selectedCategory ? (
-                  <AgGridReact<SleeConfigProperty>
-                    rowData={properties}
-                    columnDefs={propertyColumnDefs}
-                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                    getRowId={(params) => `${params.data.category}::${params.data.property}`}
-                    defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                    rowSelection="multiple"
-                    suppressRowClickSelection
-                    onSelectionChanged={(e) => handlePropertySelectionChanged(e.api)}
-                    onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <Empty description="카테고리를 선택하세요" />
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -749,29 +769,32 @@ export default function SleeConfigList() {
           </div>
         }
       >
-        <div className="flex flex-col gap-4 flex-1 min-h-0">
+        <div className="flex flex-col gap-4">
           {/* 선택된 항목 정보 — ITEM/FILE 분기 */}
-          <div className="bg-slate-50 border border-slate-200 rounded-md p-3 flex-shrink-0">
-            <div className="text-[11px] text-slate-500 mb-0.5">{applyMode === 'ITEM' ? '선택된 항목' : '대상 환경파일'}</div>
-            {applyMode === 'ITEM' ? (
-              <>
-                <div className="text-[13px] font-semibold text-slate-800">{selectedPropertyKeys.size}개 속성</div>
-                <div className="text-[11px] text-slate-500 mt-1 truncate">
-                  {selectedConfigFile} / {selectedCategory}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-[13px] font-semibold text-slate-800 truncate">{selectedConfigFile}</div>
-                <div className="text-[11px] text-slate-500 mt-1">카테고리 {allCategories.length}개 · 환경파일 전체 반영</div>
-              </>
-            )}
+          <div className="flex-shrink-0">
+            <SectionHeader icon={applyMode === 'ITEM' ? CheckSquareIcon : FileCog} label={applyMode === 'ITEM' ? '선택된 항목' : '대상 환경파일'} />
+            <div className="border border-slate-200 rounded-md p-3 bg-white">
+              {applyMode === 'ITEM' ? (
+                <>
+                  <div className="text-[13px] font-semibold text-slate-800">{selectedPropertyKeys.size}개 속성</div>
+                  <div className="text-[12px] text-slate-500 mt-1 truncate">
+                    {selectedConfigFile} / {selectedCategory}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-[13px] font-semibold text-slate-800 truncate">{selectedConfigFile}</div>
+                  <div className="text-[12px] text-slate-500 mt-1">카테고리 {allCategories.length}개 · 환경파일 전체 반영</div>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* 대상 시스템 목록 — 남은 공간 다 차지 */}
-          <div className="flex-1 min-h-0 flex flex-col">
-            <div className="flex items-center justify-between mb-2 flex-shrink-0">
-              <span className="text-[12px] font-semibold text-slate-700">
+          {/* 대상 시스템 목록 */}
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-semibold text-slate-700 inline-flex items-center gap-1.5">
+                <ListChecks className="size-3.5 text-[#405189]" />
                 대상 시스템 ({checkedSystemIds.size}/{irSystems.filter((s) => !s.svcResvId).length})
               </span>
               {irSystems.filter((s) => !s.svcResvId).length > 0 &&
@@ -790,15 +813,15 @@ export default function SleeConfigList() {
                         )
                       }
                     >
-                      <span className="text-[11px] text-slate-500">전체</span>
+                      <span className="text-[12px] text-slate-500">전체</span>
                     </Checkbox>
                   );
                 })()}
             </div>
             {irSystems.length === 0 ? (
-              <div className="text-center text-slate-400 text-[12px] py-4 border border-dashed border-slate-200 rounded-md">적용 가능한 IR 시스템이 없습니다.</div>
+              <div className="text-center text-slate-400 text-[13px] py-4 border border-dashed border-slate-200 rounded-md">적용 가능한 IR 시스템이 없습니다.</div>
             ) : (
-              <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
                 {irSystems.map((sys: SleeConfigIrSystem) => {
                   const reserved = !!sys.svcResvId;
                   return (
@@ -811,13 +834,17 @@ export default function SleeConfigList() {
                       <Checkbox checked={checkedSystemIds.has(sys.systemId)} disabled={reserved} onChange={(e) => handleSystemCheck(sys.systemId, e.target.checked)} />
                       <Server className="size-4 text-[#405189]" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-medium text-slate-800 truncate">{sys.systemName}</div>
-                        <div className="text-[10px] text-slate-400 truncate">
+                        <div className="text-[13px] text-slate-800 truncate">{sys.systemName}</div>
+                        <div className="text-[12px] text-slate-400 truncate">
                           {sys.nodeName ?? `Node ${sys.nodeId}`}
                           {sys.ioIpAddress ? ` · ${sys.ioIpAddress}` : ''}
                         </div>
                       </div>
-                      {reserved && <Tag color="blue">예약중</Tag>}
+                      {reserved && (
+                        <Tag color="blue" className="!m-0 !text-[11px] !leading-5 !py-0">
+                          예약중
+                        </Tag>
+                      )}
                     </label>
                   );
                 })}
@@ -825,8 +852,11 @@ export default function SleeConfigList() {
             )}
           </div>
 
+          <hr className="border-slate-100 flex-shrink-0" />
+
           {/* 적용 설정 — 하단 고정. layout shift 방지: 모드 토글해도 영역 높이 변화 없음. */}
-          <div className="border-t border-slate-100 pt-3 flex-shrink-0">
+          <div className="flex-shrink-0">
+            <SectionHeader icon={SlidersHorizontal} label="적용 설정" />
             {/* 적용 방식 + 예약 시각 인라인. DatePicker 는 실시간 모드에서도 자리 점유 (disabled). */}
             <div className="mb-3 flex items-center gap-3 flex-wrap">
               <span className="text-[12px] text-slate-600 flex-shrink-0">적용 방식</span>

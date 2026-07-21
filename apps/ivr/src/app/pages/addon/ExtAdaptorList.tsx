@@ -1,10 +1,11 @@
 /**
  * 확장 어댑터 관리 (AS-IS IPR20S6042) — 목업
- * 베이스: MsGroupList (노드 탭 + 카드 슬라이더 + 하단 그리드 패턴)
+ * 베이스: 노드 선택 툴바 + 카드 슬라이더(헤더 포함) + 하단 2탭 그리드 패턴 (IvrMedia.tsx 하단 탭 규칙 동일)
  *
  * Layout:
  * ┌───────────────────────────────────────────────────────────┐
- * │ [전체] [노드1] [노드2] ...           🔍[검색]  [+어댑터 추가] │  ← 노드 탭 바
+ * │ [노드▼]                              🔍[검색]              │  ← 노드 선택 툴바
+ * │ 시스템 N개                                                 │  ← 카드 슬라이더 헤더
  * │ [SYS Card] [SYS Card] ...                                  │  ← FOCUS 시스템 카드
  * ├───────────────────────────────────────────────────────────┤
  * │ [어댑터] [Watcher]                 (탭별 액션 버튼)          │  ← 2탭
@@ -17,8 +18,8 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input, Tag } from 'antd';
-import { ChevronLeft, ChevronRight, Copy, Layers, Network, Plus, RotateCw, Search, Server, Trash2 } from 'lucide-react';
+import { Button, Empty, Input, Select, Tag } from 'antd';
+import { ChevronLeft, ChevronRight, Copy, Eye, Network, Plus, Puzzle, RotateCw, Search, Server, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AdaptorBatchCopyDialog, { type AdaptorBatchCopyDialogRef } from '../../features/ext-adaptor/components/AdaptorBatchCopyDialog';
@@ -62,7 +63,6 @@ export default function ExtAdaptorList() {
   const [searchText, setSearchText] = useState('');
   const [bottomTab, setBottomTab] = useState<BottomTab>('adaptor');
   const cardScrollRef = useRef<HTMLDivElement>(null);
-  const tabScrollRef = useRef<HTMLDivElement>(null);
 
   const adaptorDrawerRef = useRef<AdaptorDrawerRef>(null);
   const batchCopyDialogRef = useRef<AdaptorBatchCopyDialogRef>(null);
@@ -126,7 +126,7 @@ export default function ExtAdaptorList() {
   // 목록이 갱신되어 새 행이 그리드에 반영되면 그 행으로 스크롤/강조(1회). 선택 상태는 변경하지 않음.
   useEffect(() => {
     const pending = pendingFocusRef.current;
-    if (!pending || pending.tab !== bottomTab) return;
+    if (pending?.tab !== bottomTab) return;
     const list = pending.tab === 'adaptor' ? adaptors : watchers;
     const has = pending.tab === 'adaptor' ? list.some((a) => String((a as Adaptor).adaptorId) === pending.id) : list.some((w) => String((w as Watcher).watcherId) === pending.id);
     if (!has) return;
@@ -346,61 +346,23 @@ export default function ExtAdaptorList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 노드 탭 바 ===== */}
-        <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-stretch bg-white pr-3 flex-shrink-0 h-[56px]">
-            {/* 좌측 탭 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: -300, behavior: 'smooth' })}
-              aria-label="이전 탭"
-            >
-              <ChevronLeft className="size-4 text-gray-500" />
-            </button>
-            <div ref={tabScrollRef} className="flex items-stretch max-w-[900px] min-w-0 overflow-x-auto divide-x divide-gray-200" style={{ scrollbarWidth: 'none' }}>
-              <button
-                type="button"
-                className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] flex-shrink-0 transition-colors ${
-                  selectedNodeId === null && !isSearching
-                    ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]'
-                    : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => handleNodeSelect(null)}
-              >
-                <Layers className="size-3.5" />
-                <span>전체</span>
-                <span className="text-[11px] text-gray-400">({systems.length})</span>
-              </button>
-              {nodes.map((node) => {
-                const cnt = systems.filter((s) => s.nodeId === node.nodeId).length;
-                const isActive = selectedNodeId === node.nodeId;
-                return (
-                  <button
-                    key={node.nodeId}
-                    type="button"
-                    className={`flex items-center justify-center gap-2 px-3 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[1px] min-w-[120px] flex-shrink-0 transition-colors ${
-                      isActive ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                    }`}
-                    onClick={() => handleNodeSelect(node.nodeId)}
-                  >
-                    <Network className="size-3.5 flex-shrink-0" />
-                    <span className="truncate">{node.nodeName}</span>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0">({cnt})</span>
-                  </button>
-                );
-              })}
+        {/* ===== 상단: 노드 선택 툴바 (별도 박스) ===== */}
+        <div className="bg-white bt-shadow flex-shrink-0 px-5 h-[56px]">
+          <header className="flex items-center gap-2 flex-wrap h-full">
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select<number | 'all'>
+                size="small"
+                variant="borderless"
+                value={isSearching ? undefined : (selectedNodeId ?? 'all')}
+                onChange={(id) => handleNodeSelect(id === 'all' ? null : id)}
+                options={[{ value: 'all' as const, label: '전체' }, ...nodes.map((node) => ({ value: node.nodeId, label: node.nodeName }))]}
+                placeholder="노드 선택"
+                style={{ width: 190 }}
+                popupMatchSelectWidth={false}
+              />
             </div>
-            {/* 우측 탭 스크롤 버튼 */}
-            <button
-              type="button"
-              className="flex-shrink-0 w-8 flex items-center justify-center hover:bg-gray-100 border-l border-r border-gray-200 cursor-pointer"
-              onClick={() => tabScrollRef.current?.scrollBy({ left: 300, behavior: 'smooth' })}
-              aria-label="다음 탭"
-            >
-              <ChevronRight className="size-4 text-gray-500" />
-            </button>
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0 pl-3">
+            <div className="ml-auto flex items-center gap-2">
               <Input
                 allowClear
                 prefix={<Search className="size-3.5 text-gray-400" />}
@@ -410,11 +372,16 @@ export default function ExtAdaptorList() {
                 style={{ width: 200 }}
               />
             </div>
-          </div>
+          </header>
         </div>
 
         {/* ===== FOCUS 시스템 카드 슬라이더 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
+          <div className="flex items-center gap-2 px-5 py-2.5 border-b border-gray-100">
+            <Server className="size-4 text-[#405189]" />
+            <h3 className="text-sm font-semibold text-gray-800">시스템</h3>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded text-slate-500 bg-slate-100">{filteredSystems.length}개</span>
+          </div>
           <div className="flex items-center px-4 py-3 h-[150px]">
             {filteredSystems.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
@@ -435,7 +402,7 @@ export default function ExtAdaptorList() {
                     return (
                       <div
                         key={sys.systemId}
-                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[110px] flex-shrink-0 flex flex-col ${
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[120px] flex-shrink-0 flex flex-col ${
                           isSel ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]' : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
                         }`}
                         onClick={(e) => {
@@ -443,11 +410,13 @@ export default function ExtAdaptorList() {
                           (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }}
                       >
-                        <div className="flex items-center gap-2 mb-1.5 min-w-0">
-                          <Server className="size-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-sm font-semibold text-gray-800 truncate">{sys.systemName}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Server className="size-3.5 text-[#405189]" />
+                          <span className="text-[14px] font-semibold text-gray-800 truncate" title={sys.systemName}>
+                            {sys.systemName}
+                          </span>
                         </div>
-                        <div className="text-xs text-gray-500 space-y-0.5">
+                        <div className="mt-2 text-[12px] text-gray-500 space-y-0.5">
                           <div className="flex items-center gap-1">
                             <Network className="size-3 text-gray-400" />
                             <span className="truncate">{sys.nodeName}</span>
@@ -472,21 +441,22 @@ export default function ExtAdaptorList() {
         {/* ===== 하단: 어댑터 / Watcher 2탭 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* 탭 바 + 액션 */}
-          <div className="flex items-stretch border-b-2 border-gray-200 pr-3 h-[48px] flex-shrink-0">
-            {(['adaptor', 'watcher'] as BottomTab[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={`w-[140px] flex items-center justify-center gap-2 px-3 text-[13px] font-medium border-b-2 -mb-[2px] transition-colors ${
-                  bottomTab === t ? 'bg-blue-50 text-blue-700 border-b-current' : 'text-gray-500 border-b-transparent hover:text-gray-700'
-                }`}
-                onClick={() => setBottomTab(t)}
-              >
-                {t === 'adaptor' ? '어댑터' : 'Watcher'}
-                <span className="text-[11px] text-gray-400">({t === 'adaptor' ? adaptors.length : watchers.length})</span>
-              </button>
-            ))}
-            <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-stretch border-b-2 border-gray-200 bg-white pr-5 h-[56px] flex-shrink-0">
+            <TabButton
+              active={bottomTab === 'adaptor'}
+              onClick={() => setBottomTab('adaptor')}
+              icon={<Puzzle className="size-3.5" />}
+              label="Adaptor"
+              count={String(adaptors.length)}
+            />
+            <TabButton
+              active={bottomTab === 'watcher'}
+              onClick={() => setBottomTab('watcher')}
+              icon={<Eye className="size-3.5" />}
+              label="Watcher"
+              count={String(watchers.length)}
+            />
+            <div className="ml-auto flex items-center gap-2 self-center">
               {bottomTab === 'adaptor' ? (
                 <>
                   <Button
@@ -498,7 +468,7 @@ export default function ExtAdaptorList() {
                     배치복사
                   </Button>
                   <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleAddAdaptor} disabled={!selectedSystem}>
-                    어댑터 추가
+                    Adaptor 추가
                   </Button>
                 </>
               ) : (
@@ -527,7 +497,7 @@ export default function ExtAdaptorList() {
           </div>
 
           {/* 그리드 */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 p-5">
             {!selectedSystem ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
                 <Empty description={false} />
@@ -570,5 +540,31 @@ export default function ExtAdaptorList() {
       <AdaptorBatchCopyDialog ref={batchCopyDialogRef} onSuccess={invalidateAllAdaptors} />
       <WatcherDrawer ref={watcherDrawerRef} onSuccess={handleWatcherDrawerSuccess} />
     </div>
+  );
+}
+
+// ─── 내부 컴포넌트: 탭 버튼 ────────────────────────────────────────────────
+
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  count: string;
+}
+
+function TabButton({ active, onClick, icon, label, count }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      className={`flex items-center justify-center gap-2 px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[2px] transition-colors flex-shrink-0 ${
+        active ? 'text-[var(--color-bt-primary)] border-b-[var(--color-bt-primary)]' : 'text-gray-400 border-b-transparent hover:text-gray-600'
+      }`}
+      onClick={onClick}
+    >
+      {icon}
+      <span>{label}</span>
+      <span className="text-[11px] text-gray-400 flex-shrink-0">({count})</span>
+    </button>
   );
 }

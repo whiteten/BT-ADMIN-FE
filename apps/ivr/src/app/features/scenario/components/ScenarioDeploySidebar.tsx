@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Checkbox, DatePicker, Drawer, Empty, Form, Radio, Select, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { Server, ServerOff, Shield } from 'lucide-react';
+import { ListChecks, type LucideIcon, Rocket, Server, ServerOff, Shield, Tag as TagIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { scenarioQueryKeys, useGetDeployTargets, useGetDeployedSystems, useGetVersions, usePublishScenario } from '../hooks/useScenarioQueries';
 import {
@@ -36,6 +36,18 @@ interface ScenarioDeploySidebarProps {
   onPublished?: () => void;
   /** 사이드바 닫기 콜백 */
   onClose?: () => void;
+}
+
+function SectionHeader({ icon: Icon, label, suffix }: { icon: LucideIcon; label: string; suffix?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center gap-1.5">
+        <Icon className="size-3.5 text-[#405189]" />
+        <span className="text-[13px] font-semibold text-slate-700">{label}</span>
+      </div>
+      {suffix && <span className="text-[12px] text-slate-400">{suffix}</span>}
+    </div>
+  );
 }
 
 export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion, enableVersionPicker = false, onPublished, onClose }: ScenarioDeploySidebarProps) {
@@ -157,12 +169,34 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
     });
   };
 
+  const canSubmit = !!effectiveVersion?.scenarioFile && selectedSystemIds.size > 0;
+
   return (
-    <Drawer title="배포" closable={{ placement: 'end' }} placement="right" width={480} open={open} onClose={onClose}>
+    <Drawer
+      title="배포"
+      closable={{ placement: 'end' }}
+      placement="right"
+      width={480}
+      open={open}
+      onClose={onClose}
+      footer={
+        effectiveVersion && (
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="solid" onClick={onClose}>
+              취소
+            </Button>
+            <Button variant="solid" type="primary" loading={isPublishing} disabled={!canSubmit} onClick={() => form.submit()}>
+              배포 실행
+            </Button>
+          </div>
+        )
+      }
+    >
       {/* 목록에서 열 때: 버전 선택 드롭다운(기본 최신) */}
       {enableVersionPicker && (
         <div className="mb-4">
-          <div className="text-[12px] font-semibold text-slate-700 mb-1.5">배포 버전</div>
+          {/*<div className="text-[13px] font-semibold text-slate-700 mb-1.5">배포 버전</div>*/}
+          <SectionHeader icon={TagIcon} label="선택된 버전" />
           <Select
             className="w-full"
             placeholder={versions.length ? '버전 선택' : '등록된 버전이 없습니다'}
@@ -196,24 +230,23 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
         <div className="flex flex-col gap-4">
           {/* 선택된 버전 정보 — 드롭다운 모드에선 Select가 대신하므로 생략 */}
           {!enableVersionPicker && (
-            <div className="bg-slate-50 border border-slate-200 rounded-md p-3">
-              <div className="text-[11px] text-slate-500 mb-0.5">선택된 버전</div>
-              <div className="text-[13px] font-semibold text-slate-800">
-                v{effectiveVersion.serviceVer}
-                {effectiveVersion.versionName && <span className="text-slate-500 font-normal"> ({effectiveVersion.versionName})</span>}
+            <div>
+              <SectionHeader icon={TagIcon} label="선택된 버전" />
+              <div className="border border-slate-200 rounded-md p-3 bg-white">
+                <div className="text-[13px] font-semibold text-slate-800">
+                  v{effectiveVersion.serviceVer}
+                  {effectiveVersion.versionName && <span className="text-slate-500 font-normal"> ({effectiveVersion.versionName})</span>}
+                </div>
+                {effectiveVersion.scenarioFile && <div className="text-[12px] text-slate-500 mt-1 truncate">{effectiveVersion.scenarioFile}</div>}
               </div>
-              {effectiveVersion.scenarioFile && <div className="text-[11px] text-slate-500 mt-1 truncate">{effectiveVersion.scenarioFile}</div>}
             </div>
           )}
 
           {/* 적용 서버 목록 */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[12px] font-semibold text-slate-700">적용 서버 ({deployedSystems.length})</span>
-              <span className="text-[10px] text-slate-400">v{effectiveVersion.serviceVer} 기준</span>
-            </div>
+            <SectionHeader icon={Server} label={`적용 서버 (${deployedSystems.length})`} suffix={`v${effectiveVersion.serviceVer} 기준`} />
             {deployedSystems.length === 0 ? (
-              <div className="text-center text-slate-400 text-[12px] py-4 border border-dashed border-slate-200 rounded-md">
+              <div className="text-center text-slate-400 text-[13px] py-4 border border-dashed border-slate-200 rounded-md">
                 <ServerOff className="size-8 mx-auto mb-1 opacity-60" />
                 <span>배포된 서버가 없습니다.</span>
               </div>
@@ -223,8 +256,8 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
                   <div key={s.systemId} className="flex items-center gap-2 p-2.5 rounded-md border border-slate-200 bg-white">
                     <Server className="size-4 text-[#405189]" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[12px] font-medium text-slate-800 truncate">{s.systemName ?? `System ${s.systemId}`}</div>
-                      <div className="text-[10px] text-slate-400 truncate">
+                      <div className="text-[13px] font-medium text-slate-800 truncate">{s.systemName ?? `System ${s.systemId}`}</div>
+                      <div className="text-[12px] text-slate-400 truncate">
                         {s.systemRole ?? '-'}
                         {s.ipAddress ? ` · ${s.ipAddress}` : ''}
                       </div>
@@ -252,7 +285,7 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
 
           {/* 배포 실행 폼 */}
           <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ rtResvKind: APPLY_TIMING.REALTIME }}>
-            <div className="text-[12px] font-semibold text-slate-700 mb-2">배포 실행</div>
+            <SectionHeader icon={Rocket} label="배포 실행" />
 
             {!effectiveVersion.scenarioFile && (
               <Alert type="warning" showIcon message="시나리오 파일 미업로드" description="버전 추가 시 파일을 업로드해주세요." className="!mb-3" />
@@ -306,15 +339,16 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
             <div className="mb-4">
               {/* SleeConfig 적용 사이드바와 동일: 좌측 "대상 시스템 (n/n) · 예약중 N개 제외" / 우측 "전체" 체크박스 */}
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-semibold text-slate-700">
+                <span className="text-[13px] font-semibold text-slate-700 inline-flex items-center gap-1.5">
+                  <ListChecks className="size-3.5 text-[#405189]" />
                   대상 시스템 ({selectedSystemIds.size}/{checkableSystems.length})
                   {assignedSystems.some((s) => s.reserved) && (
-                    <span className="text-[11px] font-normal text-slate-400"> · 예약중 {assignedSystems.filter((s) => s.reserved).length}개 제외</span>
+                    <span className="text-[12px] font-normal text-slate-400"> · 예약중 {assignedSystems.filter((s) => s.reserved).length}개 제외</span>
                   )}
                 </span>
                 {checkableSystems.length > 0 && (
                   <Checkbox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={(e) => toggleAll(e.target.checked)}>
-                    <span className="text-[11px] text-slate-500">전체</span>
+                    <span className="text-[12px] text-slate-500">전체</span>
                   </Checkbox>
                 )}
               </div>
@@ -332,14 +366,14 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
                       <Checkbox checked={selectedSystemIds.has(sys.systemId)} disabled={!!sys.reserved} onChange={(e) => toggleSystem(sys.systemId, e.target.checked)} />
                       <Server className="size-3.5 text-[#405189] flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[12px] text-slate-800 truncate">{sys.systemName}</div>
-                        <div className="text-[10px] text-slate-400 truncate">
+                        <div className="text-[13px] text-slate-800 truncate">{sys.systemName}</div>
+                        <div className="text-[12px] text-slate-400 truncate">
                           {sys.serviceVer ? `현재 v${sys.serviceVer}` : ''}
                           {sys.haGroupName ? `${sys.serviceVer ? ' · ' : ''}${sys.haGroupName}` : ''}
                         </div>
                       </div>
                       {sys.reserved && (
-                        <Tag color="blue" className="!m-0 !text-[10px] !leading-4 !py-0">
+                        <Tag color="blue" className="!m-0 !text-[11px] !leading-5 !py-0">
                           예약중
                         </Tag>
                       )}
@@ -350,19 +384,15 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
                   <div key={sys.systemId} className="flex items-center gap-2 p-2 bg-slate-50 border-t border-slate-100">
                     <Shield className="size-3.5 text-slate-400 flex-shrink-0 ml-[2px]" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-[12px] text-slate-400 truncate">{sys.systemName}</div>
+                      <div className="text-[13px] text-slate-400 truncate">{sys.systemName}</div>
                     </div>
-                    <Tag color="default" className="!m-0 !text-[10px] !leading-4 !py-0">
+                    <Tag color="default" className="!m-0 !text-[11px] !leading-5 !py-0">
                       백업 · 배포 제외
                     </Tag>
                   </div>
                 ))}
               </div>
             </div>
-
-            <Button type="primary" htmlType="submit" block loading={isPublishing} disabled={!effectiveVersion.scenarioFile || selectedSystemIds.size === 0}>
-              적용
-            </Button>
           </Form>
         </div>
       )}
