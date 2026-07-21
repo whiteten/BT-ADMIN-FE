@@ -2158,7 +2158,18 @@ function isCalcRefExcludedWidget(widget: DroppedWidget): boolean {
   return isWebEmbedWidget(widget) || isAnnouncementWidget(widget) || (widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id));
 }
 
-function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget; widgets: DroppedWidget[]; redisWsData: CtiWsDataByHashKey }) {
+function WidgetContent({
+  widget,
+  widgets,
+  redisWsData,
+  fontScale = 1,
+}: {
+  widget: DroppedWidget;
+  widgets: DroppedWidget[];
+  redisWsData: CtiWsDataByHashKey;
+  /** 값 위치 세밀조정(px)에 곱할 배율 — 폰트와 같은 기준으로 축소·확대해야 실행 화면과 위치가 일치한다 */
+  fontScale?: number;
+}) {
   const isEtcClock = widget.item.category === 'etc' && ETC_CLOCK_IDS.has(widget.item.id);
   const [now, setNow] = useState(() => new Date());
 
@@ -2226,7 +2237,7 @@ function WidgetContent({ widget, widgets, redisWsData }: { widget: DroppedWidget
           fontFamily: widget.style.fontFamily,
           fontWeight: widget.style.fontWeight ?? 'normal',
           color: thresholdColor,
-          ...getValueOffsetStyle(widget.style),
+          ...getValueOffsetStyle(widget.style, fontScale),
           ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
@@ -2633,7 +2644,7 @@ function CanvasWidgetFree({
           onDragStart(widget.id, e);
         }}
       >
-        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} />
+        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} fontScale={fontScale} />
       </div>
 
       {!locked && (
@@ -2762,7 +2773,7 @@ function CanvasWidgetGrid({ widget, widgets, isSelected, locked, onSelect, onRem
         className={`${locked ? '' : 'drag-handle cursor-grab active:cursor-grabbing'} w-full h-full flex flex-col justify-center`}
         style={{ padding: `${widget.style.paddingY ?? 0}px ${widget.style.paddingX ?? 0}px` }}
       >
-        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} />
+        <WidgetContent widget={widget} widgets={widgets} redisWsData={redisWsData} fontScale={fontScale} />
       </div>
     </div>
   );

@@ -253,7 +253,7 @@ function ViewValueWidget({
           fontSize: widget.style.fontSize * fontScale,
           textAlign: widget.style.valueAlign ?? 'left',
           color: thresholdColor,
-          ...getValueOffsetStyle(widget.style),
+          ...getValueOffsetStyle(widget.style, fontScale),
           ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
