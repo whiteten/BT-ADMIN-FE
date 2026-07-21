@@ -1528,7 +1528,17 @@ import { toast } from '@/shared-util';
 toast.success('저장되었습니다.');
 toast.error('오류가 발생했습니다.');
 toast.warning('학습이 완료된 모델만 배포할 수 있습니다.');
+
+// 옵션
+toast.warning('자동으로 닫히지 않습니다.', { autoClose: false }); // ms 숫자 또는 false(수동 닫기만)
+toast.error('중복 방지', { toastId: 'error-401' }); // 같은 id가 떠 있는 동안 재발행 무시
 ```
+
+외부 라이브러리 없이 자체 구현입니다. 알림은 좌하단에 스택으로 쌓이며 위아래 버튼으로 넘겨보거나 "펼치기"로 전체 목록을 볼 수 있고, hover 시 자동 닫힘 타이머가 일시정지됩니다.
+
+- **발행**: 어디서든 `toast.*` 호출 (위 예시). 상태는 `useToastStore`(`@/shared-util`)가 관리
+- **렌더**: 앱 루트에 1회 마운트하는 `ToastProvider`(`@/components/custom/ToastProvider`)가 담당. host `app.tsx`와 campaign `StandaloneApp.tsx`에 이미 마운트돼 있으므로 일반 페이지 작업에서는 신경 쓸 필요 없음
+- **새 standalone 셸을 만들 때**: 루트에 `<ToastProvider />`를 마운트해야 알림이 보인다. 상단 고정 헤더가 있는 셸이면 `headerHeight`(px)를 전달해 펼침 목록이 헤더를 침범하지 않게 한다
 
 ### 클래스 이름 병합 — `cn`
 

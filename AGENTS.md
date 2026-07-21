@@ -328,7 +328,12 @@ import { toast } from '@/shared-util';
 toast.success('봇이 저장되었습니다.');
 toast.error('오류가 발생했습니다.');
 toast.warning('학습이 완료된 모델만 배포할 수 있습니다.');
+
+// 옵션: autoClose(ms 또는 false=수동 닫기만), toastId(같은 id가 떠 있는 동안 중복 발행 무시)
+toast.warning('세션이 만료되었습니다.', { autoClose: false, toastId: 'session-expired' });
 ```
+
+토스트는 외부 라이브러리 없이 자체 구현(`useToastStore` + 좌하단 스택 UI — 위아래 넘김·펼치기 지원)이다. 렌더는 앱 루트에 1회 마운트하는 `ToastProvider`(`@/components/custom/ToastProvider`)가 담당하며 host와 campaign standalone 셸에는 이미 마운트돼 있다 — 페이지에서는 `toast` 호출만 하면 된다. 새 standalone 셸을 만들면 루트에 `<ToastProvider />`를 마운트할 것(헤더 있는 셸은 `headerHeight` 전달).
 
 #### 확인 모달 (useModal)
 
@@ -502,7 +507,7 @@ if (isLoading) return <FallbackSpinner />;
 1. **routes.tsx leaf를 `Chromeless` 래퍼로 감쌈**: `element: <Chromeless>{pv('<key>', Page)}</Chromeless>`(`@/components/custom/Chromeless`). pv 소켓은 유지(변형·custom 키 보존). 페이지는 host `/<remote>` 아래라 Layout을 거친다. **예외 — 공개 라우트(`handle: { public: true }`) leaf는 래퍼를 두지 않음**: host `PublicRouteGate`가 Chromeless를 강제하므로 중복("라우팅 컨벤션" 핵심 규칙 14 참조).
 2. **host에 전용 prefix 라우트 만들지 말 것**: `/aoe-workflow`·`/vel-player` 같은 별도 host 라우트 추가 금지. 그 방식을 없애려고 이 메커니즘이 있다.
 3. **새창은 Layout 통과 경로로**: `window.open(withBasePath('/<remote>/...'))`. 창 크기·named window 옵션은 그대로 유지. `window.open`은 라우터 밖이라 basename이 자동 적용되지 않으므로 `withBasePath` 필수("root context(basePath) 경로 규칙" 참조).
-4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal`·`toast` 그대로 동작).
+4. **antd 컨텍스트는 Layout이 제공**: chromeless 분기가 `ConfigProvider`+`App`을 유지하므로 페이지에서 다시 감싸지 말 것(`useModal` 그대로 동작. `toast`는 antd와 무관한 자체 구현이라 어디서든 동작).
 5. **페이지 안에서 `useChromeless` 직접 호출 금지**: 반드시 `Chromeless` 래퍼가 담당. 래퍼 없이 lazy 페이지 내부에서 호출하면 로딩 구간 내내 chrome이 보이는 깜빡임이 생긴다.
 
 #### 데이터 흐름

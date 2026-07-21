@@ -1,12 +1,11 @@
 import { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import 'react-toastify/dist/ReactToastify.css';
 import { App as AntdApp, ConfigProvider } from 'antd';
 import { getBasePath } from '@/shared-util';
 import App from './app';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import ToastProvider from '@/components/custom/ToastProvider';
 // 단독 실행 시 host가 제공하던 전역 Tailwind + 디자인 토큰을 직접 로드 (campaign styles.css는 비어 있음)
 import '@/libs/shared-ui/src/styles/global.css';
 import '../styles.css';
@@ -38,7 +37,8 @@ export default function StandaloneApp() {
                 </Routes>
               </Suspense>
             </div>
-            <ToastContainer position="top-right" autoClose={2500} newestOnTop />
+            {/* 자체 토스트 렌더러 — standalone엔 헤더가 없어 headerHeight 생략 */}
+            <ToastProvider />
           </BrowserRouter>
         </QueryClientProvider>
       </AntdApp>

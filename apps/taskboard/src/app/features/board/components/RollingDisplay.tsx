@@ -316,7 +316,7 @@ function RollingValueWidget({
           fontSize: widget.style.fontSize * fontScale,
           textAlign: widget.style.valueAlign ?? 'left',
           color: thresholdColor,
-          ...getValueOffsetStyle(widget.style),
+          ...getValueOffsetStyle(widget.style, fontScale),
           ...(widget.style.valueChangeAnimation !== 'highlight' ? getValueAnimationStyle(widget.style) : {}),
         }}
       >
@@ -385,8 +385,9 @@ export function LayoutScreen({ layout, dataByHashKey = {} }: LayoutScreenProps) 
   const renderWidget = (widget: DroppedWidget) => {
     if (isAnnouncementWidget(widget)) return <AnnouncementWidget widget={widget} />;
     if (isWebEmbedWidget(widget)) return <WebEmbedWidget widget={widget} />;
-    // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc fallback, 그것도 없으면 기본 selection
-    const effectiveSel = widget.sectionKey && sectionSelections ? (sectionSelections[widget.sectionKey] ?? sectionSelections['__etc'] ?? selection) : selection;
+    // 섹션 모드: 위젯의 sectionKey로 구역별 선택값 적용, 없으면 __etc(기본 그룹) fallback, 그것도 없으면 기본 selection.
+    // 구역 미배정 위젯(sectionKey 없음)도 __etc를 타야 한다 — TaskView.tsx의 effectiveSelection과 동일 규칙.
+    const effectiveSel = sectionSelections ? ((widget.sectionKey ? sectionSelections[widget.sectionKey] : undefined) ?? sectionSelections['__etc'] ?? selection) : selection;
     // REASON 패밀리(그룹/스킬 등)용 targetIdsByPrefix도 이 위젯의 sectionKey 기준 selection을 따라야 한다(레이아웃 전체 기준 X)
     const effectiveGroupIds = resolveGroupIdsFromSelection(effectiveSel, dbQueryDefs);
     const effectiveMediaTypes = resolveMediaTypesFromSelection(effectiveSel, dbQueryDefs);

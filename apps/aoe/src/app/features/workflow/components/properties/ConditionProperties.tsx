@@ -1,5 +1,6 @@
 import { Button, Collapse, Form, Input, Radio, Select, Tooltip } from 'antd';
 import { Info, Plus, Trash2 } from 'lucide-react';
+import ModelSettingsFields from './ModelSettingsFields';
 import OutputVariableNotice from './OutputVariableNotice';
 import { NODE_KIND_MAP } from '../../constants/nodeKinds';
 import type { FlowNode, WorkflowGraph } from '../../types';
@@ -150,6 +151,12 @@ export default function ConditionProperties({ node, graph }: ConditionProperties
       ),
     });
   } else {
+    // prompt 모드 — LLM 이 의도 라우팅을 판단하므로 LLM 노드와 동일한 모델 설정 필요
+    items.push({
+      key: 'model',
+      label: <span className="text-sm font-semibold text-gray-800">모델 설정</span>,
+      children: <ModelSettingsFields />,
+    });
     items.push({
       key: 'routes',
       label: <span className="text-sm font-semibold text-gray-800">의도 라우팅</span>,
@@ -209,5 +216,13 @@ export default function ConditionProperties({ node, graph }: ConditionProperties
     ),
   });
 
-  return <Collapse defaultActiveKey={['type', 'cases', 'else', 'routes', 'fallback', 'output']} ghost expandIconPosition="end" className="aoe-properties-collapse" items={items} />;
+  return (
+    <Collapse
+      defaultActiveKey={['type', 'cases', 'else', 'model', 'routes', 'fallback', 'output']}
+      ghost
+      expandIconPosition="end"
+      className="aoe-properties-collapse"
+      items={items}
+    />
+  );
 }

@@ -1,73 +1,39 @@
-import { createElement } from 'react';
-import { type Id, type ToastContent, type ToastOptions, type ToastPromiseParams, type UpdateOptions, toast as _toast } from 'react-toastify';
+import type { ReactNode } from 'react';
 import { LOG } from './log';
+import { type ToastOptions, type ToastType, useToastStore } from './toastStore';
 
 const Log = new LOG('Toast');
 
 /**
- * content wrapper
- * 일반 텍스트를 받을 경우 span으로 감싸줍니다.
+ * 자체 토스트(useToastStore + ToastProvider) imperative API.
+ * react-toastify 래퍼를 대체하며 기존 호출부 시그니처(success/error/... + autoClose/toastId)를 유지한다.
+ * 렌더는 각 앱 루트의 ToastProvider(@/components/custom/ToastProvider)가 담당.
  */
-const cw = <T = unknown>(content: ToastContent<T>): ToastContent<T> => {
-  if (typeof content === 'string') {
-    Log.debug(content);
-    return createElement('span', { className: 'bt-toast-content' }, content);
-  }
-  return content;
+const push = (type: ToastType, content: ReactNode, options?: ToastOptions): string => {
+  if (typeof content === 'string') Log.debug(`[${type.toUpperCase()}] ${content}`);
+  return useToastStore.getState().push(type, content, options);
 };
 
-/**
- * react-toastify toast wrapper
- */
-function tw<T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id {
-  return _toast(cw(content), options);
+function tw(content: ReactNode, options?: ToastOptions): string {
+  return push('default', content, options);
 }
 
-tw.success = <T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id => {
-  return _toast.success(cw(content), options);
+tw.success = (content: ReactNode, options?: ToastOptions): string => push('success', content, options);
+tw.error = (content: ReactNode, options?: ToastOptions): string => push('error', content, options);
+tw.info = (content: ReactNode, options?: ToastOptions): string => push('info', content, options);
+tw.warning = (content: ReactNode, options?: ToastOptions): string => push('warning', content, options);
+tw.warn = (content: ReactNode, options?: ToastOptions): string => push('warning', content, options);
+
+/** id 지정 시 해당 알림만, 생략 시 전체 닫기 (react-toastify dismiss와 동일 규약) */
+tw.dismiss = (toastId?: string): void => {
+  if (toastId === undefined) useToastStore.getState().clear();
+  else useToastStore.getState().dismiss(toastId);
 };
 
-tw.error = <T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id => {
-  return _toast.error(cw(content), options);
-};
+tw.isActive = (toastId: string): boolean => useToastStore.getState().items.some((it) => it.id === toastId);
 
-tw.info = <T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id => {
-  return _toast.info(cw(content), options);
-};
-
-tw.warning = <T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id => {
-  return _toast.warning(cw(content), options);
-};
-
-tw.warn = <T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id => {
-  return _toast.warn(cw(content), options);
-};
-
-tw.loading = <T = unknown>(content: ToastContent<T>, options?: ToastOptions<T>): Id => {
-  return _toast.loading(cw(content), options);
-};
-
-tw.promise = <TData = unknown, TError = unknown, TPending = unknown>(
-  promise: Promise<TData> | (() => Promise<TData>),
-  options: ToastPromiseParams<TData, TError, TPending>,
-  toastOptions?: ToastOptions<TData>,
-): Promise<TData> => {
-  return _toast.promise(promise, options, toastOptions);
-};
-
-tw.update = <T = unknown>(toastId: Id, options?: UpdateOptions<T>): void => {
-  _toast.update(toastId, options);
-};
-
-tw.dismiss = (toastId?: Id): void => {
-  _toast.dismiss(toastId);
-};
-
-tw.clearWaitingQueue = _toast.clearWaitingQueue;
-tw.isActive = _toast.isActive;
-tw.done = _toast.done;
-tw.onChange = _toast.onChange;
-tw.play = _toast.play;
-tw.pause = _toast.pause;
+/** 전체 타이머 일시정지/재개 */
+tw.pause = (): void => useToastStore.getState().pauseAll();
+tw.play = (): void => useToastStore.getState().resumeAll();
 
 export { tw as toast };
