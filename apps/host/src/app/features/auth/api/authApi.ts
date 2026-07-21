@@ -72,4 +72,23 @@ export const authApi = {
   switchTenant: async (tenantId: number): Promise<void> => {
     await authClient.post('/switch-tenant', { tenantId });
   },
+  /**
+   * 운영자 모드 진입.
+   * - AUTH 가 isSystemAdmin 검증 + operatorMode=true 로 토큰 재발급 (BFF 가 세션 캐시 evict)
+   * - 성공 시 호출자가 page reload 하여 새 토큰 클레임으로 진입
+   * - 실패: 403(권한 없음) / 401(세션 만료) / 500(기타)
+   */
+  enterOperator: async (): Promise<{ operatorMode: boolean }> => {
+    const response = await authClient.post<ApiResponse<{ operatorMode: boolean }>>('/operator/enter');
+    return response.data?.data;
+  },
+  /**
+   * 운영자 모드 종료.
+   * - AUTH 가 operatorMode=false 로 토큰 재발급 (BFF 가 세션 캐시 evict)
+   * - 성공 시 호출자가 page reload 하여 일반 콘솔로 복귀
+   */
+  exitOperator: async (): Promise<{ operatorMode: boolean }> => {
+    const response = await authClient.post<ApiResponse<{ operatorMode: boolean }>>('/operator/exit');
+    return response.data?.data;
+  },
 };

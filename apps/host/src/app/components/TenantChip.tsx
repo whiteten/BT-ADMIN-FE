@@ -28,9 +28,52 @@ export default function TenantChip() {
   const currentTenantId = userInfo?.tenant ?? '';
   const tenantName = userInfo?.tenantName?.trim() ? userInfo.tenantName : userInfo?.tenant ? `테넌트 ${userInfo.tenant}` : '-';
 
-  // 운영자 모드 해제: 열려 있는 운영자 전용 탭이 있으면 확인 후 모두 닫고 해제
+  // 운영자 모드 진입: 서버 API(토큰 재발급) 성공 후 로컬 미러 + 리로드로 새 토큰 반영.
+  // 진입 시점엔 운영자 전용 탭이 열려 있을 수 없으므로 탭 정리는 불필요.
+  const handleEnterOperator = () => void enterOperatorFlow();
+
+  const enterOperatorFlow = async () => {
+    try {
+      await authApi.enterOperator();
+      enterOperator();
+      window.location.reload();
+    } catch (err: unknown) {
+      // 실패 시 로컬 상태 변경 없음.
+      const error = err as { response?: { data?: { code?: string; message?: string } } };
+      const code = error?.response?.data?.code;
+      if (code === 'OPERATOR_MODE_DENIED') {
+        toast.error('운영자 권한이 없습니다.');
+      } else if (code === 'UNAUTHENTICATED') {
+        toast.error('세션이 만료되었습니다. 다시 로그인하세요.');
+        navigate('/login');
+      } else {
+        toast.error(error?.response?.data?.message ?? '운영자 모드 전환에 실패했습니다.');
+      }
+    }
+  };
+
+  // 운영자 모드 해제: 열려 있는 운영자 전용 탭이 있으면 확인 후 모두 닫고(순서 보존),
+  // 서버 API(토큰 재발급) 성공 후 로컬 미러 해제 + 리로드.
   const handleExitOperator = () => {
-    withOperatorTabCleanup(() => exitOperator());
+    withOperatorTabCleanup(() => void exitOperatorFlow());
+  };
+
+  const exitOperatorFlow = async () => {
+    try {
+      await authApi.exitOperator();
+      exitOperator();
+      window.location.reload();
+    } catch (err: unknown) {
+      // 실패 시 로컬 운영자 모드 유지(리로드 안 함).
+      const error = err as { response?: { data?: { code?: string; message?: string } } };
+      const code = error?.response?.data?.code;
+      if (code === 'UNAUTHENTICATED') {
+        toast.error('세션이 만료되었습니다. 다시 로그인하세요.');
+        navigate('/login');
+      } else {
+        toast.error(error?.response?.data?.message ?? '운영자 모드 종료에 실패했습니다.');
+      }
+    }
   };
 
   // 테넌트 선택: (운영자 모드였다면 전용 탭 정리 + 해제 후) 세션 전환 → 리로드로 새 토큰 반영
@@ -86,7 +129,7 @@ export default function TenantChip() {
               일반 콘솔로 나가기
             </DropdownMenuItem>
           ) : (
-            <DropdownMenuItem className="hover:cursor-pointer font-semibold text-amber-700 focus:text-amber-700 focus:bg-amber-50" onSelect={() => enterOperator()}>
+            <DropdownMenuItem className="hover:cursor-pointer font-semibold text-amber-700 focus:text-amber-700 focus:bg-amber-50" onSelect={() => handleEnterOperator()}>
               <ShieldCheck className="text-amber-600" />
               운영자 모드 (전체 테넌트)
             </DropdownMenuItem>
