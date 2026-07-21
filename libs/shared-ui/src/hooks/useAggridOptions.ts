@@ -132,6 +132,8 @@ export default function useAggridOptions() {
       selectionColumnDef,
       reactiveCustomComponents: true,
       columnHoverHighlight: true,
+      // 컬럼 헤더를 그리드 밖으로 드래그해도 컬럼이 숨겨지지 않게 (이동·재정렬은 그대로 허용)
+      suppressDragLeaveHidesColumns: true,
       animateRows: true,
       multiSortKey: 'ctrl',
       rowSelection: { mode: 'singleRow', checkboxes: false, enableClickSelection: true },
