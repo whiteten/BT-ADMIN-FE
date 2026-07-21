@@ -78,12 +78,16 @@ export function getValueAnimationStyle(style: WidgetStyle): React.CSSProperties 
 /**
  * 값 텍스트 위치 세밀조정(valueOffsetX/Y) 적용 — 평상시엔 단순 translate, 애니메이션 재생 중에는
  * 위 keyframes가 같은 --tb-offset-x/y 변수를 베이스로 사용해 모션과 오프셋이 항상 함께 움직인다.
+ *
+ * 저장값은 디자인 기준폭(DESIGN_WIDTH) 환산 px이므로 폰트와 동일하게 fontScale을 곱해야
+ * 편집기에서 잡은 위치가 해상도가 다른 실행 화면에서도 같은 비율로 재현된다.
+ * (미적용 시 원본 px 그대로라 화면이 커질수록 이동량이 상대적으로 작아 보임)
  */
-export function getValueOffsetStyle(style: WidgetStyle): React.CSSProperties {
+export function getValueOffsetStyle(style: WidgetStyle, fontScale = 1): React.CSSProperties {
   return {
     transform: 'translate(var(--tb-offset-x, 0px), var(--tb-offset-y, 0px))',
-    '--tb-offset-x': `${style.valueOffsetX ?? 0}px`,
-    '--tb-offset-y': `${style.valueOffsetY ?? 0}px`,
+    '--tb-offset-x': `${(style.valueOffsetX ?? 0) * fontScale}px`,
+    '--tb-offset-y': `${(style.valueOffsetY ?? 0) * fontScale}px`,
   } as React.CSSProperties;
 }
 
