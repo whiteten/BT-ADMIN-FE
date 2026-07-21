@@ -73,8 +73,9 @@ export function Layout() {
     <ConfigProvider theme={antdTheme} locale={koKR} drawer={{ mask: { blur: false } }} modal={{ mask: { blur: false } }}>
       {/* App 컨텍스트(useModal·message)는 헤더까지 포함해야 한다 — 본문만 감싸면 TopHeader 의 TenantChip 등에서
           App.useApp() 이 컨텍스트를 못 잡아 modal.confirm 이 아무 동작도 하지 않는다.
-          component={false} 라 DOM 노드를 만들지 않으므로 레이아웃에는 영향이 없다. */}
-      <App component={false}>
+          className="contents": 래퍼 div 유지(antd v6 cssVar 스코프 클래스가 붙을 DOM 노드 필요 — component={false}면
+          붙일 노드가 없어 "[antd: App] When using cssVar..." 경고) + display:contents 로 박스 제거 → h-screen 체인 유지. */}
+      <App className="contents">
         <div className="flex flex-col h-screen overflow-hidden">
           {!chromeCollapsed && !chromeless && (
             <>
