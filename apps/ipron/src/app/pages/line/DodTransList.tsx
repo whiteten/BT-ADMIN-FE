@@ -17,11 +17,11 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DodTransItemDrawer, { type DodTransItemDrawerRef } from '../../features/dod-trans/components/DodTransItemDrawer';
 import DodTransMasterDrawer, { type DodTransMasterDrawerRef } from '../../features/dod-trans/components/DodTransMasterDrawer';
@@ -30,6 +30,7 @@ import { type DodTransItem, type DodTransMaster, TRANS_YN_LABELS } from '../../f
 import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -56,10 +57,14 @@ export default function DodTransList() {
 
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedMasterId, setSelectedMasterId] = useState<number | null>(initMasterId);
+  // 마스터 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 DOD DNIS 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-dod-trans');
   const [searchText, setSearchText] = useState('');
   const [numPatternSearch, setNumPatternSearch] = useState('');
   const [selectedItems, setSelectedItems] = useState<DodTransItem[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  // 리스트형 마스터 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const masterGridApiRef = useRef<GridApi<DodTransMaster> | null>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const masterDrawerRef = useRef<DodTransMasterDrawerRef>(null);
@@ -165,6 +170,12 @@ export default function DodTransList() {
       setSelectedMasterId(first?.dodTransId ?? null);
     }
   }, [filteredMasters, selectedMasterId]);
+
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) masterGridApiRef.current?.redrawRows();
+  }, [selectedMasterId, viewMode]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -326,6 +337,81 @@ export default function DodTransList() {
     [selectedMaster],
   );
 
+  // ─── ag-Grid: Master columns (리스트형 목록) ──────────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const masterColumnDefs: ColDef<DodTransMaster>[] = useMemo(
+    () => [
+      {
+        headerName: '변환명',
+        field: 'dodTransName',
+        flex: 2,
+        minWidth: 160,
+        tooltipField: 'dodTransName',
+      },
+      {
+        headerName: '노드',
+        field: 'nodeName',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: (params) => params.data?.nodeName ?? (params.data ? `노드 ${params.data.nodeId}` : null),
+      },
+      {
+        headerName: '테넌트',
+        field: 'tenantName',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: (params) => params.data?.tenantName ?? '-',
+      },
+      {
+        headerName: '패턴 수',
+        field: 'itemCount',
+        flex: 0.8,
+        minWidth: 90,
+        filter: 'agNumberColumnFilter',
+        cellRenderer: (params: ICellRendererParams<DodTransMaster>) => {
+          if (!params.data) return null;
+          const count = params.data.itemCount ?? 0;
+          return (
+            <span
+              className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border ${
+                count > 0 ? 'text-green-700 bg-green-50 border-green-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+              }`}
+            >
+              {count > 0 ? `${count}건` : '미등록'}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: '',
+        colId: 'actions',
+        width: 56,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: ICellRendererParams<DodTransMaster>) => {
+          if (!params.data) return null;
+          const master = params.data;
+          const menuItems = [
+            { key: 'edit', label: '수정', onClick: () => handleEditMaster(master) },
+            { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleDeleteMaster(master) },
+          ];
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="size-3.5 text-gray-400" />
+                </button>
+              </Dropdown>
+            </div>
+          );
+        },
+      },
+    ],
+    [handleEditMaster, handleDeleteMaster],
+  );
+
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
@@ -404,13 +490,44 @@ export default function DodTransList() {
           </div>
         </div>
 
-        {/* ===== 박스2: 마스터(변환) 선택 카드 슬라이더 ===== */}
+        {/* ===== 박스2: 마스터(변환) 목록 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          <div className="flex items-center h-[170px] px-4 py-3">
+          {/* 목록 헤더: 타이틀 + 건수 / 우측 표기방식 토글 */}
+          <div className="flex items-center gap-2 px-4 h-[44px] border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">DOD DNIS 변환</span>
+            <span className="text-xs text-gray-400">{filteredMasters.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
+          <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[170px]' : 'h-[240px]'}`}>
             {filteredMasters.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
                 <Empty description={false} imageStyle={{ height: 40 }} />
                 <span className="text-sm">{searchText.trim().length > 0 ? '검색 결과가 없습니다' : '등록된 DOD DNIS 변환이 없습니다'}</span>
+              </div>
+            ) : viewMode === VIEW_MODE.LIST ? (
+              // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 수정 Drawer 를 연다.
+              <div className="w-full h-full">
+                <AgGridReact<DodTransMaster>
+                  rowData={filteredMasters}
+                  columnDefs={masterColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => String(params.data.dodTransId)}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.dodTransId === selectedMasterId }}
+                  onGridReady={(e) => {
+                    masterGridApiRef.current = e.api;
+                  }}
+                  onRowClicked={(e) => {
+                    if (e.data) handleCardSelect(e.data);
+                  }}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) handleEditMaster(e.data);
+                  }}
+                />
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">
