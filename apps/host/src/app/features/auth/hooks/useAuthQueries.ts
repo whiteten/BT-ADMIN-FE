@@ -66,3 +66,36 @@ export const useResetPassword = ({ mutationOptions }: MutationHookOptions<ResetP
     ...mutationOptions,
   });
 };
+
+/**
+ * 활성 테넌트 전환 훅
+ * - 토큰 재발급이므로 성공 시 호출자가 page reload 책임
+ */
+export const useSwitchTenant = ({ mutationOptions }: MutationHookOptions<void, number> = {}) => {
+  return useMutation({
+    mutationFn: authApi.switchTenant,
+    ...mutationOptions,
+  });
+};
+
+/**
+ * 운영자 모드 진입 훅
+ * - 토큰 재발급이므로 성공 시 호출자가 page reload 책임
+ */
+export const useEnterOperator = ({ mutationOptions }: MutationHookOptions<{ operatorMode: boolean }, void> = {}) => {
+  return useMutation({
+    mutationFn: authApi.enterOperator,
+    ...mutationOptions,
+  });
+};
+
+/**
+ * 운영자 모드 종료 훅
+ * - 토큰 재발급이므로 성공 시 호출자가 page reload 책임
+ */
+export const useExitOperator = ({ mutationOptions }: MutationHookOptions<{ operatorMode: boolean }, void> = {}) => {
+  return useMutation({
+    mutationFn: authApi.exitOperator,
+    ...mutationOptions,
+  });
+};
