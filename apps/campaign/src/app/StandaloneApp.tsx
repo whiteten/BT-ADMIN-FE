@@ -6,8 +6,9 @@ import { getBasePath } from '@/shared-util';
 import App from './app';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import ToastProvider from '@/components/custom/ToastProvider';
-// 단독 실행 시 host가 제공하던 전역 Tailwind + 디자인 토큰을 직접 로드 (campaign styles.css는 비어 있음)
-import '@/libs/shared-ui/src/styles/global.css';
+// 단독 실행 시 host가 제공하던 전역 Tailwind + 디자인 토큰을 standalone 전용 단위로 자체 생성
+// (global.css를 직접 import하면 광역 @source 스캔을 상속해 host 저장 시 campaign이 재빌드됨)
+import '../standalone.css';
 import '../styles.css';
 import '@/libs/shared-ui/src/lib/aggridSetup';
 

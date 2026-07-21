@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
+import { Log } from '@/log';
 import { useBreadcrumbStore, useLayoutStore, useMenuStore, useOpenTabsStore, useRemoteRoutesStore } from '@/shared-store';
 import { resolveBreadcrumbTail, resolveTabTarget } from '../utils/openTabs';
 
@@ -20,7 +21,8 @@ function loadKeyLedger(): Map<string, string> {
     const raw = sessionStorage.getItem(KEY_LEDGER_STORAGE);
     if (!raw) return new Map();
     return new Map(JSON.parse(raw) as [string, string][]);
-  } catch {
+  } catch (e) {
+    Log.warn('loadKeyLedger: 장부 복원 실패 — 빈 장부로 시작', e);
     return new Map();
   }
 }
@@ -29,8 +31,24 @@ function loadKeyLedger(): Map<string, string> {
 function saveKeyLedger(ledger: Map<string, string>): void {
   try {
     sessionStorage.setItem(KEY_LEDGER_STORAGE, JSON.stringify([...ledger]));
-  } catch {
-    // 용량 초과·프라이빗 모드 등 sessionStorage 접근 실패 — 장부 없이도 폴백으로 안전하므로 삼킨다.
+  } catch (e) {
+    // 용량 초과·프라이빗 모드 등 sessionStorage 접근 실패 — 장부 없이도 폴백으로 안전하므로 로그만 남긴다.
+    Log.warn('saveKeyLedger: 장부 저장 실패', e);
+  }
+}
+
+/**
+ * 장부 통째 삭제 — 로그인 성공 시 탭 스토어 reset과 세트로 호출(이전 사용자 탭 목록 승계 차단).
+ * 이 훅은 Layout과 함께 살므로 로그인 화면에선 인스턴스가 없고, 재로그인 후 Layout 마운트 시
+ * 빈 sessionStorage에서 새 장부로 시작한다. reset으로 탭 id 시퀀스(tab-N)가 1부터 재발급되므로
+ * 옛 장부를 남기면 새 탭이 이전 사용자의 히스토리 칸에 오매핑될 수 있어 함께 지워야 한다.
+ */
+export function clearTabHistoryKeyLedger(): void {
+  try {
+    sessionStorage.removeItem(KEY_LEDGER_STORAGE);
+  } catch (e) {
+    // 접근 실패 시 로그만 남기고 진행 — 장부는 보조 장치라 남아도 POP 폴백 동작으로 안전.
+    Log.warn('clearTabHistoryKeyLedger: sessionStorage 접근 실패', e);
   }
 }
 
