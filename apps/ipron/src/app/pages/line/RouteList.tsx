@@ -631,7 +631,7 @@ export default function RouteList() {
               </div>
 
               {/* ag-Grid */}
-              <div className="flex-1">
+              <div className="flex-1 px-5">
                 <AgGridReact<RoutePoint>
                   rowData={routePoints}
                   columnDefs={pointColumnDefs}

@@ -16,10 +16,10 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { endpointApi } from '../../features/endpoint/api/endpointApi';
@@ -44,7 +44,6 @@ import {
   type EndpointRegnum,
   REG_METHOD_LABELS,
   SSW_VENDOR_LABELS,
-  TRANSPORT_OPTIONS,
   getEndpointStatusInfo,
   getEndpointTagList,
 } from '../../features/endpoint/types';
@@ -58,69 +57,11 @@ const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { tit
 
 type BottomTab = 'member' | 'regnum';
 
-const TRANSPORT_LABELS: Record<number, string> = Object.fromEntries(TRANSPORT_OPTIONS.map((o) => [o.value, o.label]));
-
 /**
- * 리스트형 표기의 컬럼 정의. 헤더와 데이터 행이 같은 폭 클래스를 참조해야 열이 어긋나지 않는다.
- * 폭은 고정 px 가 아니라 비율(flex-[n]) — 넓은 화면에서 우측이 비지 않도록 남는 공간을 나눠 갖는다.
- * min-w 는 좁은 화면에서 글자가 뭉개지지 않게 하는 하한선.
- * 장비위치·라우팅위치는 대부분 미설정(N/A)이라 목록에서 제외했다 — 상세/수정 화면에서 확인.
+ * 리스트형 상태 뱃지 클래스. 상태 라벨별 색상 매핑(add-grid 스킬 2-2: 정상=emerald / 그 외=회색·red).
+ * getEndpointStatusInfo 는 동적 색상(color/bgColor)을 주므로 상태 컬럼은 인라인 스타일을 그대로 사용한다.
  */
-const LIST_COLUMNS: { key: string; label: string; width: string; align?: string }[] = [
-  { key: 'name', label: '국선명', width: 'flex-[2.2] min-w-[150px]' },
-  { key: 'type', label: '구분', width: 'flex-[1.1] min-w-[80px]' },
-  { key: 'profile', label: 'SIP 프로파일', width: 'flex-[1.5] min-w-[110px]' },
-  { key: 'node', label: '노드', width: 'flex-[1] min-w-[70px]' },
-  { key: 'maxchnl', label: '최대채널', width: 'flex-[0.9] min-w-[64px]', align: 'text-right' },
-  { key: 'obchnl', label: 'O/B채널', width: 'flex-[0.9] min-w-[64px]', align: 'text-right' },
-  { key: 'vendor', label: 'SSW 벤더', width: 'flex-[1.2] min-w-[90px]' },
-  { key: 'alloc', label: '서버 할당방식', width: 'flex-[1.4] min-w-[100px]' },
-  { key: 'reg', label: 'REG 방식', width: 'flex-[1.4] min-w-[100px]' },
-  { key: 'monitor', label: '모니터링', width: 'flex-[0.9] min-w-[64px]', align: 'text-center' },
-  { key: 'block', label: '블럭여부', width: 'flex-[0.9] min-w-[64px]', align: 'text-center' },
-  { key: 'status', label: '상태', width: 'flex-[0.9] min-w-[64px]', align: 'text-center' },
-];
-
-/** 컬럼키 → 폭·정렬 클래스. 데이터 행이 헤더와 같은 정의를 참조하도록 하는 용도. */
-const COL: Record<string, string> = Object.fromEntries(LIST_COLUMNS.map((c) => [c.key, `${c.width} ${c.align ?? ''}`]));
-
-/** 컬럼 align → flex 정렬 클래스(헤더 정렬 아이콘을 라벨과 함께 좌/우/중앙에 배치). */
-const ALIGN_JUSTIFY: Record<string, string> = { 'text-right': 'justify-end', 'text-center': 'justify-center' };
-
-/**
- * 리스트형 헤더 정렬용 비교값 추출. 라벨 매핑된 컬럼은 화면 표시값(라벨) 기준으로 비교한다.
- * null/undefined 는 정렬 방향과 무관하게 항상 뒤로 보낸다.
- */
-function getSortValue(ep: Endpoint, key: string): string | number | null {
-  switch (key) {
-    case 'name':
-      return ep.endptName ?? null;
-    case 'type':
-      return ENDPOINT_TYPE_LABELS[ep.endptType] ?? null;
-    case 'profile':
-      return ep.sipProfileName ?? null;
-    case 'node':
-      return ep.nodeName ?? (ep.nodeId != null ? `노드 ${ep.nodeId}` : null);
-    case 'maxchnl':
-      return ep.endptMaxchnl ?? null;
-    case 'obchnl':
-      return ep.endptDodchnl ?? null;
-    case 'vendor':
-      return ep.sswVendor != null ? (SSW_VENDOR_LABELS[ep.sswVendor] ?? null) : null;
-    case 'alloc':
-      return ALLOC_METHOD_LABELS[ep.allocMethod] ?? null;
-    case 'reg':
-      return REG_METHOD_LABELS[ep.regMethod] ?? null;
-    case 'monitor':
-      return ep.monitorYn === 1 ? 'ON' : 'OFF';
-    case 'block':
-      return ep.blockYn === 1 ? '설정' : '해제';
-    case 'status':
-      return getEndpointStatusInfo(ep).label ?? null;
-    default:
-      return null;
-  }
-}
+const BADGE_BASE_CLASS = 'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold';
 
 export default function EndpointList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -148,9 +89,6 @@ export default function EndpointList() {
   const [viewMode, setViewMode] = useViewMode('ipron-endpoint');
   const [activeTab, setActiveTab] = useState<BottomTab>('member');
   const [searchText, setSearchText] = useState('');
-  // 리스트형 헤더 클릭 정렬 (카드형에는 영향 없음)
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [selectedMembers, setSelectedMembers] = useState<EndpointMember[]>([]);
   const [selectedRegnums, setSelectedRegnums] = useState<EndpointRegnum[]>([]);
   const cardScrollRef = useRef<HTMLDivElement>(null);
@@ -160,6 +98,8 @@ export default function EndpointList() {
   const memberDrawerRef = useRef<EndpointMemberDrawerRef>(null);
   const regnumDrawerRef = useRef<EndpointRegnumDrawerRef>(null);
   const gwBypassRef = useRef<GwBypassDialogRef>(null);
+  // 리스트형 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const endpointGridApiRef = useRef<GridApi<Endpoint> | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: endpoints = [] } = useGetEndpoints();
@@ -254,21 +194,6 @@ export default function EndpointList() {
     [searchFilteredEndpoints, selectedNodeId, isSearching],
   );
 
-  // 리스트형 헤더 클릭 정렬 결과. sortKey 없으면 원본 순서 유지. (카드형은 이 배열을 쓰지 않음)
-  const sortedEndpoints = useMemo(() => {
-    if (!sortKey) return filteredEndpoints;
-    const dir = sortDir === 'asc' ? 1 : -1;
-    return [...filteredEndpoints].sort((a, b) => {
-      const va = getSortValue(a, sortKey);
-      const vb = getSortValue(b, sortKey);
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1; // null 은 방향과 무관하게 항상 뒤로
-      if (vb == null) return -1;
-      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
-      return String(va).localeCompare(String(vb), 'ko') * dir;
-    });
-  }, [filteredEndpoints, sortKey, sortDir]);
-
   // 운영자 모드 → 테넌트 모드 전환 시, 선택 노드가 스코프 밖이면 해제
   useEffect(() => {
     if (selectedNodeId != null && nodes.length > 0 && !nodes.some((n) => n.nodeId === selectedNodeId)) {
@@ -282,6 +207,11 @@ export default function EndpointList() {
       setSelectedEndpointId(filteredEndpoints[0].endptId);
     }
   }, [filteredEndpoints, selectedEndpointId]);
+
+  // 리스트형 선택 행 강조 갱신 — rowClassRules 는 외부 state 변경을 감지하지 못하므로 직접 redraw.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) endpointGridApiRef.current?.redrawRows();
+  }, [selectedEndpointId, viewMode]);
 
   const selectedEndpoint = useMemo(() => {
     if (!selectedEndpointId) return null;
@@ -310,16 +240,6 @@ export default function EndpointList() {
     if (e.target.value.trim().length > 0) {
       // 검색 시작 시 노드 필터 자동 해제
       setSelectedNodeId(null);
-    }
-  };
-
-  // 리스트형 헤더 클릭: 같은 컬럼이면 방향 토글, 다른 컬럼이면 그 컬럼 오름차순
-  const handleSort = (key: string) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
     }
   };
 
@@ -412,6 +332,155 @@ export default function EndpointList() {
       onClick: () => handleDelete(ep),
     },
   ];
+
+  // ─── ag-Grid: Endpoint columns (리스트형 목록) ────────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const endpointColumnDefs: ColDef<Endpoint>[] = useMemo(
+    () => [
+      {
+        headerName: '국선명',
+        field: 'endptName',
+        flex: 2.2,
+        minWidth: 150,
+        tooltipField: 'endptName',
+      },
+      {
+        headerName: '구분',
+        field: 'endptType',
+        flex: 1.1,
+        minWidth: 80,
+        valueGetter: (params) => (params.data ? (ENDPOINT_TYPE_LABELS[params.data.endptType] ?? '-') : null),
+      },
+      {
+        headerName: 'SIP 프로파일',
+        field: 'sipProfileName',
+        flex: 1.5,
+        minWidth: 110,
+        valueGetter: (params) => params.data?.sipProfileName ?? '-',
+        tooltipField: 'sipProfileName',
+      },
+      {
+        headerName: '노드',
+        field: 'nodeName',
+        flex: 1,
+        minWidth: 80,
+        valueGetter: (params) => params.data?.nodeName ?? (params.data ? `노드 ${params.data.nodeId}` : null),
+      },
+      {
+        headerName: '최대채널',
+        field: 'endptMaxchnl',
+        flex: 0.9,
+        minWidth: 80,
+        type: 'rightAligned',
+        filter: 'agNumberColumnFilter',
+        valueGetter: (params) => params.data?.endptMaxchnl ?? 0,
+      },
+      {
+        headerName: 'O/B채널',
+        field: 'endptDodchnl',
+        flex: 0.9,
+        minWidth: 80,
+        type: 'rightAligned',
+        filter: 'agNumberColumnFilter',
+        valueGetter: (params) => params.data?.endptDodchnl ?? 0,
+      },
+      {
+        headerName: 'SSW 벤더',
+        field: 'sswVendor',
+        flex: 1.2,
+        minWidth: 90,
+        valueGetter: (params) => (params.data?.sswVendor != null ? (SSW_VENDOR_LABELS[params.data.sswVendor] ?? '-') : '-'),
+      },
+      {
+        headerName: '서버 할당방식',
+        field: 'allocMethod',
+        flex: 1.4,
+        minWidth: 110,
+        valueGetter: (params) => (params.data ? (ALLOC_METHOD_LABELS[params.data.allocMethod] ?? '-') : null),
+      },
+      {
+        headerName: 'REG 방식',
+        field: 'regMethod',
+        flex: 1.4,
+        minWidth: 100,
+        valueGetter: (params) => (params.data ? (REG_METHOD_LABELS[params.data.regMethod] ?? '-') : null),
+      },
+      {
+        headerName: '모니터링',
+        field: 'monitorYn',
+        flex: 0.9,
+        minWidth: 80,
+        valueGetter: (params) => (params.data?.monitorYn === 1 ? 'ON' : 'OFF'),
+      },
+      {
+        headerName: '블럭여부',
+        colId: 'blockYn',
+        flex: 0.9,
+        minWidth: 80,
+        filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
+        cellRenderer: (params: ICellRendererParams<Endpoint>) => {
+          if (!params.data) return null;
+          return params.data.blockYn === 1 ? (
+            <span className={BADGE_BASE_CLASS} style={{ background: '#fff2f0', color: '#ff4d4f' }}>
+              설정
+            </span>
+          ) : (
+            <span className={BADGE_BASE_CLASS} style={{ background: '#f6ffed', color: '#52c41a' }}>
+              해제
+            </span>
+          );
+        },
+      },
+      {
+        headerName: '상태',
+        colId: 'status',
+        flex: 0.9,
+        minWidth: 80,
+        filterValueGetter: (params) => (params.data ? (getEndpointStatusInfo(params.data).label ?? null) : null),
+        cellRenderer: (params: ICellRendererParams<Endpoint>) => {
+          if (!params.data) return null;
+          const status = getEndpointStatusInfo(params.data);
+          return (
+            <span className={BADGE_BASE_CLASS} style={{ color: status.color, backgroundColor: status.bgColor }}>
+              {status.label}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: '',
+        colId: 'actions',
+        width: 56,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: ICellRendererParams<Endpoint>) => {
+          if (!params.data) return null;
+          const ep = params.data;
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Dropdown
+                menu={{
+                  items: [
+                    { key: 'edit', label: '수정', onClick: () => handleEdit(ep) },
+                    { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleDelete(ep) },
+                  ],
+                }}
+                trigger={['click']}
+                placement="bottomRight"
+              >
+                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="size-3.5 text-gray-400" />
+                </button>
+              </Dropdown>
+            </div>
+          );
+        },
+      },
+    ],
+    [handleEdit, handleDelete],
+  );
 
   // ─── ag-Grid: Member columns ─────────────────────────────────────────────
   const memberColumnDefs: ColDef<EndpointMember>[] = useMemo(
@@ -729,69 +798,26 @@ export default function EndpointList() {
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
               </div>
             ) : viewMode === VIEW_MODE.LIST ? (
-              // 리스트형 — 헤더 + 표 형태. 컬럼 폭은 헤더와 행이 같은 상수를 써서 어긋나지 않게 한다.
+              // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 행 클릭=선택 / 더블클릭=상세 이동.
               // 장비위치·라우팅위치는 대부분 N/A 라 목록에서 제외(상세/수정 화면에서 확인).
-              <div className="flex flex-col w-full h-full min-w-0">
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 border-y border-gray-200 text-xs font-semibold text-gray-500 flex-shrink-0">
-                  {LIST_COLUMNS.map((c) => (
-                    <span
-                      key={c.key}
-                      className={`${c.width} ${c.align ?? ''} truncate flex items-center gap-0.5 cursor-pointer select-none hover:text-gray-700 ${ALIGN_JUSTIFY[c.align ?? ''] ?? 'justify-start'}`}
-                      onClick={() => handleSort(c.key)}
-                    >
-                      {c.label}
-                      {sortKey === c.key && (sortDir === 'asc' ? <ChevronUp className="size-3 flex-shrink-0" /> : <ChevronDown className="size-3 flex-shrink-0" />)}
-                    </span>
-                  ))}
-                  <span className="w-6 flex-shrink-0" />
-                </div>
-                <div className="flex flex-col overflow-y-auto divide-y divide-gray-100">
-                  {sortedEndpoints.map((ep) => {
-                    const isRowSelected = selectedEndpointId === ep.endptId;
-                    const status = getEndpointStatusInfo(ep);
-                    return (
-                      <div
-                        key={ep.endptId}
-                        id={`ep-row-${ep.endptId}`}
-                        className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer transition-colors text-xs ${isRowSelected ? 'bg-[#405189]/5' : 'hover:bg-gray-50'}`}
-                        onClick={() => handleCardSelect(ep)}
-                        onDoubleClick={() => navigate(`/ipron/line/endpoint/${ep.endptId}`)}
-                      >
-                        <span className={`${COL.name} truncate text-sm font-semibold text-gray-800`}>{ep.endptName}</span>
-                        <span className={`${COL.type} truncate text-gray-600`}>{ENDPOINT_TYPE_LABELS[ep.endptType] ?? '-'}</span>
-                        <span className={`${COL.profile} truncate text-gray-600`}>{ep.sipProfileName ?? '-'}</span>
-                        <span className={`${COL.node} truncate text-gray-600`}>{ep.nodeName ?? `노드 ${ep.nodeId}`}</span>
-                        <span className={`${COL.maxchnl} text-gray-600`}>{ep.endptMaxchnl ?? 0}</span>
-                        <span className={`${COL.obchnl} text-gray-600`}>{ep.endptDodchnl ?? 0}</span>
-                        <span className={`${COL.vendor} truncate text-gray-600`}>{ep.sswVendor != null ? (SSW_VENDOR_LABELS[ep.sswVendor] ?? '-') : '-'}</span>
-                        <span className={`${COL.alloc} truncate text-gray-600`}>{ALLOC_METHOD_LABELS[ep.allocMethod] ?? '-'}</span>
-                        <span className={`${COL.reg} truncate text-gray-600`}>{REG_METHOD_LABELS[ep.regMethod] ?? '-'}</span>
-                        <span className={`${COL.monitor} text-gray-600`}>{ep.monitorYn === 1 ? 'ON' : 'OFF'}</span>
-                        <span className={COL.block}>
-                          <span
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              ep.blockYn === 1 ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'
-                            }`}
-                          >
-                            {ep.blockYn === 1 ? '설정' : '해제'}
-                          </span>
-                        </span>
-                        <span className={COL.status}>
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ color: status.color, backgroundColor: status.bgColor }}>
-                            {status.label}
-                          </span>
-                        </span>
-                        <div onClick={(e) => e.stopPropagation()} className="w-6 flex-shrink-0">
-                          <Dropdown menu={{ items: getCardMenuItems(ep) }} trigger={['click']} placement="bottomRight">
-                            <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
-                              <MoreVertical className="size-3.5 text-gray-400" />
-                            </button>
-                          </Dropdown>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              <div className="w-full h-full">
+                <AgGridReact<Endpoint>
+                  rowData={filteredEndpoints}
+                  columnDefs={endpointColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => String(params.data.endptId)}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.endptId === selectedEndpointId }}
+                  onGridReady={(e) => {
+                    endpointGridApiRef.current = e.api;
+                  }}
+                  onRowClicked={(e) => {
+                    if (e.data) handleCardSelect(e.data);
+                  }}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) navigate(`/ipron/line/endpoint/${e.data.endptId}`);
+                  }}
+                />
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">
@@ -940,8 +966,8 @@ export default function EndpointList() {
                 </div>
               </div>
 
-              {/* Tab content */}
-              <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Tab content — 그리드가 박스 테두리에 바로 붙지 않도록 상단 박스(px-4)와 동일한 좌우 여백 */}
+              <div className="flex-1 flex flex-col overflow-hidden px-4 pb-3">
                 {/* Member tab */}
                 {activeTab === 'member' && (
                   <div className="flex-1">
