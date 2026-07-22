@@ -37,7 +37,7 @@ export default function Step3FieldMapping({ datasetId, fieldOverrides, visualiza
       {/* 탭 */}
       <Tabs
         defaultActiveKey={defaultViz}
-        className="!flex-1 !flex !flex-col px-7 [&_.ant-tabs-nav]:!mb-0 [&_.ant-tabs-content-holder]:!flex-1 [&_.ant-tabs-content]:!h-full [&_.ant-tabs-tabpane]:!h-full"
+        className="!flex-1 !flex !flex-col px-7 [&_.ant-tabs-nav]:!mb-0 [&_.ant-tabs-body-holder]:!flex-1 [&_.ant-tabs-body]:!h-full [&_.ant-tabs-content]:!h-full"
         items={visualizations.map((viz) => ({
           key: viz,
           label: (

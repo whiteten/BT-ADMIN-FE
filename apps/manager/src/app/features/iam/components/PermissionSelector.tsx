@@ -289,7 +289,7 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
                       handleAppToggle(group, e.target.checked);
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="[&_.ant-checkbox-inner]:!bg-white/20 [&_.ant-checkbox-inner]:!border-white/40 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-white [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-white [&_.ant-checkbox-checked_.ant-checkbox-inner::after]:!border-slate-700"
+                    className="[&_.ant-checkbox]:!bg-white/20 [&_.ant-checkbox]:!border-white/40 [&_.ant-checkbox-checked]:!bg-white [&_.ant-checkbox-checked]:!border-white [&_.ant-checkbox-checked::after]:!border-slate-700"
                   />
                   <span className="font-semibold tracking-wide truncate">{group.appName}</span>
                   <span className="text-xs bg-white/15 px-2 py-0.5 rounded-full font-medium shrink-0">{getAppPermissionCount(group)}</span>
@@ -311,7 +311,7 @@ export default function PermissionSelector({ value = new Set(), onChange, classN
                         }}
                         onClick={(e) => e.stopPropagation()}
                         className={cn(
-                          '[&_.ant-checkbox-inner]:!bg-white/20 [&_.ant-checkbox-inner]:!border-white/40 [&_.ant-checkbox-checked_.ant-checkbox-inner]:!bg-white [&_.ant-checkbox-checked_.ant-checkbox-inner]:!border-white [&_.ant-checkbox-checked_.ant-checkbox-inner::after]:!border-slate-700',
+                          '[&_.ant-checkbox]:!bg-white/20 [&_.ant-checkbox]:!border-white/40 [&_.ant-checkbox-checked]:!bg-white [&_.ant-checkbox-checked]:!border-white [&_.ant-checkbox-checked::after]:!border-slate-700',
                           colState.disabled && 'opacity-30',
                         )}
                       />

@@ -24,7 +24,7 @@ export default function DataProviderDb() {
     <div className="flex flex-col w-full h-full bg-white bt-shadow px-7 py-5">
       <Tabs
         defaultActiveKey="connection"
-        className="w-full h-full [&_.ant-tabs-content]:h-full [&_.ant-tabs-content-holder]:flex-1 [&_.ant-tabs-tabpane]:h-full"
+        className="w-full h-full [&_.ant-tabs-body]:h-full [&_.ant-tabs-body-holder]:flex-1 [&_.ant-tabs-content]:h-full"
         items={[
           { key: 'connection', label: 'DB Connection', children: <DbConnectionTab canWrite={canWrite} /> },
           { key: 'tool', label: 'DB Tool', children: <DbToolTab canWrite={canWrite} /> },
