@@ -11,7 +11,7 @@ import { cn } from '@/libs/shared-ui/src/lib/utils';
 
 type LocationLike = { pathname: string; search: string };
 
-/** 운영자 전용 메뉴(featureFlag='operator') — operatorMode 시 제자리 유지 + 앰버 강조 + "운영자 전용" 배지. */
+/** 운영자 전용 메뉴(featureFlag='operator') — operatorMode 시 제자리 유지 + "운영자 전용" 배지. */
 export const isOperatorOnly = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator';
 /** 운영자 모드에서 범위/동작이 달라지는 메뉴(featureFlag='operator-aware') — 제자리 유지 + 보라 배지. */
 export const isOperatorAware = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator-aware';
@@ -116,9 +116,6 @@ export function MenuLink({ item, appId, query = '', onNavigate, showDesc = false
         // active 상태: 1뎁스(PanelMenuRow)와 동일한 푸른 배경 + 좌측 세로 인디케이터
         isActive &&
           'bg-[var(--color-bt-primary)]/[0.08] before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
-        // 운영자 전용: 앰버 / 운영자 모드 상이(operator-aware): 보라 좌측 인디케이터 (활성 아닐 때)
-        opOnly && !isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
-        opAware && !isActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-violet-400',
       )}
       onClick={() => item.path && onNavigate(`/${appId}/${item.path}`)}
     >
@@ -256,8 +253,6 @@ export function PanelMenuRow({ item, appId, onNavigate }: PanelMenuRowProps) {
         'hover:bg-[#f1f3f5]',
         isActive && 'bg-[var(--color-bt-primary)]/[0.08]',
         isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
-        opOnly && !isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
-        opAware && !isActiveBranch && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-violet-400',
         isActiveBranch ? 'text-[var(--color-bt-primary)] font-semibold' : 'text-[#495057]',
       )}
     >

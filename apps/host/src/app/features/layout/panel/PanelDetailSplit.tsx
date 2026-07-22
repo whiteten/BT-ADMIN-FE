@@ -118,8 +118,6 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
                     'group/row relative flex w-full items-center gap-2 rounded-lg pr-2.5 py-[7px] text-left transition-colors cursor-pointer',
                     isOn ? 'bg-[var(--color-bt-primary)]/[0.08]' : 'hover:bg-[#f1f3f5]',
                     isUrlActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
-                    !isUrlActive && opOnly && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
-                    !isUrlActive && opAware && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-violet-400',
                   )}
                 >
                   <span className={cn('size-1.5 shrink-0 rounded-full', isOn ? 'bg-[var(--color-bt-primary)]' : 'bg-[#c0c7cf]')} />
