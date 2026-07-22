@@ -1,21 +1,24 @@
 /**
  * 대표번호별 DNIS 관리 페이지 (IPR20S6043).
  *
- * 레이아웃 (회선관리 Full Grid 패턴):
- *  - 상단 박스: 운영자모드 테넌트 스코프(ScopeSelect, hideAll) + 우측 [검색 / 내보내기 / 가져오기 / 추가]
- *  - 하단 박스: ag-Grid (건수 표시 + 운영자모드에서만 테넌트 컬럼 노출)
+ * 레이아웃 (회선관리 Full Grid 패턴, SleeConfigList/DnisPage 와 동일한 운영자모드 스코프 관례):
+ *  - 상단 박스: 운영자모드 테넌트 스코프(ScopeSelect) + 우측 [검색 / 내보내기 / 가져오기 / 추가]
+ *  - 하단 박스: ag-Grid (건수 표시 + "전체" 스코프에서만 테넌트 컬럼 노출)
  *
- * 비운영자는 항상 자신의 테넌트로 스코프(선택 UI 없음) — 이 화면의 백엔드 플로우가 tenantId 필수라 "전체" 조회 불가.
+ * 테넌트 스코프:
+ *  - 비운영자: 항상 자신의 테넌트로 스코프(선택 UI 없음, 서버가 JWT 테넌트로 판정)
+ *  - 운영자·대행(actAsTenantId=X): 그 테넌트로 스코프
+ *  - 운영자·전체(actAsTenantId=null): tenantId 파라미터 생략 — 서버가 TenantContext.isViewAllTenants() 로 전 테넌트 조회
+ *  - 추가/내보내기/가져오기는 대상 테넌트가 하나로 확정돼야 하므로 "전체" 스코프에서는 비활성.
  *
  * 더블클릭 → 수정 Drawer / [+ 추가] → 등록 Drawer (선택 테넌트 자동 주입)
  * 엑셀 내보내기/가져오기는 백엔드 위임 — 클라이언트는 multipart 업로드만 담당.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { type BreadcrumbProps, Button, Empty, Input } from 'antd';
+import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Download, Phone, Plus, Search, Trash2, Upload } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -44,7 +47,6 @@ const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
 const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 export default function IvrAinDnis() {
-  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const modal = useModal();
   const { gridOptions } = useAggridOptions();
@@ -56,18 +58,18 @@ export default function IvrAinDnis() {
     return () => clearBreadcrumb();
   }, [setBreadcrumb, clearBreadcrumb]);
 
-  const initTenantId = searchParams.get('tenantId');
-
-  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
-  //  - 비운영자: 항상 자신의 테넌트로 스코프(선택 UI 없음)
-  //  - 운영자: ScopeSelect(hideAll)로 대행 테넌트 선택 — 이 화면의 백엔드 플로우가 tenantId 필수라 "전체" 조회 불가
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입. SleeConfigList/DnisPage 와 동일한 전역 스코프 관례.
+  //  - 전체(actAsTenantId=null): tenantId 파라미터 생략 → 서버가 TenantContext.isViewAllTenants() 로 전 테넌트 조회
+  //  - 대행(actAsTenantId=X): 그 테넌트로 스코프
+  //  - 비운영자: 헤더 미주입 → 서버가 JWT 테넌트 기준으로 자신의 매핑만 반환
   const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
   const myTenantId = useAuthStore((s) => s.userInfo?.tenant ?? null);
   const myTenantName = useAuthStore((s) => s.userInfo?.tenantName ?? null);
   const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants ?? []);
 
   // ─── State ──────────────────────────────────────────────────────────────
-  const [scopeTenantId, setScopeTenantId] = useState<string | null>(initTenantId);
   const [searchText, setSearchText] = useState('');
 
   // ─── Refs (Drawers/Dialogs) ─────────────────────────────────────────────
@@ -78,18 +80,21 @@ export default function IvrAinDnis() {
   // 신규 등록 직후 그 행으로 스크롤/선택하기 위한 대기 rowId (getRowId 키와 동일 포맷)
   const pendingFocusRowIdRef = useRef<string | null>(null);
 
-  // 운영자: 선택한 대행 테넌트(없으면 내 테넌트로 폴백) / 비운영자: 항상 내 테넌트
-  const effectiveTenantId = operatorMode ? (scopeTenantId ?? myTenantId) : myTenantId;
-  const selectedTenantId = effectiveTenantId ? Number(effectiveTenantId) : null;
-  const selectedTenantName = useMemo(() => {
-    if (effectiveTenantId === myTenantId) return myTenantName;
-    return availableTenants.find((t) => String(t.tenantId) === effectiveTenantId)?.tenantName ?? null;
-  }, [effectiveTenantId, myTenantId, myTenantName, availableTenants]);
+  // "전체" 스코프 여부 — 운영자모드이면서 대행 테넌트를 지정하지 않은 상태.
+  const isViewAll = operatorMode && actAsTenantId === null;
+  // 조회 스코프 — 운영자: 대행 테넌트(없으면 전체=null) / 비운영자: 항상 내 테넌트(서버가 JWT로도 동일 판정하지만 명시).
+  const scopedTenantId = operatorMode ? actAsTenantId : myTenantId;
+  const queryTenantId = scopedTenantId ? Number(scopedTenantId) : null;
+  // 추가/내보내기/가져오기 대상 테넌트 — "전체" 스코프에서는 대상이 모호해 null(버튼 비활성).
+  const writeTargetTenantId = queryTenantId;
+  const writeTargetTenantName = useMemo(() => {
+    if (scopedTenantId === myTenantId) return myTenantName;
+    return availableTenants.find((t) => String(t.tenantId) === scopedTenantId)?.tenantName ?? null;
+  }, [scopedTenantId, myTenantId, myTenantName, availableTenants]);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: rows = [], isLoading: isListLoading } = useGetAinList({
-    params: selectedTenantId !== null ? { tenantId: selectedTenantId } : undefined,
-    queryOptions: { enabled: selectedTenantId !== null },
+    params: queryTenantId !== null ? { tenantId: queryTenantId } : undefined,
   });
 
   // ─── Derived ────────────────────────────────────────────────────────────
@@ -177,13 +182,13 @@ export default function IvrAinDnis() {
   };
 
   const handleCreate = () => {
-    if (!selectedTenantId || !selectedTenantName) {
+    if (!writeTargetTenantId || !writeTargetTenantName) {
       toast.warning('테넌트를 먼저 선택해주세요.');
       return;
     }
     sheetRef.current?.open(undefined, {
-      tenantId: selectedTenantId,
-      tenantName: selectedTenantName,
+      tenantId: writeTargetTenantId,
+      tenantName: writeTargetTenantName,
     });
   };
 
@@ -213,15 +218,15 @@ export default function IvrAinDnis() {
   );
 
   const handleExport = () => {
-    if (!selectedTenantId) {
+    if (!writeTargetTenantId) {
       toast.warning('테넌트를 먼저 선택해주세요.');
       return;
     }
-    exportAinDnis({ tenantId: selectedTenantId });
+    exportAinDnis({ tenantId: writeTargetTenantId });
   };
 
   const handleImport = () => {
-    if (!selectedTenantId) {
+    if (!writeTargetTenantId) {
       toast.warning('테넌트를 먼저 선택해주세요.');
       return;
     }
@@ -229,10 +234,10 @@ export default function IvrAinDnis() {
   };
 
   const handleImportConfirm = (files: File[]) => {
-    if (!selectedTenantId) return;
+    if (!writeTargetTenantId) return;
     const file = files[0];
     if (!file) return;
-    importAinDnis({ params: { tenantId: selectedTenantId }, data: file });
+    importAinDnis({ params: { tenantId: writeTargetTenantId }, data: file });
   };
 
   // ─── ag-Grid columns ───────────────────────────────────────────────────
@@ -243,7 +248,7 @@ export default function IvrAinDnis() {
         field: 'tenantName',
         flex: 1.2,
         minWidth: 110,
-        hide: !operatorMode,
+        hide: !isViewAll,
         cellRenderer: (params: ICellRendererParams<IrAinMaster>) => params.data?.tenantName ?? '-',
       },
       {
@@ -316,7 +321,7 @@ export default function IvrAinDnis() {
         },
       },
     ],
-    [handleDelete, operatorMode],
+    [handleDelete, isViewAll],
   );
 
   // ─── Render ─────────────────────────────────────────────────────────────
@@ -329,11 +334,10 @@ export default function IvrAinDnis() {
             {operatorMode && (
               <ScopeSelect
                 kind="tenant"
-                hideAll
                 options={availableTenants.map((t) => ({ id: t.tenantId, name: t.tenantName }))}
-                value={effectiveTenantId}
+                value={actAsTenantId}
                 onChange={(id) => {
-                  setScopeTenantId(id);
+                  setActAsTenant(id);
                   setSearchText('');
                 }}
               />
@@ -347,13 +351,33 @@ export default function IvrAinDnis() {
                 onChange={handleSearchChange}
                 style={{ width: 220 }}
               />
-              <Button variant="solid" icon={<Upload className="size-3.5" />} onClick={handleImport}>
+              <Button
+                variant="solid"
+                icon={<Upload className="size-3.5" />}
+                onClick={handleImport}
+                disabled={!writeTargetTenantId}
+                title={isViewAll ? '테넌트를 선택하세요' : undefined}
+              >
                 Import
               </Button>
-              <Button color="cyan" variant="solid" icon={<Download className="size-3.5" />} onClick={handleExport} loading={isExporting}>
+              <Button
+                color="cyan"
+                variant="solid"
+                icon={<Download className="size-3.5" />}
+                onClick={handleExport}
+                loading={isExporting}
+                disabled={!writeTargetTenantId}
+                title={isViewAll ? '테넌트를 선택하세요' : undefined}
+              >
                 Export
               </Button>
-              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
+              <Button
+                type="primary"
+                icon={<Plus className="size-3.5" />}
+                onClick={handleCreate}
+                disabled={!writeTargetTenantId}
+                title={isViewAll ? '테넌트를 선택하세요' : undefined}
+              >
                 추가
               </Button>
             </div>
@@ -372,25 +396,18 @@ export default function IvrAinDnis() {
           <div className="border-t border-gray-200" />
 
           <div className="flex-1 flex flex-col min-h-0 p-5">
-            {selectedTenantId === null ? (
-              <div className="flex flex-1 flex-col items-center justify-center text-gray-400 gap-3">
-                <Empty description={false} />
-                <span className="text-sm">테넌트를 선택하면 대표번호 DNIS 목록을 확인할 수 있습니다</span>
-              </div>
-            ) : (
-              <AgGridReact<IrAinMaster>
-                ref={gridRef}
-                rowData={filteredRows}
-                columnDefs={columnDefs}
-                gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
-                loading={isListLoading}
-                getRowId={(p) => `${p.data.tenantId}__${p.data.ainNo}__${p.data.originDnis}`}
-                defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                onRowDoubleClicked={(e) => {
-                  if (e.data) handleEdit(e.data);
-                }}
-              />
-            )}
+            <AgGridReact<IrAinMaster>
+              ref={gridRef}
+              rowData={filteredRows}
+              columnDefs={columnDefs}
+              gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+              loading={isListLoading}
+              getRowId={(p) => `${p.data.tenantId}__${p.data.ainNo}__${p.data.originDnis}`}
+              defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
+              onRowDoubleClicked={(e) => {
+                if (e.data) handleEdit(e.data);
+              }}
+            />
           </div>
         </div>
       </div>
