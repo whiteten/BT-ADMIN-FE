@@ -47,6 +47,9 @@ const TenantList = React.lazy(() => import('./pages/tenant-management/TenantList
 const TenantCreate = React.lazy(() => import('./pages/tenant-management/TenantCreate'));
 const TenantDetail = React.lazy(() => import('./pages/tenant-management/TenantDetail'));
 
+// 장애 이력 페이지
+const FaultHistoryList = React.lazy(() => import('./pages/fault-history/FaultHistoryList'));
+
 // 노드/클러스터 관리 페이지
 const NodeList = React.lazy(() => import('./pages/node-management/NodeList'));
 const NodeCreate = React.lazy(() => import('./pages/node-management/NodeCreate'));
@@ -250,6 +253,21 @@ export const routes = [
                 element: pv('resource/node-management/:nodeId/alloc/:tenantId', TenantAllocWizard),
               },
             ],
+          },
+        ],
+      },
+      // 장애관리 (fault) — 메뉴 PATH 'fault/history' (V136)와 일치
+      {
+        path: 'fault',
+        element: <Outlet />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="history" replace />,
+          },
+          {
+            path: 'history',
+            element: pv('fault/history', FaultHistoryList),
           },
         ],
       },
