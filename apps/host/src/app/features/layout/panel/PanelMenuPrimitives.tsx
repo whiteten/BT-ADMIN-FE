@@ -1,11 +1,12 @@
 import { useLocation } from 'react-router-dom';
-import { SquareDashed } from 'lucide-react';
+import { FolderSync, ShieldCheck, SquareDashed } from 'lucide-react';
 import { useOperatorScopeStore } from '@/shared-store';
 import { fuzzyScore } from '@/shared-util';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { MenuActionButtons } from '../components/MenuActionButtons';
 import { useMenuPanelStore } from '../hooks/useMenuPanelStore';
 import { Highlight } from '@/components/custom/Highlight';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { MenuItem } from '@/libs/shared-store/src/types/menu.types';
 import { cn } from '@/libs/shared-ui/src/lib/utils';
 
@@ -16,27 +17,71 @@ export const isOperatorOnly = (item: { featureFlag?: string }): boolean => item.
 /** 운영자 모드에서 범위/동작이 달라지는 메뉴(featureFlag='operator-aware') — 제자리 유지 + 보라 배지. */
 export const isOperatorAware = (item: { featureFlag?: string }): boolean => item.featureFlag === 'operator-aware';
 
-/** operator 전용 배지 — 운영자 모드에서만 보이는 전용 메뉴임을 알림. */
+/** operator 전용 배지 — 운영자 모드에서만 보이는 전용 메뉴임을 알림. TenantChip 운영자 모드와 같은 방패(ShieldCheck)·앰버 컨셉. */
 export function OperatorOnlyBadge() {
   return (
-    <span
-      className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 ring-1 ring-amber-200"
-      title="운영자 모드에서만 노출되는 전용 메뉴 (일반 모드에서는 숨김)"
-    >
-      운영자 전용
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="shrink-0 inline-flex items-center text-amber-500">
+          <ShieldCheck className="size-5.5" />
+        </span>
+      </TooltipTrigger>
+      {/* z-[1100]: 메뉴패널(z-900) 위로 — 기본 z-50이면 패널 뒤에 가려짐 */}
+      <TooltipContent side="right" className="z-[1100] px-2 py-1 text-[11px] bg-black text-white [&_[data-slot=tooltip-arrow]]:bg-black [&_[data-slot=tooltip-arrow]]:fill-black">
+        <p>운영자 모드에서만 노출되는 전용 메뉴</p>
+        <p className="text-white/70">(일반 모드에서는 숨김)</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
-/** operator-aware 배지 — 운영자 모드에서 범위/동작이 달라짐을 알림(예: 일반=본인 테넌트, 운영자=전체 테넌트). */
+/** operator 전용 텍스트 배지 — 상세 프리뷰 타이틀 옆 등 텍스트 표기가 어울리는 자리용. */
+export function OperatorOnlyTextBadge() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 ring-1 ring-amber-200">운영자 전용</span>
+      </TooltipTrigger>
+      {/* z-[1100]: 메뉴패널(z-900) 위로 — 기본 z-50이면 패널 뒤에 가려짐 */}
+      <TooltipContent side="right" className="z-[1100] px-2 py-1 text-[11px] bg-black text-white [&_[data-slot=tooltip-arrow]]:bg-black [&_[data-slot=tooltip-arrow]]:fill-black">
+        <p>운영자 모드에서만 노출되는 전용 메뉴</p>
+        <p className="text-white/70">(일반 모드에서는 숨김)</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** operator-aware 텍스트 배지 — 상세 프리뷰 타이틀 옆 등 텍스트 표기가 어울리는 자리용. */
+export function OperatorAwareTextBadge() {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-violet-100 text-violet-700 ring-1 ring-violet-200">운영자 모드</span>
+      </TooltipTrigger>
+      {/* z-[1100]: 메뉴패널(z-900) 위로 — 기본 z-50이면 패널 뒤에 가려짐 */}
+      <TooltipContent side="right" className="z-[1100] px-2 py-1 text-[11px] bg-black text-white [&_[data-slot=tooltip-arrow]]:bg-black [&_[data-slot=tooltip-arrow]]:fill-black">
+        <p>운영자 모드에서 범위/동작이 달라지는 메뉴</p>
+        <p className="text-white/70">(예: 일반 모드=본인 테넌트, 운영자 모드=전체 테넌트)</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+/** operator-aware 배지 — 운영자 모드에서 범위/동작이 달라짐을 알림(예: 일반=본인 테넌트, 운영자=전체 테넌트). 폴더 동기화(FolderSync) 아이콘·보라 컨셉. */
 export function OperatorAwareBadge() {
   return (
-    <span
-      className="shrink-0 inline-flex items-center rounded px-1 py-0.5 text-[10px] font-semibold bg-violet-100 text-violet-700 ring-1 ring-violet-200"
-      title="운영자 모드에서 범위/동작이 달라지는 메뉴 (예: 일반 모드=본인 테넌트, 운영자 모드=전체 테넌트)"
-    >
-      운영자 모드
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="shrink-0 inline-flex items-center text-violet-500">
+          <FolderSync className="size-5.5" />
+        </span>
+      </TooltipTrigger>
+      {/* z-[1100]: 메뉴패널(z-900) 위로 — 기본 z-50이면 패널 뒤에 가려짐 */}
+      <TooltipContent side="right" className="z-[1100] px-2 py-1 text-[11px] bg-black text-white [&_[data-slot=tooltip-arrow]]:bg-black [&_[data-slot=tooltip-arrow]]:fill-black">
+        <p>운영자 모드에서 범위/동작이 달라지는 메뉴</p>
+        <p className="text-white/70">(예: 일반 모드=본인 테넌트, 운영자 모드=전체 테넌트)</p>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useOperatorScopeStore } from '@/shared-store';
-import { OperatorAwareBadge, OperatorOnlyBadge, isMenuActive, isOperatorAware, isOperatorOnly } from './PanelMenuPrimitives';
+import { OperatorAwareBadge, OperatorAwareTextBadge, OperatorOnlyBadge, OperatorOnlyTextBadge, isMenuActive, isOperatorAware, isOperatorOnly } from './PanelMenuPrimitives';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { NewWindowButton } from '../components/NewWindowButton';
 import { PANEL_DETAIL_LIST_WIDTH } from '../constants/layoutConstants';
@@ -136,7 +136,11 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
         {current ? (
           <>
             <p className="mb-2 text-xs text-[#868e96]">{[appName, menu.label, current.crumb].filter(Boolean).join(' › ')}</p>
-            <h2 className="mb-3 text-xl font-bold text-[#212529]">{current.label}</h2>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-[#212529]">{current.label}</h2>
+              {operatorMode && isOperatorOnly(current) && <OperatorOnlyTextBadge />}
+              {operatorMode && isOperatorAware(current) && <OperatorAwareTextBadge />}
+            </div>
             {current.desc?.trim() && <p className="max-w-[460px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{current.desc}</p>}
             <div className="my-5 border-t border-[#e9ecef]" />
             <div className="flex flex-wrap gap-2.5">
