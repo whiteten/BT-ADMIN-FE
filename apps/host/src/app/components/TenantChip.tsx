@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Building2, Check, ChevronsUpDown, Loader2, LogOut, ShieldCheck } from 'lucide-react';
+import { Log } from '@/log';
 import { type TenantSummary, useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useEnterOperator, useExitOperator, useSwitchTenant } from '../features/auth/hooks/useAuthQueries';
@@ -52,13 +53,13 @@ export default function TenantChip() {
     },
   });
 
-  // 운영자 모드 해제: 서버 API(토큰 재발급) 성공 후 로컬 미러 해제 + 리로드.
-  // 실패 시 로컬 운영자 모드 유지(리로드 안 함).
+  // 운영자 모드 해제: 서버 API(토큰 재발급) 성공 후 로컬 미러 해제.
+  // 리로드는 콜사이트 책임 — 단독 해제는 즉시, 테넌트 전환 경유는 switchTenant 완료 후.
+  // 실패 시 로컬 운영자 모드 유지.
   const exitOperatorMutation = useExitOperator({
     mutationOptions: {
       onSuccess: () => {
         exitOperator();
-        window.location.reload();
       },
       onError: (err) => handleAuthError(err, {}, '운영자 모드 종료에 실패했습니다.'),
     },
@@ -81,14 +82,27 @@ export default function TenantChip() {
   // 해제 시 열려 있는 운영자 전용 탭이 있으면 확인 후 모두 닫는다(순서 보존).
   const handleExitOperator = () => {
     if (isBusy) return;
-    withOperatorTabCleanup(() => exitOperatorMutation.mutate());
+    withOperatorTabCleanup(() =>
+      exitOperatorMutation.mutate(undefined, {
+        onSuccess: () => window.location.reload(),
+      }),
+    );
   };
 
-  // 테넌트 선택: (운영자 모드였다면 전용 탭 정리 + 해제 후) 세션 전환 → 리로드로 새 토큰 반영
+  // 테넌트 선택: (운영자 모드였다면 전용 탭 정리 + 서버 해제 API 완료 후) 세션 전환 → 리로드로 새 토큰 반영.
+  // switch-tenant 는 operatorMode 클레임을 보존하므로 서버 해제 없이 로컬 미러만 끄면 리로드 후 되살아난다.
+  // 해제 실패 시 전환을 중단한다(에러 토스트는 mutation onError 담당).
   const handleTenantSelect = (tenant: TenantSummary) => {
     if (isBusy) return;
-    withOperatorTabCleanup(() => {
-      exitOperator();
+    withOperatorTabCleanup(async () => {
+      if (operatorMode) {
+        try {
+          await exitOperatorMutation.mutateAsync();
+        } catch (err) {
+          Log.warn('handleTenantSelect: 운영자 모드 해제 실패로 테넌트 전환 중단', err);
+          return;
+        }
+      }
       switchTenantMutation.mutate(tenant.tenantId, {
         onSuccess: () => {
           toast.success(`${tenant.tenantName} 테넌트로 전환되었습니다.`);
