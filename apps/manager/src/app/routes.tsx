@@ -50,6 +50,9 @@ const TenantDetail = React.lazy(() => import('./pages/tenant-management/TenantDe
 // 장애 이력 페이지
 const FaultHistoryList = React.lazy(() => import('./pages/fault-history/FaultHistoryList'));
 
+// 통보 관리 (장애통보 관리) 페이지
+const FaultNotification = React.lazy(() => import('./pages/fault-notification/FaultNotification'));
+
 // 노드/클러스터 관리 페이지
 const NodeList = React.lazy(() => import('./pages/node-management/NodeList'));
 const NodeCreate = React.lazy(() => import('./pages/node-management/NodeCreate'));
@@ -268,6 +271,10 @@ export const routes = [
           {
             path: 'history',
             element: pv('fault/history', FaultHistoryList),
+          },
+          {
+            path: 'notification',
+            element: pv('fault/notification', FaultNotification),
           },
         ],
       },
