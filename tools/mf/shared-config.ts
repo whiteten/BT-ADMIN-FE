@@ -67,13 +67,17 @@ export const createSharedConfig = (options?: { consumeOnly?: boolean }): Record<
 
   // 워크스페이스 lib 단일 인스턴스 (원본 additionalShared 상당).
   // version: 소스 lib라 package.json이 없어 자동 감지 불가 — 명시하지 않으면 빌드 경고.
-  shared['@/shared-store'] = {
-    singleton: true,
-    strictVersion: true,
-    requiredVersion: false,
-    version: '0.0.0',
-    ...(consumeOnly ? { import: false as const } : {}),
-  };
+  // '@/shared-util': useToastStore(zustand) 보유 — 비공유 시 remote가 자기 복사본 스토어에
+  // push하고 host ToastProvider는 host 인스턴스를 구독해 remote발 토스트가 화면에 안 뜬다.
+  for (const workspaceLib of ['@/shared-store', '@/shared-util']) {
+    shared[workspaceLib] = {
+      singleton: true,
+      strictVersion: true,
+      requiredVersion: false,
+      version: '0.0.0',
+      ...(consumeOnly ? { import: false as const } : {}),
+    };
+  }
 
   return shared;
 };
