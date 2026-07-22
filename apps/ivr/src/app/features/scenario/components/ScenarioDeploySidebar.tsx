@@ -8,9 +8,9 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Checkbox, DatePicker, Drawer, Empty, Form, Radio, Select, Tag } from 'antd';
+import { Alert, Button, Checkbox, DatePicker, Drawer, Form, Radio, Select, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { ListChecks, type LucideIcon, Rocket, Server, ServerOff, Shield, Tag as TagIcon } from 'lucide-react';
+import { Clock, ListChecks, type LucideIcon, Server, ServerOff, Shield, Tag as TagIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { scenarioQueryKeys, useGetDeployTargets, useGetDeployedSystems, useGetVersions, usePublishScenario } from '../hooks/useScenarioQueries';
 import {
@@ -176,7 +176,7 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
       title="배포"
       closable={{ placement: 'end' }}
       placement="right"
-      width={480}
+      width={520}
       open={open}
       onClose={onClose}
       footer={
@@ -283,17 +283,85 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
 
           <hr className="border-slate-100" />
 
-          {/* 배포 실행 폼 */}
           <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={{ rtResvKind: APPLY_TIMING.REALTIME }}>
-            <SectionHeader icon={Rocket} label="배포 실행" />
-
             {!effectiveVersion.scenarioFile && (
-              <Alert type="warning" showIcon message="시나리오 파일 미업로드" description="버전 추가 시 파일을 업로드해주세요." className="!mb-3" />
+              <Alert
+                type="warning"
+                showIcon
+                message={<span className="text-[12px] font-semibold">시나리오 파일 미업로드</span>}
+                description={<span className="text-[12px]">버전 추가 시 파일을 업로드해주세요.</span>}
+                className="!mb-3"
+              />
             )}
 
-            {/* 배포 방식 + 예약 시각 인라인. DatePicker 는 REALTIME 모드에서도 자리 점유 (disabled).
-                AS-IS SleeConfigList 패턴과 동일 — layout shift 방지. */}
-            <Form.Item label="배포 방식" required className="!mb-4">
+            {/* 대상 시스템 — 체크박스 선택 (예약중은 disabled). HA 백업은 배포 제외(읽기전용). */}
+            <div className="mb-4">
+              {/* SleeConfig 적용 사이드바와 동일: 좌측 "대상 시스템 (n/n) · 예약중 N개 제외" / 우측 "전체" 체크박스 */}
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[13px] font-semibold text-slate-700 inline-flex items-center gap-1.5">
+                  <ListChecks className="size-3.5 text-[#405189]" />
+                  대상 시스템 ({selectedSystemIds.size}/{checkableSystems.length})
+                  {assignedSystems.some((s) => s.reserved) && (
+                    <span className="text-[12px] font-normal text-slate-400"> · 예약중 {assignedSystems.filter((s) => s.reserved).length}개 제외</span>
+                  )}
+                </span>
+                {checkableSystems.length > 0 && (
+                  <Checkbox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={(e) => toggleAll(e.target.checked)}>
+                    <span className="text-[12px] text-slate-500">전체</span>
+                  </Checkbox>
+                )}
+              </div>
+              {assignedSystems.length === 0 ? (
+                <div className="text-center text-slate-400 text-[13px] py-4 border border-dashed border-slate-200 rounded-md">
+                  배포 가능한 시스템이 없습니다. 배포 설정에서 시스템을 먼저 할당하세요.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                  {assignedSystems.map((sys: DeployTargetSystem) => (
+                    <label
+                      key={sys.systemId}
+                      className={`flex items-center gap-2 p-2.5 rounded-md border border-slate-200 bg-white ${
+                        sys.reserved ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-[#c5cbe0]'
+                      }`}
+                    >
+                      <Checkbox checked={selectedSystemIds.has(sys.systemId)} disabled={!!sys.reserved} onChange={(e) => toggleSystem(sys.systemId, e.target.checked)} />
+                      <Server className="size-4 text-[#405189]" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] text-slate-800 truncate">{sys.systemName}</div>
+                        <div className="text-[12px] text-slate-400 truncate">
+                          {sys.nodeName ?? `Node ${sys.nodeId}`}
+                          {sys.haGroupName ? ` · ${sys.haGroupName}` : ''}
+                          {sys.ioIpAddress ? ` · ${sys.ioIpAddress}` : ''}
+                        </div>
+                      </div>
+                      {sys.reserved && (
+                        <Tag color="blue" className="!m-0 !text-[11px] !leading-5 !py-0">
+                          예약중
+                        </Tag>
+                      )}
+                    </label>
+                  ))}
+                  {haBackupSystems.map((sys: DeployTargetSystem) => (
+                    <div key={sys.systemId} className="flex items-center gap-2 p-2.5 rounded-md border border-slate-200 bg-slate-50">
+                      <Shield className="size-4 text-slate-400" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] text-slate-400 truncate">{sys.systemName}</div>
+                      </div>
+                      <Tag color="default" className="!m-0 !text-[11px] !leading-5 !py-0">
+                        백업 · 배포 제외
+                      </Tag>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 배포 방식 + 예약 시각. DatePicker 는 REALTIME 모드에서도 자리 점유 (disabled). */}
+            <div className="mb-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="size-3.5 text-[#405189]" />
+                <span className="text-[13px] font-semibold text-slate-700">배포 방식</span>
+              </div>
               <div className="flex items-center gap-3 flex-wrap">
                 <Form.Item name="rtResvKind" noStyle rules={[{ required: true }]}>
                   <Radio.Group
@@ -332,65 +400,6 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
                     style={{ width: 200 }}
                   />
                 </Form.Item>
-              </div>
-            </Form.Item>
-
-            {/* 대상 시스템 — 체크박스 선택 (예약중은 disabled). HA 백업은 배포 제외(읽기전용). */}
-            <div className="mb-4">
-              {/* SleeConfig 적용 사이드바와 동일: 좌측 "대상 시스템 (n/n) · 예약중 N개 제외" / 우측 "전체" 체크박스 */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[13px] font-semibold text-slate-700 inline-flex items-center gap-1.5">
-                  <ListChecks className="size-3.5 text-[#405189]" />
-                  대상 시스템 ({selectedSystemIds.size}/{checkableSystems.length})
-                  {assignedSystems.some((s) => s.reserved) && (
-                    <span className="text-[12px] font-normal text-slate-400"> · 예약중 {assignedSystems.filter((s) => s.reserved).length}개 제외</span>
-                  )}
-                </span>
-                {checkableSystems.length > 0 && (
-                  <Checkbox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={(e) => toggleAll(e.target.checked)}>
-                    <span className="text-[12px] text-slate-500">전체</span>
-                  </Checkbox>
-                )}
-              </div>
-              <div className="border border-slate-200 rounded-md">
-                {assignedSystems.length === 0 ? (
-                  <div className="p-3">
-                    <Empty description="배포 가능한 시스템이 없습니다. 배포 설정에서 시스템을 먼저 할당하세요." styles={{ image: { height: 40 } }} />
-                  </div>
-                ) : (
-                  assignedSystems.map((sys: DeployTargetSystem, idx: number) => (
-                    <label
-                      key={sys.systemId}
-                      className={`flex items-center gap-2 p-2 cursor-pointer ${idx < assignedSystems.length - 1 ? 'border-b border-slate-100' : ''} ${sys.reserved ? 'opacity-60' : 'hover:bg-slate-50'}`}
-                    >
-                      <Checkbox checked={selectedSystemIds.has(sys.systemId)} disabled={!!sys.reserved} onChange={(e) => toggleSystem(sys.systemId, e.target.checked)} />
-                      <Server className="size-3.5 text-[#405189] flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] text-slate-800 truncate">{sys.systemName}</div>
-                        <div className="text-[12px] text-slate-400 truncate">
-                          {sys.serviceVer ? `현재 v${sys.serviceVer}` : ''}
-                          {sys.haGroupName ? `${sys.serviceVer ? ' · ' : ''}${sys.haGroupName}` : ''}
-                        </div>
-                      </div>
-                      {sys.reserved && (
-                        <Tag color="blue" className="!m-0 !text-[11px] !leading-5 !py-0">
-                          예약중
-                        </Tag>
-                      )}
-                    </label>
-                  ))
-                )}
-                {haBackupSystems.map((sys: DeployTargetSystem) => (
-                  <div key={sys.systemId} className="flex items-center gap-2 p-2 bg-slate-50 border-t border-slate-100">
-                    <Shield className="size-3.5 text-slate-400 flex-shrink-0 ml-[2px]" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[13px] text-slate-400 truncate">{sys.systemName}</div>
-                    </div>
-                    <Tag color="default" className="!m-0 !text-[11px] !leading-5 !py-0">
-                      백업 · 배포 제외
-                    </Tag>
-                  </div>
-                ))}
               </div>
             </div>
           </Form>

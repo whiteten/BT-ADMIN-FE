@@ -242,6 +242,9 @@ export interface DeployTargetSystem {
   systemId: number;
   systemName: string;
   serviceVer?: string | null;
+  nodeId?: number | null;
+  nodeName?: string | null;
+  ioIpAddress?: string | null;
   haGroupId?: number | null;
   haGroupName?: string | null;
   assignSystem: number; // 1=할당, 0=HA 백업

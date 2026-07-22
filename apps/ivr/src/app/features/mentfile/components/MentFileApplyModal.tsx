@@ -15,7 +15,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Checkbox, DatePicker, Drawer, Radio, Tag } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { CheckCircle, Server, ServerOff, XCircle } from 'lucide-react';
+import { CheckCircle, ListChecks, Server, XCircle } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { mentFileQueryKeys, useApplyMentFile, useGetApplyTargets } from '../hooks/useMentFileQueries';
 import { MENT_APPLY_STATUS_LABELS, type MentApplyResponse, type MentApplyResultItem, type MentApplyTarget, type MentRtServKind } from '../types';
@@ -173,22 +173,20 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
           {/* 대상 시스템 목록 — 체크박스 카드 리스트 */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[12px] font-semibold text-slate-700">
+              <span className="text-[13px] font-semibold text-slate-700 inline-flex items-center gap-1.5">
+                <ListChecks className="size-3.5 text-[#405189]" />
                 대상 시스템 ({checkedSystems.size}/{checkableTargets.length})
               </span>
               {checkableTargets.length > 0 && (
                 <Checkbox checked={allChecked} indeterminate={!allChecked && someChecked} onChange={(e) => handleCheckAll(e.target.checked)}>
-                  <span className="text-[11px] text-slate-500">전체</span>
+                  <span className="text-[12px] text-slate-500">전체</span>
                 </Checkbox>
               )}
             </div>
             {targets.length === 0 ? (
-              <div className="text-center text-slate-400 text-[12px] py-4 border border-dashed border-slate-200 rounded-md">
-                <ServerOff className="size-8 mx-auto mb-1 opacity-60" />
-                <span>적용 가능한 IR 시스템이 없습니다.</span>
-              </div>
+              <div className="text-center text-slate-400 text-[13px] py-4 border border-dashed border-slate-200 rounded-md">적용 가능한 IR 시스템이 없습니다.</div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
                 {targets.map((sys: MentApplyTarget) => {
                   const reserved = !!sys.svcResvId;
                   return (
@@ -201,13 +199,17 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
                       <Checkbox checked={checkedSystems.has(sys.systemId)} disabled={reserved} onChange={(e) => handleSystemCheck(sys.systemId, e.target.checked)} />
                       <Server className="size-4 text-[#405189]" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[12px] font-medium text-slate-800 truncate">{sys.systemName}</div>
-                        <div className="text-[10px] text-slate-400 truncate">
+                        <div className="text-[13px] text-slate-800 truncate">{sys.systemName}</div>
+                        <div className="text-[12px] text-slate-400 truncate">
                           {sys.nodeName ?? `Node ${sys.nodeId ?? '-'}`}
                           {sys.ioIpAddress ? ` · ${sys.ioIpAddress}` : ''}
                         </div>
                       </div>
-                      {reserved && <Tag color="blue">예약중</Tag>}
+                      {reserved && (
+                        <Tag color="blue" className="!m-0 !text-[11px] !leading-5 !py-0">
+                          예약중
+                        </Tag>
+                      )}
                     </label>
                   );
                 })}
@@ -216,7 +218,7 @@ const MentFileApplyModal = forwardRef<MentFileApplyModalRef>((_, ref) => {
           </div>
 
           {/* 적용 방식 — 인라인 Radio + DatePicker */}
-          <div className="border-t border-slate-100 pt-3">
+          <div>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-[12px] text-slate-600 flex-shrink-0">적용 방식</span>
               <Radio.Group

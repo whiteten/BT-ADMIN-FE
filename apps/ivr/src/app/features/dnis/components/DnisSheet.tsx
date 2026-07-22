@@ -121,7 +121,7 @@ const DnisSheet = forwardRef<DnisSheetRef, Props>(({ selectedNode, selectedTenan
     >
       {isEditMode && (
         <div className="mb-4 bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
-          💡 수정 시 <b>노드 / 서비스번호 / 시나리오</b> 는 변경할 수 없습니다 (AS-IS 동일)
+          💡 수정 시 <b>노드 / 서비스번호 / 시나리오</b> 는 변경할 수 없습니다.
         </div>
       )}
       <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark>

@@ -137,8 +137,8 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
 
           {/* 파일 업로드 영역 */}
           <div>
-            <div className="text-[12px] font-semibold text-slate-700 mb-2">파일 선택</div>
-            <Upload
+            <div className="text-slate-700 mb-2">파일 선택</div>
+            <Upload.Dragger
               accept={ACCEPT}
               multiple
               // beforeUpload 에서 false 를 반환해 자동 업로드 차단 + 사전 유효성 검증.
@@ -154,8 +154,14 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
               fileList={files}
               onChange={(info) => setFiles(info.fileList)}
             >
-              <Button icon={<UploadIcon className="size-3.5" />}>파일 선택</Button>
-            </Upload>
+              <div className="py-3 flex flex-col items-center gap-1">
+                <p className="ant-upload-drag-icon">
+                  <UploadIcon className="inline size-6 text-[#405189]" />
+                </p>
+                <p className="text-[12px] text-slate-600">파일을 드래그하거나 클릭하여 선택하세요</p>
+                <p className="text-[11px] text-slate-400">여러 파일 동시 선택 가능 · 허용 확장자: {ALLOWED_EXTENSIONS.join(', ')}</p>
+              </div>
+            </Upload.Dragger>
           </div>
         </div>
       ) : (

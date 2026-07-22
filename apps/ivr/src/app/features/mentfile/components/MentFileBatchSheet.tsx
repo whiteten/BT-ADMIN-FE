@@ -14,11 +14,13 @@
  */
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Drawer, Form, Input, Table, Upload } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { Download, FileUp, Trash2, Upload as UploadIcon } from 'lucide-react';
+import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import { AgGridReact } from 'ag-grid-react';
+import { Button, Drawer, Form, type FormProps, Input, Upload } from 'antd';
+import { Download, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { mentFileQueryKeys, useCreateMentFilesBatch, useDownloadDescTemplate, useParseMentDesc } from '../hooks/useMentFileQueries';
+import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 // AS-IS Globals.BAD_EXTENSION 동일 — BE 와 동일 정책 사전 차단.
 const BAD_EXTENSIONS = ['jsp', 'php', 'asp', 'html', 'perl', 'exe', 'cer', 'sql', 'js', 'svg'];
@@ -60,6 +62,7 @@ export interface MentFileBatchSheetRef {
 
 const MentFileBatchSheet = forwardRef<MentFileBatchSheetRef>((_, ref) => {
   const queryClient = useQueryClient();
+  const { gridOptions } = useAggridOptions();
   const [form] = Form.useForm<FormValues>();
   const [visible, setVisible] = useState(false);
   const [fileRows, setFileRows] = useState<FileRow[]>([]);
@@ -139,6 +142,11 @@ const MentFileBatchSheet = forwardRef<MentFileBatchSheetRef>((_, ref) => {
     }
   };
 
+  const onFinishFailed: FormProps<FormValues>['onFinishFailed'] = (errorInfo) => {
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
+  };
+
   const handleSubmit = async (values: FormValues) => {
     if (fileRows.length === 0) {
       toast.error('멘트 파일을 1개 이상 선택하세요.');
@@ -160,28 +168,48 @@ const MentFileBatchSheet = forwardRef<MentFileBatchSheetRef>((_, ref) => {
     }
   };
 
-  const columns: ColumnsType<FileRow> = useMemo(
+  const columnDefs: ColDef<FileRow>[] = useMemo(
     () => [
-      { title: '파일명', dataIndex: 'fileName', ellipsis: true },
-      { title: '크기', dataIndex: 'size', width: 90, align: 'right', render: (s: number) => `${(s / 1024).toFixed(1)} KB` },
+      { headerName: '파일명', field: 'fileName', flex: 2, minWidth: 160 } as ColDef<FileRow>,
       {
-        title: '멘트설명',
-        dataIndex: 'mentDesc',
-        width: 260,
-        render: (_: string, row: FileRow) => (
-          <Input size="small" value={row.mentDesc} maxLength={1000} placeholder="설명(선택)" onChange={(e) => setDesc(row.uid, e.target.value)} />
-        ),
-      },
+        headerName: '크기',
+        field: 'size',
+        width: 100,
+        sortable: false,
+        cellStyle: { textAlign: 'right' },
+        valueFormatter: (p) => `${(p.value / 1024).toFixed(1)} KB`,
+      } as ColDef<FileRow>,
       {
-        title: '',
-        width: 44,
-        align: 'center',
-        render: (_: unknown, row: FileRow) => (
-          <button type="button" onClick={() => removeRow(row.uid)} className="text-gray-400 hover:text-red-500" aria-label="제거">
-            <Trash2 className="size-4" />
-          </button>
-        ),
-      },
+        headerName: '멘트설명',
+        field: 'mentDesc',
+        flex: 3,
+        minWidth: 220,
+        sortable: false,
+        cellRenderer: (p: ICellRendererParams<FileRow>) =>
+          p.data ? <Input size="small" value={p.data.mentDesc} maxLength={1000} placeholder="설명 (선택)" onChange={(e) => setDesc(p.data!.uid, e.target.value)} /> : null,
+      } as ColDef<FileRow>,
+      {
+        headerName: '',
+        colId: 'actions',
+        width: 56,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p: ICellRendererParams<FileRow>) =>
+          p.data ? (
+            <button
+              type="button"
+              title="제거"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeRow(p.data!.uid);
+              }}
+            >
+              <Trash2 className="size-4 text-red-500 hover:cursor-pointer" />
+            </button>
+          ) : null,
+      } as ColDef<FileRow>,
     ],
     [],
   );
@@ -191,89 +219,106 @@ const MentFileBatchSheet = forwardRef<MentFileBatchSheetRef>((_, ref) => {
       title="멘트파일 다량추가"
       closable={{ placement: 'end' }}
       placement="right"
-      styles={{ wrapper: { width: 720 } }}
+      styles={{ wrapper: { width: 600 } }}
       open={visible}
       onClose={() => setVisible(false)}
       destroyOnHidden
       footer={
-        <div className="flex justify-end gap-2">
-          <Button onClick={() => setVisible(false)}>취소</Button>
-          <Button type="primary" loading={isCreating} onClick={() => form.submit()}>
-            등록 ({fileRows.length})
-          </Button>
+        <div className="flex items-center justify-between">
+          <span className="text-slate-700">멘트 파일 {fileRows.length}건</span>
+          <div className="flex gap-2">
+            <Button onClick={() => setVisible(false)}>취소</Button>
+            <Button type="primary" loading={isCreating} onClick={() => form.submit()}>
+              등록
+            </Button>
+          </div>
         </div>
       }
     >
-      <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} initialValues={DEFAULTS}>
-        <div className="flex gap-3">
-          <Form.Item
-            name="emsFilePath"
-            label="EMS 파일 위치"
-            required
-            className="flex-1"
-            rules={[
-              { required: true, message: 'EMS 파일 위치는 필수입니다' },
-              { max: 256, message: '256자 이내' },
-            ]}
+      <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} onFinishFailed={onFinishFailed} initialValues={DEFAULTS}>
+        <Form.Item
+          name="emsFilePath"
+          label="EMS 파일 위치"
+          required
+          hasFeedback
+          rules={[
+            { required: true, message: 'EMS 파일 위치는 필수입니다' },
+            { max: 256, message: '256자 이내' },
+          ]}
+        >
+          <Input placeholder="ment/" maxLength={256} />
+        </Form.Item>
+        <Form.Item
+          name="irFilePath"
+          label="IR 파일 위치"
+          required
+          hasFeedback
+          rules={[
+            { required: true, message: 'IR 파일 위치는 필수입니다' },
+            { max: 256, message: '256자 이내' },
+          ]}
+        >
+          <Input placeholder="IPRON/ment/" maxLength={256} />
+        </Form.Item>
+
+        <Form.Item label="멘트 파일" required>
+          <Upload.Dragger
+            multiple
+            beforeUpload={(f) => {
+              // 각 파일마다 호출 — addFiles 가 선택 즉시 바이트를 메모리로 스냅샷(arrayBuffer)해 저장한다.
+              void addFiles([f as File]);
+              return false;
+            }}
+            showUploadList={false}
+            fileList={[]}
           >
-            <Input placeholder="ment/" maxLength={256} />
-          </Form.Item>
-          <Form.Item
-            name="irFilePath"
-            label="IR 파일 위치"
-            required
-            className="flex-1"
-            rules={[
-              { required: true, message: 'IR 파일 위치는 필수입니다' },
-              { max: 256, message: '256자 이내' },
-            ]}
-          >
-            <Input placeholder="IPRON/ment/" maxLength={256} />
-          </Form.Item>
+            <div className="py-3 flex flex-col items-center gap-1">
+              <p className="ant-upload-drag-icon">
+                <UploadIcon className="inline size-6 text-[#405189]" />
+              </p>
+              <p className="text-[12px] text-slate-600">파일을 드래그하거나 클릭하여 선택하세요</p>
+              <p className="text-[11px] text-slate-400">여러 파일 동시 선택 가능</p>
+            </div>
+          </Upload.Dragger>
+        </Form.Item>
+
+        {/* antd Form.Item label 은 <label> 태그로 감싸져서, 안에 텍스트+버튼을 같이 넣으면
+            텍스트 클릭이 버튼 클릭으로 전파되는 문제가 있다 — label prop 밖 일반 div로 분리. */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-gray-800">멘트 설명</span>
+          <Button type="link" size="small" icon={<Download className="size-3.5" />} className="!px-0 !h-auto" onClick={() => downloadTemplate(undefined)}>
+            템플릿 다운로드
+          </Button>
         </div>
+        <Form.Item>
+          <Upload
+            accept=".xlsx,.csv"
+            maxCount={1}
+            beforeUpload={(f) => {
+              handleDescFile(f as File);
+              return false;
+            }}
+            showUploadList={false}
+            fileList={[]}
+            className="w-full [&_.ant-upload-select]:block [&_.ant-upload-select]:w-full"
+          >
+            <Button block icon={<UploadIcon className="size-3.5" />} loading={isParsing} disabled={fileRows.length === 0}>
+              파일 선택<span className="text-[11px]">(xlsx/csv)</span>
+            </Button>
+          </Upload>
+        </Form.Item>
       </Form>
 
-      <div className="flex items-center gap-2 mb-2">
-        <Upload
-          multiple
-          beforeUpload={(f) => {
-            // 각 파일마다 호출 — addFiles 가 선택 즉시 바이트를 메모리로 스냅샷(arrayBuffer)해 저장한다.
-            void addFiles([f as File]);
-            return false;
-          }}
-          showUploadList={false}
-          fileList={[]}
-        >
-          <Button icon={<UploadIcon className="size-3.5" />}>멘트 파일 선택 (여러 개)</Button>
-        </Upload>
-        <Upload
-          accept=".xlsx,.csv"
-          beforeUpload={(f) => {
-            handleDescFile(f as File);
-            return false;
-          }}
-          showUploadList={false}
-          fileList={[]}
-        >
-          <Button icon={<FileUp className="size-3.5" />} loading={isParsing} disabled={fileRows.length === 0}>
-            설명파일(xlsx/csv)
-          </Button>
-        </Upload>
-        <Button type="link" icon={<Download className="size-3.5" />} onClick={() => downloadTemplate(undefined)}>
-          양식
-        </Button>
-        <span className="ml-auto text-xs text-gray-400">{fileRows.length}개 선택</span>
+      <div className="h-[360px] mt-1">
+        <AgGridReact<FileRow>
+          rowData={fileRows}
+          columnDefs={columnDefs}
+          gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+          getRowId={(p) => p.data.uid}
+          defaultColDef={{ filter: false, sortable: true, suppressHeaderMenuButton: true }}
+          noRowsOverlayComponentParams={{ message: '선택된 멘트 파일이 없습니다.' }}
+        />
       </div>
-
-      <Table<FileRow>
-        rowKey="uid"
-        size="small"
-        columns={columns}
-        dataSource={fileRows}
-        pagination={false}
-        scroll={{ y: 360 }}
-        locale={{ emptyText: '선택된 멘트 파일이 없습니다.' }}
-      />
     </Drawer>
   );
 });
