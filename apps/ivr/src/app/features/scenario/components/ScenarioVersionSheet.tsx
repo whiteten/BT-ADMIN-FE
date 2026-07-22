@@ -12,7 +12,7 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Form, Input, Radio, Select, Upload, type UploadFile } from 'antd';
-import { Upload as UploadIcon } from 'lucide-react';
+import { Download, FileCode, FileText, type LucideIcon, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import {
   scenarioQueryKeys,
@@ -53,6 +53,58 @@ const DEFAULT_VALUES: FormValues = {
   statVisible: 1,
   charsetType: 'euc-kr',
 };
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface FileUploadFieldProps {
+  accept: string;
+  hint: string;
+  icon: LucideIcon;
+  file: UploadFile | null;
+  existingFileName?: string;
+  onSelect: (file: UploadFile) => void;
+  onClear: () => void;
+  onDownloadExisting?: () => void;
+}
+
+/** 드래그앤드롭 업로드 영역 + 선택/기존 파일 표시 카드. maxCount=1 — 새 파일 선택 시 항상 교체. */
+function FileUploadField({ accept, hint, icon: Icon, file, existingFileName, onSelect, onClear, onDownloadExisting }: FileUploadFieldProps) {
+  const displayName = file?.name ?? existingFileName;
+  return (
+    <div className="flex flex-col gap-2">
+      <Upload.Dragger
+        accept={accept}
+        maxCount={1}
+        showUploadList={false}
+        beforeUpload={() => false /* 즉시 업로드 안 함 — 저장 버튼에서 함께 전송 */}
+        onChange={(info) => {
+          const last = info.fileList[info.fileList.length - 1];
+          if (last) onSelect(last);
+        }}
+      >
+        <div className="py-3 flex flex-col items-center gap-1">
+          <p className="text-[12px] text-slate-600">{displayName ? '파일을 드래그하거나 클릭하여 파일 교체' : '파일을 드래그하거나 클릭하여 선택하세요'}</p>
+          <p className="text-[11px] text-slate-400">{hint}</p>
+        </div>
+      </Upload.Dragger>
+      {displayName && (
+        <div className="flex items-center gap-2.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+          <Icon className="size-4 text-[#405189] flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] text-slate-800 truncate">{displayName}</div>
+            {file?.size != null && <div className="text-[11px] text-slate-400">{formatFileSize(file.size)}</div>}
+          </div>
+          {!file && onDownloadExisting && <Button type="text" size="small" icon={<Download className="size-3.5" />} onClick={onDownloadExisting} />}
+          {file && <Button type="text" size="small" icon={<X className="size-3.5" />} onClick={onClear} />}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const ScenarioVersionSheet = forwardRef<ScenarioVersionSheetRef, ScenarioVersionSheetProps>(({ serviceId, serviceName }, ref) => {
   const queryClient = useQueryClient();
@@ -244,70 +296,29 @@ const ScenarioVersionSheet = forwardRef<ScenarioVersionSheetRef, ScenarioVersion
         </Form.Item>
 
         <Form.Item label="시나리오 파일" required={!isEditMode}>
-          <Upload
+          <FileUploadField
             accept=".sxml,.SXML"
-            maxCount={1}
-            beforeUpload={() => false /* 즉시 업로드 안 함 — 저장 버튼에서 함께 전송 */}
-            onChange={(info) => {
-              // 기존 파일(uid='-existing')만 남아있는 경우는 setSxmlFile 호출 안 함 (실제 새 파일은 항상 fileList[0])
-              const last = info.fileList[info.fileList.length - 1];
-              if (last && last.uid !== '-existing-sxml') setSxmlFile(last);
-            }}
-            fileList={
-              sxmlFile ? [sxmlFile] : isEditMode && editingVersion?.scenarioFile ? [{ uid: '-existing-sxml', name: editingVersion.scenarioFile, status: 'done' as const }] : []
-            }
-            onRemove={(file) => {
-              if (file.uid === '-existing-sxml') return false; // 기존 파일은 제거 불가
-              setSxmlFile(null);
-              return true;
-            }}
-            onDownload={(file) => {
-              if (file.uid === '-existing-sxml' && editingVersion) {
-                downloadScenarioMutate({ serviceId, serviceVer: editingVersion.serviceVer });
-              }
-            }}
-            showUploadList={{
-              showDownloadIcon: (file) => file.uid === '-existing-sxml',
-              showRemoveIcon: (file) => file.uid !== '-existing-sxml',
-            }}
-          >
-            <Button icon={<UploadIcon className="size-3.5" />}>파일 선택</Button>
-          </Upload>
+            hint=".sxml"
+            icon={FileCode}
+            file={sxmlFile}
+            existingFileName={isEditMode ? (editingVersion?.scenarioFile ?? undefined) : undefined}
+            onSelect={setSxmlFile}
+            onClear={() => setSxmlFile(null)}
+            onDownloadExisting={isEditMode && editingVersion ? () => downloadScenarioMutate({ serviceId, serviceVer: editingVersion.serviceVer }) : undefined}
+          />
         </Form.Item>
 
         <Form.Item label="시나리오 문서">
-          <Upload
+          <FileUploadField
             accept=".txt,.doc,.docx,.xls,.xlsx"
-            maxCount={1}
-            beforeUpload={() => false}
-            onChange={(info) => {
-              const last = info.fileList[info.fileList.length - 1];
-              if (last && last.uid !== '-existing-doc') setDocumentFile(last);
-            }}
-            fileList={
-              documentFile
-                ? [documentFile]
-                : isEditMode && editingVersion?.scenarioDocument
-                  ? [{ uid: '-existing-doc', name: editingVersion.scenarioDocument, status: 'done' as const }]
-                  : []
-            }
-            onRemove={(file) => {
-              if (file.uid === '-existing-doc') return false; // 기존 문서는 제거 불가
-              setDocumentFile(null);
-              return true;
-            }}
-            onDownload={(file) => {
-              if (file.uid === '-existing-doc' && editingVersion) {
-                downloadDocMutate({ serviceId, serviceVer: editingVersion.serviceVer });
-              }
-            }}
-            showUploadList={{
-              showDownloadIcon: (file) => file.uid === '-existing-doc',
-              showRemoveIcon: (file) => file.uid !== '-existing-doc',
-            }}
-          >
-            <Button icon={<UploadIcon className="size-3.5" />}>문서 선택</Button>
-          </Upload>
+            hint=".txt, .doc, .docx, .xls, .xlsx"
+            icon={FileText}
+            file={documentFile}
+            existingFileName={isEditMode ? (editingVersion?.scenarioDocument ?? undefined) : undefined}
+            onSelect={setDocumentFile}
+            onClear={() => setDocumentFile(null)}
+            onDownloadExisting={isEditMode && editingVersion ? () => downloadDocMutate({ serviceId, serviceVer: editingVersion.serviceVer }) : undefined}
+          />
         </Form.Item>
 
         <Form.Item name="charsetType" label="캐릭터셋">

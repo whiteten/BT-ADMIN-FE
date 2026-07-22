@@ -27,7 +27,6 @@ import {
   type HaGroup,
   type HaGroupMember,
 } from '../../features/ha-group/types';
-import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -98,9 +97,6 @@ export default function HaGroupList() {
   }, [haGroups, selectedHaGroupId]);
 
   const selectedHaGroup = useMemo(() => haGroups.find((g) => g.haGroupId === selectedHaGroupId) ?? null, [haGroups, selectedHaGroupId]);
-
-  // HA 그룹은 노드별로만 조회 가능(전체 집계 API 없음) — count 없이 표시.
-  const nodeTabItems: TabBarItem<number>[] = useMemo(() => nodes.map((node) => ({ id: node.nodeId, label: node.nodeName, icon: Network })), [nodes]);
 
   // ─── Invalidation ───────────────────────────────────────────────────────
   const invalidateHaGroups = () => queryClient.invalidateQueries({ queryKey: haGroupQueryKeys.getHaGroups._def });
@@ -253,17 +249,29 @@ export default function HaGroupList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 탭 바 박스 (노드) ===== */}
-        <TabBar<number>
-          items={nodeTabItems}
-          selectedId={selectedNodeId}
-          onSelect={handleNodeSelect}
-          rightContent={
-            <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateGroup}>
-              그룹 추가
-            </Button>
-          }
-        />
+        {/* ===== 노드 선택 툴바 (별도 박스) ===== */}
+        <div className="bg-white bt-shadow flex-shrink-0 px-5 h-[56px]">
+          <header className="flex items-center gap-2 h-full">
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select<number>
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? undefined}
+                onChange={handleNodeSelect}
+                options={nodes.map((node) => ({ value: node.nodeId, label: node.nodeName }))}
+                placeholder="노드 선택"
+                style={{ width: 190 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateGroup}>
+                그룹 추가
+              </Button>
+            </div>
+          </header>
+        </div>
 
         {/* ===== HA 그룹 카드 슬라이더 박스 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">

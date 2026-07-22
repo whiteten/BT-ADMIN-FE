@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LOG } from '@/log';
 
-import { useAuthStore, useNavigationStore } from '@/shared-store';
+import { useAuthStore, useNavigationStore, useOperatorScopeStore } from '@/shared-store';
 import { stripBasePath, toast } from '@/shared-util';
 import { usePageVariantManifestLoader } from './hooks/usePageVariantManifestLoader';
 import { useQuerySelectorsLoader } from './hooks/useQuerySelectorsLoader';
@@ -20,6 +20,7 @@ const Log = new LOG('SharedInfoProvider');
 export default function SharedInfoProvider({ children }: { children?: React.ReactNode }) {
   const { setUserInfo, setIsLoading, passwordExpiringWarning, setPasswordExpiringWarning } = useAuthStore();
   const { setNavigation } = useNavigationStore();
+  const setOperatorMode = useOperatorScopeStore((s) => s.setOperatorMode);
   const { data: userInfo, isLoading: isUserInfoLoading, error: userInfoError } = useGetUserInfo();
   const { data: navigation, isLoading: isNavigationLoading, error: navigationError } = useGetNavigation();
   const { data: ticketResponse, isLoading: isWsTicketLoading, error: wsTicketError, refetch: refetchWsTicket } = useGetWsTicket();
@@ -53,8 +54,10 @@ export default function SharedInfoProvider({ children }: { children?: React.Reac
     if (userInfo) {
       Log.debug('User info fetched successfully. userInfo: ', userInfo);
       setUserInfo(userInfo);
+      // operatorMode 는 서버 권위(토큰) — /me 응답으로 store 를 서버 상태와 동기화(새 탭·reload 대비).
+      setOperatorMode(!!userInfo.operatorMode);
     }
-  }, [userInfo, setUserInfo]);
+  }, [userInfo, setUserInfo, setOperatorMode]);
 
   useEffect(() => {
     if (navigation) {

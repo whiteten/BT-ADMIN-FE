@@ -52,6 +52,8 @@ export interface UserInfoResponse {
   roleNames: Record<string, string>;
   /** 시스템 관리자 여부 */
   isSystemAdmin: boolean;
+  /** 운영자 모드(통합운영) 활성 여부 — 토큰 operatorMode 클레임 기반(서버 권위) */
+  operatorMode: boolean;
   /** 비밀번호 초기화 권한 */
   canResetPassword: boolean;
   /** 리소스 접근 관리 권한 */

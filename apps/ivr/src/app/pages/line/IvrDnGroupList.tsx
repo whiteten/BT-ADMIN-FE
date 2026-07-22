@@ -13,7 +13,7 @@ import { keepPreviousData, useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Alert, type BreadcrumbProps, Button, Col, Drawer, Empty, Form, Input, InputNumber, Row, Select } from 'antd';
-import { ChevronLeft, ChevronRight, Info, Layers, Network, Pencil, Phone, Plus, Server, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Network, Pencil, Phone, Plus, Server, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IvrDnGroupSheet, { type IvrDnGroupSheetRef } from '../../features/ivr-dn-group/components/IvrDnGroupSheet';
@@ -40,7 +40,6 @@ import {
   SUB_DN_KIND_OPTIONS,
   isSubDnEligible,
 } from '../../features/ivr-dn-group/types';
-import TabBar, { type TabBarItem } from '@/components/custom/TabBar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
@@ -207,19 +206,6 @@ export default function IvrDnGroupList() {
     if (selectedNodeId === null) return systemUsages;
     return systemUsages.filter((s) => s.nodeId === selectedNodeId);
   }, [systemUsages, selectedNodeId]);
-
-  const nodeTabItems: TabBarItem<number | 'all'>[] = useMemo(
-    () => [
-      { id: 'all', label: '전체', icon: Layers, count: systemUsages.length },
-      ...nodes.map((node) => ({
-        id: node.nodeId,
-        label: node.nodeName,
-        icon: Network,
-        count: systemUsages.filter((s) => s.nodeId === node.nodeId).length,
-      })),
-    ],
-    [nodes, systemUsages],
-  );
 
   useEffect(() => {
     if (selectedSystemId === null && filteredSystemUsages.length > 0) setSelectedSystemId(filteredSystemUsages[0].systemId);
@@ -446,20 +432,32 @@ export default function IvrDnGroupList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 탭 바 박스 (노드) ===== */}
-        <TabBar<number | 'all'>
-          items={nodeTabItems}
-          selectedId={selectedNodeId ?? 'all'}
-          onSelect={(id) => {
-            if (id === 'all') {
-              setSelectedNodeId(null);
-              setSelectedSystemId(null);
-              setSelectedDnGroupId(null);
-            } else {
-              handleNodeSelect(id);
-            }
-          }}
-        />
+        {/* ===== 노드 선택 툴바 (별도 박스) ===== */}
+        <div className="bg-white bt-shadow flex-shrink-0 px-5 h-[56px]">
+          <header className="flex items-center gap-2 h-full">
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select<number | 'all'>
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? 'all'}
+                onChange={(id) => {
+                  if (id === 'all') {
+                    setSelectedNodeId(null);
+                    setSelectedSystemId(null);
+                    setSelectedDnGroupId(null);
+                  } else {
+                    handleNodeSelect(id);
+                  }
+                }}
+                options={[{ value: 'all' as const, label: '전체' }, ...nodes.map((node) => ({ value: node.nodeId, label: node.nodeName }))]}
+                placeholder="노드 선택"
+                style={{ width: 190 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
+          </header>
+        </div>
 
         {/* ===== 카드 슬라이더 박스 (시스템) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
@@ -496,7 +494,7 @@ export default function IvrDnGroupList() {
                       >
                         <div className="flex items-center gap-1.5">
                           <Server className="size-3.5 text-[#405189]" />
-                          <span className="text-[14px] font-bold text-gray-800 truncate" title={sys.systemName}>
+                          <span className="text-[14px] font-semibold text-gray-800 truncate" title={sys.systemName}>
                             {sys.systemName}
                           </span>
                         </div>
