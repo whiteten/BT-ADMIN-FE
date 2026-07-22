@@ -122,6 +122,7 @@ export default function EndpointList() {
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: deleteEndpoint } = useDeleteEndpoint({
     mutationOptions: {
+      onError: (e: unknown) => toast.error(extractMsg(e, '국선 삭제에 실패했습니다')),
       onSuccess: (_data, variables) => {
         toast.success('국선이 삭제되었습니다');
         const deletedId = (variables as { id: number }).id;
@@ -260,17 +261,7 @@ export default function EndpointList() {
   );
 
   const handleDelete = useCallback(
-    async (ep: Endpoint) => {
-      try {
-        const [epMembers, epRegnums] = await Promise.all([endpointApi.getMembers({ id: ep.endptId }), endpointApi.getRegnums({ id: ep.endptId })]);
-        if (epMembers.length > 0 || epRegnums.length > 0) {
-          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다');
-          return;
-        }
-      } catch {
-        toast.error('삭제 가능 여부 확인에 실패했습니다');
-        return;
-      }
+    (ep: Endpoint) => {
       modal.confirm.execute({
         onOk: () => deleteEndpoint({ id: ep.endptId }),
         options: {
@@ -1040,4 +1031,8 @@ export default function EndpointList() {
       />
     </div>
   );
+}
+
+function extractMsg(err: unknown, fallback: string): string {
+  return (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 }
