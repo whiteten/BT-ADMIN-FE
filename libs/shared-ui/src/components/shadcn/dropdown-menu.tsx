@@ -5,7 +5,10 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+  // modal(기본 true)이면 Radix 포커스 트랩(handleFocusOut)이 메뉴 닫힘 애니메이션 동안에도 살아있어,
+  // 메뉴 항목에서 antd Modal.confirm을 열면 antd 포커스 트랩(syncFocus)과 서로 포커스를 뺏는
+  // 무한 루프(RangeError: Maximum call stack size exceeded)가 발생 — 트랩 자체를 끔
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" modal={false} {...props} />;
 }
 
 function DropdownMenuPortal({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
