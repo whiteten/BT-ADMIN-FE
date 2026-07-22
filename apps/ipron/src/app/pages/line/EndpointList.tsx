@@ -122,7 +122,6 @@ export default function EndpointList() {
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: deleteEndpoint } = useDeleteEndpoint({
     mutationOptions: {
-      onError: (e: unknown) => toast.error(extractMsg(e, '국선 삭제에 실패했습니다')),
       onSuccess: (_data, variables) => {
         toast.success('국선이 삭제되었습니다');
         const deletedId = (variables as { id: number }).id;
@@ -1031,8 +1030,4 @@ export default function EndpointList() {
       />
     </div>
   );
-}
-
-function extractMsg(err: unknown, fallback: string): string {
-  return (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? fallback;
 }
