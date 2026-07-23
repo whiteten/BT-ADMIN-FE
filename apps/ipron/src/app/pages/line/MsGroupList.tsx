@@ -29,6 +29,7 @@ import { type MediaServer, type MsGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } 
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -440,17 +441,22 @@ export default function MsGroupList() {
           const labelMap: Record<number, string> = { 0: '장애', 1: '정상', 2: '준비' };
           return state != null && labelMap[state] != null ? labelMap[state] : '-';
         },
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: ICellRendererParams<MediaServer>) => {
           if (!params.data) return null;
           const state = (params.data as unknown as { redisState?: number | null }).redisState;
-          const statusMap: Record<number, { label: string; color: string }> = {
-            0: { label: '장애', color: '#ef4444' },
-            1: { label: '정상', color: '#52c41a' },
-            2: { label: '준비', color: '#eab308' },
+          const statusMap: Record<number, { label: string; cls: string }> = {
+            0: { label: '장애', cls: 'text-red-500 bg-red-50' },
+            1: { label: '정상', cls: 'text-emerald-600 bg-emerald-50' },
+            2: { label: '준비', cls: 'text-amber-600 bg-amber-50' },
           };
           if (state != null && statusMap[state]) {
             const s = statusMap[state];
-            return <span style={{ color: s.color, fontWeight: 500 }}>{s.label}</span>;
+            return (
+              <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${s.cls}`}>
+                {s.label}
+              </Badge>
+            );
           }
           return '-';
         },

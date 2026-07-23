@@ -2,10 +2,10 @@ import type { LicenseStatus } from '../types';
 import { cn } from '@/lib/utils';
 
 const STATUS_META: Record<LicenseStatus, { label: string; bgClass: string; textClass: string; dotClass: string }> = {
-  ACTIVE: { label: '활성', bgClass: 'bg-green-100', textClass: 'text-green-700', dotClass: 'bg-green-500' },
-  EXPIRING: { label: '만료임박', bgClass: 'bg-yellow-100', textClass: 'text-yellow-700', dotClass: 'bg-yellow-500' },
-  EXPIRED: { label: '만료', bgClass: 'bg-red-100', textClass: 'text-red-700', dotClass: 'bg-red-500' },
-  INACTIVE: { label: '비활성', bgClass: 'bg-slate-100', textClass: 'text-slate-500', dotClass: 'bg-slate-400' },
+  ACTIVE: { label: '활성', bgClass: 'bg-emerald-50', textClass: 'text-emerald-600', dotClass: 'bg-emerald-500' },
+  EXPIRING: { label: '만료임박', bgClass: 'bg-amber-50', textClass: 'text-amber-600', dotClass: 'bg-amber-500' },
+  EXPIRED: { label: '만료', bgClass: 'bg-red-50', textClass: 'text-red-500', dotClass: 'bg-red-500' },
+  INACTIVE: { label: '비활성', bgClass: 'bg-gray-100', textClass: 'text-gray-500', dotClass: 'bg-gray-400' },
 };
 
 interface LicenseStatusBadgeProps {
@@ -36,11 +36,11 @@ export function FunctionBadge({ isEnabled, className }: FunctionBadgeProps) {
     <span
       className={cn(
         'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
-        isEnabled ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500',
+        isEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500',
         className,
       )}
     >
-      <span className={cn('w-1.5 h-1.5 rounded-full', isEnabled ? 'bg-green-500' : 'bg-slate-400')} />
+      <span className={cn('w-1.5 h-1.5 rounded-full', isEnabled ? 'bg-emerald-500' : 'bg-gray-400')} />
       {isEnabled ? '활성' : '비활성'}
     </span>
   );

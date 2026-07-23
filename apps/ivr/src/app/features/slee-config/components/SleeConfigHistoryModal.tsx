@@ -14,14 +14,24 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, Modal, Select, Tabs, Tag } from 'antd';
+import { Button, DatePicker, Input, Modal, Select, Tabs } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import BackupCompareDrawer, { type BackupCompareDrawerRef } from './BackupCompareDrawer';
 import { sleeConfigQueryKeys, useGetBackups, useGetHistory } from '../hooks/useSleeConfigQueries';
 import { APPLY_RESULT_LABELS, APPLY_STATUS_LABELS, RT_RESV_KIND_LABELS, SET_STATUS_LABELS, type SleeConfigBackupHeader, type SleeConfigHistoryRow } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const CENTER_CELL = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const StatusBadge = ({ className, children }: { className: string; children: React.ReactNode }) => (
+  <Badge variant="secondary" className={cn(BADGE_CLASS, className)}>
+    {children}
+  </Badge>
+);
 
 const { RangePicker } = DatePicker;
 
@@ -122,10 +132,11 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
         headerName: '구분',
         field: 'rtResvKind',
         width: 80,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigHistoryRow>) => {
           const k = p.data?.rtResvKind;
           if (k == null) return '-';
-          return <Tag color={k === 1 ? 'blue' : 'purple'}>{RT_RESV_KIND_LABELS[k] ?? k}</Tag>;
+          return <StatusBadge className={k === 1 ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50'}>{RT_RESV_KIND_LABELS[k] ?? k}</StatusBadge>;
         },
         ...codeFilter<SleeConfigHistoryRow>('rtResvKind', RT_RESV_KIND_LABELS),
       },
@@ -133,10 +144,11 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
         headerName: '범위',
         field: 'setStatus',
         width: 90,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigHistoryRow>) => {
           const s = p.data?.setStatus;
           if (s == null) return '-';
-          return <Tag color="default">{SET_STATUS_LABELS[s] ?? s}</Tag>;
+          return <StatusBadge className="text-gray-500 bg-gray-100">{SET_STATUS_LABELS[s] ?? s}</StatusBadge>;
         },
         ...codeFilter<SleeConfigHistoryRow>('setStatus', SET_STATUS_LABELS),
       },
@@ -158,11 +170,12 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
         headerName: '상태',
         field: 'applyStatus',
         width: 90,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigHistoryRow>) => {
           const s = p.data?.applyStatus;
           if (s == null) return '-';
-          const color = s === 50 ? 'green' : s === 55 ? 'red' : 'gold';
-          return <Tag color={color}>{APPLY_STATUS_LABELS[s] ?? s}</Tag>;
+          const cls = s === 50 ? 'text-emerald-600 bg-emerald-50' : s === 55 ? 'text-red-500 bg-red-50' : 'text-amber-600 bg-amber-50';
+          return <StatusBadge className={cls}>{APPLY_STATUS_LABELS[s] ?? s}</StatusBadge>;
         },
         ...codeFilter<SleeConfigHistoryRow>('applyStatus', APPLY_STATUS_LABELS),
       },
@@ -170,14 +183,15 @@ const SleeConfigHistoryModal = forwardRef<SleeConfigHistoryModalRef>((_, ref) =>
         headerName: '결과',
         field: 'applyResult',
         width: 90,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigHistoryRow>) => {
           const r = p.data?.applyResult;
           if (r == null) {
             // 즉시 적용은 result 가 없지만 status 가 결과를 의미
-            return p.data?.cancelTime ? <Tag color="default">취소</Tag> : '-';
+            return p.data?.cancelTime ? <StatusBadge className="text-gray-500 bg-gray-100">취소</StatusBadge> : '-';
           }
-          const color = r === 1 ? 'green' : r === 2 ? 'red' : 'default';
-          return <Tag color={color}>{APPLY_RESULT_LABELS[r] ?? r}</Tag>;
+          const cls = r === 1 ? 'text-emerald-600 bg-emerald-50' : r === 2 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100';
+          return <StatusBadge className={cls}>{APPLY_RESULT_LABELS[r] ?? r}</StatusBadge>;
         },
         ...codeFilter<SleeConfigHistoryRow>('applyResult', APPLY_RESULT_LABELS),
       },

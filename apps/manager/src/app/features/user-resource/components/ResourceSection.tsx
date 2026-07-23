@@ -8,12 +8,13 @@
 import { useRef } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Card, Tag } from 'antd';
+import { Button, Card } from 'antd';
 import { Plus } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import ResourceAddDrawer, { type ResourceAddDrawerRef } from './ResourceAddDrawer';
 import type { AssignedResource, AvailableResource } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /** 리소스 그룹 정의 (타입별 소스/할당/콜백) */
@@ -105,9 +106,9 @@ export default function ResourceSection({ title = '리소스 접근', groups, lo
           <span>
             {data.resourceName}
             {data.tag && (
-              <Tag color="blue" className="ml-2">
+              <Badge variant="secondary" className="ml-2 text-[13px] leading-[13px] font-medium !h-6 text-blue-600 bg-blue-50">
                 {data.tag}
-              </Tag>
+              </Badge>
             )}
           </span>
         );

@@ -19,8 +19,12 @@ import { useGetCategories } from '../../features/mask-policy/hooks/useMaskPolicy
 import MaskUnmaskReviewDrawer, { type MaskUnmaskReviewDrawerRef } from '../../features/mask-unmask/components/MaskUnmaskReviewDrawer';
 import { useGetAudit, useGetMyRequests, useGetPendingRequests, useRevokeUnmask } from '../../features/mask-unmask/hooks/useMaskUnmaskQueries';
 import { AUDIT_ACTION_BADGE_CLASS, type MaskAudit, type MaskUnmaskRequest, STATUS_BADGE_CLASS, STATUS_LABELS, TARGET_TYPE_LABELS } from '../../features/mask-unmask/types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 const breadcrumb: BreadcrumbProps['items'] = [
   { title: '보안', path: '/manager/resource/mask-unmask' },
@@ -220,12 +224,17 @@ export default function MaskUnmask() {
         field: 'category',
         width: 120,
         cellRenderer: (p: ICellRendererParams<MaskUnmaskRequest>) =>
-          p.data ? <span className="text-[11px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{p.data.category}</span> : null,
+          p.data ? (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, 'text-blue-600 bg-blue-50')}>
+              {p.data.category}
+            </Badge>
+          ) : null,
       },
       {
         headerName: '대상',
         flex: 1,
         minWidth: 140,
+        filterValueGetter: (p) => (p.data ? `${TARGET_TYPE_LABELS[p.data.targetType]} ${p.data.targetId}` : ''),
         cellRenderer: (p: ICellRendererParams<MaskUnmaskRequest>) =>
           p.data ? (
             <span className="text-[11px] text-gray-700">
@@ -252,9 +261,16 @@ export default function MaskUnmask() {
         headerName: '긴급',
         field: 'urgent',
         width: 80,
-        cellClass: 'flex items-center justify-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => (p.data?.urgent === 1 ? '긴급' : ''),
         cellRenderer: (p: ICellRendererParams<MaskUnmaskRequest>) =>
-          p.data?.urgent === 1 ? <span className="text-[10px] bg-red-50 text-red-700 px-1.5 py-0.5 rounded">긴급</span> : <span className="text-gray-300">-</span>,
+          p.data?.urgent === 1 ? (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, 'text-red-500 bg-red-50')}>
+              긴급
+            </Badge>
+          ) : (
+            <span className="text-gray-300">-</span>
+          ),
       },
       {
         headerName: '',
@@ -298,12 +314,17 @@ export default function MaskUnmask() {
         field: 'category',
         width: 120,
         cellRenderer: (p: ICellRendererParams<MaskUnmaskRequest>) =>
-          p.data ? <span className="text-[11px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{p.data.category}</span> : null,
+          p.data ? (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, 'text-blue-600 bg-blue-50')}>
+              {p.data.category}
+            </Badge>
+          ) : null,
       },
       {
         headerName: '대상',
         flex: 1,
         minWidth: 140,
+        filterValueGetter: (p) => (p.data ? `${TARGET_TYPE_LABELS[p.data.targetType]} ${p.data.targetId}` : ''),
         cellRenderer: (p: ICellRendererParams<MaskUnmaskRequest>) =>
           p.data ? (
             <span className="text-[11px] text-gray-700">
@@ -323,11 +344,15 @@ export default function MaskUnmask() {
         headerName: '상태',
         field: 'status',
         width: 110,
-        cellClass: 'flex items-center justify-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => (p.data?.status ? (STATUS_LABELS[p.data.status] ?? p.data.status) : ''),
         cellRenderer: (p: ICellRendererParams<MaskUnmaskRequest>) => {
           if (!p.data) return null;
-          const cls = STATUS_BADGE_CLASS[p.data.status];
-          return <span className={`text-[11px] px-1.5 py-0.5 rounded ${cls}`}>{STATUS_LABELS[p.data.status]}</span>;
+          return (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, STATUS_BADGE_CLASS[p.data.status])}>
+              {STATUS_LABELS[p.data.status]}
+            </Badge>
+          );
         },
       },
       {
@@ -409,10 +434,14 @@ export default function MaskUnmask() {
         headerName: '액션',
         field: 'action',
         width: 130,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p: ICellRendererParams<MaskAudit>) => {
           if (!p.data) return null;
-          const cls = AUDIT_ACTION_BADGE_CLASS[p.data.action];
-          return <span className={`text-[10px] px-1.5 py-0.5 rounded ${cls}`}>{p.data.action}</span>;
+          return (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, AUDIT_ACTION_BADGE_CLASS[p.data.action])}>
+              {p.data.action}
+            </Badge>
+          );
         },
       },
       {
@@ -424,6 +453,7 @@ export default function MaskUnmask() {
         headerName: '대상',
         flex: 1,
         minWidth: 160,
+        filterValueGetter: (p) => (p.data?.targetType && p.data.targetId ? `${TARGET_TYPE_LABELS[p.data.targetType]} ${p.data.targetId}` : ''),
         cellRenderer: (p: ICellRendererParams<MaskAudit>) => {
           if (!p.data) return null;
           if (!p.data.targetType || !p.data.targetId) return <span className="text-gray-300">-</span>;

@@ -170,7 +170,7 @@ export default function FileUploadList() {
       headerName: '상태',
       field: 'workKind',
       maxWidth: 100,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: WorkKindCellRenderer,
     },
     { headerName: '등록자', field: 'agentName', flex: 2 },

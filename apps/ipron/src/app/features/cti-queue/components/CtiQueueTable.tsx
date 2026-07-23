@@ -16,6 +16,7 @@ import { InputNumber, Select } from 'antd';
 import { GripVertical } from 'lucide-react';
 import { BOOL_OX_LABEL } from '../../dn/utils/dnEnums';
 import type { CtiQueueMediaSkillRowRequest, CtiQueueOptionItem, CtiQueueResponse } from '../types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /** D&D 채널 — CtiQueueGroupTree.onDrop 과 협의된 MIME. 페이로드: JSON ctiqId 배열. */
@@ -64,20 +65,18 @@ interface CtiQueueTableProps {
   onMatrixCellChange?: (ctiqId: number, field: keyof CtiQueueMediaSkillRowRequest & string, value: number | null) => void;
 }
 
-function StatePill({ value, onText, offText, tone }: { value: number | null; onText: string; offText: string; tone: 'green' | 'amber' | 'blue' }) {
+const STATE_PILL_ON_CLASS = {
+  emerald: 'text-emerald-600 bg-emerald-50',
+  red: 'text-red-500 bg-red-50',
+  blue: 'text-blue-600 bg-blue-50',
+} as const;
+
+function StatePill({ value, onText, offText, tone }: { value: number | null; onText: string; offText: string; tone: keyof typeof STATE_PILL_ON_CLASS }) {
   const on = value === 1;
-  const onCls =
-    tone === 'green'
-      ? 'text-green-700 bg-green-50 border-green-200'
-      : tone === 'amber'
-        ? 'text-amber-700 bg-amber-50 border-amber-200'
-        : 'text-blue-700 bg-blue-50 border-blue-200';
   return (
-    <span
-      className={`inline-flex items-center justify-center min-w-[42px] h-[20px] px-1.5 leading-none rounded font-medium border ${on ? onCls : 'text-gray-500 bg-gray-50 border-gray-200'}`}
-    >
+    <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${on ? STATE_PILL_ON_CLASS[tone] : 'text-gray-500 bg-gray-100'}`}>
       {on ? onText : offText}
-    </span>
+    </Badge>
   );
 }
 
@@ -399,8 +398,8 @@ export default function CtiQueueTable({
         minWidth: 80,
         maxWidth: 90,
         filterValueGetter: (params) => (params.data?.activateYn === 1 ? 'ON' : 'OFF'),
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.activateYn ?? null} onText="ON" offText="OFF" tone="green" />,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.activateYn ?? null} onText="ON" offText="OFF" tone="emerald" />,
       },
       {
         headerName: '블록',
@@ -408,8 +407,8 @@ export default function CtiQueueTable({
         minWidth: 80,
         maxWidth: 90,
         filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.blockYn ?? null} onText="설정" offText="해제" tone="amber" />,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<CtiQueueResponse>) => <StatePill value={p.data?.blockYn ?? null} onText="설정" offText="해제" tone="red" />,
       },
       {
         headerName: '최대대기(초)',

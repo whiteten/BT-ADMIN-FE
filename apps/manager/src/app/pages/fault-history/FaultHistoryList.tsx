@@ -5,7 +5,7 @@ import { Button, DatePicker, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
-import { FaultStatusBadge, LevelBadge, formatOccurredAt } from '../../features/fault-history/components/FaultBadges';
+import { FaultStatusBadge, LevelBadge, faultLevelLabel, faultStatusLabel, formatOccurredAt } from '../../features/fault-history/components/FaultBadges';
 import { FaultForceRecoverModal, type FaultForceRecoverModalRef } from '../../features/fault-history/components/FaultForceRecoverModal';
 import { FaultHistoryDetailDrawer, type FaultHistoryDetailDrawerRef } from '../../features/fault-history/components/FaultHistoryDetailDrawer';
 import { useGetFaultHistories, useGetFaultHistorySummary } from '../../features/fault-history/hooks/useFaultHistoryQueries';
@@ -131,6 +131,8 @@ export default function FaultHistoryList() {
         width: 110,
         minWidth: 100,
         flex: 0,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => faultLevelLabel(p.data?.errLevel ?? null),
         cellRenderer: (p: ICellRendererParams<FaultHistoryItem>) => <LevelBadge level={p.value} />,
       },
       {
@@ -139,6 +141,8 @@ export default function FaultHistoryList() {
         width: 100,
         minWidth: 95,
         flex: 0,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => faultStatusLabel(p.data?.errRepairTime ?? null),
         cellRenderer: (p: ICellRendererParams<FaultHistoryItem>) => <FaultStatusBadge repairTime={p.value} />,
       },
     ],

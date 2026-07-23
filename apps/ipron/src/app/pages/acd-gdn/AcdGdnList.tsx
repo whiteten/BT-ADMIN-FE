@@ -16,7 +16,7 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import type { ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
+import type { CellStyle, ColDef, GridOptions, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select } from 'antd';
 import { Network, Plus, Search, Settings, Trash2, Users, X } from 'lucide-react';
@@ -30,8 +30,12 @@ import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes, useGetDnProfileTenants } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'ACD', path: '/ipron/acd-gdn' }];
 
@@ -257,7 +261,7 @@ export default function AcdGdnList() {
         minWidth: 96,
         maxWidth: 110,
         suppressHeaderMenuButton: true,
-        cellStyle: { textAlign: 'center' },
+        cellStyle: { textAlign: 'center' } as CellStyle,
         filterValueGetter: (p) => BOOL_OX_LABEL(p.data?.globalDnYn),
         valueFormatter: (p) => BOOL_OX_LABEL(p.value),
       },
@@ -329,10 +333,13 @@ export default function AcdGdnList() {
         field: 'blockYn',
         width: 75,
         suppressHeaderMenuButton: true,
-        cellStyle: { textAlign: 'center' },
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         filterValueGetter: (p) => (p.data?.blockYn === 1 ? '설정' : '해제'),
-        cellRenderer: (p: ICellRendererParams<GdnResponse>) =>
-          p.data?.blockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">설정</span> : <span className="text-gray-400 text-[11px]">해제</span>,
+        cellRenderer: (p: ICellRendererParams<GdnResponse>) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, p.data?.blockYn === 1 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100')}>
+            {p.data?.blockYn === 1 ? '설정' : '해제'}
+          </Badge>
+        ),
       },
     ],
     [],

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Input, Select, Tag, Tooltip } from 'antd';
+import { Button, Dropdown, Input, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { Log } from '@/log';
@@ -171,9 +171,9 @@ export default function AoeFaqList() {
         return sentenceCount > 1 ? (
           <div className="flex items-center gap-1 w-full overflow-hidden">
             <span className="truncate min-w-0">{firstSentence}</span>
-            <Tag color="default" className="shrink-0 !rounded-[14px] !text-[#888B9A]">
+            <Badge variant="secondary" className="shrink-0 rounded-full text-[12px] leading-[12px] font-medium !h-5 text-gray-500 bg-gray-100">
               +{sentenceCount - 1}
-            </Tag>
+            </Badge>
           </div>
         ) : (
           firstSentence
@@ -185,16 +185,17 @@ export default function AoeFaqList() {
       headerName: '상태',
       field: 'faqEnable',
       maxWidth: 100,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<FaqListItem>) => {
         if (!params.data) return null;
         const isActive = params.data.faqEnable === 1;
         return (
-          <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', isActive ? 'text-[#10B981] bg-[#10B9811A]' : 'text-[#6B7280] bg-[#6B72801A]')}>
+          <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', isActive ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
             {isActive ? '활성' : '비활성'}
           </Badge>
         );
       },
+      filterValueGetter: ({ data }) => (data ? (data.faqEnable === 1 ? '활성' : '비활성') : ''),
     },
     {
       headerName: '수정일',

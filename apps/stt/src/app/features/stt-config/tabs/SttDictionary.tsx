@@ -26,7 +26,7 @@ interface DeleteCellRendererParams {
 function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
   const isUsed = value === '1' || value === 1;
   return (
-    <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${isUsed ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+    <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isUsed ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
       {isUsed ? '사용' : '미사용'}
     </Badge>
   );
@@ -131,7 +131,9 @@ export default function SttDictionary() {
       field: 'useYn',
       maxWidth: 110,
       flex: 1,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: UseYnCellRenderer,
+      filterValueGetter: ({ data }) => (String(data?.useYn) === '1' ? '사용' : '미사용'),
     },
     {
       headerName: '등록자',

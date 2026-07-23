@@ -92,10 +92,15 @@ export default function ScenarioAnalysisMenuTab({ serviceId, scenarioName }: Pro
         // ON_OFF_STATUS 공통코드 기준 1=ON(표시), 0=OFF(미표시). 분석 시점엔 항상 0(OFF)으로만 저장된다(AS-IS 동일).
         cellRenderer: (p: ICellRendererParams<MenuTreeRow>) =>
           p.data?.visibleYn === 1 ? (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">ON</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">
+              ON
+            </Badge>
           ) : (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">OFF</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
+              OFF
+            </Badge>
           ),
+        filterValueGetter: ({ data }) => (data?.visibleYn === 1 ? 'ON' : 'OFF'),
       },
       {
         headerName: '주요서비스',
@@ -103,10 +108,15 @@ export default function ScenarioAnalysisMenuTab({ serviceId, scenarioName }: Pro
         width: 100,
         cellRenderer: (p: ICellRendererParams<MenuTreeRow>) =>
           p.data?.majorYn === 1 ? (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">예</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">
+              예
+            </Badge>
           ) : (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">아니오</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
+              아니오
+            </Badge>
           ),
+        filterValueGetter: ({ data }) => (data?.majorYn === 1 ? '예' : '아니오'),
       },
       {
         headerName: '버전상태',
@@ -114,10 +124,15 @@ export default function ScenarioAnalysisMenuTab({ serviceId, scenarioName }: Pro
         width: 100,
         cellRenderer: (p: ICellRendererParams<MenuTreeRow>) =>
           p.data?.lastFlag === 1 ? (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">활성</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">
+              활성
+            </Badge>
           ) : (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">이전</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
+              이전
+            </Badge>
           ),
+        filterValueGetter: ({ data }) => (data?.lastFlag === 1 ? '활성' : '이전'),
       },
     ],
     [],

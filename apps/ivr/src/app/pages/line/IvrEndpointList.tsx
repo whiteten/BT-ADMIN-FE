@@ -284,6 +284,7 @@ export default function IvrEndpointList() {
           const blockState = params.data.blockState === 1 ? 1 : 0;
           return <Badge className={cn(BADGE_CLASS, BLOCK_STATE_BADGE_CLASS[blockState] ?? DEFAULT_BADGE_CLASS)}>{blockState === 1 ? '설정' : '해제'}</Badge>;
         },
+        filterValueGetter: ({ data }) => (data ? (data.blockState === 1 ? '설정' : '해제') : ''),
       },
       {
         headerName: 'ID/PW 유형',
@@ -295,6 +296,7 @@ export default function IvrEndpointList() {
           const regType = params.data.regType;
           return <Badge className={cn(BADGE_CLASS, REG_TYPE_BADGE_CLASS[regType ?? ''] ?? DEFAULT_BADGE_CLASS)}>{regType === '10' ? '공통' : '개별'}</Badge>;
         },
+        filterValueGetter: ({ data }) => (data ? (data.regType === '10' ? '공통' : '개별') : ''),
       },
       {
         headerName: '인증 ID',

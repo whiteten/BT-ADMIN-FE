@@ -22,11 +22,16 @@ const ENGINE_OPTIONS = [
 const PAGE_SIZE = 20;
 const CONFIDENCE_THRESHOLD = 95; // 조회할 신뢰도 설정 값
 
+const RXTX_KIND_LABEL: Record<string, string> = { '1': '고객', '2': '상담원', '9': '통합' };
+
 function ConfidenceCellRenderer({ value }: ICellRendererParams<ConfidenceTrainingItem>) {
   if (value == null) return null;
-  const className =
-    value < 80 ? 'bg-gray-50 text-gray-700 border-gray-200' : value < 90 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200';
-  return <Badge className={className}>{value}</Badge>;
+  const colorClass = value < 80 ? 'text-gray-500 bg-gray-100' : value < 90 ? 'text-amber-600 bg-amber-50' : 'text-emerald-600 bg-emerald-50';
+  return (
+    <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', colorClass)}>
+      {value}
+    </Badge>
+  );
 }
 
 interface RegisterCellRendererParams extends ICellRendererParams<ConfidenceTrainingItem> {
@@ -304,14 +309,15 @@ export default function ConfidenceTraining() {
       field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
-      valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
+      valueFormatter: (params) => RXTX_KIND_LABEL[String(params.value)] ?? params.value,
+      filterValueGetter: ({ data }) => RXTX_KIND_LABEL[String(data?.rxtxKind)] ?? String(data?.rxtxKind ?? ''),
     },
     {
       headerName: '신뢰도',
       field: 'confidence',
       maxWidth: 90,
       flex: 1,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: ConfidenceCellRenderer,
     },
     {

@@ -33,16 +33,14 @@ const PA_GROUP_LABEL_BY_CODE: Record<string, string> = Object.fromEntries(PA_GRO
 function UseYnCellRenderer({ value }: ICellRendererParams<SttDictionaryItem>) {
   const isUsed = value === '1' || value === 1;
   return (
-    <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${isUsed ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
-      {isUsed ? '사용' : '미사용'}
-    </Badge>
+    <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${isUsed ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>{isUsed ? '사용' : '미사용'}</Badge>
   );
 }
 
 function DnStatusCellRenderer({ value }: ICellRendererParams<SttDnItem>) {
   const isRegistered = value === '1' || value === 1;
   return (
-    <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${isRegistered ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+    <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${isRegistered ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
       {isRegistered ? '등록' : '미등록'}
     </Badge>
   );
@@ -155,6 +153,8 @@ export default function DnList() {
       maxWidth: 110,
       flex: 1,
       filter: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: ({ data }) => (String(data?.dnStatus) === '1' ? '등록' : '미등록'),
       cellRenderer: DnStatusCellRenderer,
     },
     {
@@ -163,10 +163,18 @@ export default function DnList() {
       maxWidth: 110,
       flex: 1,
       filter: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: ({ data }) => (String(data?.useYn) === '1' ? '사용' : '미사용'),
       cellRenderer: UseYnCellRenderer,
     },
     { headerName: '상담원ID', field: 'agentId', flex: 2 },
-    { headerName: '시스템그룹', field: 'hostName', flex: 2, valueFormatter: ({ value }) => PA_GROUP_LABEL_BY_CODE[value] ?? value },
+    {
+      headerName: '시스템그룹',
+      field: 'hostName',
+      flex: 2,
+      valueFormatter: ({ value }) => PA_GROUP_LABEL_BY_CODE[value] ?? value,
+      filterValueGetter: ({ data }) => (data ? (PA_GROUP_LABEL_BY_CODE[data.hostName] ?? data.hostName) : ''),
+    },
     { headerName: '수정일시', field: 'saFinshDate', flex: 2, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
     {
       headerName: '',

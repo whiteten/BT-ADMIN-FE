@@ -126,7 +126,7 @@ export default function BotVersionList() {
           <div className="flex items-center gap-2">
             <span>{data.versionName}</span>
             {isCopying && (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="gap-1 text-[13px] leading-[13px] font-medium !h-6 text-blue-600 bg-blue-50">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 복사 중
               </Badge>

@@ -9,22 +9,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Col, DatePicker, Row, Tag, message } from 'antd';
+import { Button, Col, DatePicker, Row, message } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
 import { useSearchLoginLogs } from '../hooks/useLoginAuditLogQueries';
 import { FAILURE_REASON_LABELS, LOGIN_RESULT_LABELS, type LoginAuditLog } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const { RangePicker } = DatePicker;
 
-/**
- * 로그인 결과 색상 (Antd Tag용)
- */
-const LOGIN_RESULT_TAG_COLORS: Record<string, string> = {
-  SUCCESS: 'green',
-  FAILURE: 'red',
-  LOCKED: 'orange',
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+
+/** 로그인 결과 뱃지 색상 */
+const LOGIN_RESULT_BADGE_CLASS: Record<string, string> = {
+  SUCCESS: 'text-emerald-600 bg-emerald-50',
+  FAILURE: 'text-red-500 bg-red-50',
+  LOCKED: 'text-amber-600 bg-amber-50',
 };
 
 /** 최대 조회 기간 (일) - 3개월 */
@@ -66,16 +69,24 @@ export default function UserLoginHistoryTab() {
         headerName: '결과',
         field: 'result',
         width: 90,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (params) => (params.data?.result ? (LOGIN_RESULT_LABELS[params.data.result as keyof typeof LOGIN_RESULT_LABELS] ?? params.data.result) : ''),
         cellRenderer: (params: ICellRendererParams<LoginAuditLog>) => {
           const value = params.value as string;
           if (!value) return '-';
-          return <Tag color={LOGIN_RESULT_TAG_COLORS[value] ?? 'default'}>{LOGIN_RESULT_LABELS[value as keyof typeof LOGIN_RESULT_LABELS] ?? value}</Tag>;
+          return (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, LOGIN_RESULT_BADGE_CLASS[value] ?? DEFAULT_BADGE_CLASS)}>
+              {LOGIN_RESULT_LABELS[value as keyof typeof LOGIN_RESULT_LABELS] ?? value}
+            </Badge>
+          );
         },
       },
       {
         headerName: '실패사유',
         field: 'failureReason',
         width: 130,
+        filterValueGetter: (params) =>
+          params.data?.failureReason ? (FAILURE_REASON_LABELS[params.data.failureReason as keyof typeof FAILURE_REASON_LABELS] ?? params.data.failureReason) : '',
         valueFormatter: (params) => (params.value ? (FAILURE_REASON_LABELS[params.value as keyof typeof FAILURE_REASON_LABELS] ?? params.value) : '-'),
       },
       {

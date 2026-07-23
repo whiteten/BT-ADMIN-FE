@@ -35,8 +35,12 @@ import {
 } from '../../features/sip-trunk/hooks/useSipTrunkQueries';
 import { type SipGdnResponse, type SipTrunkMemberResponse, getSipTrunkKindName } from '../../features/sip-trunk/types';
 import ScopeSelect from '@/components/custom/ScopeSelect';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'SIP TRUNK', path: '/ipron/sip-trunk' }];
 
@@ -307,14 +311,13 @@ export default function SipTrunkList() {
         field: 'blockYn',
         width: 70,
         maxWidth: 80,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        filterValueGetter: (p) => (p.data?.blockYn === 1 ? '사용' : '미사용'),
-        cellRenderer: (p: ICellRendererParams<SipGdnResponse>) =>
-          p.value === 1 ? (
-            <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">사용</span>
-          ) : (
-            <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">미사용</span>
-          ),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        filterValueGetter: (p) => (p.data?.blockYn === 1 ? '설정' : '해제'),
+        cellRenderer: (p: ICellRendererParams<SipGdnResponse>) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, p.value === 1 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100')}>
+            {p.value === 1 ? '설정' : '해제'}
+          </Badge>
+        ),
       },
       {
         headerName: '글로벌여부',
@@ -401,14 +404,13 @@ export default function SipTrunkList() {
         field: 'assignYn',
         width: 96,
         maxWidth: 106,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         filterValueGetter: (p) => (p.data?.assignYn ? '배정중' : '미배정'),
-        cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) =>
-          p.value ? (
-            <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">배정중</span>
-          ) : (
-            <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-px text-[10px] font-semibold italic text-gray-400">미배정</span>
-          ),
+        cellRenderer: (p: ICellRendererParams<SipTrunkMemberResponse>) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, p.value ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+            {p.value ? '배정중' : '미배정'}
+          </Badge>
+        ),
       },
       {
         headerName: 'SIP트렁크 이름',

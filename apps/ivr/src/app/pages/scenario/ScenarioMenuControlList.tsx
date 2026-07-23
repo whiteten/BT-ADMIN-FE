@@ -187,6 +187,7 @@ export default function ScenarioMenuControlList() {
           const kind = getScenarioMenuControlKind(p.data);
           return <Badge className={cn(BADGE_CLASS, CONTROL_KIND_BADGE_CLASS[kind])}>{SCENARIO_MENU_CONTROL_KIND_LABELS[kind]}</Badge>;
         },
+        filterValueGetter: ({ data }) => (data ? SCENARIO_MENU_CONTROL_KIND_LABELS[getScenarioMenuControlKind(data)] : ''),
       },
       {
         headerName: '기간',
@@ -215,6 +216,7 @@ export default function ScenarioMenuControlList() {
         field: 'dateType',
         width: 110,
         cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => (p.data?.dateType != null ? (SCENARIO_MENU_DATE_TYPE_LABELS[p.data.dateType] ?? '-') : '-'),
+        filterValueGetter: ({ data }) => (data?.dateType != null ? (SCENARIO_MENU_DATE_TYPE_LABELS[data.dateType] ?? '-') : ''),
       },
       {
         headerName: '안내멘트',
@@ -229,6 +231,7 @@ export default function ScenarioMenuControlList() {
         field: 'nextType',
         width: 130,
         cellRenderer: (p: ICellRendererParams<MenuTreeRow>) => (p.data?.nextType != null ? (SCENARIO_MENU_NEXT_TYPE_LABELS[p.data.nextType] ?? '-') : '-'),
+        filterValueGetter: ({ data }) => (data?.nextType != null ? (SCENARIO_MENU_NEXT_TYPE_LABELS[data.nextType] ?? '-') : ''),
       },
     ],
     [],

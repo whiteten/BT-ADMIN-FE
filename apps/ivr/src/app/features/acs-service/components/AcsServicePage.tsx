@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Popconfirm, Switch, Tag } from 'antd';
+import { Button, Empty, Popconfirm, Switch } from 'antd';
 import { CalendarCheck, CalendarX, PhoneOutgoing, Settings2, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -40,7 +40,12 @@ import {
   formatHHmm,
   formatWeekdayByte,
 } from '../types/acsService.types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+import { codeCol, codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 const breadcrumb = [
   { title: 'ACS 관리', path: '/ivr/acs/service' },
@@ -174,15 +179,17 @@ export default function AcsServicePage() {
         headerName: 'ACS Type',
         field: 'acsType',
         width: 130,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p: ICellRendererParams<AcsService>) => (
-          <Tag color={p.value === 1 ? 'geekblue' : 'blue'} className="!m-0">
+          <Badge variant="secondary" className={cn(BADGE_CLASS, p.value === 1 ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50')}>
             {ACS_TYPE_LABELS[p.value as number] ?? p.value}
-          </Tag>
+          </Badge>
         ),
+        ...codeFilter('acsType', ACS_TYPE_LABELS),
       },
-      { headerName: '중복 실행', field: 'dupYn', width: 110, valueFormatter: (p) => (p.value === 1 ? '사용' : '미사용') },
+      { headerName: '중복 실행', field: 'dupYn', width: 110, ...codeCol('dupYn', { 1: '사용', 0: '미사용' }) },
       { headerName: '최대 요청 건수', field: 'maxObReqCnt', width: 135 },
-      { headerName: '제어 타입', field: 'controlType', width: 110, valueFormatter: (p) => CONTROL_TYPE_LABELS[p.value as number] ?? String(p.value ?? '') },
+      { headerName: '제어 타입', field: 'controlType', width: 110, ...codeCol('controlType', CONTROL_TYPE_LABELS) },
       { headerName: '동작주기', field: 'acsPeriod', width: 90 },
       { headerName: '시작일자', field: 'startDate', width: 110 },
       { headerName: '종료일자', field: 'finishDate', width: 110 },
@@ -213,8 +220,8 @@ export default function AcsServicePage() {
     () => [
       { headerName: 'ID', field: 'holiId', width: 80 },
       { headerName: '휴일명', field: 'holiName', flex: 1, minWidth: 120 },
-      { headerName: '반복유형', field: 'repeatOpt', width: 90, valueFormatter: (p) => REPEAT_OPT_LABELS[p.value as number] ?? String(p.value ?? '') },
-      { headerName: '휴일타입', field: 'holiType', width: 110, valueFormatter: (p) => HOLI_TYPE_LABELS[p.value as number] ?? String(p.value ?? '') },
+      { headerName: '반복유형', field: 'repeatOpt', width: 90, ...codeCol('repeatOpt', REPEAT_OPT_LABELS) },
+      { headerName: '휴일타입', field: 'holiType', width: 110, ...codeCol('holiType', HOLI_TYPE_LABELS) },
       { headerName: '시작일자', field: 'startDate', width: 110 },
       { headerName: '종료일자', field: 'finishDate', width: 110 },
     ],

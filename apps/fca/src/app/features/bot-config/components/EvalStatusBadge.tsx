@@ -3,10 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const EVAL_STATUS_META: Record<EvalStatus, { label: string; className: string }> = {
-  0: { label: '미진행', className: 'text-[#495057] bg-[#E9EBEC]' },
-  1: { label: '성공', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
-  2: { label: '실패', className: 'text-[#F06548] bg-[#F065481A]' },
+  0: { label: '미진행', className: 'text-gray-500 bg-gray-100' },
+  1: { label: '성공', className: 'text-emerald-600 bg-emerald-50' },
+  2: { label: '실패', className: 'text-red-500 bg-red-50' },
 };
+
+/** 그리드 filterValueGetter용 라벨 조회 */
+export function evalStatusLabel(status: EvalStatus | null | undefined): string {
+  return status != null ? (EVAL_STATUS_META[status]?.label ?? String(status)) : '';
+}
 
 interface EvalStatusBadgeProps {
   status: EvalStatus;

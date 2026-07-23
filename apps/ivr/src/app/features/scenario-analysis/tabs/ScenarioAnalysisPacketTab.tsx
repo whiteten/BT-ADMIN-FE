@@ -106,10 +106,15 @@ export default function ScenarioAnalysisPacketTab({ serviceId, scenarioName }: P
         width: 90,
         cellRenderer: (p: ICellRendererParams<ScenarioAnalysisPacketItemRow>) =>
           p.data?.encryptYn === 1 ? (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">Y</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">
+              Y
+            </Badge>
           ) : (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">N</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
+              N
+            </Badge>
           ),
+        filterValueGetter: ({ data }) => (data?.encryptYn === 1 ? 'Y' : 'N'),
       },
       {
         headerName: '응답코드',
@@ -117,10 +122,15 @@ export default function ScenarioAnalysisPacketTab({ serviceId, scenarioName }: P
         width: 90,
         cellRenderer: (p: ICellRendererParams<ScenarioAnalysisPacketItemRow>) =>
           p.data?.responseCode ? (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">Y</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">
+              Y
+            </Badge>
           ) : (
-            <Badge className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">N</Badge>
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
+              N
+            </Badge>
           ),
+        filterValueGetter: ({ data }) => (data?.responseCode ? 'Y' : 'N'),
       },
     ],
     [],

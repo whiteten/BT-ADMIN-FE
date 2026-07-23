@@ -380,7 +380,7 @@ function AutoModeCell({ params }: { params: ICellRendererParams<AgentResponse> }
     const auto = srcOpt.autoanswerMode === 1;
     return (
       <div className="w-full h-full flex items-center justify-center" style={{ cursor: 'default' }}>
-        <span className="text-[12px] font-medium text-gray-400">{auto ? '사용' : '안함'}</span>
+        <span className="text-[12px] font-medium text-gray-400">{auto ? '사용' : '미사용'}</span>
       </div>
     );
   }
@@ -404,7 +404,7 @@ function AutoModeCell({ params }: { params: ICellRendererParams<AgentResponse> }
           setDirtyEntry(agent.agentId, sameAsOrig ? null : { matrix: patched, useGrpMdaOpt });
         }}
         options={[
-          { value: 0, label: '안함' },
+          { value: 0, label: '미사용' },
           { value: 1, label: '사용' },
         ]}
       />

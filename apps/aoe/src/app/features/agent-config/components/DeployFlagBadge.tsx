@@ -3,9 +3,14 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const DEPLOY_FLAG_META: Record<AoeDeployFlag, { label: string; className: string }> = {
-  0: { label: '미배포', className: 'text-[#495057] bg-[#E9EBEC]' },
-  1: { label: '배포', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
+  0: { label: '미배포', className: 'text-gray-500 bg-gray-100' },
+  1: { label: '배포', className: 'text-emerald-600 bg-emerald-50' },
 };
+
+/** 그리드 filterValueGetter용 라벨 조회 */
+export function deployFlagLabel(flag: AoeDeployFlag | null | undefined): string {
+  return flag != null ? (DEPLOY_FLAG_META[flag]?.label ?? String(flag)) : '';
+}
 
 interface DeployFlagBadgeProps {
   flag: AoeDeployFlag;

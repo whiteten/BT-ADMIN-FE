@@ -54,6 +54,8 @@ export default function ClientList() {
       headerName: '상태',
       field: 'isActive',
       maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => (params.data?.isActive == null ? '' : params.data.isActive ? '활성' : '비활성'),
       cellRenderer: (params: ICellRendererParams<Client>) => {
         const isActive = params.value as boolean;
         if (isActive === undefined || isActive === null) return '-';

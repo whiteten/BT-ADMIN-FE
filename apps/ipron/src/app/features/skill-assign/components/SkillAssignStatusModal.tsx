@@ -11,12 +11,13 @@ import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Modal, Spin, Tag } from 'antd';
+import { Modal, Spin } from 'antd';
 import type { AgentResponse } from '../../../features/agent-master/types';
 import type { SkillsetResponse } from '../../../features/skillset-master/types';
 import { skillAssignApi } from '../api/skillAssignApi';
 import { skillAssignQueryKeys } from '../hooks/useSkillAssignQueries';
 import type { SkillAgentResponse } from '../types/skillAssign';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface SkillAssignStatusModalProps {
@@ -183,17 +184,14 @@ export default function SkillAssignStatusModal({ open, onClose, selectedAgents, 
         filter: true,
         suppressHeaderMenuButton: true,
         filterValueGetter: (params) => (params.data?.assigned ? '배정됨' : '미배정'),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: { data?: StatusRow }) => {
           const d = params.data;
           if (!d) return null;
-          return d.assigned ? (
-            <Tag color="green" className="!text-xs">
-              배정됨
-            </Tag>
-          ) : (
-            <Tag color="default" className="!text-xs !text-gray-400">
-              미배정
-            </Tag>
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${d.assigned ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
+              {d.assigned ? '배정됨' : '미배정'}
+            </Badge>
           );
         },
       },

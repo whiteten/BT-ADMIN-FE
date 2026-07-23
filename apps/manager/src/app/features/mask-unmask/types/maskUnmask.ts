@@ -133,21 +133,21 @@ export const STATUS_LABELS: Record<MaskUnmaskStatus, string> = {
 
 /** 상태별 색상 클래스 (Tailwind) */
 export const STATUS_BADGE_CLASS: Record<MaskUnmaskStatus, string> = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  APPROVED: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-red-100 text-red-700',
-  EXPIRED: 'bg-gray-100 text-gray-500',
-  REVOKED: 'bg-pink-100 text-pink-700',
+  PENDING: 'text-amber-600 bg-amber-50',
+  APPROVED: 'text-emerald-600 bg-emerald-50',
+  REJECTED: 'text-red-500 bg-red-50',
+  EXPIRED: 'text-gray-500 bg-gray-100',
+  REVOKED: 'text-purple-600 bg-purple-50',
 };
 
 /** 감사 액션 색상 매핑 */
 export const AUDIT_ACTION_BADGE_CLASS: Record<MaskAuditAction, string> = {
-  REQUEST: 'bg-violet-50 text-violet-700',
-  APPROVE: 'bg-blue-50 text-blue-700',
-  REJECT: 'bg-red-50 text-red-700',
-  VIEW_UNMASKED: 'bg-emerald-50 text-emerald-700',
-  REVOKE: 'bg-pink-50 text-pink-700',
-  EXPIRE: 'bg-gray-50 text-gray-600',
+  REQUEST: 'text-violet-600 bg-violet-50',
+  APPROVE: 'text-blue-600 bg-blue-50',
+  REJECT: 'text-red-500 bg-red-50',
+  VIEW_UNMASKED: 'text-emerald-600 bg-emerald-50',
+  REVOKE: 'text-purple-600 bg-purple-50',
+  EXPIRE: 'text-gray-500 bg-gray-100',
 };
 
 /** 대상 종류 라벨 */

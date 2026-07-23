@@ -19,7 +19,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { type ImperativePanelHandle, Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { CellClickedEvent, ColDef, GridOptions, IRowNode } from 'ag-grid-community';
 import { AgGridReact, type AgGridReact as AgGridReactType } from 'ag-grid-react';
-import { Button, Input, InputNumber, Modal, Popover, Segmented, Spin, Tag } from 'antd';
+import { Button, Input, InputNumber, Modal, Popover, Segmented, Spin } from 'antd';
 import { Check, ClipboardList, Eye, FilterX, FolderOpen, Layers, Package, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2, Users, Wrench, X } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -45,7 +45,11 @@ import type { SkillAgentResponse } from '../../features/skill-assign/types';
 import SkillsetGroupTree from '../../features/skillset-master/components/SkillsetGroupTree';
 import { useGetSkillsetGroups, useGetSkillsets } from '../../features/skillset-master/hooks/useSkillsetQueries';
 import { type SkillsetResponse, getMediaTypeName } from '../../features/skillset-master/types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 const breadcrumb = [{ title: '상담사 관리' }, { title: '스킬 관리' }, { title: '상담사 스킬 배정', path: '/ipron/skill-assign' }];
 
@@ -560,8 +564,13 @@ export default function SkillAssignList() {
         field: 'activateYn',
         headerName: '활성',
         width: 70,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         filterValueGetter: ({ data }: { data?: AgentResponse }) => (data?.activateYn === 1 ? '활성' : '비활성'),
-        cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="red">비활성</Tag>),
+        cellRenderer: ({ value }: { value: number | null }) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, value === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+            {value === 1 ? '활성' : '비활성'}
+          </Badge>
+        ),
       },
       {
         headerName: '보유 건수',
@@ -867,8 +876,13 @@ export default function SkillAssignList() {
         headerName: '활성',
         width: 70,
         suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         filterValueGetter: ({ data }: { data?: SkillsetResponse }) => (data?.activateYn === 1 ? '활성' : '비활성'),
-        cellRenderer: ({ value }: { value: number | null }) => (value === 1 ? <Tag color="green">활성</Tag> : <Tag color="default">비활성</Tag>),
+        cellRenderer: ({ value }: { value: number | null }) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, value === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+            {value === 1 ? '활성' : '비활성'}
+          </Badge>
+        ),
       },
     ],
     [],

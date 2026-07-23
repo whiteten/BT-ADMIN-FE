@@ -17,7 +17,7 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
+import type { CellStyle, ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
@@ -31,6 +31,7 @@ import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope'
 import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -319,17 +320,15 @@ export default function DodTransList() {
         flex: 0.8,
         minWidth: 90,
         filterValueGetter: (params) => (params.data ? (TRANS_YN_LABELS[params.data.transYn] ?? '-') : null),
+        // cellStyle 두 형태(fontFamily 객체·flex 객체) 혼재 시 배열 유니온 추론이 깨져 캐스트 필요
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         cellRenderer: (params: ICellRendererParams<DodTransItem>) => {
           if (!params.data) return null;
           const isOn = params.data.transYn === 1;
           return (
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                isOn ? 'text-green-700 bg-green-50 border border-green-200' : 'text-gray-500 bg-gray-100 border border-gray-200'
-              }`}
-            >
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isOn ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
               {TRANS_YN_LABELS[params.data.transYn] ?? '-'}
-            </span>
+            </Badge>
           );
         },
       },

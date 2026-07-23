@@ -12,10 +12,12 @@
  * 구조화해 내려주므로 문자열 파싱 없이 판정한다.</p>
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
-import { Modal, Table, Tag } from 'antd';
+import { Modal, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { CheckCircle, MinusCircle, XCircle } from 'lucide-react';
 import type { SleeConfigApplyResult } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 export interface SleeConfigApplyResultModalRef {
   open: (results: SleeConfigApplyResult[]) => void;
@@ -34,10 +36,10 @@ function rowState(r: SleeConfigApplyResult): RowState {
   return r.changed ? 'applied' : 'nochange';
 }
 
-const STATE_TAG: Record<RowState, { label: string; color: string }> = {
-  applied: { label: '적용됨', color: 'green' },
-  nochange: { label: '변경사항 없음', color: 'default' },
-  failed: { label: '실패', color: 'red' },
+const STATE_TAG: Record<RowState, { label: string; className: string }> = {
+  applied: { label: '적용됨', className: 'text-emerald-600 bg-emerald-50' },
+  nochange: { label: '변경사항 없음', className: 'text-gray-500 bg-gray-100' },
+  failed: { label: '실패', className: 'text-red-500 bg-red-50' },
 };
 
 const SleeConfigApplyResultModal = forwardRef<SleeConfigApplyResultModalRef>((_, ref) => {
@@ -77,7 +79,11 @@ const SleeConfigApplyResultModal = forwardRef<SleeConfigApplyResultModalRef>((_,
       align: 'center',
       render: (_v, row) => {
         const meta = STATE_TAG[rowState(row)];
-        return <Tag color={meta.color}>{meta.label}</Tag>;
+        return (
+          <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.className)}>
+            {meta.label}
+          </Badge>
+        );
       },
     },
     {

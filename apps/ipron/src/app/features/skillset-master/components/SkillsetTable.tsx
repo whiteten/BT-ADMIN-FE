@@ -10,6 +10,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { CalendarClock, GripVertical } from 'lucide-react';
 import { type SkillsetResponse, getMediaTypeName } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /** D&D 채널 — SkillsetGroupTree.onDrop 과 협의된 MIME. 페이로드: JSON skillsetId 배열. */
@@ -52,13 +53,9 @@ function BulkDeleteHeader({ onBulkDelete, selectedCount }: { onBulkDelete?: () =
 function YnPill({ value }: { value: number | null }) {
   const active = value === 1;
   return (
-    <span
-      className={`inline-flex items-center justify-center w-[42px] h-[20px] leading-none rounded text-[11px] font-medium ${
-        active ? 'text-green-700 bg-green-50 border border-green-200' : 'text-gray-500 bg-gray-50 border border-gray-200'
-      }`}
-    >
+    <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${active ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
       {active ? '활성' : '비활성'}
-    </span>
+    </Badge>
   );
 }
 

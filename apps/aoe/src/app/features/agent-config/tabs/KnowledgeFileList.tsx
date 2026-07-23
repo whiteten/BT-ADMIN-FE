@@ -159,6 +159,7 @@ export default function KnowledgeFileList() {
         const label = ROLE_OPTIONS.find((o) => o.value === (params.value ?? 1))?.label ?? 'USER';
         return label;
       },
+      filterValueGetter: ({ data }) => ROLE_OPTIONS.find((o) => o.value === (data?.roleCode ?? 1))?.label ?? 'USER',
       cellEditor: RoleCellEditor,
       suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
     },

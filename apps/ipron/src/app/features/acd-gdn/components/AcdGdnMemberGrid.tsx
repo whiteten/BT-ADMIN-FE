@@ -12,7 +12,11 @@ import type { CellStyle, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { ROW_COLOR_PALETTE } from '../../../components/GridRowColorLegend';
 import { type GdnMemberItem, type GdnMemberResponse, getDnTypeName } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 interface AcdGdnMemberGridProps {
   rowData: GdnMemberResponse[];
@@ -47,13 +51,12 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         sortable: false,
         filterValueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
         valueGetter: (p) => (p.data?.assigned ? '배정' : '미배정'),
-        cellStyle: { display: 'flex', alignItems: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) =>
-          p.data?.assigned ? (
-            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-green-700 bg-green-100">배정</span>
-          ) : (
-            <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[10px] font-medium text-gray-500 bg-gray-100">미배정</span>
-          ),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, p.data?.assigned ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+            {p.data?.assigned ? '배정' : '미배정'}
+          </Badge>
+        ),
       },
       {
         headerName: 'DN번호',
@@ -107,9 +110,12 @@ export default function AcdGdnMemberGrid({ rowData, isLoading, onSelectionChange
         width: 75,
         suppressHeaderMenuButton: true,
         filterValueGetter: (p) => (p.data?.extBlockYn === 1 ? 'ON' : 'OFF'),
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) =>
-          p.data?.extBlockYn === 1 ? <span className="text-red-500 text-[11px] font-semibold">ON</span> : <span className="text-gray-400 text-[11px]">OFF</span>,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        cellRenderer: (p: ICellRendererParams<GdnMemberResponse>) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, p.data?.extBlockYn === 1 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100')}>
+            {p.data?.extBlockYn === 1 ? 'ON' : 'OFF'}
+          </Badge>
+        ),
       },
     ],
     [],

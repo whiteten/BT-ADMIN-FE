@@ -13,13 +13,23 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, DatePicker, Input, Modal, Select, Switch, Tag } from 'antd';
+import { Button, DatePicker, Input, Modal, Select, Switch } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Search } from 'lucide-react';
 import { useGetMentFileHistory } from '../hooks/useMentFileQueries';
 import { MENT_HIST_KIND_LABELS, MENT_HIST_STATUS_LABELS, type MentFileHistoryRow } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const CENTER_CELL = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const StatusBadge = ({ className, children }: { className: string; children: React.ReactNode }) => (
+  <Badge variant="secondary" className={cn(BADGE_CLASS, className)}>
+    {children}
+  </Badge>
+);
 
 const { RangePicker } = DatePicker;
 
@@ -116,10 +126,11 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
         headerName: '구분',
         field: 'rtServKindCode',
         width: 80,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<MentFileHistoryRow>) => {
           const k = p.data?.rtServKindCode;
           if (k == null) return '-';
-          return <Tag color={k === 0 ? 'blue' : 'purple'}>{MENT_HIST_KIND_LABELS[k] ?? k}</Tag>;
+          return <StatusBadge className={k === 0 ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50'}>{MENT_HIST_KIND_LABELS[k] ?? k}</StatusBadge>;
         },
         ...codeFilter<MentFileHistoryRow>('rtServKindCode', MENT_HIST_KIND_LABELS),
       },
@@ -142,14 +153,22 @@ const MentFileHistoryModal = forwardRef<MentFileHistoryModalRef>((_, ref) => {
         headerName: '상태',
         field: 'applyStatusCode',
         width: 110,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<MentFileHistoryRow>) => {
           // 예약취소는 상태코드가 아니라 플래그 — 라벨 오버라이드 (레거시 IPR30S3025 동일)
-          if (p.data?.canceled) return <Tag color="default">예약취소</Tag>;
+          if (p.data?.canceled) return <StatusBadge className="text-gray-500 bg-gray-100">예약취소</StatusBadge>;
           const c = p.data?.applyStatusCode;
           if (c == null) return '-';
-          // 성공류(20/30/50) green / 실패류(25/35/55) red / 미처리(9) orange / 예약(10) gold
-          const color = c === 50 || c === 20 || c === 30 ? 'green' : c === 55 || c === 25 || c === 35 ? 'red' : c === 9 ? 'orange' : 'gold';
-          return <Tag color={color}>{MENT_HIST_STATUS_LABELS[c] ?? c}</Tag>;
+          // 성공류(20/30/50) emerald / 실패류(25/35/55) red / 미처리(9) orange / 예약(10) amber
+          const cls =
+            c === 50 || c === 20 || c === 30
+              ? 'text-emerald-600 bg-emerald-50'
+              : c === 55 || c === 25 || c === 35
+                ? 'text-red-500 bg-red-50'
+                : c === 9
+                  ? 'text-orange-600 bg-orange-50'
+                  : 'text-amber-600 bg-amber-50';
+          return <StatusBadge className={cls}>{MENT_HIST_STATUS_LABELS[c] ?? c}</StatusBadge>;
         },
         ...codeFilter<MentFileHistoryRow>('applyStatusCode', MENT_HIST_STATUS_LABELS),
       },

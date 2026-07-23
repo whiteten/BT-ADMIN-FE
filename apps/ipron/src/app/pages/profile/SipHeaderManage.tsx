@@ -30,6 +30,7 @@ import {
 import type { SipHeaderGroup, SipHeaderRelay } from '../../features/sip-profile/types';
 import { IconTrash } from '@/components/custom/Icons';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -331,13 +332,15 @@ export default function SipHeaderManage() {
       field: 'headerType',
       maxWidth: 120,
       filterValueGetter: (params) => (params.data?.headerType === 0 ? '기초' : '사용자'),
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<SipHeaderRelay>) => {
         const { data } = params;
         if (!data) return null;
-        return data.headerType === 0 ? (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-gray-50 text-gray-600 border border-gray-200">기초</span>
-        ) : (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600 border border-blue-200">사용자</span>
+        const isBase = data.headerType === 0;
+        return (
+          <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isBase ? 'text-gray-500 bg-gray-100' : 'text-blue-600 bg-blue-50'}`}>
+            {isBase ? '기초' : '사용자'}
+          </Badge>
         );
       },
     },

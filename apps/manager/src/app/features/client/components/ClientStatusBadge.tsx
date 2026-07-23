@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 type ClientStatus = 'Y' | 'N';
 
 const CLIENT_STATUS_META: Record<ClientStatus, { label: string; className: string }> = {
-  Y: { label: '활성', className: 'text-[#0AB39C] bg-[#0AB39C1A]' },
-  N: { label: '비활성', className: 'text-[#F06548] bg-[#F065481A]' },
+  Y: { label: '활성', className: 'text-emerald-600 bg-emerald-50' },
+  N: { label: '비활성', className: 'text-gray-500 bg-gray-100' },
 };
 
 interface ClientStatusBadgeProps {

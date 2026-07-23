@@ -12,12 +12,22 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Modal, Tag } from 'antd';
+import { Button, Modal } from 'antd';
 import dayjs from 'dayjs';
 import { useGetApplyResults } from '../hooks/useSleeConfigQueries';
 import { RT_RESV_KIND_LABELS, SLEE_APPLY_RESULT_LABELS, SLEE_APPLY_RESULT_STATUS_LABELS, type SleeConfigApplyResultRow } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const CENTER_CELL = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const StatusBadge = ({ className, children }: { className: string; children: React.ReactNode }) => (
+  <Badge variant="secondary" className={cn(BADGE_CLASS, className)}>
+    {children}
+  </Badge>
+);
 
 interface OpenPayload {
   tenantId: number;
@@ -54,10 +64,11 @@ const SleeConfigReservationResultModal = forwardRef<SleeConfigReservationResultM
         headerName: '구분',
         field: 'rtResvKind',
         width: 80,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigApplyResultRow>) => {
           const k = p.data?.rtResvKind;
           if (k == null) return '-';
-          return <Tag color={k === 1 ? 'blue' : 'purple'}>{RT_RESV_KIND_LABELS[k] ?? k}</Tag>;
+          return <StatusBadge className={k === 1 ? 'text-blue-600 bg-blue-50' : 'text-purple-600 bg-purple-50'}>{RT_RESV_KIND_LABELS[k] ?? k}</StatusBadge>;
         },
         ...codeFilter<SleeConfigApplyResultRow>('rtResvKind', RT_RESV_KIND_LABELS),
       },
@@ -65,13 +76,21 @@ const SleeConfigReservationResultModal = forwardRef<SleeConfigReservationResultM
         headerName: '상태',
         field: 'applyStatusCode',
         width: 120,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigApplyResultRow>) => {
           // 예약취소는 상태코드가 아니라 플래그 — 우선 표시 (AS-IS 동일).
-          if (p.data?.canceled) return <Tag color="default">예약취소</Tag>;
+          if (p.data?.canceled) return <StatusBadge className="text-gray-500 bg-gray-100">예약취소</StatusBadge>;
           const s = p.data?.applyStatusCode;
           if (s == null) return '-';
-          const color = s === 50 ? 'green' : s === 55 || s === 25 || s === 35 ? 'red' : s === 10 ? 'gold' : 'blue';
-          return <Tag color={color}>{SLEE_APPLY_RESULT_STATUS_LABELS[s] ?? s}</Tag>;
+          const cls =
+            s === 50
+              ? 'text-emerald-600 bg-emerald-50'
+              : s === 55 || s === 25 || s === 35
+                ? 'text-red-500 bg-red-50'
+                : s === 10
+                  ? 'text-amber-600 bg-amber-50'
+                  : 'text-blue-600 bg-blue-50';
+          return <StatusBadge className={cls}>{SLEE_APPLY_RESULT_STATUS_LABELS[s] ?? s}</StatusBadge>;
         },
         ...codeFilter<SleeConfigApplyResultRow>('applyStatusCode', SLEE_APPLY_RESULT_STATUS_LABELS),
       },
@@ -79,11 +98,12 @@ const SleeConfigReservationResultModal = forwardRef<SleeConfigReservationResultM
         headerName: '결과',
         field: 'applyResultCode',
         width: 100,
+        cellStyle: CENTER_CELL,
         cellRenderer: (p: ICellRendererParams<SleeConfigApplyResultRow>) => {
           const r = p.data?.applyResultCode;
           if (r == null) return '-';
-          const color = r === 1 ? 'green' : r === 2 ? 'red' : 'default';
-          return <Tag color={color}>{SLEE_APPLY_RESULT_LABELS[r] ?? r}</Tag>;
+          const cls = r === 1 ? 'text-emerald-600 bg-emerald-50' : r === 2 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100';
+          return <StatusBadge className={cls}>{SLEE_APPLY_RESULT_LABELS[r] ?? r}</StatusBadge>;
         },
         ...codeFilter<SleeConfigApplyResultRow>('applyResultCode', SLEE_APPLY_RESULT_LABELS),
       },

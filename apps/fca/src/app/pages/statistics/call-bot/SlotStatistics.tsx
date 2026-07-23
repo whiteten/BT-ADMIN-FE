@@ -257,6 +257,7 @@ export default function SlotStatistics() {
         if (node?.rowPinned === 'bottom') return '';
         return value === 1 ? '커스텀 슬롯' : '일반 슬롯';
       },
+      filterValueGetter: ({ data }) => (data ? (data.isCustomSlot === 1 ? '커스텀 슬롯' : '일반 슬롯') : ''),
     },
     { headerName: '개체 태그', field: 'entityTag', flex: 1 },
     {

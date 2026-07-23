@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { SCHEDULE_DAY_FIELDS, SUBJECT_LABELS, type ScheduleInfoResponse, type ScheduleKind, type ScheduleSubject, getMediaTypeName } from '../types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface ScheduleInfoTableProps {
@@ -126,7 +127,11 @@ export default function ScheduleInfoTable({ rowData, kind, subject, isLoading, s
           cellRenderer: (params: ICellRendererParams<ScheduleInfoResponse>) => {
             const name = getMediaTypeName(params.data?.mediaType);
             if (name === '-') return <span className="text-gray-400">-</span>;
-            return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] bg-gray-100 text-gray-700">{name}</span>;
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
+                {name}
+              </Badge>
+            );
           },
         },
       );

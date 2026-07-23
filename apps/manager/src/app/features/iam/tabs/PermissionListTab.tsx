@@ -7,21 +7,24 @@
 import { useMemo, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select, Tag, Tooltip } from 'antd';
+import { Button, Input, Select, Tooltip } from 'antd';
 import { Copy, Search, Shield, User } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { copyToClipboard, toast } from '@/shared-util';
 import { useGetApps } from '../hooks/useAppQueries';
 import { useGetAuthList } from '../hooks/usePermissionQueries';
 import type { PermissionFlat } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
-const actionColorMap: Record<string, string> = {
-  read: 'blue',
-  write: 'green',
-  delete: 'red',
-  apply: 'purple',
-  export: 'slategray',
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const actionBadgeClassMap: Record<string, string> = {
+  read: 'text-blue-600 bg-blue-50',
+  write: 'text-emerald-600 bg-emerald-50',
+  delete: 'text-red-500 bg-red-50',
+  apply: 'text-purple-600 bg-purple-50',
+  export: 'text-slate-600 bg-slate-100',
 };
 
 export default function PermissionListTab() {
@@ -64,10 +67,18 @@ export default function PermissionListTab() {
         headerName: '앱',
         field: 'appId',
         width: 110,
+        filterValueGetter: (params) => {
+          const app = apps.find((a) => a.appId === params.data?.appId);
+          return app?.appName ?? params.data?.appId ?? '';
+        },
         cellRenderer: (params: { value: string }) => {
           const app = apps.find((a) => a.appId === params.value);
           const appName = app?.appName ?? params.value;
-          return <Tag color="cyan">{appName}</Tag>;
+          return (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, 'text-cyan-600 bg-cyan-50')}>
+              {appName}
+            </Badge>
+          );
         },
       },
       { headerName: '연결된 메뉴', field: 'menuLabel', width: 160 },
@@ -75,7 +86,12 @@ export default function PermissionListTab() {
         headerName: '액션',
         field: 'action',
         width: 90,
-        cellRenderer: (params: { value: string }) => <Tag color={actionColorMap[params.value]}>{params.value}</Tag>,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: { value: string }) => (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, actionBadgeClassMap[params.value] ?? 'text-gray-500 bg-gray-100')}>
+            {params.value}
+          </Badge>
+        ),
       },
       {
         headerName: '권한 키',

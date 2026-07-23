@@ -16,6 +16,7 @@ import { ENDPOINT_TYPE_LABELS } from '../../endpoint/types';
 import { routeApi } from '../api/routeApi';
 import { routeQueryKeys } from '../hooks/useRouteQueries';
 import type { EndpointForAssign, RoutePoint, RoutePointItem } from '../types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 export interface RoutePointDialogRef {
@@ -172,12 +173,18 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
         field: 'backupGb',
         flex: 1,
         minWidth: 90,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: ICellRendererParams<EndpointForAssign>) => {
           if (!params.data) return null;
           const gb = (params.data as any).backupGb ?? '';
-          if (gb.includes('로컬')) return <span style={{ color: '#52c41a', fontWeight: 'bold', fontSize: 11 }}>로컬노드</span>;
-          if (gb.includes('DR')) return <span style={{ color: '#1677ff', fontWeight: 'bold', fontSize: 11 }}>DR노드</span>;
-          if (gb.includes('리모트')) return <span style={{ color: '#fa8c16', fontWeight: 'bold', fontSize: 11 }}>리모트 노드</span>;
+          const badge = (label: string, cls: string) => (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${cls}`}>
+              {label}
+            </Badge>
+          );
+          if (gb.includes('로컬')) return badge('로컬노드', 'text-emerald-600 bg-emerald-50');
+          if (gb.includes('DR')) return badge('DR노드', 'text-blue-600 bg-blue-50');
+          if (gb.includes('리모트')) return badge('리모트 노드', 'text-amber-600 bg-amber-50');
           return gb || '-';
         },
       },

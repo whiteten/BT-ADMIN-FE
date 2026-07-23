@@ -12,7 +12,9 @@ import RetentionEditDrawer, { type RetentionEditDrawerRef } from '../../features
 import { dataRetentionQueryKeys, useExecuteRetentionNow, useGetRetentionLogs, useGetRetentionPolicies } from '../../features/data-retention/hooks/useDataRetentionQueries';
 import { RETENTION_CATEGORY_LABELS, type RetentionCategory, type RetentionLogItem, type RetentionPolicyListItem } from '../../features/data-retention/types';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -32,15 +34,22 @@ const RETENTION_CATEGORY_ICONS: Record<RetentionCategory, React.ElementType> = {
   LOG: ScrollText,
 };
 
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+
+const EXECUTION_STATUS_META: Record<RetentionLogItem['status'], { label: string; className: string }> = {
+  SUCCESS: { label: '성공', className: 'text-emerald-600 bg-emerald-50' },
+  PARTIAL_FAIL: { label: '부분실패', className: 'text-amber-600 bg-amber-50' },
+  FAIL: { label: '실패', className: 'text-red-500 bg-red-50' },
+};
+
 /** 실행 상태 배지 */
 function ExecutionStatusBadge({ status }: { status: RetentionLogItem['status'] }) {
-  const config: Record<RetentionLogItem['status'], { label: string; className: string }> = {
-    SUCCESS: { label: '성공', className: 'bg-green-100 text-green-800' },
-    PARTIAL_FAIL: { label: '부분실패', className: 'bg-yellow-100 text-yellow-800' },
-    FAIL: { label: '실패', className: 'bg-red-100 text-red-800' },
-  };
-  const { label, className } = config[status] ?? { label: status, className: 'bg-gray-100 text-gray-800' };
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${className}`}>{label}</span>;
+  const { label, className } = EXECUTION_STATUS_META[status] ?? { label: status, className: 'text-gray-500 bg-gray-100' };
+  return (
+    <Badge variant="secondary" className={cn(BADGE_CLASS, className)}>
+      {label}
+    </Badge>
+  );
 }
 
 export default function DataRetention() {
@@ -148,7 +157,8 @@ export default function DataRetention() {
       headerName: '상태',
       field: 'status',
       width: 100,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (p) => (p.data?.status ? (EXECUTION_STATUS_META[p.data.status]?.label ?? p.data.status) : ''),
       cellRenderer: (p: ICellRendererParams<RetentionLogItem>) => (p.value ? <ExecutionStatusBadge status={p.value} /> : '-'),
     },
     {
