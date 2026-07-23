@@ -4,26 +4,25 @@
  * AS-IS: SWAT IPR30S4022 (WORKTIME_TYPE='IE') 를 교환기 전용으로 분리.
  * IE 는 마스터당 슬롯 N개 → 마스터 영역 / 시간대(슬롯) 영역 상하 분리 (레거시 2단 정합).
  *
- * 레이아웃 (테넌트 구조 화면 표준 — cti-code/agent-master 패턴):
- *   박스 1: 헤더 (타이틀 + 선택 테넌트)
- *   박스 2: 테넌트 카드 슬라이더 (BE tenant-stats — TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙, 접기/펼치기)
- *   박스 3: [상단] 마스터 ag-Grid (검색/등록/삭제, 행 선택 → 하단 로드)
- *   박스 4: [하단] 시간대 ag-Grid (선택 마스터 기준, 추가/삭제)
+ * 레이아웃 (멀티테넌트 개편 — cti-code/dod-trans 패턴):
+ *   박스 1: 헤더 (타이틀 + 운영자 대행 테넌트 ScopeSelect(공통) / 일반=선택 테넌트명)
+ *   박스 2: [상단] 마스터 목록 — 카드형/리스트형 토글(ViewModeToggle, localStorage 유지)
+ *   박스 3: [하단] 시간대 ag-Grid (선택 마스터 기준, 추가/삭제)
  *
- * 테넌트 파라미터: 조회는 BE @Filter(JWT) 자동 격리 → 관리자면 전체 행 수신, FE 에서
- * 선택 테넌트로 필터. 등록/수정은 request body 의 tenantId 로 테넌트별 저장.
+ * 테넌트 스코프: 일반 콘솔은 토큰=활성 테넌트. 운영자 모드는 헤더 ScopeSelect 로 대행 테넌트 선택
+ * (null=전체). 조회는 BE @Filter(JWT) 자동 격리 → FE 에서 선택 테넌트로 필터, 등록은 request
+ * body 의 tenantId 로 테넌트별 저장.
  */
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Input } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore } from '@/shared-store';
+import { ChevronLeft, ChevronRight, Plus, Search, Trash2 } from 'lucide-react';
+import { VIEW_MODE, useAuthStore, useBreadcrumbStore, useOperatorScopeStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import IeWorktimeMasterDrawer from '../../features/ie-worktime/components/IeWorktimeMasterDrawer';
 import IeWorktimeSlotDrawer from '../../features/ie-worktime/components/IeWorktimeSlotDrawer';
 import PbxWorktimeMasterTable from '../../features/ie-worktime/components/PbxWorktimeMasterTable';
 import PbxWorktimeSlotTable from '../../features/ie-worktime/components/PbxWorktimeSlotTable';
-import PbxWorktimeTenantCard, { type PbxWorktimeTenantCardStats } from '../../features/ie-worktime/components/PbxWorktimeTenantCard';
 import {
   ieWorktimeQueryKeys,
   useCreateIeWorktime,
@@ -37,6 +36,8 @@ import {
   useUpdateIeWorktimeSlot,
 } from '../../features/ie-worktime/hooks/useIeWorktimeQueries';
 import type { IeWorktimeMaster, IeWorktimeMasterRequest, IeWorktimeSlot, IeWorktimeSlotRequest } from '../../features/ie-worktime/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '시간 관리' }, { title: '교환기 업무시간관리', path: '/ipron/pbx-worktime' }];
@@ -57,28 +58,30 @@ export default function IeWorktimeList() {
   const queryClient = useQueryClient();
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  // ctx 테넌트 (JWT) — 페이지 진입 시 자동 선택
+  // ctx 테넌트 (JWT — 사용자 본인 테넌트)
   const ctxTenantId = useAuthStore((s) => {
     const t = s.userInfo?.tenant;
     return t ? Number(t) : null;
   });
 
-  const [selectedTenantId, setSelectedTenantId] = useState<number | null>(ctxTenantId);
+  // 운영자 모드(통합운영) — 시스템 관리자가 헤더 TenantChip 에서 진입.
+  //  - 전체(actAsTenantId=null): tenantId 미전달 → 전체 테넌트 조회
+  //  - 대행(actAsTenantId=X): X 테넌트 스코프 조회 + X 대행 CUD
+  const operatorMode = useOperatorScopeStore((s) => s.operatorMode);
+  const actAsTenantId = useOperatorScopeStore((s) => s.actAsTenantId);
+  const setActAsTenant = useOperatorScopeStore((s) => s.setActAsTenant);
+  const opTenantId = actAsTenantId ? Number(actAsTenantId) : null;
+  // 조회/등록 스코프: 일반=활성테넌트 / 운영자=대행테넌트(null=전체).
+  const selectedTenantId = operatorMode ? opTenantId : ctxTenantId;
+
+  // 마스터 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 교환기 업무시간 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-worktime');
   const [searchText, setSearchText] = useState('');
-  const [cardExpanded, setCardExpanded] = useState(false);
   const [selectedMaster, setSelectedMaster] = useState<IeWorktimeMaster | null>(null);
   const [selectedSlots, setSelectedSlots] = useState<IeWorktimeSlot[]>([]);
   const [focusSlotSeq, setFocusSlotSeq] = useState<number | null>(null); // 슬롯 저장 직후 선택/노출할 행
   const [masterDrawer, setMasterDrawer] = useState<{ open: boolean; mode: 'create' | 'edit'; item: IeWorktimeMaster | null }>({ open: false, mode: 'create', item: null });
   const [slotDrawer, setSlotDrawer] = useState<{ open: boolean; mode: 'create' | 'edit'; slot: IeWorktimeSlot | null }>({ open: false, mode: 'create', slot: null });
-
-  // ctx 비동기 로드 시 동기화
-  useEffect(() => {
-    if (ctxTenantId != null && selectedTenantId === null) {
-      setSelectedTenantId(ctxTenantId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctxTenantId]);
 
   const { data: list = [], isLoading } = useGetIeWorktimes();
   const { data: slots = [], isLoading: slotsLoading } = useGetIeWorktimeSlots(selectedMaster?.worktimeId);
@@ -90,18 +93,7 @@ export default function IeWorktimeList() {
   };
   const invalidateSlots = (id: number) => queryClient.invalidateQueries({ queryKey: ieWorktimeQueryKeys.getSlots(id).queryKey });
 
-  // ─── 테넌트 카드: BE tenant-stats (TB_CC_TENANTMASTER ACTIVE_YN=1 드라이빙 — ADN 패턴) ───
-  const tenantCards = useMemo(
-    () =>
-      tenantStats.map((t) => ({
-        tenantId: t.tenantId,
-        tenantName: t.tenantName ?? `#${t.tenantId}`,
-        stats: { worktimeCnt: t.worktimeCnt, slotCnt: t.slotCnt } satisfies PbxWorktimeTenantCardStats,
-      })),
-    [tenantStats],
-  );
-
-  const selectedTenantName = selectedTenantId == null ? null : (tenantCards.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
+  const selectedTenantName = selectedTenantId == null ? null : (tenantStats.find((t) => t.tenantId === selectedTenantId)?.tenantName ?? `#${selectedTenantId}`);
 
   // ─── 마스터 행: 선택 테넌트 + 검색 필터 ───
   const filtered = useMemo(() => {
@@ -172,10 +164,17 @@ export default function IeWorktimeList() {
   const { mutate: updateSlot, isPending: slotUpdating } = useUpdateIeWorktimeSlot({ mutationOptions: slotMutationOptions('시간대가 수정되었습니다', '수정 실패') });
   const { mutateAsync: deleteSlotAsync, isPending: slotDeleting } = useDeleteIeWorktimeSlot();
 
+  // ─── 마스터 선택 (카드 클릭 / 그리드 선택 공통) ───
+  const handleSelectMaster = (next: IeWorktimeMaster | null) => {
+    setSelectedMaster(next);
+    setSelectedSlots([]);
+    if (next?.worktimeId !== selectedMaster?.worktimeId) setFocusSlotSeq(null);
+  };
+
   // ─── 마스터 handlers ───
   const handleCreateMaster = () => {
     if (selectedTenantId == null) {
-      toast.warning('테넌트를 먼저 선택하세요');
+      toast.warning(operatorMode ? '대행할 테넌트를 먼저 선택하세요' : '테넌트를 먼저 선택하세요');
       return;
     }
     setMasterDrawer({ open: true, mode: 'create', item: null });
@@ -234,97 +233,38 @@ export default function IeWorktimeList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 타이틀) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        <div className="flex items-center px-4 h-[56px]">
+        <div className="flex items-center px-4 h-[56px] gap-3">
           <span className="text-sm font-semibold text-gray-700">업무시간관리</span>
-          {selectedTenantName && (
-            <span className="ml-3 text-xs text-gray-500">
-              테넌트: <span className="font-medium text-gray-700">{selectedTenantName}</span>
-            </span>
+          {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 선택 테넌트명 표기. */}
+          {operatorMode ? (
+            <ScopeSelect
+              kind="tenant"
+              options={tenantStats.map((t) => ({ id: t.tenantId, name: t.tenantName ?? `테넌트 ${t.tenantId}`, count: t.worktimeCnt }))}
+              value={actAsTenantId}
+              onChange={(id) => {
+                setActAsTenant(id);
+                handleSelectMaster(null);
+              }}
+            />
+          ) : (
+            selectedTenantName && (
+              <span className="text-xs text-gray-500">
+                테넌트: <span className="font-medium text-gray-700">{selectedTenantName}</span>
+              </span>
+            )
           )}
         </div>
       </div>
 
-      {/* ===== 박스 2: 테넌트 카드 슬라이더 ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {cardExpanded ? (
-          <div className="flex items-center h-[140px] px-4 py-3">
-            <div className="relative flex items-center gap-2 w-full">
-              <Button
-                type="text"
-                icon={<ChevronLeft className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {tenantCards.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
-                    <span className="text-sm">조회 가능한 테넌트가 없습니다</span>
-                  </div>
-                ) : (
-                  tenantCards.map((t) => (
-                    <PbxWorktimeTenantCard
-                      key={t.tenantId}
-                      tenantName={t.tenantName}
-                      stats={t.stats}
-                      selected={selectedTenantId === t.tenantId}
-                      onClick={(e) => {
-                        setSelectedTenantId(t.tenantId);
-                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronRight className="size-5" />}
-                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                className="!flex-shrink-0 !w-8 !h-8 !p-0"
-              />
-              <Button
-                type="text"
-                icon={<ChevronsUp className="size-4" />}
-                onClick={() => setCardExpanded(false)}
-                title="카드 접기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center h-[44px] px-4">
-            <div className="relative flex items-center gap-2 w-full">
-              <div className="flex gap-2 overflow-x-auto flex-1 items-center" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {tenantCards.map((t) => (
-                  <CompactTenantPill
-                    key={t.tenantId}
-                    name={t.tenantName}
-                    count={t.stats.worktimeCnt}
-                    selected={selectedTenantId === t.tenantId}
-                    onClick={() => setSelectedTenantId(t.tenantId)}
-                  />
-                ))}
-              </div>
-              <Button
-                type="text"
-                icon={<ChevronsDown className="size-4" />}
-                onClick={() => setCardExpanded(true)}
-                title="카드 펼치기"
-                className="!flex-shrink-0 !w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ===== 박스 3: [상단] 마스터 그리드 ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-[3] flex flex-col min-h-0">
+      {/* ===== 박스 2: [상단] 마스터 목록 (카드형 / 리스트형 토글) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0 flex flex-col">
         <div className="flex items-center px-4 h-[56px] border-b border-gray-100 gap-2">
           <span className="text-sm font-semibold text-gray-700">업무시간</span>
           <span className="text-xs text-gray-500">{filtered.length.toLocaleString()}건</span>
           <div className="ml-auto flex items-center gap-2">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
             <Input
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
@@ -347,30 +287,84 @@ export default function IeWorktimeList() {
             </Button>
           </div>
         </div>
-        <div className="flex-1 min-h-0">
+
+        {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
+        <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[170px]' : 'h-[260px]'}`}>
           {filtered.length === 0 && !isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <Empty description={searchText.trim() ? '검색 결과가 없습니다' : '등록된 업무시간이 없습니다'} />
+            <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+              <Empty description={false} imageStyle={{ height: 40 }} />
+              <span className="text-sm">{searchText.trim() ? '검색 결과가 없습니다' : '등록된 업무시간이 없습니다'}</span>
+            </div>
+          ) : viewMode === VIEW_MODE.LIST ? (
+            <div className="w-full h-full">
+              <PbxWorktimeMasterTable
+                rowData={filtered}
+                isLoading={isLoading}
+                focusId={selectedMaster?.worktimeId ?? null}
+                onRowDoubleClicked={handleEditMaster}
+                onSelectionChanged={(rows) => handleSelectMaster(rows[0] ?? null)}
+              />
             </div>
           ) : (
-            <PbxWorktimeMasterTable
-              rowData={filtered}
-              isLoading={isLoading}
-              focusId={selectedMaster?.worktimeId ?? null}
-              onRowDoubleClicked={handleEditMaster}
-              onSelectionChanged={(rows) => {
-                const next = rows[0] ?? null;
-                setSelectedMaster(next);
-                setSelectedSlots([]);
-                if (next?.worktimeId !== selectedMaster?.worktimeId) setFocusSlotSeq(null);
-              }}
-            />
+            <div className="relative flex items-center gap-2 w-full">
+              <Button
+                type="text"
+                icon={<ChevronLeft className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
+              <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {filtered.map((master) => {
+                  const isCardSelected = selectedMaster?.worktimeId === master.worktimeId;
+                  return (
+                    <div
+                      key={master.worktimeId}
+                      className={`bg-white border rounded-lg p-3 cursor-pointer transition-all w-[200px] h-[130px] flex-shrink-0 flex flex-col ${
+                        isCardSelected
+                          ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                          : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                      }`}
+                      onClick={(e) => {
+                        handleSelectMaster(master);
+                        (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                      }}
+                      onDoubleClick={() => handleEditMaster(master)}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-semibold truncate ${isCardSelected ? 'text-[#405189]' : 'text-gray-800'}`} title={master.worktimeName}>
+                          {master.worktimeName}
+                        </span>
+                      </div>
+                      <div className="flex-1 text-xs text-gray-500 space-y-0.5">
+                        {master.groupKey && <div className="truncate">KEY: {master.groupKey}</div>}
+                        {master.worktimeDesc && <div className="truncate">{master.worktimeDesc}</div>}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-auto">
+                        <span
+                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${
+                            master.slotCount > 0 ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-gray-500 bg-gray-50 border-gray-200'
+                          }`}
+                        >
+                          {master.slotCount > 0 ? `시간대 ${master.slotCount}건` : '시간대 없음'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <Button
+                type="text"
+                icon={<ChevronRight className="size-5" />}
+                onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                className="!flex-shrink-0 !w-8 !h-8 !p-0"
+              />
+            </div>
           )}
         </div>
       </div>
 
-      {/* ===== 박스 4: [하단] 시간대(슬롯) 그리드 ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-[2] flex flex-col min-h-0">
+      {/* ===== 박스 3: [하단] 시간대(슬롯) 그리드 ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="flex items-center px-4 h-[56px] border-b border-gray-100 gap-2">
           <span className="text-sm font-semibold text-gray-700">시간대</span>
           {selectedMaster ? (
@@ -432,30 +426,5 @@ export default function IeWorktimeList() {
         loading={slotCreating || slotUpdating}
       />
     </div>
-  );
-}
-
-interface CompactTenantPillProps {
-  name: string;
-  count: number;
-  selected: boolean;
-  onClick: () => void;
-}
-
-function CompactTenantPill({ name, count, selected, onClick }: CompactTenantPillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={`${name} · ${count.toLocaleString()}건`}
-      className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs transition ${
-        selected
-          ? 'border-[#405189] bg-[#405189] text-white shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-          : 'border-gray-200 bg-white text-gray-700 hover:border-[#c5cbe0] hover:text-[#405189]'
-      }`}
-    >
-      <span className="font-medium truncate max-w-[120px]">{name}</span>
-      <span className={`text-[11px] ${selected ? 'text-white/80' : 'text-gray-400'}`}>{count.toLocaleString()}</span>
-    </button>
   );
 }

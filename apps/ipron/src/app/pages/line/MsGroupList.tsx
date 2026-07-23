@@ -14,11 +14,11 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input, Select } from 'antd';
-import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import MediaServerDrawer, { type MediaServerDrawerRef } from '../../features/ms-group/components/MediaServerDrawer';
 import MsGroupDrawer, { type MsGroupDrawerRef } from '../../features/ms-group/components/MsGroupDrawer';
@@ -27,6 +27,7 @@ import NodeMsSettingDrawer, { type NodeMsSettingDrawerRef } from '../../features
 import { msGroupQueryKeys, useDeleteMsGroup, useGetMediaServers, useGetMsGroupMembers, useGetMsGroups, useGetNodes } from '../../features/ms-group/hooks/useMsGroupQueries';
 import { type MediaServer, type MsGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } from '../../features/ms-group/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -57,7 +58,11 @@ export default function MsGroupList() {
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(initNodeId);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(initGroupId);
   const [searchText, setSearchText] = useState('');
+  // MS그룹 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 MS관리 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-ms-group');
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  // 리스트형 그룹 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const grpGridApiRef = useRef<GridApi<MsGroup> | null>(null);
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const msGroupDrawerRef = useRef<MsGroupDrawerRef>(null);
@@ -173,6 +178,12 @@ export default function MsGroupList() {
       setSelectedGroupId(filteredMsGroups[0].msGroupId);
     }
   }, [filteredMsGroups, selectedGroupId]);
+
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) grpGridApiRef.current?.redrawRows();
+  }, [selectedGroupId, viewMode]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleNodeChange = (nodeId: number | null) => {
@@ -300,6 +311,83 @@ export default function MsGroupList() {
     },
   ];
 
+  // ─── ag-Grid: MS그룹 columns (리스트형 목록) ─────────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const msGroupColumnDefs: ColDef<MsGroup>[] = useMemo(
+    () => [
+      {
+        headerName: 'MS그룹명',
+        field: 'msGroupName',
+        flex: 2,
+        minWidth: 160,
+        tooltipField: 'msGroupName',
+      },
+      {
+        headerName: '노드',
+        field: 'nodeName',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: (params) => {
+          if (!params.data) return null;
+          const { nodeName, nodeId } = params.data;
+          if (nodeName && nodeName.length > 0) return nodeName;
+          return nodeNameMap.get(nodeId) ?? `Node ${nodeId}`;
+        },
+      },
+      {
+        headerName: '분배방식',
+        field: 'routeType',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: (params) => (params.data ? (ROUTE_TYPE_LABELS[params.data.routeType] ?? String(params.data.routeType)) : null),
+      },
+      {
+        headerName: '배정 MS 수',
+        field: 'routeCnt',
+        flex: 0.8,
+        minWidth: 100,
+        filter: 'agNumberColumnFilter',
+        valueFormatter: (params) => String(params.data?.routeCnt ?? 0),
+      },
+      {
+        headerName: '',
+        colId: 'actions',
+        width: 56,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: ICellRendererParams<MsGroup>) => {
+          if (!params.data) return null;
+          const grp = params.data;
+          const menuItems = [
+            { key: 'edit', label: '수정', onClick: () => handleEditMsGroup(grp) },
+            {
+              key: 'member',
+              label: 'MS그룹 멤버관리',
+              icon: <Users className="size-4" />,
+              onClick: () => {
+                setSelectedGroupId(grp.msGroupId);
+                setTimeout(() => msGroupMemberDrawerRef.current?.open(grp), 50);
+              },
+            },
+            { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleDeleteMsGroup(grp) },
+          ];
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="size-3.5 text-gray-400" />
+                </button>
+              </Dropdown>
+            </div>
+          );
+        },
+      },
+    ],
+    [nodeNameMap, handleEditMsGroup, handleDeleteMsGroup],
+  );
+
   // ─── ag-Grid: Media Server columns ──────────────────────────────────────
   const mediaServerColumnDefs: ColDef<MediaServer>[] = useMemo(
     () => [
@@ -422,114 +510,140 @@ export default function MsGroupList() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 ===== */}
+        {/* ===== 카드 슬라이더 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* Card slider body — 항상 펼침 */}
-          {
-            <div className="flex items-center px-4 py-3 h-[180px]">
-              {filteredMsGroups.length === 0 ? (
-                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                  <Empty description={false} imageStyle={{ height: 40 }} />
-                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 MS그룹이 없습니다' : '등록된 MS그룹이 없습니다'}</span>
-                </div>
-              ) : (
-                <div className="relative flex items-center gap-2 w-full">
-                  <Button
-                    type="text"
-                    icon={<ChevronLeft className="size-5" />}
-                    onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
-                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                  />
-                  <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {filteredMsGroups.map((grp) => {
-                      const isCardSelected = selectedGroupId === grp.msGroupId;
-                      const isDefaultGroup = defaultMsGroupId === grp.msGroupId && selectedNodeId === grp.nodeId;
-                      const tags = getMsGroupTagList(grp);
-                      const grpNodeFault = nodesFaultMap.get(grp.nodeId) ?? false;
-                      return (
-                        <div
-                          key={grp.msGroupId}
-                          id={`msg-card-${grp.msGroupId}`}
-                          className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[145px] flex-shrink-0 flex flex-col ${
-                            isCardSelected
-                              ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
-                              : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                          }`}
-                          onClick={(e) => {
-                            handleCardSelect(grp);
-                            (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                          }}
-                          onDoubleClick={() => handleEditMsGroup(grp)}
-                        >
-                          {/* Card header: 상태배지 + 그룹명 + 기본 뱃지 + 더보기 */}
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2 min-w-0">
-                              {grpNodeFault && (
-                                <span
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
-                                  style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
-                                >
-                                  장애
-                                </span>
-                              )}
-                              <span className="text-sm font-semibold text-gray-800 truncate">{grp.msGroupName}</span>
-                              {isDefaultGroup && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">
-                                  기본
-                                </span>
-                              )}
-                            </div>
-                            <div onClick={(e) => e.stopPropagation()}>
-                              <Dropdown menu={{ items: getCardMenuItems(grp) }} trigger={['click']} placement="bottomRight">
-                                <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
-                                  <MoreVertical className="size-4 text-gray-400" />
-                                </button>
-                              </Dropdown>
-                            </div>
-                          </div>
-
-                          {/* Card info */}
-                          <div className="text-xs text-gray-500 space-y-0.5">
-                            <div className="flex items-center gap-1">
-                              <Network className="size-3 text-gray-400" />
-                              <span className="truncate">{grp.nodeName || nodeNameMap.get(grp.nodeId) || `Node ${grp.nodeId}`}</span>
-                            </div>
-                            <div>분배방식: {ROUTE_TYPE_LABELS[grp.routeType] ?? grp.routeType}</div>
-                            <div>배정 MS 수: {grp.routeCnt ?? 0}</div>
-                          </div>
-
-                          {/* Tags */}
-                          {tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {tags.map((tag) => (
-                                <span
-                                  key={tag.label}
-                                  className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
-                                  style={{
-                                    color: tag.color,
-                                    backgroundColor: tag.bgColor,
-                                    borderColor: tag.borderColor,
-                                  }}
-                                >
-                                  {tag.label}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    type="text"
-                    icon={<ChevronRight className="size-5" />}
-                    onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
-                    className="!flex-shrink-0 !w-8 !h-8 !p-0"
-                  />
-                </div>
-              )}
+          {/* 목록 헤더: 타이틀 + 건수 / 우측 표기방식 토글 */}
+          <div className="flex items-center gap-2 px-4 h-[44px] border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">MS그룹</span>
+            <span className="text-xs text-gray-400">{filteredMsGroups.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
             </div>
-          }
+          </div>
+
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
+          <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[180px]' : 'h-[240px]'}`}>
+            {filteredMsGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
+                <Empty description={false} imageStyle={{ height: 40 }} />
+                <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : selectedNodeId ? '이 노드에 등록된 MS그룹이 없습니다' : '등록된 MS그룹이 없습니다'}</span>
+              </div>
+            ) : viewMode === VIEW_MODE.LIST ? (
+              // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 수정 Drawer 를 연다.
+              <div className="w-full h-full">
+                <AgGridReact<MsGroup>
+                  rowData={filteredMsGroups}
+                  columnDefs={msGroupColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => String(params.data.msGroupId)}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.msGroupId === selectedGroupId }}
+                  onGridReady={(e) => {
+                    grpGridApiRef.current = e.api;
+                  }}
+                  onRowClicked={(e) => {
+                    if (e.data) handleCardSelect(e.data);
+                  }}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) handleEditMsGroup(e.data);
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="relative flex items-center gap-2 w-full">
+                <Button
+                  type="text"
+                  icon={<ChevronLeft className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+                <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {filteredMsGroups.map((grp) => {
+                    const isCardSelected = selectedGroupId === grp.msGroupId;
+                    const isDefaultGroup = defaultMsGroupId === grp.msGroupId && selectedNodeId === grp.nodeId;
+                    const tags = getMsGroupTagList(grp);
+                    const grpNodeFault = nodesFaultMap.get(grp.nodeId) ?? false;
+                    return (
+                      <div
+                        key={grp.msGroupId}
+                        id={`msg-card-${grp.msGroupId}`}
+                        className={`bg-white border rounded-lg p-3.5 cursor-pointer transition-all w-[220px] h-[145px] flex-shrink-0 flex flex-col ${
+                          isCardSelected
+                            ? 'border-[#405189] shadow-[0_0_0_2px_rgba(64,81,137,0.15)]'
+                            : 'border-gray-200 hover:border-[#c5cbe0] hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                        }`}
+                        onClick={(e) => {
+                          handleCardSelect(grp);
+                          (e.currentTarget as HTMLElement).scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                        }}
+                        onDoubleClick={() => handleEditMsGroup(grp)}
+                      >
+                        {/* Card header: 상태배지 + 그룹명 + 기본 뱃지 + 더보기 */}
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2 min-w-0">
+                            {grpNodeFault && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold border flex-shrink-0"
+                                style={{ color: '#ff4d4f', backgroundColor: '#fff2f0', borderColor: '#ff4d4f40' }}
+                              >
+                                장애
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-800 truncate">{grp.msGroupName}</span>
+                            {isDefaultGroup && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-200">기본</span>
+                            )}
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown menu={{ items: getCardMenuItems(grp) }} trigger={['click']} placement="bottomRight">
+                              <button type="button" className="p-1 rounded hover:bg-gray-100 transition-colors">
+                                <MoreVertical className="size-4 text-gray-400" />
+                              </button>
+                            </Dropdown>
+                          </div>
+                        </div>
+
+                        {/* Card info */}
+                        <div className="text-xs text-gray-500 space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Network className="size-3 text-gray-400" />
+                            <span className="truncate">{grp.nodeName || nodeNameMap.get(grp.nodeId) || `Node ${grp.nodeId}`}</span>
+                          </div>
+                          <div>분배방식: {ROUTE_TYPE_LABELS[grp.routeType] ?? grp.routeType}</div>
+                          <div>배정 MS 수: {grp.routeCnt ?? 0}</div>
+                        </div>
+
+                        {/* Tags */}
+                        {tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {tags.map((tag) => (
+                              <span
+                                key={tag.label}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border"
+                                style={{
+                                  color: tag.color,
+                                  backgroundColor: tag.bgColor,
+                                  borderColor: tag.borderColor,
+                                }}
+                              >
+                                {tag.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <Button
+                  type="text"
+                  icon={<ChevronRight className="size-5" />}
+                  onClick={() => cardScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                  className="!flex-shrink-0 !w-8 !h-8 !p-0"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ===== 하단: 미디어서버 ag-Grid ===== */}

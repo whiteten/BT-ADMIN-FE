@@ -13,11 +13,11 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
-import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, Copy, Edit3, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { AlertTriangle, ChevronLeft, ChevronRight, Copy, Edit3, Layers, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import EmergCodeDrawer, { type EmergCodeDrawerRef } from '../../features/emerg-profile/components/EmergCodeDrawer';
 import EmergProfileCopyDialog, { type EmergProfileCopyDialogRef } from '../../features/emerg-profile/components/EmergProfileCopyDialog';
@@ -38,6 +38,7 @@ import {
 } from '../../features/emerg-profile/hooks/useEmergProfileQueries';
 import type { EmergCode, EmergProfile } from '../../features/emerg-profile/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -61,12 +62,16 @@ export default function EmergProfileManage() {
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [cardCollapsed, setCardCollapsed] = useState(true);
+  // 프로파일 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 긴급코드 프로파일 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-emerg-profile');
   // 긴급코드 그리드 서버사이드 LIKE 검색 (SWAT: sEmergencyCode / sEmergencyCodeName)
   const [codeSearchCode, setCodeSearchCode] = useState('');
   const [codeSearchName, setCodeSearchName] = useState('');
   const [codeSearchParams, setCodeSearchParams] = useState<{ emergencyCode?: string; emergencyCodeName?: string }>({});
   const cardScrollRef = useRef<HTMLDivElement>(null);
   const tabScrollRef = useRef<HTMLDivElement>(null);
+  // 리스트형 프로파일 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const profileGridApiRef = useRef<GridApi<EmergProfile> | null>(null);
 
   // ─── Refs ───────────────────────────────────────────────────────────────────
   const profileDrawerRef = useRef<EmergProfileDrawerRef>(null);
@@ -118,6 +123,12 @@ export default function EmergProfileManage() {
       setSelectedProfileId(filteredProfiles[0].emergencyCodeProfileId);
     }
   }, [filteredProfiles, selectedProfileId]);
+
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) profileGridApiRef.current?.redrawRows();
+  }, [selectedProfileId, viewMode]);
 
   // 노드 스코프가 바뀌어 선택 노드가 스코프 밖이면 전체(null)로 해제
   useEffect(() => {
@@ -308,6 +319,72 @@ export default function EmergProfileManage() {
     { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleProfileDelete(profile) },
   ];
 
+  // ─── ag-Grid: 프로파일 columns (리스트형 목록) ──────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const profileColumnDefs: ColDef<EmergProfile>[] = [
+    {
+      headerName: '프로파일명',
+      field: 'emergencyCodeProfileName',
+      flex: 2,
+      minWidth: 160,
+      tooltipField: 'emergencyCodeProfileName',
+    },
+    {
+      headerName: '노드',
+      colId: 'nodeName',
+      flex: 1,
+      minWidth: 110,
+      valueGetter: (params) => (params.data ? (nodes.find((n) => n.nodeId === params.data!.nodeId)?.nodeName ?? `Node ${params.data.nodeId}`) : null),
+    },
+    {
+      headerName: '긴급코드',
+      field: 'codeCount',
+      flex: 0.8,
+      minWidth: 100,
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => `${params.data?.codeCount ?? 0}건`,
+    },
+    {
+      headerName: '라우트',
+      colId: 'routeStatus',
+      flex: 1,
+      minWidth: 110,
+      valueGetter: (params) => (params.data?.hasUnassignedRoute ? '미지정' : '정상'),
+      cellRenderer: (params: ICellRendererParams<EmergProfile>) => {
+        if (!params.data) return null;
+        return params.data.hasUnassignedRoute ? (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold border text-amber-700 bg-amber-50 border-amber-200">
+            <AlertTriangle className="size-3" />
+            미지정
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium border text-green-700 bg-green-50 border-green-200">정상</span>
+        );
+      },
+    },
+    {
+      headerName: '',
+      colId: 'actions',
+      width: 56,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<EmergProfile>) => {
+        if (!params.data) return null;
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dropdown menu={{ items: getProfileMenuItems(params.data) }} trigger={['click']} placement="bottomRight">
+              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                <MoreVertical className="size-3.5 text-gray-400" />
+              </button>
+            </Dropdown>
+          </div>
+        );
+      },
+    },
+  ];
+
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
   const defaultColDef: ColDef = useMemo(
     () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
@@ -424,24 +501,47 @@ export default function EmergProfileManage() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 ===== */}
+        {/* ===== 카드 슬라이더 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 접기/펼치기 헤더 */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setCardCollapsed((c) => !c)}
-          >
-            <span>프로파일 카드</span>
-            <span>{cardCollapsed ? '펼치기' : '접기'}</span>
-          </button>
-          {/* Card slider body */}
+          {/* 접기/펼치기 + 표기방식 토글 헤더 */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+            <button type="button" className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors" onClick={() => setCardCollapsed((c) => !c)}>
+              <span>프로파일 카드</span>
+              <span className="text-gray-400">{cardCollapsed ? '펼치기' : '접기'}</span>
+            </button>
+            <span className="text-xs text-gray-400">{filteredProfiles.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
           {!cardCollapsed && (
-            <div className="flex items-center px-4 py-3 h-[170px]">
+            <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[170px]' : 'h-[240px]'}`}>
               {filteredProfiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
                   <Empty description={false} imageStyle={{ height: 40 }} />
                   <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
+                </div>
+              ) : viewMode === VIEW_MODE.LIST ? (
+                // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 수정 Drawer 를 연다.
+                <div className="w-full h-full">
+                  <AgGridReact<EmergProfile>
+                    rowData={filteredProfiles}
+                    columnDefs={profileColumnDefs}
+                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                    getRowId={(params) => String(params.data.emergencyCodeProfileId)}
+                    defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                    rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.emergencyCodeProfileId === selectedProfileId }}
+                    onGridReady={(e) => {
+                      profileGridApiRef.current = e.api;
+                    }}
+                    onRowClicked={(e) => {
+                      if (e.data) handleCardSelect(e.data);
+                    }}
+                    onRowDoubleClicked={(e) => {
+                      if (e.data) handleProfileEdit(e.data);
+                    }}
+                  />
                 </div>
               ) : (
                 <div className="relative flex items-center gap-2 w-full">

@@ -18,11 +18,11 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty, Input } from 'antd';
 import { Building2, ChevronLeft, ChevronRight, Copy, Edit3, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
-import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
+import { VIEW_MODE, useAuthStore, useBreadcrumbStore, useOperatorScopeStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DevfuncCodeDrawer, { type DevfuncCodeDrawerRef } from '../../features/devfunc-profile/components/DevfuncCodeDrawer';
 import DevfuncProfileCopyDialog, { type DevfuncProfileCopyDialogRef } from '../../features/devfunc-profile/components/DevfuncProfileCopyDialog';
@@ -42,6 +42,7 @@ import {
 } from '../../features/devfunc-profile/hooks/useDevfuncProfileQueries';
 import type { DevfuncCode, DevfuncProfile } from '../../features/devfunc-profile/types';
 import ScopeSelect from '@/components/custom/ScopeSelect';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -79,9 +80,13 @@ export default function DevfuncProfileManage() {
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [searchText, setSearchText] = useState('');
   const [cardCollapsed, setCardCollapsed] = useState(true);
+  // 프로파일 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 기능코드 프로파일 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-devfunc-profile');
   const [codeSearchCode, setCodeSearchCode] = useState('');
   const [codeSearchName, setCodeSearchName] = useState('');
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  // 리스트형 프로파일 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const profileGridApiRef = useRef<GridApi<DevfuncProfile> | null>(null);
 
   // ─── Refs ───────────────────────────────────────────────────────────────────
   const profileDrawerRef = useRef<DevfuncProfileDrawerRef>(null);
@@ -130,6 +135,12 @@ export default function DevfuncProfileManage() {
       setSelectedProfileId(filteredProfiles[0].devfuncCodeProfileId);
     }
   }, [filteredProfiles, selectedProfileId]);
+
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) profileGridApiRef.current?.redrawRows();
+  }, [selectedProfileId, viewMode]);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleSearchChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +301,57 @@ export default function DevfuncProfileManage() {
     { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleProfileDelete(profile) },
   ];
 
+  // ─── ag-Grid: 프로파일 columns (리스트형 목록) ──────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const profileColumnDefs: ColDef<DevfuncProfile>[] = [
+    {
+      headerName: '프로파일명',
+      field: 'devfuncCodeProfileName',
+      flex: 2,
+      minWidth: 160,
+      tooltipField: 'devfuncCodeProfileName',
+    },
+    {
+      headerName: '테넌트',
+      colId: 'tenantName',
+      flex: 1,
+      minWidth: 120,
+      valueGetter: (params) => {
+        if (!params.data) return null;
+        return params.data.tenantName ?? tenants.find((t) => t.tenantId === params.data!.tenantId)?.tenantName ?? `Tenant ${params.data.tenantId}`;
+      },
+    },
+    {
+      headerName: '기능코드',
+      field: 'codeCount',
+      flex: 0.8,
+      minWidth: 100,
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => `${params.data?.codeCount ?? 0}건`,
+    },
+    {
+      headerName: '',
+      colId: 'actions',
+      width: 56,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<DevfuncProfile>) => {
+        if (!params.data) return null;
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dropdown menu={{ items: getProfileMenuItems(params.data) }} trigger={['click']} placement="bottomRight">
+              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                <MoreVertical className="size-3.5 text-gray-400" />
+              </button>
+            </Dropdown>
+          </div>
+        );
+      },
+    },
+  ];
+
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
   const defaultColDef: ColDef = useMemo(
     () => ({ sortable: true, filter: true, resizable: true, suppressHeaderMenuButton: true, wrapHeaderText: true, autoHeaderHeight: true }),
@@ -388,24 +450,47 @@ export default function DevfuncProfileManage() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 ===== */}
+        {/* ===== 카드 슬라이더 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 접기/펼치기 헤더 */}
-          <button
-            type="button"
-            className="w-full flex items-center justify-between px-4 py-2 text-xs text-gray-500 hover:bg-gray-50 border-b border-gray-100 transition-colors"
-            onClick={() => setCardCollapsed((c) => !c)}
-          >
-            <span>프로파일 카드</span>
-            <span>{cardCollapsed ? '펼치기' : '접기'}</span>
-          </button>
-          {/* Card slider body */}
+          {/* 접기/펼치기 + 표기방식 토글 헤더 */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
+            <button type="button" className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors" onClick={() => setCardCollapsed((c) => !c)}>
+              <span>프로파일 카드</span>
+              <span className="text-gray-400">{cardCollapsed ? '펼치기' : '접기'}</span>
+            </button>
+            <span className="text-xs text-gray-400">{filteredProfiles.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
           {!cardCollapsed && (
-            <div className="flex items-center px-4 py-3 h-[170px]">
+            <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[170px]' : 'h-[240px]'}`}>
               {filteredProfiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
                   <Empty description={false} imageStyle={{ height: 40 }} />
                   <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
+                </div>
+              ) : viewMode === VIEW_MODE.LIST ? (
+                // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 수정 Drawer 를 연다.
+                <div className="w-full h-full">
+                  <AgGridReact<DevfuncProfile>
+                    rowData={filteredProfiles}
+                    columnDefs={profileColumnDefs}
+                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                    getRowId={(params) => String(params.data.devfuncCodeProfileId)}
+                    defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                    rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.devfuncCodeProfileId === selectedProfileId }}
+                    onGridReady={(e) => {
+                      profileGridApiRef.current = e.api;
+                    }}
+                    onRowClicked={(e) => {
+                      if (e.data) handleCardSelect(e.data);
+                    }}
+                    onRowDoubleClicked={(e) => {
+                      if (e.data) handleProfileEdit(e.data);
+                    }}
+                  />
                 </div>
               ) : (
                 <div className="relative flex items-center gap-2 w-full">

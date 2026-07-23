@@ -7,11 +7,11 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Dropdown, Empty } from 'antd';
 import { ChevronLeft, ChevronRight, ChevronsDown, ChevronsUp, Edit3, MoreVertical, Plus, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import SipHeaderGroupDrawer, { type SipHeaderGroupDrawerRef } from '../../features/sip-profile/components/SipHeaderGroupDrawer';
 import SipHeaderRelayDrawer, { type SipHeaderRelayDrawerRef } from '../../features/sip-profile/components/SipHeaderRelayDrawer';
@@ -29,6 +29,7 @@ import {
 } from '../../features/sip-profile/hooks/useSipProfileQueries';
 import type { SipHeaderGroup, SipHeaderRelay } from '../../features/sip-profile/types';
 import { IconTrash } from '@/components/custom/Icons';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -55,11 +56,15 @@ export default function SipHeaderManage() {
   // ─── State ──────────────────────────────────────────────────────────────────
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [cardCollapsed, setCardCollapsed] = useState(true);
+  // 헤더 그룹 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 SIP 헤더 관리 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-sip-header');
 
   // ─── Refs ─────────────────────────────────────────────────────────────────
   const groupDrawerRef = useRef<SipHeaderGroupDrawerRef>(null);
   const relayDrawerRef = useRef<SipHeaderRelayDrawerRef>(null);
   const cardScrollRef = useRef<HTMLDivElement>(null);
+  // 리스트형 그룹 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const groupGridApiRef = useRef<GridApi<SipHeaderGroup> | null>(null);
 
   // ─── Queries ──────────────────────────────────────────────────────────────
   const { data: headerGroups = [] } = useGetSipHeaderGroups();
@@ -76,6 +81,12 @@ export default function SipHeaderManage() {
       setSelectedGroupId(headerGroups[0].sipHeaderGrpId);
     }
   }, [headerGroups, selectedGroupId]);
+
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) groupGridApiRef.current?.redrawRows();
+  }, [selectedGroupId, viewMode]);
 
   // ─── Invalidate helpers ─────────────────────────────────────────────────
   const invalidateGroups = useCallback(() => {
@@ -249,6 +260,47 @@ export default function SipHeaderManage() {
     },
   ];
 
+  // ─── ag-Grid: 헤더 그룹 columns (리스트형 목록) ──────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const groupColumnDefs: ColDef<SipHeaderGroup>[] = [
+    {
+      headerName: '그룹명',
+      field: 'sipHeaderGrpName',
+      flex: 2,
+      minWidth: 160,
+      tooltipField: 'sipHeaderGrpName',
+    },
+    {
+      headerName: '할당 릴레이',
+      field: 'memberCount',
+      flex: 1,
+      minWidth: 110,
+      filter: 'agNumberColumnFilter',
+      valueFormatter: (params) => `${params.data?.memberCount ?? 0}건`,
+    },
+    {
+      headerName: '',
+      colId: 'actions',
+      width: 56,
+      sortable: false,
+      filter: false,
+      suppressHeaderMenuButton: true,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<SipHeaderGroup>) => {
+        if (!params.data) return null;
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Dropdown menu={{ items: getGroupMenuItems(params.data) }} trigger={['click']} placement="bottomRight">
+              <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                <MoreVertical className="size-3.5 text-gray-400" />
+              </button>
+            </Dropdown>
+          </div>
+        );
+      },
+    },
+  ];
+
   // ─── ag-Grid columns ──────────────────────────────────────────────────────
   const columnDefs: ColDef<SipHeaderRelay>[] = [
     {
@@ -336,26 +388,51 @@ export default function SipHeaderManage() {
         </div>
       </div>
 
-      {/* ===== 카드 슬라이더 박스 (Header Groups) ===== */}
+      {/* ===== 카드 슬라이더 박스 (카드형 / 리스트형 — 선택은 localStorage 유지) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-        {/* 접기/펼치기 헤더 */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+        {/* 접기/펼치기 + 표기방식 토글 헤더 */}
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100">
           <span className="text-xs text-gray-500">헤더 그룹 카드</span>
-          <Button
-            type="text"
-            size="small"
-            icon={cardCollapsed ? <ChevronsDown className="size-4" /> : <ChevronsUp className="size-4" />}
-            onClick={() => setCardCollapsed((c) => !c)}
-            title={cardCollapsed ? '카드 펼치기' : '카드 접기'}
-            className="!w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
-          />
+          <span className="text-xs text-gray-400">{headerGroups.length}</span>
+          <div className="ml-auto flex items-center gap-2">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            <Button
+              type="text"
+              size="small"
+              icon={cardCollapsed ? <ChevronsDown className="size-4" /> : <ChevronsUp className="size-4" />}
+              onClick={() => setCardCollapsed((c) => !c)}
+              title={cardCollapsed ? '카드 펼치기' : '카드 접기'}
+              className="!w-8 !h-8 !p-0 !text-gray-400 hover:!text-[#405189]"
+            />
+          </div>
         </div>
         {!cardCollapsed && (
-          <div className="flex items-center px-4 py-3">
+          <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.LIST ? 'h-[240px]' : ''}`}>
             {headerGroups.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full py-4 text-gray-400 gap-3">
                 <Empty description={false} />
                 <span className="text-sm">등록된 그룹이 없습니다</span>
+              </div>
+            ) : viewMode === VIEW_MODE.LIST ? (
+              // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 수정 Drawer 를 연다.
+              <div className="w-full h-full">
+                <AgGridReact<SipHeaderGroup>
+                  rowData={headerGroups}
+                  columnDefs={groupColumnDefs}
+                  gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                  getRowId={(params) => String(params.data.sipHeaderGrpId)}
+                  defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                  rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.sipHeaderGrpId === selectedGroupId }}
+                  onGridReady={(e) => {
+                    groupGridApiRef.current = e.api;
+                  }}
+                  onRowClicked={(e) => {
+                    if (e.data) handleCardSelect(e.data);
+                  }}
+                  onRowDoubleClicked={(e) => {
+                    if (e.data) handleGroupEdit(e.data);
+                  }}
+                />
               </div>
             ) : (
               <div className="relative flex items-center gap-2 w-full">
