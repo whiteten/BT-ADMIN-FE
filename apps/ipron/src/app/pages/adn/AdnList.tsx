@@ -129,14 +129,11 @@ export default function AdnList() {
   // ─── Handlers ───────────────────────────────────────────────────────────
   // 등록/수정 드로어 오픈 시 복사·가져오기 드로어를 닫아 중첩을 방지한다.
   const handleCreate = useCallback(() => {
-    if (selectedTenantId == null) {
-      toast.warning('대행할 테넌트를 먼저 선택하세요');
-      return;
-    }
+    // 운영자 전체(view-all) 모드에서도 등록 허용 — 테넌트 미지정 시 드로어 폼에서 필수 선택하게 강제(CallScreenList.handleCreate 동일).
     setCopyOpen(false);
     setImportOpen(false);
     setFormDrawer({ open: true, mode: 'create', dnId: null });
-  }, [selectedTenantId]);
+  }, []);
 
   const handleEdit = useCallback((adn: AdnResponse) => {
     setCopyOpen(false);
@@ -280,7 +277,7 @@ export default function AdnList() {
 
       {/* ===== ag-Grid 박스 ===== */}
       <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
+        <div className="px-5 py-3 flex items-center gap-2 h-[44px] flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">ADN 목록 ({filteredAdns.length.toLocaleString()}건)</span>
           {selectedRows.length > 0 && (
             <span className="text-xs text-gray-500">
@@ -306,7 +303,8 @@ export default function AdnList() {
             </Button>
           </div>
         </div>
-        <div className="flex-1 min-h-0">
+        <div className="border-t border-gray-200" />
+        <div className="flex-1 min-h-0 p-5">
           <AdnTable
             rowData={filteredAdns}
             isLoading={isLoading}

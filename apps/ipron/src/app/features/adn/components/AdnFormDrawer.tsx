@@ -186,11 +186,12 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
           {operatorMode ? (
             <Col span={12}>
               <Form.Item label="테넌트" name="tenantId" rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+                {/* 잠금: 수정 || 운영자 대행(특정 테넌트 지정). 운영자 전체(defaultTenantId=null)면 직접 선택(CallScreenDrawer tenantLocked 동일). */}
                 {!isEditMode && tenantOptions.length === 0 ? (
                   /* 옵션 미로드 시 폴백 — 수정모드에서는 항상 Select */
-                  <InputNumber style={{ width: '100%' }} disabled={isEditMode} placeholder="테넌트 ID" min={1} />
+                  <InputNumber style={{ width: '100%' }} disabled={isEditMode || defaultTenantId != null} placeholder="테넌트 ID" min={1} />
                 ) : (
-                  <Select options={tenantOptions} placeholder="테넌트 선택" disabled={isEditMode} />
+                  <Select options={tenantOptions} placeholder="테넌트 선택" disabled={isEditMode || defaultTenantId != null} showSearch optionFilterProp="label" />
                 )}
               </Form.Item>
             </Col>
