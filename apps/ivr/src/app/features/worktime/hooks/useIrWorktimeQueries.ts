@@ -2,12 +2,12 @@
  * IR 업무시간 관리 TanStack Query 훅.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { irWorktimeApi } from '../api/irWorktimeApi';
 import type { IrWorktime, IrWorktimeTenantStat } from '../types';
 
-export const irWorktimeQueryKeys = createQueryKeys('ir-worktime', {
+export const irWorktimeQueryKeys = createAppQueryKeys('ir-worktime', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenantStats: null,

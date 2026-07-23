@@ -7,8 +7,8 @@
  *  - 멤버 저장                           → members + gdns(배정 트렁크 수 보강) + trunks(배정상태)
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { commonTrunkApi } from '../api/commonTrunkApi';
 import type {
   AssignFilter,
@@ -24,7 +24,7 @@ import type {
   CommonTrunkUpdateRequest,
 } from '../types';
 
-export const commonTrunkQueryKeys = createQueryKeys('common-trunk', {
+export const commonTrunkQueryKeys = createAppQueryKeys('common-trunk', {
   nodes: null,
   trunks: (nodeId?: number) => [nodeId],
   trunkDetail: (id?: number) => [id],

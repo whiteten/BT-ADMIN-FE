@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { agentApi } from '../api/agentApi';
 import type { AgentItem, AgentListItem, AgentType } from '../types';
 
-export const agentQueryKeys = createQueryKeys('agents', {
+export const agentQueryKeys = createAppQueryKeys('agents', {
   getAgents: (params?: Record<string, unknown>) => [params],
   getAgent: (params?: Record<string, unknown>) => [params],
   getAgentTypes: (params?: Record<string, unknown>) => [params],

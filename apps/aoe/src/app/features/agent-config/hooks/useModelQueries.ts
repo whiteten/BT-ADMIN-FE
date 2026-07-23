@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { modelApi } from '../api/modelApi';
 import type { AvailableModelItem, ModelCreateRequest, ModelDetailItem, ModelItem, ModelListItem, ModelUpdateRequest } from '../types';
 
-export const modelQueryKeys = createQueryKeys('models', {
+export const modelQueryKeys = createAppQueryKeys('models', {
   getModels: (params?: Record<string, unknown>) => [params],
   getModel: (params?: Record<string, unknown>) => [params],
   getModelDetails: (params?: Record<string, unknown>) => [params],

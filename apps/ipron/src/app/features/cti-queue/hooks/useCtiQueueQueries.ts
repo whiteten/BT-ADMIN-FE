@@ -6,8 +6,8 @@
  *  - bsr/slt 스케줄 배정/해제 → 해당 큐 스케줄 목록
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ctiQueueApi } from '../api/ctiQueueApi';
 import type {
   AccessCodeProfileOption,
@@ -31,7 +31,7 @@ import type {
   SltScheduleResponse,
 } from '../types';
 
-export const ctiQueueQueryKeys = createQueryKeys('cti-queue', {
+export const ctiQueueQueryKeys = createAppQueryKeys('cti-queue', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (ctiqId?: number) => [ctiqId],
   getTenants: null,

@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dbConnectionApi, dbToolApi } from '../api/dataProviderApi';
 import type { DbConnection, DbConnectionCreateDatas, DbTool, DbToolCreateDatas } from '../types';
 
-export const dataProviderQueryKeys = createQueryKeys('dataProvider', {
+export const dataProviderQueryKeys = createAppQueryKeys('dataProvider', {
   getDbConnectionList: (params?: Record<string, unknown>) => [params],
   getDbConnectionDetail: (params: { connId: string }) => [params],
   getDbToolList: (params?: Record<string, unknown>) => [params],

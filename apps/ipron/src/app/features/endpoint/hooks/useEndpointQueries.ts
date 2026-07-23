@@ -3,12 +3,12 @@
  * SD-ENDPOINT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type CountryOption, endpointApi } from '../api/endpointApi';
 import type { Endpoint, EndpointMember, EndpointRegnum } from '../types';
 
-export const endpointQueryKeys = createQueryKeys('endpoints', {
+export const endpointQueryKeys = createAppQueryKeys('endpoints', {
   getEndpoints: (params?: Record<string, unknown>) => [params],
   getEndpointDetail: (params?: Record<string, unknown>) => [params],
   getMembers: (params?: Record<string, unknown>) => [params],

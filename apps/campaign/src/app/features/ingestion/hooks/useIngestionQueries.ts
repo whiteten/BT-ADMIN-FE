@@ -1,17 +1,10 @@
-import { useMutation, useQuery, type UseMutationOptions } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { type UseMutationOptions, useMutation, useQuery } from '@tanstack/react-query';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ingestionApi } from '../api/ingestionApi';
-import type {
-  IngestError,
-  IngestHistory,
-  IngestMapping,
-  IngestMappingListItem,
-  IngestMappingSaveDatas,
-  TargetFieldDef,
-} from '../types';
+import type { IngestError, IngestHistory, IngestMapping, IngestMappingListItem, IngestMappingSaveDatas, TargetFieldDef } from '../types';
 
-export const ingestionQueryKeys = createQueryKeys('campaignIngestion', {
+export const ingestionQueryKeys = createAppQueryKeys('campaignIngestion', {
   targetFields: null,
   mappingList: null,
   mapping: (mappingId: number) => [mappingId],
@@ -62,9 +55,7 @@ export const useGetIngestHistoryErrors = ({ params, queryOptions }: QueryHookWit
 
 // ===== 변경 =====
 
-export const useCreateIngestMapping = ({
-  mutationOptions,
-}: { mutationOptions?: UseMutationOptions<IngestMapping | undefined, Error, IngestMappingSaveDatas> } = {}) =>
+export const useCreateIngestMapping = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<IngestMapping | undefined, Error, IngestMappingSaveDatas> } = {}) =>
   useMutation({
     mutationFn: (datas: IngestMappingSaveDatas) => ingestionApi.createMapping(datas),
     ...mutationOptions,
@@ -76,22 +67,17 @@ export const useUpdateIngestMapping = ({
   mutationOptions?: UseMutationOptions<IngestMapping | undefined, Error, { mappingId: number; datas: IngestMappingSaveDatas }>;
 } = {}) =>
   useMutation({
-    mutationFn: ({ mappingId, datas }: { mappingId: number; datas: IngestMappingSaveDatas }) =>
-      ingestionApi.updateMapping(mappingId, datas),
+    mutationFn: ({ mappingId, datas }: { mappingId: number; datas: IngestMappingSaveDatas }) => ingestionApi.updateMapping(mappingId, datas),
     ...mutationOptions,
   });
 
-export const useDeleteIngestMapping = ({
-  mutationOptions,
-}: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) =>
+export const useDeleteIngestMapping = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<void, Error, number> } = {}) =>
   useMutation({
     mutationFn: (mappingId: number) => ingestionApi.deleteMapping(mappingId),
     ...mutationOptions,
   });
 
-export const useRunIngestion = ({
-  mutationOptions,
-}: { mutationOptions?: UseMutationOptions<IngestHistory | undefined, Error, { mappingId: number; file: File }> } = {}) =>
+export const useRunIngestion = ({ mutationOptions }: { mutationOptions?: UseMutationOptions<IngestHistory | undefined, Error, { mappingId: number; file: File }> } = {}) =>
   useMutation({
     mutationFn: ({ mappingId, file }: { mappingId: number; file: File }) => ingestionApi.runIngestion({ mappingId, file }),
     ...mutationOptions,

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { statisticsApi } from '../api/statisticsApi';
 import type {
   CampaignAchievementStatList,
@@ -20,7 +20,7 @@ import type {
   UserDefStatList,
 } from '../types';
 
-export const statisticsQueryKeys = createQueryKeys('statistics', {
+export const statisticsQueryKeys = createAppQueryKeys('statistics', {
   getServiceStatList: (params?: Record<string, unknown>) => [params],
   getDialogStatList: (params?: Record<string, unknown>) => [params],
   getSlotStatList: (params?: Record<string, unknown>) => [params],

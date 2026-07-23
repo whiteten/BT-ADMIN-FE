@@ -57,6 +57,8 @@ export default defineConfig({
     preEntry: [path.resolve(__dirname, '../../libs/shared-ui/src/styles/global.css')],
     define: {
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
+      // 앱 폴더명 — query key 앱 스코프(src/app/shared/queryKeys.ts) 등 앱 식별용
+      __APP_NAME__: JSON.stringify(path.basename(__dirname)),
       // PUBLIC_REACT_QUERY_DEVTOOLS는 apps/host/.env + rsbuild PUBLIC_ 자동 노출로 주입 — 수동 define 불필요
     },
   },

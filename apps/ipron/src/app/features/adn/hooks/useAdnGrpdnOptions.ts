@@ -9,9 +9,14 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import ApiClient, { type ApiResponse } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import type { DnOptionsResponse } from '../../dn/types';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
+
+const adnGrpdnOptionKeys = createAppQueryKeys('adn-grpdn-options', {
+  list: (tenantId?: number | null) => [{ tenantId: tenantId ?? null }],
+});
 
 /**
  * tenantId 범위의 GDN(그룹발신번호, GDN_TYPE=16) 옵션 조회.
@@ -19,7 +24,7 @@ const apiClient = new ApiClient({ serviceURL: '/bff' });
  */
 export const useAdnGrpdnOptions = (tenantId: number | null | undefined) => {
   const { data, isLoading } = useQuery({
-    queryKey: ['adn-grpdn-options', tenantId],
+    queryKey: adnGrpdnOptionKeys.list(tenantId).queryKey,
     queryFn: async () => {
       const res = await apiClient.get<ApiResponse<DnOptionsResponse>>('/ipron-dn-options', {
         params: { tenantId },

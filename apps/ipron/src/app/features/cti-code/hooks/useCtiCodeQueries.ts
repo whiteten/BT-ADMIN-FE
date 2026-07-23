@@ -5,8 +5,8 @@
  *  - ReasonCode 변경 (create/update/delete/copy) → reasonList + tenantStats
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ctiCodeApi } from '../api/ctiCodeApi';
 import type {
   CtiCodeTenantStat,
@@ -18,7 +18,7 @@ import type {
   ReasonCodeUpdateRequest,
 } from '../types';
 
-export const ctiCodeQueryKeys = createQueryKeys('cti-code', {
+export const ctiCodeQueryKeys = createAppQueryKeys('cti-code', {
   tenantStats: null,
   reasonList: (params?: Record<string, unknown>) => [params],
   reasonDetail: (path?: Record<string, unknown>) => [path],

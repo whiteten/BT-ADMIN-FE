@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type DecryptBubblesArgs, type DecryptedBubbleDto, type DialogHistoryConfig, botDialogHistoryApi } from '../api/botDialogHistoryApi';
 import type { BotServiceDto, IntentDto, NluAnalysisItem, RetrainLogItem, TrackingFlowItem } from '../types';
 
-export const botDialogHistoryQueryKeys = createQueryKeys('history', {
+export const botDialogHistoryQueryKeys = createAppQueryKeys('history', {
   getConfig: null,
   getBotServices: (params?: Record<string, unknown>) => [params],
   getIntents: (params?: Record<string, unknown>) => [params],

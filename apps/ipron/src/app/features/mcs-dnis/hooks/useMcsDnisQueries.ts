@@ -2,8 +2,8 @@
  * DNIS 관리 (MCS) React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { mcsDnisApi } from '../api/mcsDnisApi';
 import type { McsdDnis, McsdGdn } from '../types';
 
@@ -12,7 +12,7 @@ interface NodeSimpleResponse {
   nodeName: string;
 }
 
-export const mcsDnisQueryKeys = createQueryKeys('mcsDnis', {
+export const mcsDnisQueryKeys = createAppQueryKeys('mcsDnis', {
   getGdnList: (params?: Record<string, unknown>) => [params],
   getDnisList: (params?: Record<string, unknown>) => [params],
   getNodes: null,

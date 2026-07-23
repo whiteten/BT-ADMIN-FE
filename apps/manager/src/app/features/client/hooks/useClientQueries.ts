@@ -2,12 +2,12 @@
  * OAuth2 클라이언트 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { clientApi } from '../api/clientApi';
 import type { Client } from '../types';
 
-export const clientQueryKeys = createQueryKeys('oauth-clients', {
+export const clientQueryKeys = createAppQueryKeys('oauth-clients', {
   getClients: (params?: Record<string, unknown>) => [params],
   getClient: (params?: Record<string, unknown>) => [params],
 });

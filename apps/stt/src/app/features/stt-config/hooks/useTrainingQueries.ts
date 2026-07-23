@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { trainingApi } from '../api/trainingApi';
 import type {
   ConfidenceTrainingItem,
@@ -11,7 +11,7 @@ import type {
   TuningSentenceUpdateDatas,
 } from '../types';
 
-export const trainingQueryKeys = createQueryKeys('training', {
+export const trainingQueryKeys = createAppQueryKeys('training', {
   getTrainingList: (params?: ConfidenceTrainingSearchParams) => [params],
   getTuningSentenceList: (params?: TuningSentenceSearchParams) => [params],
 });

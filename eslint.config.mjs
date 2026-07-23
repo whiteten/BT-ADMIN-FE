@@ -101,6 +101,29 @@ export default [
     },
   },
 
+  // Query key 앱 스코프 강제 — apps에서 query-key-factory 직접 import 금지.
+  // host 셸이 QueryClient를 공유하므로 스코프 없는 키는 앱 간 캐시 오염을 일으킨다.
+  // 각 앱 src/app/shared/queryKeys.ts의 createAppQueryKeys(앱 폴더명 자동 접두)를 사용할 것.
+  // libs(shared-api)는 자체 접두 규약('sharedApi:')을 쓰므로 제외. 타입 전용 import는 허용.
+  {
+    files: ['apps/**/*.ts', 'apps/**/*.tsx'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@lukemorales/query-key-factory',
+              importNames: ['createQueryKeys', 'createQueryKeyStore', 'createMutationKeys', 'mergeQueryKeys'],
+              message: '앱에서는 직접 사용 금지 — 해당 앱 src/app/shared/queryKeys.ts의 createAppQueryKeys를 사용하세요(앱 간 캐시 키 충돌 방지).',
+              allowTypeImports: true,
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // React configuration for TSX files
   {
     files: ['**/*.tsx', '**/*.jsx'],

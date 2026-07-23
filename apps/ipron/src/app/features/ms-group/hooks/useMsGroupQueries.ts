@@ -3,12 +3,12 @@
  * SD-MS-MANAGEMENT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { msGroupApi } from '../api/msGroupApi';
 import type { MediaServer, MsGroup, MsGroupMember, NodeMsSettingResponse } from '../types';
 
-export const msGroupQueryKeys = createQueryKeys('msGroups', {
+export const msGroupQueryKeys = createAppQueryKeys('msGroups', {
   getMsGroups: (params?: Record<string, unknown>) => [params],
   getMsGroupDetail: (params?: Record<string, unknown>) => [params],
   getMsGroupMembers: (params?: Record<string, unknown>) => [params],

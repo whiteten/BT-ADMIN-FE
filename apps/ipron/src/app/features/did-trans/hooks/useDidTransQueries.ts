@@ -2,8 +2,8 @@
  * DID 번호변환 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { didTransApi } from '../api/didTransApi';
 import type { DidTrans, NumPattern } from '../types';
 
@@ -12,7 +12,7 @@ interface NodeSimpleResponse {
   nodeName: string;
 }
 
-export const didTransQueryKeys = createQueryKeys('didTrans', {
+export const didTransQueryKeys = createAppQueryKeys('didTrans', {
   getDnisTransList: (params?: Record<string, unknown>) => [params],
   getDnisTransDetail: (params?: Record<string, unknown>) => [params],
   getAniTransList: (params?: Record<string, unknown>) => [params],

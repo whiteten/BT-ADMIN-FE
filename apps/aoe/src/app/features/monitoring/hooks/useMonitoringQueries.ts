@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { monitoringApi } from '../api/monitoringApi';
 import type { AoeDashboardResponse } from '../types';
 
-export const monitoringQueryKeys = createQueryKeys('aoe-monitoring', {
+export const monitoringQueryKeys = createAppQueryKeys('aoe-monitoring', {
   getDashboard: (params?: Record<string, unknown>) => [params],
 });
 

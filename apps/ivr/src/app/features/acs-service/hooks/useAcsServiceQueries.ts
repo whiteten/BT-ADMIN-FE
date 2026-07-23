@@ -2,12 +2,12 @@
  * ACS 서비스 관리 React Query 훅.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { acsServiceApi } from '../api/acsServiceApi';
 import type { AcsDialConfig, AcsHoliday, AcsService, AcsSystemControl, AcsWorktime } from '../types/acsService.types';
 
-export const acsServiceQueryKeys = createQueryKeys('acsServices', {
+export const acsServiceQueryKeys = createAppQueryKeys('acsServices', {
   getAcsServices: null,
   getAcsService: (acsId?: number) => [acsId],
   getAcsWorktimes: (params?: Record<string, unknown>) => [params],

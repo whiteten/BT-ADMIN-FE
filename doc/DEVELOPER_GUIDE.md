@@ -586,13 +586,16 @@ export const userApi = {
 
 ```typescript
 // features/user/hooks/useUserQueries.ts
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 
-export const userQueryKeys = createQueryKeys('users', {
+// 실제 런타임 키는 '<앱 폴더명>:users'로 자동 스코프됨 (앱 간 캐시 키 충돌 방지)
+export const userQueryKeys = createAppQueryKeys('users', {
   getUsers: (params?: Record<string, unknown>) => [params],
   getUser: (params?: Record<string, unknown>) => [params],
 });
 ```
+
+> `@lukemorales/query-key-factory`의 `createQueryKeys`를 앱에서 직접 import 하면 ESLint 에러가 난다. host 셸이 QueryClient 하나를 공유하므로, 앱마다 `src/app/shared/queryKeys.ts`의 `createAppQueryKeys`(앱 폴더명 자동 접두)를 써야 다른 앱과 키가 겹치지 않는다.
 
 **왜 Query Key Factory를 쓰나요?**
 
@@ -1484,7 +1487,7 @@ import { toast } from '@/shared-util';
 | 일반 함수/변수    | camelCase                      | `const handleSubmit = () => {}`                    |
 | 상수              | UPPER_SNAKE_CASE               | `const MAX_RETRY_COUNT = 3`                        |
 | API 객체          | camelCase + Api                | `export const botApi = {}`                         |
-| Query Key         | camelCase + QueryKeys          | `export const botQueryKeys = createQueryKeys(...)` |
+| Query Key         | camelCase + QueryKeys          | `export const botQueryKeys = createAppQueryKeys(...)` |
 | Zustand 스토어 훅 | camelCase + use 접두사 + Store | `export const useBotStore = create(...)`           |
 
 ### 타입/인터페이스명
@@ -3327,7 +3330,7 @@ export const SelectorKeys = Object.fromEntries(
 
 핵심 유틸: [menuFormOptions.tsx](../apps/manager/src/app/features/menu/utils/menuFormOptions.tsx)의 `splitPathQuery`, `joinPathQuery`.
 
-> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용 — 별도 항목으로 박지 않고 일반 규칙을 따르면 충분).
+> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createAppQueryKeys` factory에 인자로 받으면 자동 적용 — 별도 항목으로 박지 않고 일반 규칙을 따르면 충분).
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가). 선택적 query 키 케이스는 의도적으로 미지원이므로 `QueryParamSpec`에 `required` 같은 옵트인 옵션도 두지 않습니다 — 검증 로직은 [MenuCreateDrawer](../apps/manager/src/app/features/menu/components/MenuCreateDrawer.tsx) / [MenuDetailForm](../apps/manager/src/app/features/menu/components/MenuDetailForm.tsx)의 `handleSubmit`이 담당하고, 빈 selector 옆에 인라인 에러 메시지를 표시합니다([QuerySelectorRenderer](../apps/manager/src/app/features/menu/selectors/QuerySelectorRenderer.tsx)의 `errors` prop).
 >

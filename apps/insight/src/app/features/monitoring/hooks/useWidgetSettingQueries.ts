@@ -1,8 +1,8 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQueries, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type AgentReasonCodeItem, type MediaTypeItem, type WidgetUserSettingDetail, type WidgetUserSettings, widgetSettingApi } from '../api/widgetSettingApi';
 
-export const widgetSettingKeys = createQueryKeys('monitoring-widget-setting', {
+export const widgetSettingKeys = createAppQueryKeys('monitoring-widget-setting', {
   mediaTypes: () => ['media-types'],
   agentReasonCodes: () => ['agent-reason-codes'],
   userSetting: (widgetId: number) => [widgetId],

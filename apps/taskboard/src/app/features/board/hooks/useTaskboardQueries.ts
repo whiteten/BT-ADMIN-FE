@@ -1,12 +1,12 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { useTaskboardTenantParam } from './useTaskboardTenantScope';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type RedisKeyDefinitionsResponse, ctiRedisApi } from '../api/ctiRedisApi';
 import { taskboardApi } from '../api/taskboardApi';
 import type { DbQueryDef, DbQueryParam, DbQueryRedisKeyEntry, RollingGroup, TaskboardBg, TaskboardDisplay, TaskboardLayout, TaskboardNotice } from '../types/taskboard.types';
 
-export const taskboardQueryKeys = createQueryKeys('taskboard-bg', {
+export const taskboardQueryKeys = createAppQueryKeys('taskboard-bg', {
   getBgList: (params?: Record<string, unknown>) => [params],
   getLayoutList: (tenantIds?: string) => [{ tenantIds }],
   getDisplayList: (tenantIds?: string) => [{ tenantIds }],
@@ -272,7 +272,7 @@ export const useDeleteNotice = ({ mutationOptions }: MutationHookOptions<any, nu
 
 // ── CTI Redis 실시간 데이터 훅 ────────────────────────────────────────────────
 
-export const ctiRedisQueryKeys = createQueryKeys('cti-redis', {
+export const ctiRedisQueryKeys = createAppQueryKeys('cti-redis', {
   hashKeys: () => [{}],
   hashColumns: () => [{}],
   hashEntries: (hashKey: string) => [{ hashKey }],

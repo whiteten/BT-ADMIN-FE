@@ -3,8 +3,8 @@
  * SD-CALL-TRACKING.md 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { trackingApi } from '../api/trackingApi';
 import type {
   AgentEvent,
@@ -21,13 +21,14 @@ import type {
   TrackingSearchCriteria,
 } from '../types';
 
-export const trackingQueryKeys = createQueryKeys('tracking', {
+export const trackingQueryKeys = createAppQueryKeys('tracking', {
   detail: (ucid?: string) => [ucid],
   ivrStep: (ucid?: string) => [ucid],
   ctiRoute: (ucid?: string, nexthop?: string) => [ucid, nexthop],
   agentEvent: (ucid?: string) => [ucid],
   dialog: (ucid?: string) => [ucid],
   quality: (ucid?: string, hop?: number) => [ucid, hop],
+  ieCdr: (ucid?: string, hop?: number) => [ucid, hop],
 });
 
 // ─── Search (mutation 형태로 운영 — criteria 변경에 즉시 반응) ──────────────
@@ -70,7 +71,7 @@ export const useGetTrackingDetail = (
 
 export const useGetIeCdrDetail = (ucid: string | null | undefined, hop: number | null | undefined, { queryOptions }: QueryHookOptions<Record<string, unknown>> = {}) => {
   return useQuery({
-    queryKey: ['tracking', 'ie-cdr', ucid ?? '', hop ?? -1] as const,
+    queryKey: trackingQueryKeys.ieCdr(ucid ?? '', hop ?? -1).queryKey,
     queryFn: () => trackingApi.getIeCdrDetail(ucid!, hop!),
     enabled: !!ucid && hop != null && hop >= 0,
     ...queryOptions,

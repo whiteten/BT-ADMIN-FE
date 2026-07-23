@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { recSearchApi } from '../api/recSearchApi';
 import type { CustInfoField, MarkCode, RecFileListItem, RecFilePagedResult, RecMarkingRequest, RecSearchParams, RecUpdateInfoRequest } from '../types';
 
-export const recSearchQueryKeys = createQueryKeys('rec-search', {
+export const recSearchQueryKeys = createAppQueryKeys('rec-search', {
   getRecordings: (params?: Record<string, unknown>) => [params],
   getRecording: (params?: Record<string, unknown>) => [params],
   getMarkCodes: (tenantId?: string) => [tenantId],

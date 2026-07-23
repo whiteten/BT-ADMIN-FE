@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dictionaryApi } from '../api/dictionaryApi';
 import type {
   ExcelImportResult,
@@ -14,7 +14,7 @@ import type {
   SttDictionaryUpdateData,
 } from '../types';
 
-export const dictionaryQueryKeys = createQueryKeys('dictionary', {
+export const dictionaryQueryKeys = createAppQueryKeys('dictionary', {
   getKeywordBoostingList: (params?: KeywordBoostingSearchParams) => [params],
   getSttDictionaryList: (params?: SttDictionarySearchParams) => [params],
 });

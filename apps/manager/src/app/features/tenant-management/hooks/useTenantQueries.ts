@@ -3,12 +3,12 @@
  * SD-TENANT-MANAGEMENT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { tenantApi } from '../api/tenantApi';
 import type { CallGroupItem, TenantDetail, TenantListItem } from '../types';
 
-export const tenantQueryKeys = createQueryKeys('tenants', {
+export const tenantQueryKeys = createAppQueryKeys('tenants', {
   getTenants: (params?: Record<string, unknown>) => [params],
   getTenant: (params?: Record<string, unknown>) => [params],
   getCallGroups: (params?: Record<string, unknown>) => [params],

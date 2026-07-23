@@ -2,12 +2,12 @@
  * 메뉴 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { menuApi } from '../api/menuApi';
 import type { Menu, MenuUpsertRequest } from '../types';
 
-export const menuQueryKeys = createQueryKeys('menus', {
+export const menuQueryKeys = createAppQueryKeys('menus', {
   getMenus: null,
 });
 

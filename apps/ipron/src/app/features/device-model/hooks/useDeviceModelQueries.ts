@@ -2,12 +2,12 @@
  * 단말모델 관리 React Query 훅 (IPR20S2120)
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { deviceModelApi } from '../api/deviceModelApi';
 import type { DeviceModelCreateRequest, DeviceModelResponse, DeviceModelUpdateRequest } from '../types';
 
-export const deviceModelQueryKeys = createQueryKeys('deviceModels', {
+export const deviceModelQueryKeys = createAppQueryKeys('deviceModels', {
   list: null,
   detail: (deviceType?: number) => [deviceType],
 });

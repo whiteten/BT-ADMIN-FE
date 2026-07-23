@@ -2,12 +2,12 @@
  * 사용자 리소스 접근 매핑 React Query 훅
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { userResourceApi } from '../api/userResourceApi';
 import type { BotService, NluModel, UserResourceMap, UserResourceSyncRequest, UserResourceSyncResponse } from '../types';
 
-export const userResourceQueryKeys = createQueryKeys('userResourceMaps', {
+export const userResourceQueryKeys = createAppQueryKeys('userResourceMaps', {
   getList: (userId: number) => [userId],
   getBots: null,
   getModels: null,

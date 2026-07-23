@@ -2,12 +2,12 @@
  * HA 다중화 구성 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { haGroupApi } from '../api/haGroupApi';
 import type { AvailableSystem, HaGroup, HaGroupMember } from '../types';
 
-export const haGroupQueryKeys = createQueryKeys('haGroup', {
+export const haGroupQueryKeys = createAppQueryKeys('haGroup', {
   getHaGroups: (params?: Record<string, unknown>) => [params],
   getAvailableSystems: (params?: Record<string, unknown>) => [params],
   getHaGroupMembers: (params?: Record<string, unknown>) => [params],

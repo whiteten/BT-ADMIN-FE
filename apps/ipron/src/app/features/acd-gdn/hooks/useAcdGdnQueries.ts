@@ -6,12 +6,12 @@
  *  - Members 저장 → members + list (memberCount 보강용)
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { acdGdnApi } from '../api/acdGdnApi';
 import type { GdnCreateRequest, GdnMemberPoolParams, GdnMemberResponse, GdnMemberSaveRequest, GdnOptionItem, GdnResponse, GdnTenantStat, GdnUpdateRequest } from '../types';
 
-export const acdGdnQueryKeys = createQueryKeys('acd-gdn', {
+export const acdGdnQueryKeys = createAppQueryKeys('acd-gdn', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (id?: number) => [id],
   tenants: null,

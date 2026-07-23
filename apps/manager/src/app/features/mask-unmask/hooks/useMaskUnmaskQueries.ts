@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { maskUnmaskApi } from '../api/maskUnmaskApi';
 import type { AuditByTargetParams, AuditByUserParams, AuditListParams, UnmaskApproveRequest, UnmaskCreateRequest, UnmaskListParams, UnmaskRejectRequest } from '../types';
 
-export const maskUnmaskQueryKeys = createQueryKeys('maskUnmask', {
+export const maskUnmaskQueryKeys = createAppQueryKeys('maskUnmask', {
   pending: (params: UnmaskListParams) => [params],
   mine: null,
   check: (params: { targetType: string; targetId: string }) => [params],
@@ -28,7 +28,7 @@ export const useGetMyRequests = () =>
 
 export const useUnmaskCheck = (params: { targetType: string; targetId: string } | null) =>
   useQuery({
-    queryKey: params ? maskUnmaskQueryKeys.check(params).queryKey : ['maskUnmask', 'check', null],
+    queryKey: params ? maskUnmaskQueryKeys.check(params).queryKey : [...maskUnmaskQueryKeys.check._def, null],
     queryFn: () => maskUnmaskApi.check(params!),
     enabled: !!params,
   });
@@ -36,9 +36,9 @@ export const useUnmaskCheck = (params: { targetType: string; targetId: string } 
 // ───── Mutations ─────
 const invalidateAll = async (qc: ReturnType<typeof useQueryClient>) => {
   await Promise.all([
-    qc.invalidateQueries({ queryKey: ['maskUnmask', 'pending'] }),
-    qc.invalidateQueries({ queryKey: ['maskUnmask', 'mine'] }),
-    qc.invalidateQueries({ queryKey: ['maskUnmask', 'check'] }),
+    qc.invalidateQueries({ queryKey: maskUnmaskQueryKeys.pending._def }),
+    qc.invalidateQueries({ queryKey: maskUnmaskQueryKeys.mine.queryKey }),
+    qc.invalidateQueries({ queryKey: maskUnmaskQueryKeys.check._def }),
   ]);
 };
 
@@ -100,14 +100,14 @@ export const useGetAudit = (params: AuditListParams = {}, enabled = true) =>
 
 export const useGetAuditByUser = (params: AuditByUserParams | null) =>
   useQuery({
-    queryKey: params ? maskUnmaskQueryKeys.auditByUser(params).queryKey : ['maskUnmask', 'auditByUser', null],
+    queryKey: params ? maskUnmaskQueryKeys.auditByUser(params).queryKey : [...maskUnmaskQueryKeys.auditByUser._def, null],
     queryFn: () => maskUnmaskApi.auditByUser(params!),
     enabled: !!params,
   });
 
 export const useGetAuditByTarget = (params: AuditByTargetParams | null) =>
   useQuery({
-    queryKey: params ? maskUnmaskQueryKeys.auditByTarget(params).queryKey : ['maskUnmask', 'auditByTarget', null],
+    queryKey: params ? maskUnmaskQueryKeys.auditByTarget(params).queryKey : [...maskUnmaskQueryKeys.auditByTarget._def, null],
     queryFn: () => maskUnmaskApi.auditByTarget(params!),
     enabled: !!params,
   });

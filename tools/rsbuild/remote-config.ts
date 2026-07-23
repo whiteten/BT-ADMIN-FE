@@ -54,6 +54,11 @@ export const createRemoteRsbuildConfig = (appDir: string, packageJson: { version
       entry: { index: './src/main.ts' },
       define: {
         'process.env.APP_VERSION': JSON.stringify(packageJson.version),
+        // react-draggable(react-grid-layout legacy·react-resizable 내장)의 디버그 플래그.
+        // 브라우저에는 process가 없어 치환하지 않으면 드래그 시작 시 ReferenceError로 드래그·리사이즈가 전부 죽는다.
+        'process.env.DRAGGABLE_DEBUG': 'undefined',
+        // 앱 폴더명 — query key 앱 스코프(src/app/shared/queryKeys.ts) 등 앱 식별용
+        __APP_NAME__: JSON.stringify(path.basename(appDir)),
       },
     },
     output: {

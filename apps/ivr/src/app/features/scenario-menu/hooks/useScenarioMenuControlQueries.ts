@@ -2,8 +2,8 @@
  * 시나리오 메뉴 제어(AS-IS IPR30S3035) React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { scenarioMenuControlApi } from '../api/scenarioMenuControlApi';
 import type {
   ScenarioMenuControlRow,
@@ -13,7 +13,7 @@ import type {
   ScenarioMenuSuperAniUpdateRequest,
 } from '../types';
 
-export const scenarioMenuControlQueryKeys = createQueryKeys('ivrScenarioMenuControl', {
+export const scenarioMenuControlQueryKeys = createAppQueryKeys('ivrScenarioMenuControl', {
   getScenarioMenuControls: (params?: Record<string, unknown>) => [params],
   getSuperAnis: null,
 });

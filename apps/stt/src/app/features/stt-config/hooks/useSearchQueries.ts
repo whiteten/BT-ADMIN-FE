@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { searchApi } from '../api/searchApi';
 import type {
   SttResultSentenceItem,
@@ -15,7 +15,7 @@ import type {
   SttSearchParams,
 } from '../types';
 
-export const searchQueryKeys = createQueryKeys('stts', {
+export const searchQueryKeys = createAppQueryKeys('stts', {
   getSttSearch: (params?: SttSearchParams) => [params],
   getSttSearchCallbotList: (params?: SttSearchCallbotParams) => [params],
   getSttSearchCallbotDetail: (params?: SttSearchCallbotDetailParams) => [params],

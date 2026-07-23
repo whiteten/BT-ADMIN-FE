@@ -90,6 +90,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
       { type: 'add', path: '{{ turbo.paths.root }}/apps/{{name}}/src/styles.css', templateFile: 'templates/remote/src/styles.css.hbs' },
       { type: 'add', path: '{{ turbo.paths.root }}/apps/{{name}}/src/app/app.tsx', templateFile: 'templates/remote/src/app/app.tsx.hbs' },
       { type: 'add', path: '{{ turbo.paths.root }}/apps/{{name}}/src/app/routes.tsx', templateFile: 'templates/remote/src/app/routes.tsx.hbs' },
+      { type: 'add', path: '{{ turbo.paths.root }}/apps/{{name}}/src/app/shared/queryKeys.ts', templateFile: 'templates/remote/src/app/shared/queryKeys.ts.hbs' },
       {
         type: 'add',
         path: '{{ turbo.paths.root }}/apps/{{name}}/src/app/features/router/pageVariantManifest.ts',

@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { botApi } from '../api/botApi';
 import type {
   BotAoeDetailItem,
@@ -19,7 +19,7 @@ import type {
   WorkTime,
 } from '../types';
 
-export const botQueryKeys = createQueryKeys('bots', {
+export const botQueryKeys = createAppQueryKeys('bots', {
   getBots: (params?: Record<string, unknown>) => [params],
   getBot: (params?: Record<string, unknown>) => [params],
   getBotVersions: (params?: Record<string, unknown>) => [params],

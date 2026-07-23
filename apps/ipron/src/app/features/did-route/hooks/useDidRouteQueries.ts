@@ -2,12 +2,12 @@
  * DID라우트 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type DnGroupOptionItem, type WorktimeOptionItem, didRouteApi } from '../api/didRouteApi';
 import type { DidRoute } from '../types';
 
-export const didRouteQueryKeys = createQueryKeys('didRoutes', {
+export const didRouteQueryKeys = createAppQueryKeys('didRoutes', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (params?: Record<string, unknown>) => [params],
   getNodes: null,

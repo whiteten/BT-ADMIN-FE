@@ -2,12 +2,12 @@
  * 단말기 이력 React Query 훅 (IPR20S2130)
  */
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type DevHistoryListResult, deviceHistoryApi } from '../api/deviceHistoryApi';
 import type { DevHistorySearchParams } from '../types';
 
-export const deviceHistoryQueryKeys = createQueryKeys('deviceHistories', {
+export const deviceHistoryQueryKeys = createAppQueryKeys('deviceHistories', {
   list: (params?: Record<string, unknown>) => [params],
 });
 

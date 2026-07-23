@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { userApi } from '../api/userApi';
 import type { User, UserCreateDatas } from '../types';
 
@@ -17,7 +17,7 @@ interface PagedResponse<T> {
 /**
  * 사용자 쿼리 키 정의
  */
-export const userQueryKeys = createQueryKeys('users', {
+export const userQueryKeys = createAppQueryKeys('users', {
   getUsers: (params?: Record<string, unknown>) => [params],
   searchUsers: (params?: Record<string, unknown>) => [params],
   getUser: (params?: Record<string, unknown>) => [params],

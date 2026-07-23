@@ -13,7 +13,7 @@ import dayjs from 'dayjs';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import TrackingAuditDetailDrawer from './TrackingAuditDetailDrawer';
-import { useGetTrackingAudits } from '../hooks/useTrackingAuditQueries';
+import { trackingAuditQueryKeys, useGetTrackingAudits } from '../hooks/useTrackingAuditQueries';
 import type { TrackingAudit, TrackingAuditAction, TrackingAuditSearchParams, TrackingMode } from '../types/trackingAudit.types';
 import ServerPagination from '@/components/custom/ServerPagination';
 import { Badge } from '@/components/ui/badge';
@@ -82,7 +82,7 @@ export default function TrackingAuditPage() {
       size: PAGE_SIZE,
     });
     // 같은 조건으로 다시 눌러도 강제 refetch (React Query cache hit 회피)
-    queryClient.invalidateQueries({ queryKey: ['tracking-audit', 'list'] });
+    queryClient.invalidateQueries({ queryKey: trackingAuditQueryKeys.list._def });
   }, [fromDt, toDt, actionType, trackingMode, keyword, queryClient]);
 
   const handlePageChange = useCallback((newPage: number) => {

@@ -90,7 +90,7 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 ### 핵심 규칙 (요약)
 
 1. **apiClient 직접 사용 금지**: 컴포넌트에서 `apiClient`를 직접 import하여 사용하지 말 것
-2. **Query Key Factory**: `@lukemorales/query-key-factory`의 `createQueryKeys` 사용
+2. **Query Key Factory**: 각 앱 `src/app/shared/queryKeys.ts`의 `createAppQueryKeys` 사용 — 키에 `<앱 폴더명>:` 스코프 자동 접두(앱 간 캐시 키 충돌 방지). `createQueryKeys` 직접 import는 ESLint 에러. 배열 리터럴 쿼리 키 하드코딩 금지(팩토리 `.queryKey`/`._def`만 사용)
 3. **훅 파라미터**: 쿼리 훅은 `{ params, queryOptions }`, 뮤테이션 훅은 `{ mutationOptions }` 사용
 4. **훅 네이밍**: `useGet<Feature>s` (목록), `useGet<Feature>` (단건), `useCreate<Feature>`, `useUpdate<Feature>`, `useDelete<Feature>`
 5. **캐시 무효화**: 컴포넌트에서 `mutationOptions.onSuccess`를 통해 처리
@@ -487,7 +487,7 @@ if (isLoading) return <FallbackSpinner />;
 
 > 공통 selector는 `DefaultSelectorKeys.Xxx`(옵션을 `handle.queryParams[].options`에 하드코딩), 도메인 selector는 remote의 `SelectorKeys.Xxx`(옵션을 selector 컴포넌트 내부에 정의)를 `selectorKey`에 지정합니다. 코드 예시·새 selector 추가 절차는 [DEVELOPER_GUIDE.md](doc/DEVELOPER_GUIDE.md)의 "queryString 기반 메뉴 분기 가이드" 참조.
 >
-> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createQueryKeys` factory에 인자로 받으면 자동 적용).
+> 분기 값을 fetch 인자로 사용한다면 React Query 일반 규칙대로 queryKey에 포함시켜 메뉴별 캐시를 분리합니다(`createAppQueryKeys` factory에 인자로 받으면 자동 적용).
 >
 > 메뉴 등록·편집 폼은 `handle.queryParams`에 선언된 모든 query를 무조건 필수 입력으로 검증합니다(빈 값 저장 불가, 옵트인 옵션 없음 — 선택적 query 키 케이스는 의도적으로 미지원).
 >

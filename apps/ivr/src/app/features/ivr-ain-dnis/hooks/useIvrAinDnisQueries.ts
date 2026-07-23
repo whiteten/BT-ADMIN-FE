@@ -2,13 +2,13 @@
  * 대표번호별 DNIS 관리 React Query 훅 (IPR20S6043).
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ivrAinDnisApi } from '../api/ivrAinDnisApi';
 import type { IrAinMaster, TenantSimpleResponse } from '../types';
 
-export const ivrAinDnisQueryKeys = createQueryKeys('ivrAinDnis', {
+export const ivrAinDnisQueryKeys = createAppQueryKeys('ivrAinDnis', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (params?: Record<string, unknown>) => [params],
   getTenants: null,

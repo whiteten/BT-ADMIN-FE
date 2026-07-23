@@ -2,12 +2,12 @@
  * COS 설정 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type DodLimitOption, cosApi } from '../api/cosApi';
 import type { Cos } from '../types';
 
-export const cosQueryKeys = createQueryKeys('cos', {
+export const cosQueryKeys = createAppQueryKeys('cos', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (cosId?: number) => [cosId],
   getRefCount: (cosId?: number) => [cosId],
