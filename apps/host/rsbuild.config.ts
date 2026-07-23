@@ -57,6 +57,9 @@ export default defineConfig({
     preEntry: [path.resolve(__dirname, '../../libs/shared-ui/src/styles/global.css')],
     define: {
       'process.env.APP_VERSION': JSON.stringify(packageJson.version),
+      // 라이브러리의 임의 process.env.X 참조 안전망(예: react-draggable의 DRAGGABLE_DEBUG).
+      // 브라우저에는 process가 없어 미치환 잔존 시 ReferenceError — 긴 키 우선이라 위 명시 키·NODE_ENV·PUBLIC_*는 영향 없음.
+      'process.env': '({})',
       // 앱 폴더명 — query key 앱 스코프(src/app/shared/queryKeys.ts) 등 앱 식별용
       __APP_NAME__: JSON.stringify(path.basename(__dirname)),
       // PUBLIC_REACT_QUERY_DEVTOOLS는 apps/host/.env + rsbuild PUBLIC_ 자동 노출로 주입 — 수동 define 불필요
