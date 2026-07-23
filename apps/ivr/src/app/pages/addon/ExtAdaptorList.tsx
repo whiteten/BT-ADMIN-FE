@@ -18,7 +18,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input, Select, Tag } from 'antd';
+import { Button, Empty, Input, Select } from 'antd';
 import { ChevronLeft, ChevronRight, Copy, Eye, Network, Plus, Puzzle, RotateCw, Search, Server, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -36,6 +36,8 @@ import {
   useRestartWatcher,
 } from '../../features/ext-adaptor/hooks/useExtAdaptorQueries';
 import { ADAPTOR_CONN_TYPE_LABELS, ADAPTOR_HA_ROLE_LABELS, ADAPTOR_TYPE_LABELS, type Adaptor, type Watcher } from '../../features/ext-adaptor/types/extAdaptor';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 import { codeCol, codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
@@ -286,7 +288,12 @@ export default function ExtAdaptorList() {
         headerName: '사용유무',
         field: 'useYn',
         width: 90,
-        cellRenderer: (p: { value?: number }) => (p.value === 1 ? <Tag color="green">사용</Tag> : <Tag>미사용</Tag>),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p: { value?: number }) => (
+          <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', p.value === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+            {p.value === 1 ? '사용' : '미사용'}
+          </Badge>
+        ),
         ...codeFilter<Adaptor>('useYn', { 1: '사용', 0: '미사용' }),
       },
       { headerName: 'Trans ID', field: 'transId', width: 100 },

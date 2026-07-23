@@ -13,12 +13,14 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Drawer, Tag, Tooltip } from 'antd';
+import { Button, Drawer, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { Undo2 } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { useGetBackupCompare, useRestoreBackup } from '../hooks/useSleeConfigQueries';
 import type { SleeConfigBackupCompareRow } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -111,7 +113,13 @@ const BackupCompareDrawer = forwardRef<BackupCompareDrawerRef, Props>(({ onResto
         headerName: '변경',
         field: 'changed',
         width: 70,
-        cellRenderer: (p: ICellRendererParams<SleeConfigBackupCompareRow>) => (p.data?.changed ? <Tag color="orange">변경</Tag> : <Tag>동일</Tag>),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => (p.data?.changed ? '변경' : '동일'),
+        cellRenderer: (p: ICellRendererParams<SleeConfigBackupCompareRow>) => (
+          <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', p.data?.changed ? 'text-amber-600 bg-amber-50' : 'text-gray-500 bg-gray-100')}>
+            {p.data?.changed ? '변경' : '동일'}
+          </Badge>
+        ),
       },
       { headerName: '카테고리', field: 'category', flex: 1, minWidth: 120 },
       { headerName: '속성', field: 'property', flex: 1, minWidth: 120 },
