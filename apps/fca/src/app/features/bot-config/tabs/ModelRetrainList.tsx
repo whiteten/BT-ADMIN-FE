@@ -469,16 +469,24 @@ export default function ModelRetrainList() {
       headerName: '인식결과',
       field: 'isSuccess',
       maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => {
+        if (!params.data) return '';
+        const { isSuccess, isCheck, isEntity } = params.data;
+        if (isEntity === 1 || isSuccess == null) return '';
+        if (isSuccess === 1) return '성공';
+        return isCheck === 1 ? '재확인' : '실패';
+      },
       cellRenderer: (params: ICellRendererParams<RetrainListItem>) => {
         if (!params.data) return null;
         const { isSuccess, isCheck, isEntity } = params.data;
         if (isEntity === 1 || isSuccess == null) return <span className="text-gray-400">-</span>;
         const result =
           isSuccess === 1
-            ? { label: '성공', style: 'text-[#0AB39C] bg-[#0AB39C1A]' }
+            ? { label: '성공', style: 'text-emerald-600 bg-emerald-50' }
             : isCheck === 1
-              ? { label: '재확인', style: 'text-[#495057] bg-[#4950571A]' }
-              : { label: '실패', style: 'text-[#F06548] bg-[#F065481A]' };
+              ? { label: '재확인', style: 'text-gray-500 bg-gray-100' }
+              : { label: '실패', style: 'text-red-500 bg-red-50' };
         return (
           <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', result.style)}>
             {result.label}

@@ -6,7 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, Select, Slider } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
-import EvalStatusBadge from '../components/EvalStatusBadge';
+import EvalStatusBadge, { evalStatusLabel } from '../components/EvalStatusBadge';
 import EvaluationDrawer, { type EvaluationDrawerRef } from '../components/EvaluationDrawer';
 import { modelQueryKeys, useDeleteEvaluation, useExecuteEvaluation, useGetEvaluations, useGetModel } from '../hooks/useModelQueries';
 import type { EvalStatus, EvaluationListItem } from '../types/evaluation';
@@ -116,6 +116,8 @@ export default function ModelEvaluation() {
       headerName: '상태',
       field: 'evalStatus',
       maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => evalStatusLabel(params.data?.evalStatus as EvalStatus),
       cellRenderer: (params: { value: number }) => <EvalStatusBadge status={params.value as EvalStatus} />,
     },
     { headerName: '질문수', field: 'questionCount', maxWidth: 120 },

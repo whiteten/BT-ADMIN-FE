@@ -22,8 +22,8 @@ import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
 import IntentSentenceAutoGenDrawer, { type IntentSentenceAutoGenDrawerRef } from '../components/IntentSentenceAutoGenDrawer';
 import { modelInferenceModal } from '../components/ModelInferenceModal';
-import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
-import TrainStatusBadge from '../components/TrainStatusBadge';
+import TrainDiffStatusBadge, { trainDiffStatusLabel } from '../components/TrainDiffStatusBadge';
+import TrainStatusBadge, { trainStatusLabel } from '../components/TrainStatusBadge';
 import {
   modelQueryKeys,
   useCreateIntentSentence,
@@ -366,7 +366,8 @@ export default function IntentSentenceList() {
       field: 'trainStatus',
       maxWidth: 120,
       editable: false,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainStatusLabel(params.data?.trainStatus as TrainStatus),
       cellRenderer: (params: { value: number; data: IntentSentenceListItem }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     {
@@ -376,6 +377,7 @@ export default function IntentSentenceList() {
       maxWidth: 100,
       editable: false,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainDiffStatusLabel(params.data?.trainDiffStatus as TrainDiffStatus),
       cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
     {

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Input, Select, Tag, Tooltip } from 'antd';
+import { Button, Dropdown, Input, Select, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { ChevronDown, CloudDownload, Download } from 'lucide-react';
 import { Log } from '@/log';
@@ -171,9 +171,9 @@ export default function AoeFaqList() {
         return sentenceCount > 1 ? (
           <div className="flex items-center gap-1 w-full overflow-hidden">
             <span className="truncate min-w-0">{firstSentence}</span>
-            <Tag color="default" className="shrink-0 !rounded-[14px] !text-[#888B9A]">
+            <Badge variant="secondary" className="shrink-0 rounded-full text-[12px] leading-[12px] font-medium !h-5 text-gray-500 bg-gray-100">
               +{sentenceCount - 1}
-            </Tag>
+            </Badge>
           </div>
         ) : (
           firstSentence

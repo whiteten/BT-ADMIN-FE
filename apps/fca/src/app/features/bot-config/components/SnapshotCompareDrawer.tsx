@@ -1,10 +1,12 @@
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react';
 import type { ColDef, GetDataPath, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Divider, Drawer, Input, Select, Tag } from 'antd';
+import { Button, Divider, Drawer, Input, Select } from 'antd';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useCompareSnapshots, useGetSnapshots } from '../hooks/useModelQueries';
 import type { FlatDiffItem, SnapshotDiffItem, SnapshotListItem } from '../types/snapshot';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /**
@@ -27,11 +29,13 @@ interface DrawerState {
 /**
  * 변경 상태별 색상 매핑
  */
-const changeStatusConfig: Record<string, { color: string; text: string }> = {
-  추가: { color: 'green', text: '추가' },
-  삭제: { color: 'red', text: '삭제' },
-  수정: { color: 'orange', text: '수정' },
-  변경없음: { color: 'default', text: '변경없음' },
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+
+const changeStatusConfig: Record<string, { className: string; text: string }> = {
+  추가: { className: 'text-emerald-600 bg-emerald-50', text: '추가' },
+  삭제: { className: 'text-red-500 bg-red-50', text: '삭제' },
+  수정: { className: 'text-amber-600 bg-amber-50', text: '수정' },
+  변경없음: { className: 'text-gray-500 bg-gray-100', text: '변경없음' },
 };
 
 /**
@@ -39,8 +43,12 @@ const changeStatusConfig: Record<string, { color: string; text: string }> = {
  */
 const ChangeStatusCellRenderer = (params: ICellRendererParams<FlatDiffItem>) => {
   const status = params.value as string;
-  const config = changeStatusConfig[status] || { color: 'default', text: status };
-  return <Tag color={config.color}>{config.text}</Tag>;
+  const config = changeStatusConfig[status] || { className: 'text-gray-500 bg-gray-100', text: status };
+  return (
+    <Badge variant="secondary" className={cn(BADGE_CLASS, config.className)}>
+      {config.text}
+    </Badge>
+  );
 };
 
 /**
@@ -245,23 +253,25 @@ const SnapshotCompareDrawer = forwardRef<SnapshotCompareDrawerRef>((_, ref) => {
             const label = params.value;
 
             // 타입별 설정
-            const typeConfig: Record<string, { color: string; text: string }> = {
-              INTENT: { color: 'blue', text: '의도' },
-              SENTENCE: { color: 'purple', text: '문장' },
-              ENTITY: { color: 'cyan', text: '개체' },
-              ENTITY_VALUE: { color: 'geekblue', text: '대표값' },
-              ENTITY_TYPEVALUES: { color: 'volcano', text: '유사어' },
-              VALUE: { color: 'geekblue', text: '값' },
-              KEYWORD: { color: 'gold', text: '키워드' },
-              KEYWORD_VALUES: { color: 'volcano', text: '유사어' },
+            const typeConfig: Record<string, { className: string; text: string }> = {
+              INTENT: { className: 'text-blue-600 bg-blue-50', text: '의도' },
+              SENTENCE: { className: 'text-purple-600 bg-purple-50', text: '문장' },
+              ENTITY: { className: 'text-cyan-600 bg-cyan-50', text: '개체' },
+              ENTITY_VALUE: { className: 'text-indigo-600 bg-indigo-50', text: '대표값' },
+              ENTITY_TYPEVALUES: { className: 'text-orange-600 bg-orange-50', text: '유사어' },
+              VALUE: { className: 'text-indigo-600 bg-indigo-50', text: '값' },
+              KEYWORD: { className: 'text-amber-600 bg-amber-50', text: '키워드' },
+              KEYWORD_VALUES: { className: 'text-orange-600 bg-orange-50', text: '유사어' },
             };
 
-            const config = typeConfig[type ?? ''] || { color: 'default', text: type };
+            const config = typeConfig[type ?? ''] || { className: 'text-gray-500 bg-gray-100', text: type };
             const isParent = type === 'INTENT' || type === 'ENTITY' || type === 'KEYWORD';
 
             return (
               <span className="flex items-center gap-2">
-                <Tag color={config.color}>{config.text}</Tag>
+                <Badge variant="secondary" className={cn(BADGE_CLASS, config.className)}>
+                  {config.text}
+                </Badge>
                 <span className={isParent ? 'font-medium' : 'text-gray-600'}>{label}</span>
               </span>
             );

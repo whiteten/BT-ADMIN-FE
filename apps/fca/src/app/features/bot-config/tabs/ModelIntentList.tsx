@@ -10,8 +10,8 @@ import { ChevronDown, CloudDownload, Download, FileSpreadsheet } from 'lucide-re
 import { toast } from '@/shared-util';
 import IntentDrawer, { type IntentDrawerRef } from '../components/IntentDrawer';
 import IntentSentenceCustomDetail from '../components/IntentSentenceCustomDetail';
-import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
-import TrainStatusBadge from '../components/TrainStatusBadge';
+import TrainDiffStatusBadge, { trainDiffStatusLabel } from '../components/TrainDiffStatusBadge';
+import TrainStatusBadge, { trainStatusLabel } from '../components/TrainStatusBadge';
 import { modelQueryKeys, useDeleteIntent, useExportIntent, useExportIntentAndEntity, useGetIntents, useImportIntent } from '../hooks/useModelQueries';
 import type { IntentListItem, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
@@ -97,7 +97,8 @@ export default function ModelIntentList() {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainStatusLabel(params.data?.trainStatus as TrainStatus),
       cellRenderer: (params: { value: number; data: IntentListItem }) => <TrainStatusBadge status={params.value as TrainStatus} showAlert={params.data?.changedYn} />,
     },
     {
@@ -106,6 +107,7 @@ export default function ModelIntentList() {
       field: 'trainDiffStatus',
       maxWidth: 100,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainDiffStatusLabel(params.data?.trainDiffStatus as TrainDiffStatus),
       cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
     {

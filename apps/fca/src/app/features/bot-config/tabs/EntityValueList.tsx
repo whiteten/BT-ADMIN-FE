@@ -17,8 +17,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { Button, Input, type InputRef, Select, Tag } from 'antd';
 import { Check, X } from 'lucide-react';
 import { toast } from '@/shared-util';
-import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
-import TrainStatusBadge from '../components/TrainStatusBadge';
+import TrainDiffStatusBadge, { trainDiffStatusLabel } from '../components/TrainDiffStatusBadge';
+import TrainStatusBadge, { trainStatusLabel } from '../components/TrainStatusBadge';
 import { modelQueryKeys, useCreateEntityValue, useDeleteEntityValue, useGetEntityValues, useUpdateEntityValue } from '../hooks/useModelQueries';
 import type { EntityType, EntityValueListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
@@ -497,7 +497,8 @@ export default function EntityValueList() {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainStatusLabel(params.data?.trainStatus as TrainStatus),
       cellRenderer: (params: { value: number; data: EntityValueListItem }) => <TrainStatusBadge status={params.value as TrainStatus} />,
     },
     {
@@ -506,6 +507,7 @@ export default function EntityValueList() {
       field: 'trainDiffStatus',
       maxWidth: 100,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainDiffStatusLabel(params.data?.trainDiffStatus as TrainDiffStatus),
       cellRenderer: (params: { value: TrainDiffStatus }) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
     {

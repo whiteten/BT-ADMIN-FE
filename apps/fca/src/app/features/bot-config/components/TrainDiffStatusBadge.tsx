@@ -3,10 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 const TRAIN_DIFF_STATUS_META: Record<TrainDiffStatus, { label: string; className: string }> = {
-  ADDED: { label: '추가', className: 'text-[#389e0d] bg-[#f6ffed]' },
-  MODIFIED: { label: '수정', className: 'text-[#d46b08] bg-[#fff7e6]' },
-  DELETED: { label: '삭제', className: 'text-[#c94732] bg-[#fff5f0]' },
+  ADDED: { label: '추가', className: 'text-emerald-600 bg-emerald-50' },
+  MODIFIED: { label: '수정', className: 'text-amber-600 bg-amber-50' },
+  DELETED: { label: '삭제', className: 'text-red-500 bg-red-50' },
 };
+
+/** 그리드 filterValueGetter용 라벨 조회 */
+export function trainDiffStatusLabel(status: TrainDiffStatus | null | undefined): string {
+  return status ? (TRAIN_DIFF_STATUS_META[status]?.label ?? String(status)) : '';
+}
 
 interface TrainDiffStatusBadgeProps {
   status: TrainDiffStatus;

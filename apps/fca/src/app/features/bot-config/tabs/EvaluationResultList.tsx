@@ -127,6 +127,7 @@ export default function EvaluationResultList() {
       headerName: '상태',
       field: 'resultStatus',
       maxWidth: 120,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: { value: EvaluationResultStatus }) => <EvaluationResultStatusBadge status={params.value} />,
     },
     {

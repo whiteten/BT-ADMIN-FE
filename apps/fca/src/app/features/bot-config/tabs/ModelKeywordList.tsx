@@ -18,8 +18,8 @@ import { Button, Dropdown, Input, type InputRef, Select, Tag, Tooltip } from 'an
 import { Check, ChevronDown, CloudDownload, Download, X } from 'lucide-react';
 import { toast } from '@/shared-util';
 import ExcelImportResultModal, { type ExcelImportResultModalRef } from '../components/ExcelImportResultModal';
-import TrainDiffStatusBadge from '../components/TrainDiffStatusBadge';
-import TrainStatusBadge from '../components/TrainStatusBadge';
+import TrainDiffStatusBadge, { trainDiffStatusLabel } from '../components/TrainDiffStatusBadge';
+import TrainStatusBadge, { trainStatusLabel } from '../components/TrainStatusBadge';
 import { modelQueryKeys, useCreateKeyword, useDeleteKeyword, useExportKeyword, useGetKeywords, useImportKeyword, useUpdateKeyword } from '../hooks/useModelQueries';
 import type { ExcelImportResult, KeywordListItem, TrainDiffStatus, TrainStatus } from '../types';
 import FileImportModal, { type FileImportModalRef } from '@/components/custom/FileImportModal';
@@ -462,7 +462,8 @@ export default function ModelKeywordList() {
       headerName: '학습상태',
       field: 'trainStatus',
       maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainStatusLabel(params.data?.trainStatus as TrainStatus),
       cellRenderer: (params: ICellRendererParams<KeywordListItem>) => <TrainStatusBadge status={params.value as TrainStatus} showAlert={params.data?.changedYn} />,
     },
     {
@@ -471,6 +472,7 @@ export default function ModelKeywordList() {
       field: 'trainDiffStatus',
       maxWidth: 100,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => trainDiffStatusLabel(params.data?.trainDiffStatus as TrainDiffStatus),
       cellRenderer: (params: ICellRendererParams<KeywordListItem>) => <TrainDiffStatusBadge status={params.value as TrainDiffStatus} />,
     },
     {

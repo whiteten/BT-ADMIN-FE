@@ -80,10 +80,10 @@ function AggridGlobalEnvDeploySidebar(props: CustomToolPanelProps<GlobalEnvListI
 
   const getApplyResultStyle = (applyResult: number | null) => {
     if (applyResult === 1) {
-      return { className: 'text-[#0AB39C] bg-[#0AB39C1A]', label: '성공' };
+      return { className: 'text-emerald-600 bg-emerald-50', label: '성공' };
     }
     if (applyResult === 0) {
-      return { className: 'text-[#F06548] bg-[#F065481A]', label: '실패' };
+      return { className: 'text-red-500 bg-red-50', label: '실패' };
     }
     return { className: 'text-gray-500 bg-gray-100', label: '미적용' };
   };

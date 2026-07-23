@@ -23,15 +23,15 @@ interface DecryptLogListGridProps {
 const resultBadgeClass = (result: string): string => {
   switch (result) {
     case 'SUCCESS':
-      return 'text-[#0AB39C] bg-[#0AB39C1A]';
+      return 'text-emerald-600 bg-emerald-50';
     case 'DECRYPT_FAIL':
-      return 'text-[#F06548] bg-[#F065481A]';
+      return 'text-red-500 bg-red-50';
     case 'FORBIDDEN':
-      return 'text-[#F7B84B] bg-[#F7B84B1A]';
+      return 'text-amber-600 bg-amber-50';
     case 'NOT_FOUND':
-      return 'text-[#878A99] bg-[#E9EBEC]';
+      return 'text-gray-500 bg-gray-100';
     default:
-      return 'text-[#495057] bg-[#E9EBEC]';
+      return 'text-gray-500 bg-gray-100';
   }
 };
 
@@ -39,12 +39,19 @@ const resultBadgeClass = (result: string): string => {
 const dialogRoleBadgeClass = (role: string | null): string => {
   switch (role) {
     case 'BOT':
-      return 'text-[#3577F1] bg-[#3577F11A]';
+      return 'text-blue-600 bg-blue-50';
     case 'CUSTOMER':
-      return 'text-[#0AB39C] bg-[#0AB39C1A]';
+      return 'text-emerald-600 bg-emerald-50';
     default:
-      return 'text-[#495057] bg-[#E9EBEC]';
+      return 'text-gray-500 bg-gray-100';
   }
+};
+
+/** 화자 라벨 — 셀·필터 공용 */
+const dialogRoleLabel = (role: string | null): string => {
+  if (!role) return '';
+  if (role === 'BOT') return '봇';
+  return role === 'CUSTOMER' ? '고객' : role;
 };
 
 const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, searchVersion, onDetailClick, selectedLogId, isLoading, onLoadingChange }) => {
@@ -108,7 +115,8 @@ const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, s
         headerName: '결과',
         field: 'result',
         width: 110,
-        cellClass: 'flex items-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (params) => (params.data?.result ? (RESULT_LABELS[params.data.result] ?? params.data.result) : ''),
         cellRenderer: (params: any) => {
           const v = params.value as string;
           return (
@@ -159,13 +167,14 @@ const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, s
         headerName: '화자',
         field: 'dialogRole',
         width: 95,
-        cellClass: 'flex items-center',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (params) => dialogRoleLabel(params.data?.dialogRole ?? null),
         cellRenderer: (params: any) => {
           const v = params.value as string | null;
           if (!v) return '-';
           return (
             <Badge variant="secondary" className={cn('text-[12px] leading-[12px] font-medium !h-6', dialogRoleBadgeClass(v))}>
-              {v === 'BOT' ? '봇' : v === 'CUSTOMER' ? '고객' : v}
+              {dialogRoleLabel(v)}
             </Badge>
           );
         },
@@ -174,6 +183,7 @@ const DecryptLogListGrid: React.FC<DecryptLogListGridProps> = ({ searchParams, s
         headerName: '사유',
         field: 'reasonCode',
         width: 110,
+        filterValueGetter: (params) => (params.data?.reasonCode ? (REASON_CODE_LABELS[params.data.reasonCode] ?? params.data.reasonCode) : ''),
         cellRenderer: (params: any) => {
           const code = params.value as string | null;
           if (!code) return '-';
