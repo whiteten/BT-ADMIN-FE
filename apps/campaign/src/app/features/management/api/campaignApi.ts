@@ -1,5 +1,5 @@
 import ApiClient, { type ApiResponse } from '@/shared-util';
-import type { CampaignMasterDetailParams, CampaignMasterItem, CampaignMasterListItem } from '../types/campaign';
+import type { CampaignMasterCreateDatas, CampaignMasterDetailParams, CampaignMasterItem, CampaignMasterListItem, CampaignMasterUpdateDatas } from '../types/campaign';
 import type { CampaignScenarioListParams, CampaignScenarioMaster } from '../types/campaignScenario';
 
 const apiClient = new ApiClient({ serviceURL: '/bff' });
@@ -46,5 +46,22 @@ export const campaignApi = {
     const res = await apiClient.get<ApiResponse<CampaignScenarioMaster[]>>('/campaign-scenario-list', { params });
     const items = extractCampaignScenarioList(res.data?.data);
     return items ?? [];
+  },
+
+  /** 캠페인 기본정보(마스터) 생성 */
+  createCampaignMaster: async (data: CampaignMasterCreateDatas): Promise<CampaignMasterItem | undefined> => {
+    const res = await apiClient.post<ApiResponse<CampaignMasterItem>>('/campaign-master-create', data);
+    return res.data?.data;
+  },
+
+  /** 캠페인 기본정보(마스터) 수정 */
+  updateCampaignMaster: async ({ params, data }: { params: CampaignMasterDetailParams; data: CampaignMasterUpdateDatas }): Promise<CampaignMasterItem | undefined> => {
+    const res = await apiClient.put<ApiResponse<CampaignMasterItem>>('/campaign-master-update', data, { params });
+    return res.data?.data;
+  },
+
+  /** 캠페인 기본정보(마스터) 삭제 */
+  deleteCampaignMaster: async (params: { campaignId: string }): Promise<void> => {
+    await apiClient.delete('/campaign-master-delete', { params });
   },
 };

@@ -208,7 +208,7 @@ const BotRealtimeDetailDrawer = forwardRef<BotRealtimeDetailDrawerRef, BotRealti
       title={drawerTitle}
       extra={drawerExtra}
       closable={{ placement: 'end' }}
-      width={640}
+      size={640}
       destroyOnHidden
       styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >

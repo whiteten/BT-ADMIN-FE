@@ -376,7 +376,7 @@ export default function DidTransList() {
           setCopyModalOpen(false);
           setCopyTargetNodeId(null);
         }}
-        width={420}
+        size={420}
         footer={
           <div className="flex justify-end gap-2">
             <Button

@@ -107,7 +107,7 @@ export default function ScheduleAssignDrawer({ open, kind, subject, schedule, on
   };
 
   return (
-    <Drawer title={schedule ? `배정 관리 — ${schedule.scheduleName}` : '배정 관리'} closable={{ placement: 'end' }} open={open} onClose={handleClose} width={520} destroyOnClose>
+    <Drawer title={schedule ? `배정 관리 — ${schedule.scheduleName}` : '배정 관리'} closable={{ placement: 'end' }} open={open} onClose={handleClose} size={520} destroyOnHidden>
       {/* ── 미디어 종류 선택 (미디어 탭 전용) ── */}
       {isMedia && (
         <div className="mb-4">

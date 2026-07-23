@@ -459,9 +459,9 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
 
   // 트리는 readOnly — 편집/DnD 핸들러는 호출되지 않지만 필수 prop 이라 no-op 으로 채운다.
   // (onGroupReorder 는 미전달 → 그룹 드래그 비활성. readOnly 로 호버 액션 버튼도 미렌더.)
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+
   const treeNoop = useCallback((_group: SkillsetGroupResponse | null) => {}, []);
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+
   const treeDropNoop = useCallback(() => {}, []);
 
   const submitting = isCreating || isUpdating;
@@ -492,7 +492,7 @@ export default function SkillGroupManageModal({ open, tenantId, onClose }: Props
         </div>
       }
       footer={null}
-      destroyOnClose={false}
+      destroyOnHidden={false}
       styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', minHeight: 540, maxHeight: '80vh', overflow: 'hidden' } }}
     >
       {/* ===== 폼 뷰 (등록/수정) ===== */}

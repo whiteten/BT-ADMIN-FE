@@ -124,8 +124,8 @@ const WatcherDrawer = forwardRef<WatcherDrawerRef, Props>(({ onSuccess }, ref) =
       title={`${systemName} — Watcher ${isEdit ? '수정' : '추가'}`}
       open={open}
       onClose={() => setOpen(false)}
-      width={480}
-      destroyOnClose
+      size={480}
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={() => setOpen(false)}>취소</Button>

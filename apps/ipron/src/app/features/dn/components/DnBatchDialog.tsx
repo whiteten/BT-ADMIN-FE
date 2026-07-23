@@ -193,9 +193,9 @@ export default function DnBatchDialog({ open, nodeId, tenantId, nodeName, tenant
       title="DN 일괄 등록"
       open={open}
       onClose={handleClose}
-      width={620}
+      size={620}
       placement="right"
-      maskClosable={!pending}
+      mask={{ closable: !pending }}
       closable={{ placement: 'end', disabled: pending }}
       footer={
         <div className="flex justify-end gap-2">

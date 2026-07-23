@@ -70,7 +70,7 @@ export default function DnBandModal({ open, nodeId, nodeName, onClose, onCreated
       okText="등록"
       cancelText="취소"
       confirmLoading={isPending}
-      destroyOnClose
+      destroyOnHidden
       width={400}
     >
       <Form form={form} layout="vertical" requiredMark={false} className="mt-2">

@@ -328,11 +328,11 @@ export default function CommonTrunkFormDrawer({ open, mode, detail, nodeId, onCl
   return (
     <Drawer
       title={isEdit ? `SIP 트렁크 수정 — ${detail?.sipTrunkName ?? ''}` : 'SIP 트렁크 등록'}
-      width={560}
+      size={560}
       open={open}
       onClose={onClose}
       closable={{ placement: 'end' }}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

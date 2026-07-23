@@ -5,8 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { EXECUTION_MANAGEMENT_PATH, EXECUTION_STATUS_OPTIONS } from '../constants/executionManagementConstants';
-import { getMockCampaignExecution } from '../constants/executionManagementMockData';
-import { type ExecutionStatus } from '../types';
+import { type CampaignExecutionItem, type ExecutionStatus } from '../types';
 
 type ExecutionBasicInfoFormValues = {
   campaignName: string;
@@ -29,11 +28,16 @@ const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM
 
 const parseTime = (value?: string) => (value ? dayjs(value, 'HH:mm') : dayjs('00:00', 'HH:mm'));
 
+/** API 연동 전 placeholder — 반환 타입을 유지해 CFA가 never로 좁히지 않게 함 */
+function getCampaignExecution(_executionId: string | undefined): CampaignExecutionItem | undefined {
+  return undefined;
+}
+
 export default function ExecutionBasicInfo() {
   const { executionId } = useParams();
   const navigate = useNavigate();
   const [form] = Form.useForm<ExecutionBasicInfoFormValues>();
-  const execution = executionId ? getMockCampaignExecution(executionId) : undefined;
+  const execution = getCampaignExecution(executionId);
 
   const onFinish: FormProps<ExecutionBasicInfoFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', { status: values.status, description: values.description });

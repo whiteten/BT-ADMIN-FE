@@ -128,10 +128,10 @@ export default function CtiCodeFormDrawer({ state, onClose }: Props) {
     <Drawer
       title={`${mode === 'create' ? '등록' : '수정'} — ${codeTypeLabel(codeType)}`}
       closable={{ placement: 'end' }}
-      width={560}
+      size={560}
       open={state.open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

@@ -465,7 +465,13 @@ function ChipSelect({
   content: ReactNode;
 }) {
   return (
-    <Popover open={open} onOpenChange={onOpenChange} trigger="click" placement="bottomLeft" content={<div className="flex w-[140px] flex-wrap gap-1.5">{content}</div>}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => onOpenChange(next)}
+      trigger="click"
+      placement="bottomLeft"
+      content={<div className="flex w-[140px] flex-wrap gap-1.5">{content}</div>}
+    >
       <button
         type="button"
         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs transition ${
@@ -737,10 +743,10 @@ function InfoDrawer({ datasetId, dataset, onClose }: { datasetId: number | null;
   return (
     <Drawer
       title="데이터셋 정보 수정"
-      width={440}
+      size={440}
       open={open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

@@ -112,8 +112,8 @@ export default function StepEditDrawer({ open, step, onOk, onCancel, onDelete }:
       closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
-      width={520}
-      destroyOnClose
+      size={520}
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button variant="solid" onClick={onCancel}>

@@ -216,7 +216,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
       closable={{ placement: 'end' }}
       open={open}
       onClose={() => setOpen(false)}
-      width={780}
+      size={780}
       closeIcon={<X className="size-4" />}
       footer={
         <div className="flex justify-end gap-2">
@@ -226,7 +226,7 @@ const RoutePointDialog = forwardRef<RoutePointDialogRef, RoutePointDialogProps>(
           </Button>
         </div>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="h-full">
         <AgGridReact<EndpointForAssign>

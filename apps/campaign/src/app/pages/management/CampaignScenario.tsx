@@ -4,7 +4,7 @@ import { type BreadcrumbProps, Button, Input } from 'antd';
 import { Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import CampaignManagementContextHeader from '../../features/management/components/CampaignManagementContextHeader';
+import { MultiSelectField } from '../../features/management/components/CampaignManagementContextHeader';
 import CampaignScenarioCard from '../../features/management/components/CampaignScenarioCard';
 import { useCampaignManagementContext } from '../../features/management/hooks/useCampaignManagementContext';
 import { useGetCampaignScenarios } from '../../features/management/hooks/useCampaignQueries';
@@ -41,10 +41,9 @@ export default function CampaignScenario() {
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(INITIAL_APPLIED_FILTERS);
   const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
   const [deletedScenarioIds, setDeletedScenarioIds] = useState<Set<string>>(new Set());
-  const { tenantIds, setTenantIds, tenantSelectOptions, campaignSelections, setCampaignSelections, campaignSelectOptions, campaignIds, validateContext } =
-    useCampaignManagementContext({
-      withCampaign: true,
-    });
+  const { campaignSelections, setCampaignSelections, campaignSelectOptions, campaignIds, validateContext } = useCampaignManagementContext({
+    withCampaign: true,
+  });
 
   const scenarioListQueryParams = useMemo(() => toCampaignScenarioListParams(campaignIds), [campaignIds]);
 
@@ -156,17 +155,9 @@ export default function CampaignScenario() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <CampaignManagementContextHeader
-        tenantIds={tenantIds}
-        onTenantIdsChange={setTenantIds}
-        tenantSelectOptions={tenantSelectOptions}
-        showCampaignSelect
-        campaignSelections={campaignSelections}
-        onCampaignSelectionsChange={setCampaignSelections}
-        campaignSelectOptions={campaignSelectOptions}
-      />
-      <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
+      <div className="flex items-center justify-between gap-2 w-full min-h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-3 w-full items-center flex-wrap">
+          <MultiSelectField label="캠페인" value={campaignSelections} onChange={setCampaignSelections} options={campaignSelectOptions} placeholder="캠페인을 선택하세요." />
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-[#495057] shrink-0">캠페인 시나리오</span>
             <Input

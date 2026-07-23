@@ -3,9 +3,9 @@ export interface CampaignMaster {
   tenantId: number;
   campaignId: string;
   campaignName: string;
-  campaignType: string | null;
-  campaignState: string | null;
-  campaignAction: string | null;
+  campaignType: number | null;
+  campaignState: number | null;
+  campaignAction: number | null;
   campaignCallingno: string | null;
   campaignStartdate: string | null;
   campaignStarttime: string | null;
@@ -15,15 +15,17 @@ export interface CampaignMaster {
   callbackStarttime: string | null;
   callbackEnddate: string | null;
   callbackEndtime: string | null;
-  enableYn: string | null;
+  /** 활성화 여부. 1:활성, 0:비활성 (TB_AR_CAMPAIGNMASTER.ENABLE_YN) */
+  enableYn: number | null;
   priority: number | null;
   sortSeq: number | null;
   retryCount: number | null;
   retryDelay: number | null;
   workTime: string | null;
   workUser: string | null;
-  ageYn: string | null;
-  solYn: string | null;
+  ageYn: number | null;
+  solYn: number | null;
+  /** 구분. R:로보텔러, C:상담원 (TB_AR_CAMPAIGNMASTER.EXPANSION1) */
   expansion1: string | null;
   expansion2: string | null;
   expansion3: string | null;
@@ -38,6 +40,13 @@ export type CampaignMasterDetailParams = {
   campaignId: string;
   tenantId?: number;
 };
+
+export type CampaignMasterCreateDatas = Pick<
+  CampaignMaster,
+  'campaignName' | 'campaignStartdate' | 'campaignStarttime' | 'campaignEnddate' | 'campaignEndtime' | 'sortSeq' | 'priority' | 'expansion1' | 'enableYn'
+>;
+
+export type CampaignMasterUpdateDatas = CampaignMasterCreateDatas;
 
 /** 카드 UI 표시용 — API 응답을 목록 페이지에서 매핑해 사용 */
 export interface CampaignListItem {

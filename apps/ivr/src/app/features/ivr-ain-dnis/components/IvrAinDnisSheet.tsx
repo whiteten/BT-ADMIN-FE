@@ -144,7 +144,7 @@ const IvrAinDnisSheet = forwardRef<IvrAinDnisSheetRef, Props>(({ onSuccess }, re
       closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
-      width={480}
+      size={480}
       destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">

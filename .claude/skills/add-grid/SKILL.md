@@ -1,6 +1,6 @@
 ---
 name: add-grid
-description: AG-Grid Enterprise 테이블 추가 패턴. useAggridOptions 훅으로 공통 옵션 적용, ColDef 타입 파라미터로 row 타입 지정, 편집 가능 컬럼·커스텀 렌더러·액션 버튼 컬럼(삭제 아이콘 Trash2 표준 포함)·상태값 뱃지(shadcn Badge + Record 색상 맵 표준) 구성, 커스텀 셀 에디터 작성법. 탭바+카드 슬라이더 3단 목록 화면의 하단 그리드(헤더 또는 탭 변형) 표준도 포함. 테이블 추가, 인라인 편집 UI 작성, 행별 액션 버튼(삭제 아이콘 포함) 구성, 그리드 안 상태 뱃지 작성, 커스텀 셀 에디터 작성, 3단 목록 화면 하단 그리드 작성 시 사용.
+description: AG-Grid Enterprise 테이블 추가 패턴. useAggridOptions 훅으로 공통 옵션 적용, ColDef 타입 파라미터로 row 타입 지정, 편집 가능 컬럼·커스텀 렌더러·액션 버튼 컬럼(삭제 아이콘 Trash2 표준 포함)·상태값 뱃지(shadcn Badge + Record 색상 맵 표준) 구성, 내부 코드값 컬럼 라벨 표기 판정 기준과 filterValueGetter 필터 라벨 통일, 커스텀 셀 에디터 작성법. 탭바+카드 슬라이더 3단 목록 화면의 하단 그리드(헤더 또는 탭 변형) 표준도 포함. 테이블 추가, 인라인 편집 UI 작성, 행별 액션 버튼(삭제 아이콘 포함) 구성, 그리드 안 상태 뱃지 작성, 커스텀 셀 에디터 작성, 3단 목록 화면 하단 그리드 작성 시 사용.
 ---
 
 # add-grid
@@ -149,14 +149,84 @@ const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 - **색상 매핑**: 값(코드)마다 `Record<code, string>` 형태로 `text-<color>-600 bg-<color>-50`(또는 `text-<color>-500 bg-<color>-100`) 조합을 고정한다. 매핑에 없는 값은 `DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100'`로 폴백한다(맵 조회에 `?? DEFAULT_BADGE_CLASS` 필수 — 없으면 신규 코드값 추가 시 아예 렌더가 깨진다).
 - **색상 팔레트 의미**(이 저장소에서 반복 확인된 관례 — 화면마다 임의로 다른 색을 고르지 말 것):
   - `gray`/`slate` — 대기, 기본, 미배포, 비활성
-  - `blue` — 진행중, 활성, 전송/명령 완료
-  - `emerald` — 정상, 성공, 적용완료
+  - `blue` — 진행중, 전송/명령 완료
+  - `emerald` — 정상, 성공, 적용완료, 활성
   - `red` — 실패, 에러
   - `amber` — 대기(경고성), 최대치 임박
   - `purple` — 예약 등 별도 구분(경쟁 상태와 무관한 3번째 분류가 필요할 때)
 - **라벨 소스와 색상 매핑을 분리**한다: 라벨은 공통코드 API 응답(`labelMap.get(code)`)이나 `<도메인>_LABELS` record에서, 색상은 이 파일에 고정된 `<도메인>_BADGE_CLASS` map에서 — 백엔드 공통코드 라벨이 바뀌어도 색상 로직에 영향이 없게 분리한다.
 - **null 처리**: 값이 없을 수 있는 컬럼은 `p.data?.field != null ? <Badge>...</Badge> : '-'`로 대시 처리한다(빈 뱃지를 렌더하지 않는다).
 - 카드 슬라이더(2단)에서 같은 상태값을 배지로 표현할 때는 Badge 대신 `inline-flex items-center px-1.5 py-0.5 rounded text-[10~11px] font-medium border` 계열의 색상 pill을 쓴다([add-card-slider](../add-card-slider/SKILL.md) 참조) — 그리드 셀과 카드는 서로 다른 밀도라 폰트 크기·padding이 다르다. 같은 상태값이면 색상 의미(위 팔레트)는 동일하게 유지한다.
+
+### 2-3. 코드값 컬럼은 라벨로 표기한다 — 판정 기준과 필터 통일
+
+컬럼 값을 원본 그대로 보여줄지, 라벨로 치환해 보여줄지는 **"그 값이 사용자 어휘인가, 시스템 어휘인가"**로 판정한다:
+
+- **라벨 표기 (원본 숨김)**: 값이 내부 표현일 때 — `0/1`·`Y/N` 플래그, enum 코드(`ADDED`, `roleType` 코드 등), 기획서·메뉴·다른 화면에서 이미 한글 용어로 부르는 값, Select 옵션·배지 등 다른 UI에서 이미 라벨로 노출 중인 값(같은 화면에서 그리드만 코드로 보이면 이원화).
+- **원본 그대로**: 값 자체가 사용자 데이터인 것 — 이름·전화번호·DN·IP·UCID·파일명·계정, 자유 텍스트·식별자(매핑 자체가 없음). 기술자 대상 화면에서 코드 자체가 소통 단위인 값(SIP 헤더명, HTTP 상태코드 등)도 원본 유지 — 라벨링이 오히려 방해.
+- **경계 케이스 판별법**: "사용자가 문의할 때 이 값을 뭐라고 부르나?" — 라벨로 부르면("비활성인데요") 라벨만, 코드로도 부르면("FAIL_003이래요") 라벨 표기 + tooltip에 원본 코드 병기.
+
+라벨 표기로 판정한 컬럼은 **`cellRenderer` + shadcn `Badge`(2-2 표준 스타일) + `cellStyle` 가운데 정렬 + `filterValueGetter` 라벨 통일** 세트로 작성한다:
+
+```tsx
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
+// 파일 상단 — 라벨·색상 매핑 (상수 객체 SoT 패턴은 AGENTS.md "상태값·매핑 타입" 참조)
+const PROC_STATUS_LABELS: Record<ProcStatus, string> = {
+  0: '대기',
+  1: '진행중',
+  2: '완료',
+  3: '실패',
+};
+const PROC_STATUS_BADGE_CLASS: Record<ProcStatus, string> = {
+  0: 'text-gray-500 bg-gray-100',
+  1: 'text-blue-600 bg-blue-50',
+  2: 'text-emerald-600 bg-emerald-50',
+  3: 'text-red-500 bg-red-50',
+};
+
+// ColDef 안
+{
+  headerName: '처리상태',
+  field: 'procStatus',
+  maxWidth: 120,
+  cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  cellRenderer: (p: ICellRendererParams<RowType>) =>
+    p.data != null ? (
+      <Badge variant="secondary" className={cn(BADGE_CLASS, PROC_STATUS_BADGE_CLASS[p.data.procStatus] ?? DEFAULT_BADGE_CLASS)}>
+        {PROC_STATUS_LABELS[p.data.procStatus] ?? '-'}
+      </Badge>
+    ) : null,
+  filterValueGetter: (p) => (p.data != null ? (PROC_STATUS_LABELS[p.data.procStatus] ?? String(p.data.procStatus)) : ''),
+},
+```
+
+- **가운데 정렬**: 뱃지 컬럼은 `cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' }`로 수직·수평 중앙 정렬한다 (`alignItems`만 주면 수직 정렬만 되므로 `justifyContent`까지 세트로).
+- **색상은 값에 어울리도록 자유롭게 선택**한다: 성공·실패·진행중처럼 2-2 팔레트 의미에 해당하는 상태값은 그 관례를 따르되, 그 외 분류값(타입·구분·카테고리 등)은 값의 성격이 잘 드러나는 색을 자유롭게 고른다. 단 `text-<color>-600 bg-<color>-50`(또는 `-500`/`-100`) 조합 형식과 같은 화면 안에서의 값별 색상 일관성은 유지한다.
+
+**대표 관례 값 — 라벨·색상 통일 표.** 아래 계열의 값은 화면마다 표기가 달라지지 않도록 표준 라벨과 색상을 고정한다. 기존 코드에서 다른 표기(antd `Tag` green, hex 색상, 맨 텍스트, `'사용'/'안함'` 등)를 발견하면 이 표준으로 교체한다:
+
+| 값 계열 (코드 예) | 표준 라벨 | 색상 (text / bg) |
+| --- | --- | --- |
+| 사용 여부 (`useYn`, `isUse`, `Y/N`) | 사용 / 미사용 | `emerald-600/emerald-50` / `gray-500/gray-100` |
+| 활성 여부 (`activateYn`, `ACTIVE/DISABLED`) | 활성 / 비활성 | `emerald-600/emerald-50` / `gray-500/gray-100` |
+| 진행 상태 (`procStatus` 등 단계형) | 대기 / 진행중 / 완료 / 실패 | `gray` / `blue` / `emerald` / `red` |
+| 처리 결과 (`result`, `SUCCESS/FAIL`) | 성공 / 실패 | `emerald-600/emerald-50` / `red-500/red-50` |
+| 차단·위험성 토글 (`blockYn` 등 켜지면 위험한 값) | 설정 / 해제 | `red-500/red-50` / `gray-500/gray-100` |
+| 배정 여부 (`assignYn`) | 배정중 / 미배정 | `emerald-600/emerald-50` / `gray-500/gray-100` |
+| 예약 등 제3 분류 | 예약 | `purple-600/purple-50` |
+
+- **라벨 어휘도 표에 맞춰 통일**한다: `'사용'/'안함'` ❌ → `'사용'/'미사용'`, `Y`·`N`·`0`·`1` 원본 노출 ❌. `O/X` 표기는 여부 컬럼이 여러 개 나열되는 조밀한 기술 그리드(DN 속성 등)에서만 허용하고, 일반 목록 컬럼은 한글 라벨을 쓴다.
+- **같은 on/off라도 의미 방향이 다르면 색이 다르다**: 켜짐이 정상 동작이면 emerald(사용·활성), 켜짐이 위험·차단이면 red(차단 설정). "켜짐=emerald"로 기계적으로 칠하지 말고 값의 의미로 판단한다.
+- **필터 라벨 통일 필수**: 셀 표시가 라벨인 컬럼은 반드시 `filterValueGetter`로 필터·검색 값도 같은 라벨 소스로 맞춘다. 빠뜨리면 셀에는 "완료"가 보이는데 필터 목록에는 `2`가 뜨는 이원화가 생긴다.
+- **뱃지가 과한 단순 치환 컬럼**(색상 구분이 필요 없는 라벨)은 Badge 없이 `valueFormatter` + `filterValueGetter` 쌍으로 같은 라벨 함수를 재사용한다:
+
+```tsx
+{ headerName: 'ACD타입', field: 'acdType', width: 140, filterValueGetter: (p) => getAcdTypeName(p.data?.acdType), valueFormatter: (p) => getAcdTypeName(p.value) },
+```
+
+- 같은 도메인 뱃지를 여러 파일에서 재사용하면 `features/<feature>/components/<도메인>StatusBadge.tsx` 컴포넌트로 추출하고, cellRenderer에서는 해당 컴포넌트만 호출한다.
 
 ## 3. 커스텀 셀 에디터
 
@@ -261,6 +331,9 @@ const InputTextCellEditor = ({ value = '', onValueChange, placeholder, cellStart
 - [ ] 편집 가능 컬럼에 커스텀 `cellEditor`를 사용했는가?
 - [ ] 삭제 아이콘이 `IconTrash`가 아니라 lucide `Trash2`(`size-4 text-red-500`)인가, 필요 시 `stopPropagation`을 걸었는가?
 - [ ] 상태값 뱃지가 antd `Tag`/인라인 컬러 `span`이 아니라 shadcn `Badge` + `Record` 색상 맵(`BADGE_CLASS` + `<도메인>_BADGE_CLASS` + `DEFAULT_BADGE_CLASS` 폴백)인가?
+- [ ] 내부 코드값 컬럼(`0/1`·`Y/N`·enum 코드)을 원본 그대로 노출하지 않고 라벨(뱃지)로 표기했는가? (2-3 판정 기준)
+- [ ] 셀 표시가 라벨인 컬럼에 `filterValueGetter`로 필터·검색 값도 같은 라벨로 통일했는가?
+- [ ] 뱃지 컬럼에 `cellStyle`(flex + `justifyContent: 'center'`) 가운데 정렬을 적용했는가?
 - [ ] 테이블이 `bg-white bt-shadow` 컨테이너로 감싸져 있는가?
 - [ ] (3단 목록 화면 하단 그리드인 경우) 헤더에 `border-b` 대신 별도 `border-t` 구분선을 뒀는가, 그리드 래퍼에 `p-5`를 줬는가?
 - [ ] (3단 목록 화면 하단 그리드인 경우) 상위 단 선택값이 있으면 헤더 제목을 `제목 — {선택값}`(em dash + `text-[#405189]` 강조) 형태로 반영했는가?

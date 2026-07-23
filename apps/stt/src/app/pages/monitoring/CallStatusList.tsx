@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
@@ -146,14 +146,14 @@ export default function CallStatusList() {
                 const color = SUMMARY_CHIP_COLORS[idx % SUMMARY_CHIP_COLORS.length];
                 if (isTotal) {
                   return (
-                    <>
-                      <div key={s.workKindName} className="flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 py-1.5">
+                    <Fragment key={s.workKindName}>
+                      <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-gray-100 px-4 py-1.5">
                         <span className="text-xs text-gray-500">{s.workKindName}</span>
                         <span className="text-base font-bold text-gray-800">{s.cnt.toLocaleString()}</span>
                         <span className="text-xs text-gray-500">건</span>
                       </div>
                       <div className="h-5 w-px bg-gray-200" />
-                    </>
+                    </Fragment>
                   );
                 }
                 return (

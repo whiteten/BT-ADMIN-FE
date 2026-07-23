@@ -383,7 +383,7 @@ export default function UserDefStatistics() {
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
-                    dropdownRender={(menu) => (
+                    popupRender={(menu) => (
                       <>
                         <div
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
@@ -441,7 +441,7 @@ export default function UserDefStatistics() {
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
-                    dropdownRender={(menu) => (
+                    popupRender={(menu) => (
                       <>
                         <div
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
@@ -480,7 +480,7 @@ export default function UserDefStatistics() {
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
-                    dropdownRender={(menu) => (
+                    popupRender={(menu) => (
                       <>
                         <div
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"

@@ -333,7 +333,6 @@ export default function BsrCtiqAssignPanel({
             columnDefs={colDefs}
             loading={isSearching}
             rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: true, enableSelectionWithoutKeys: true }}
-            suppressRowClickSelection={false}
             onSelectionChanged={(e) => setSelectedCtiqIds(e.api.getSelectedRows().map((r) => r.ctiqId))}
             onRowDoubleClicked={handleRowDoubleClick}
             overlayNoRowsTemplate="<span class='text-gray-400 text-sm'>검색된 데이터가 없습니다.</span>"

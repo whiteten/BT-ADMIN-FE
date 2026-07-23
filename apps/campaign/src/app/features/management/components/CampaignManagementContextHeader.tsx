@@ -14,7 +14,7 @@ type MultiSelectFieldProps = {
   disabled?: boolean;
 };
 
-function MultiSelectField({ label, value, onChange, options, placeholder, disabled = false }: MultiSelectFieldProps) {
+export function MultiSelectField({ label, value, onChange, options, placeholder, disabled = false }: MultiSelectFieldProps) {
   const handleToggleAll = () => {
     if (value.length === options.length) {
       onChange([]);

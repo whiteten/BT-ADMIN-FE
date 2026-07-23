@@ -1343,7 +1343,7 @@ export default function DnForm() {
                             cosEffectTooltip
                               ? {
                                   title: <span style={{ whiteSpace: 'pre-line' }}>{cosEffectTooltip}</span>,
-                                  overlayStyle: { maxWidth: 420 },
+                                  styles: { root: { maxWidth: 420 } },
                                 }
                               : undefined
                           }

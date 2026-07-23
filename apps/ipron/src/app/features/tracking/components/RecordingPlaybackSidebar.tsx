@@ -104,7 +104,7 @@ export default function RecordingPlaybackSidebar({ open, onClose, context }: Pro
         </span>
       }
       placement="right"
-      width={aoePayload ? 1120 : 720}
+      size={aoePayload ? 1120 : 720}
       open={open}
       onClose={onClose}
       styles={{ body: { padding: 16, display: 'flex', gap: 12 } }}

@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { createQueryKeys } from '@lukemorales/query-key-factory';
-import type { QueryHookWithParamsOptions } from '@/shared-util';
+import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
 import { campaignApi } from '../api/campaignApi';
 import type { CampaignMasterDetailParams, CampaignMasterItem, CampaignMasterListItem } from '../types/campaign';
 import type { CampaignScenarioListParams, CampaignScenarioMaster } from '../types/campaignScenario';
@@ -30,4 +30,22 @@ export const useGetCampaignScenarios = ({ params, queryOptions }: QueryHookWithP
     queryKey: campaignQueryKeys.getCampaignScenarioList(params as CampaignScenarioListParams | undefined).queryKey,
     queryFn: () => campaignApi.getCampaignScenarioList(params as CampaignScenarioListParams),
     ...queryOptions,
+  });
+
+export const useCreateCampaignMaster = ({ mutationOptions }: MutationHookOptions = {}) =>
+  useMutation({
+    mutationFn: campaignApi.createCampaignMaster,
+    ...mutationOptions,
+  });
+
+export const useUpdateCampaignMaster = ({ mutationOptions }: MutationHookOptions = {}) =>
+  useMutation({
+    mutationFn: campaignApi.updateCampaignMaster,
+    ...mutationOptions,
+  });
+
+export const useDeleteCampaignMaster = ({ mutationOptions }: MutationHookOptions = {}) =>
+  useMutation({
+    mutationFn: campaignApi.deleteCampaignMaster,
+    ...mutationOptions,
   });

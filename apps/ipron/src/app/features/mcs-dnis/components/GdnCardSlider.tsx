@@ -38,7 +38,7 @@ export default function GdnCardSlider({ gdnList, isLoading, selectedGdnNo, onSel
         <div className="flex items-center justify-center w-full h-full text-xs text-gray-400">불러오는 중...</div>
       ) : gdnList.length === 0 ? (
         <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-          <Empty description={false} imageStyle={{ height: 40 }} />
+          <Empty description={false} styles={{ image: { height: 40 } }} />
           <span className="text-sm">대표번호가 없습니다</span>
         </div>
       ) : (

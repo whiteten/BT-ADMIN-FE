@@ -97,10 +97,10 @@ const ScenarioMasterSheet = forwardRef<ScenarioMasterSheetRef, ScenarioMasterShe
       title={isEdit ? '시나리오 수정' : '시나리오 추가'}
       closable={{ placement: 'end' }}
       placement="right"
-      width={520}
+      size={520}
       open={visible}
       onClose={() => setVisible(false)}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={() => setVisible(false)}>취소</Button>

@@ -129,15 +129,6 @@ export default function KnowledgeFileList() {
   const filteredFiles = (files ?? []).filter((file) => (searchValue.trim() ? file.fileName.toLowerCase().includes(searchValue.toLowerCase()) : true));
 
   const columnDefs: ColDef<KnowledgeFileItem>[] = [
-    {
-      checkboxSelection: true,
-      headerCheckboxSelection: true,
-      maxWidth: 50,
-      sortable: false,
-      filter: false,
-      suppressHeaderMenuButton: true,
-      resizable: false,
-    },
     { field: 'fileId', hide: true },
     {
       headerName: '파일명',
@@ -206,8 +197,7 @@ export default function KnowledgeFileList() {
           rowData={filteredFiles}
           columnDefs={columnDefs}
           gridOptions={gridOptions}
-          rowSelection="multiple"
-          suppressRowClickSelection
+          rowSelection={{ mode: 'multiRow', checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
           getRowId={(params) => params.data.fileId}
           loading={isFetching}
           onCellEditingStopped={handleCellEditingStopped}

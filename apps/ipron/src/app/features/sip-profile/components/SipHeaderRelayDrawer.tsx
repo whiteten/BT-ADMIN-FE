@@ -79,7 +79,7 @@ const SipHeaderRelayDrawer = forwardRef<SipHeaderRelayDrawerRef, SipHeaderRelayD
       onClose={handleClose}
       styles={{ wrapper: { width: 420 } }}
       footer={footer}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item

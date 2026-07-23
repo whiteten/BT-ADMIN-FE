@@ -292,7 +292,7 @@ export default function IeWorktimeList() {
         <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[170px]' : 'h-[260px]'}`}>
           {filtered.length === 0 && !isLoading ? (
             <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-              <Empty description={false} imageStyle={{ height: 40 }} />
+              <Empty description={false} styles={{ image: { height: 40 } }} />
               <span className="text-sm">{searchText.trim() ? '검색 결과가 없습니다' : '등록된 업무시간이 없습니다'}</span>
             </div>
           ) : viewMode === VIEW_MODE.LIST ? (

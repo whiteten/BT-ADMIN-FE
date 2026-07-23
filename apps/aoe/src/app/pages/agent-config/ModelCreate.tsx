@@ -52,6 +52,10 @@ export default function ModelCreate() {
   const [validationStatus, setValidationStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [availableModels, setAvailableModels] = useState<AvailableModelItem[]>([]);
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
+  // 요약 패널은 렌더 중 폼 값을 읽는다. form.getFieldsValue()를 직접 호출하면 첫 렌더(Form 마운트 전)에
+  // "useForm is not connected to any Form element" 경고가 발생하므로 Form.useWatch로 구독한다.
+  const modelName = Form.useWatch('modelName', form);
+  const apiKey = Form.useWatch('apiKey', form);
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -229,7 +233,6 @@ export default function ModelCreate() {
   }
 
   function buildSummaryItems() {
-    const values = form.getFieldsValue();
     const provider = PROVIDERS.find((p) => p.key === selectedProvider);
     const connectionClassName = `font-medium ${validationStatus === 'success' ? 'text-green-600' : validationStatus === 'error' ? 'text-red-500' : ''}`;
 
@@ -242,12 +245,12 @@ export default function ModelCreate() {
       {
         key: 'modelName',
         label: '모델 그룹명',
-        children: <FormSummaryValue value={values.modelName} valid={!!values.modelName} className="truncate" />,
+        children: <FormSummaryValue value={modelName} valid={!!modelName} className="truncate" />,
       },
       {
         key: 'apiKey',
         label: 'API Key',
-        children: <FormSummaryValue value={values.apiKey ? '••••••••' : undefined} valid={!!values.apiKey} />,
+        children: <FormSummaryValue value={apiKey ? '••••••••' : undefined} valid={!!apiKey} />,
       },
       {
         key: 'connection',

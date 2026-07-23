@@ -1,6 +1,7 @@
 /**
  * 권한 관리 API
  */
+import { uniqBy } from 'lodash';
 import ApiClient, { type ApiResponse } from '@/shared-util';
 import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types';
 
@@ -22,7 +23,8 @@ export const permissionApi = {
    */
   getAuthList: async (): Promise<PermissionFlat[]> => {
     const response = await apiClient.get<ApiResponse<{ items: PermissionFlat[] }>>('/permission-auth-list');
-    return response.data?.data?.items ?? [];
+    // authKey 는 Transfer rowKey·그리드 getRowId 로 쓰여 유일해야 하는데, BE 가 동일 authKey 를 중복으로 내려주는 사례가 있어 방어적으로 제거한다.
+    return uniqBy(response.data?.data?.items ?? [], (item) => item.authKey);
   },
 
   /**

@@ -5,8 +5,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { EXECUTION_MANAGEMENT_PATH, EXECUTION_TARGET_STATUS_OPTIONS } from '../constants/executionManagementConstants';
-import { getMockCampaignExecution, getMockExecutionTarget } from '../constants/executionManagementMockData';
-import { type ExecutionTargetExtraInfoItem, type ExecutionTargetStatus } from '../types';
+import { type CampaignExecutionItem, type ExecutionTargetExtraInfoItem, type ExecutionTargetItem, type ExecutionTargetStatus } from '../types';
 
 type ExecutionTargetBasicInfoFormValues = {
   senderKey: string;
@@ -26,12 +25,21 @@ const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM
 
 const parseReservationTime = (value?: string) => (value ? dayjs(value, 'HH:mm') : null);
 
+/** API 연동 전 placeholder — 반환 타입을 유지해 CFA가 never로 좁히지 않게 함 */
+function getExecutionTarget(_targetId: string | undefined): ExecutionTargetItem | undefined {
+  return undefined;
+}
+
+function getCampaignExecution(_executionId: string | undefined): CampaignExecutionItem | undefined {
+  return undefined;
+}
+
 export default function ExecutionTargetBasicInfo() {
   const { targetId } = useParams();
   const navigate = useNavigate();
   const [form] = Form.useForm<ExecutionTargetBasicInfoFormValues>();
-  const target = targetId ? getMockExecutionTarget(targetId) : undefined;
-  const execution = target ? getMockCampaignExecution(target.executionId) : undefined;
+  const target = getExecutionTarget(targetId);
+  const execution = target ? getCampaignExecution(target.executionId) : undefined;
 
   const campaignSelectOptions = useMemo(() => {
     if (!execution) return [];

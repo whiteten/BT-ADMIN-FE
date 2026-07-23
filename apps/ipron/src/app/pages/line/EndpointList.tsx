@@ -779,7 +779,7 @@ export default function EndpointList() {
           <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[185px]' : 'h-[240px]'}`}>
             {filteredEndpoints.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-3 min-h-[100px]">
-                <Empty description={false} imageStyle={{ height: 40 }} />
+                <Empty description={false} styles={{ image: { height: 40 } }} />
                 <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 국선이 없습니다'}</span>
               </div>
             ) : viewMode === VIEW_MODE.LIST ? (

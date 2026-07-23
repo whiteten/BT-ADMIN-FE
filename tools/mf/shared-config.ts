@@ -13,6 +13,9 @@
  *  - excludedLibraries:  shared에서 제외하고 각 앱이 self-bundle (substring 매칭).
  *      echarts: wordCloud 시리즈 등록처·렌더처 인스턴스 불일치 → 빈 화면 문제.
  *      codemirror: transitive 코어 인스턴스 2개화 → "Unrecognized extension value" 에러.
+ *      recharts: victory-vendor(d3 계열) transitive 청크가 공유 스코프와 얽혀 첫 진입 시
+ *        모듈 팩토리 미등록 TypeError(reading 'call') 실측(ipron 콜 추적, 2026-07-22).
+ *        cross-app 단일 인스턴스가 필요 없는 차트 라이브러리라 self-bundle로 격리.
  *      clsx·tailwind-merge: stateless 초경량이라 공유 이득 없음.
  *  - version: 실제 설치 버전 명시 — provided version 자동 감지가 "0"이 되는
  *      패키지(@uiw/react-codemirror 등)의 singleton 로드 실패(freeze) 일괄 보정.
@@ -22,7 +25,7 @@ import * as path from 'path';
 
 const eagerLibraries = ['dayjs'];
 const singletonLibraries = ['react', 'react-dom'];
-const excludedLibraries = ['clsx', 'tailwind-merge', 'echarts', 'codemirror'];
+const excludedLibraries = ['clsx', 'tailwind-merge', 'echarts', 'codemirror', 'recharts'];
 
 const readInstalledVersion = (libraryName: string): string | undefined => {
   try {

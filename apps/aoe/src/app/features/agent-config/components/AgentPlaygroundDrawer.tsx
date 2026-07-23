@@ -111,7 +111,7 @@ const AgentPlaygroundDrawer = forwardRef<AgentPlaygroundDrawerRef, AgentPlaygrou
       }
       open={state.open}
       onClose={closeDrawer}
-      maskClosable
+      mask={{ closable: true }}
       afterOpenChange={(open) => {
         if (open) inputRef.current?.focus();
       }}

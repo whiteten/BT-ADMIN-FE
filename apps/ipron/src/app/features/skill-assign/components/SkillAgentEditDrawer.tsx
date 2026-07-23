@@ -56,10 +56,10 @@ export default function SkillAgentEditDrawer({ open, row, onClose }: Props) {
     <Drawer
       title={`스킬 우선순위/스킬레벨 수정 — ${row.skillsetName}`}
       closable={{ placement: 'end' }}
-      width={420}
+      size={420}
       open={open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

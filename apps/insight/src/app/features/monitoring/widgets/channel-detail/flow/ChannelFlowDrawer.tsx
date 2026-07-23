@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Descriptions, Drawer } from 'antd';
 import { ChevronsDown, Lock, Pin } from 'lucide-react';
+import type { ChannelFlowItem, ChannelFlowTarget } from './types';
+import { useChannelFlowSocket } from './useChannelFlowSocket';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
-import { useChannelFlowSocket } from './useChannelFlowSocket';
-import type { ChannelFlowItem, ChannelFlowTarget } from './types';
 
 /** 셀에서 넘겨받는 표시 보조 정보(소켓 상세가 오기 전 헤더 폴백). */
 export interface ChannelFlowMeta {
@@ -89,11 +89,7 @@ export default function ChannelFlowDrawer({ open, target, meta, onClose }: Chann
         <div className="flex items-center gap-2">
           <span>채널 상세{meta?.no ? ` · CH ${meta.no}` : ''}</span>
           {detail && (
-            <span
-              className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
-                isDialog ? 'bg-violet-100 text-violet-600' : 'bg-sky-100 text-sky-600'
-              }`}
-            >
+            <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${isDialog ? 'bg-violet-100 text-violet-600' : 'bg-sky-100 text-sky-600'}`}>
               {isDialog ? '대화' : '트래킹'}
             </span>
           )}
@@ -109,7 +105,7 @@ export default function ChannelFlowDrawer({ open, target, meta, onClose }: Chann
       }
       extra={extra}
       closable={{ placement: 'end' }}
-      width={560}
+      size={560}
       destroyOnHidden
       styles={{ body: { padding: 16, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >
@@ -127,9 +123,7 @@ export default function ChannelFlowDrawer({ open, target, meta, onClose }: Chann
         </Descriptions>
 
         {/* 콜 종료 배너 */}
-        {detail?.callEnded && (
-          <div className="flex-shrink-0 rounded-md bg-amber-50 px-3 py-1.5 text-[12px] font-medium text-amber-700">콜이 종료되었습니다.</div>
-        )}
+        {detail?.callEnded && <div className="flex-shrink-0 rounded-md bg-amber-50 px-3 py-1.5 text-[12px] font-medium text-amber-700">콜이 종료되었습니다.</div>}
 
         {/* 플로우 */}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
@@ -188,7 +182,11 @@ function TrackingSteps({ items }: { items: ChannelFlowItem[] }) {
               {it.startTime && <span className="font-mono text-[10.5px] text-gray-400">{it.startTime}</span>}
               {it.result && <span className="text-[10.5px] font-medium text-emerald-600">{it.result}</span>}
             </div>
-            {it.description && <div className="truncate text-[12px] text-gray-800" title={it.description}>{it.description}</div>}
+            {it.description && (
+              <div className="truncate text-[12px] text-gray-800" title={it.description}>
+                {it.description}
+              </div>
+            )}
           </div>
         </div>
       ))}

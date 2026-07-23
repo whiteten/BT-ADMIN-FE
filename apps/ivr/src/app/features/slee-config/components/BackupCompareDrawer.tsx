@@ -141,8 +141,8 @@ const BackupCompareDrawer = forwardRef<BackupCompareDrawerRef, Props>(({ onResto
       onClose={() => setVisible(false)}
       title="백업 비교"
       closable={{ placement: 'end' }}
-      width={720}
-      destroyOnClose
+      size={720}
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Tooltip title="현재 USERCONFIG 를 이 백업으로 덮어씁니다">

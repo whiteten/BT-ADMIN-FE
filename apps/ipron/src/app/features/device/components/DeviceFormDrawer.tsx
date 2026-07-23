@@ -618,8 +618,8 @@ const DeviceFormDrawer = forwardRef<DeviceFormDrawerRef, Props>(({ deviceTypes, 
       closable={{ placement: 'end' }}
       open={open}
       onClose={() => setOpen(false)}
-      width={640}
-      destroyOnClose
+      size={640}
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={() => setOpen(false)}>취소</Button>

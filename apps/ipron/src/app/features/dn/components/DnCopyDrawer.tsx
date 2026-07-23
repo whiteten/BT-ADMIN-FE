@@ -154,9 +154,9 @@ export default function DnCopyDrawer({ open, source, onCancel, onSuccess }: DnCo
       title={source ? `DN 복사 생성 — 원본: ${source.dnNo}` : 'DN 복사 생성'}
       open={open}
       onClose={handleClose}
-      width={520}
+      size={520}
       placement="right"
-      maskClosable={!pending}
+      mask={{ closable: !pending }}
       closable={{ placement: 'end', disabled: pending }}
       footer={
         <div className="flex justify-end gap-2">

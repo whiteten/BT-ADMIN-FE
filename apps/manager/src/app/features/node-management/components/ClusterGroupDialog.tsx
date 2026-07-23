@@ -58,7 +58,7 @@ const ClusterGroupDialog = forwardRef<ClusterGroupDialogRef, ClusterGroupDialogP
       okText={mode === 'create' ? '추가' : '저장'}
       cancelText="취소"
       confirmLoading={isPending}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" className="mt-4">
         <Form.Item

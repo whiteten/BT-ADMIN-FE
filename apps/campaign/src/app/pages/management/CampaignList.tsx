@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { type BreadcrumbProps, Button, Input, Select } from 'antd';
 import { Search } from 'lucide-react';
+import { Log } from '@/log';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import CampaignCard from '../../features/management/components/CampaignCard';
-import CampaignManagementContextHeader from '../../features/management/components/CampaignManagementContextHeader';
 import {
   CAMPAIGN_IN_USE_FILTER,
   CAMPAIGN_IN_USE_FILTER_OPTIONS,
@@ -15,9 +15,7 @@ import {
   type CampaignInUseFilter,
   type CampaignServiceTypeFilter,
 } from '../../features/management/constants/campaignManagementConstants';
-import { useCampaignManagementContext } from '../../features/management/hooks/useCampaignManagementContext';
-import { campaignQueryKeys, useGetCampaignMasters } from '../../features/management/hooks/useCampaignQueries';
-import type { CampaignMasterListItem } from '../../features/management/types/campaign';
+import { campaignQueryKeys, useDeleteCampaignMaster, useGetCampaignMasters } from '../../features/management/hooks/useCampaignQueries';
 import { toCampaignListItem } from '../../features/management/utils/campaignMasterUtils';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
@@ -51,7 +49,6 @@ export default function CampaignList() {
   const [searchValue, setSearchValue] = useState('');
   const [appliedFilters, setAppliedFilters] = useState<AppliedFilters>(INITIAL_APPLIED_FILTERS);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
-  const { tenantIds, setTenantIds, tenantSelectOptions } = useCampaignManagementContext();
 
   useEffect(() => {
     setBreadcrumb(breadcrumb);
@@ -61,6 +58,19 @@ export default function CampaignList() {
   const listQueryKey = campaignQueryKeys.getCampaignMasterList().queryKey;
 
   const { data: campaignMasters = [], isFetching, isLoading } = useGetCampaignMasters({});
+
+  const deleteCampaignMaster = useDeleteCampaignMaster({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: listQueryKey });
+        toast.success('캠페인이 삭제되었습니다.');
+      },
+      onError: (error) => {
+        Log.warn('deleteCampaignMaster', error);
+        toast.error('캠페인 삭제에 실패했습니다.');
+      },
+    },
+  });
 
   const filteredList = useMemo(() => {
     const keyword = appliedFilters.searchValue.trim().toLowerCase();
@@ -116,9 +126,7 @@ export default function CampaignList() {
   const handleDelete = (campaignId: string) => {
     modal.confirm.delete({
       onOk: () => {
-        queryClient.setQueryData<CampaignMasterListItem[]>(listQueryKey, (prev) => (prev ?? []).filter((item) => item.campaignId !== campaignId));
-        setSelectedCampaignId((prev) => (prev === campaignId ? null : prev));
-        toast.success('캠페인이 삭제되었습니다.');
+        deleteCampaignMaster.mutate({ campaignId }, { onSuccess: () => setSelectedCampaignId((prev) => (prev === campaignId ? null : prev)) });
       },
     });
   };
@@ -136,7 +144,6 @@ export default function CampaignList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      <CampaignManagementContextHeader tenantIds={tenantIds} onTenantIdsChange={setTenantIds} tenantSelectOptions={tenantSelectOptions} />
       <div className="flex items-center justify-between gap-2 w-full h-[76px] bg-white bt-shadow px-7 py-5">
         <div className="flex gap-3 w-full items-center flex-wrap">
           <div className="flex items-center gap-3">

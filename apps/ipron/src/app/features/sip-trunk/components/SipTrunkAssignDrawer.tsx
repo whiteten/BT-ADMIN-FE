@@ -158,7 +158,7 @@ export default function SipTrunkAssignDrawer({ open, gdnId, gdnLabel, trunks, on
       closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
-      width={560}
+      size={560}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

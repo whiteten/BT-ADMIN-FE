@@ -34,7 +34,7 @@ export default function DnNodeCardSlider({ buckets, selectedNodeId, onSelectNode
         <div ref={cardScrollRef} className="flex flex-1 items-stretch gap-4 overflow-x-auto px-1 py-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {isEmpty ? (
             <div className="flex min-h-[150px] flex-1 flex-col items-center justify-center gap-2 text-gray-400">
-              <Empty description={false} imageStyle={{ height: 40 }} />
+              <Empty description={false} styles={{ image: { height: 40 } }} />
               <span className="text-sm">표시할 PBX 노드가 없습니다</span>
             </div>
           ) : (

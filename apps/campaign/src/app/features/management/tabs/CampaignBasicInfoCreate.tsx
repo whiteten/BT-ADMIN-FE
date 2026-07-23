@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, DatePicker, Form, type FormProps, Input, InputNumber, Row, Select } from 'antd';
 import { type Dayjs } from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { CAMPAIGN_IN_USE_OPTIONS, CAMPAIGN_SERVICE_TYPE_OPTIONS } from '../constants/campaignManagementConstants';
+import { campaignQueryKeys, useCreateCampaignMaster } from '../hooks/useCampaignQueries';
+import { splitCampaignDateTime } from '../utils/campaignMasterUtils';
 
 type CampaignBasicInfoCreateFormValues = {
   campaignName: string;
@@ -20,12 +23,40 @@ const initialValues: Partial<CampaignBasicInfoCreateFormValues> = {
 
 export default function CampaignBasicInfoCreate() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [form] = Form.useForm<CampaignBasicInfoCreateFormValues>();
+
+  const createCampaignMaster = useCreateCampaignMaster({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: campaignQueryKeys.getCampaignMasterList().queryKey });
+        toast.success('캠페인이 저장되었습니다.');
+        navigate('../basic-info');
+      },
+      onError: (error) => {
+        Log.warn('createCampaignMaster', error);
+        toast.error('캠페인 저장에 실패했습니다.');
+      },
+    },
+  });
 
   const onFinish: FormProps<CampaignBasicInfoCreateFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    toast.success('캠페인이 저장되었습니다. (백엔드 연동 전)');
-    navigate('../basic-info');
+    const [start, end] = values.executionPeriod ?? [];
+    const { date: campaignStartdate, time: campaignStarttime } = splitCampaignDateTime(start);
+    const { date: campaignEnddate, time: campaignEndtime } = splitCampaignDateTime(end);
+
+    createCampaignMaster.mutate({
+      campaignName: values.campaignName,
+      campaignStartdate,
+      campaignStarttime,
+      campaignEnddate,
+      campaignEndtime,
+      sortSeq: values.sortOrder ?? null,
+      priority: values.priority ?? null,
+      expansion1: values.serviceType ?? null,
+      enableYn: values.inUse ? 1 : 0,
+    });
   };
 
   const onFinishFailed: FormProps<CampaignBasicInfoCreateFormValues>['onFinishFailed'] = (errorInfo) => {
@@ -65,7 +96,7 @@ export default function CampaignBasicInfoCreate() {
       <Row gutter={20}>
         <Col span={12}>
           <Form.Item name="executionPeriod" label="실행기간">
-            <DatePicker.RangePicker showTime className="w-full" format="YYYY-MM-DD HH:mm:ss" />
+            <DatePicker.RangePicker className="w-full" format="YYYY-MM-DD" />
           </Form.Item>
         </Col>
       </Row>
@@ -105,7 +136,7 @@ export default function CampaignBasicInfoCreate() {
       </Row>
       <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
         <Col>
-          <Button color="primary" variant="solid" htmlType="submit">
+          <Button color="primary" variant="solid" htmlType="submit" loading={createCampaignMaster.isPending}>
             저장
           </Button>
         </Col>

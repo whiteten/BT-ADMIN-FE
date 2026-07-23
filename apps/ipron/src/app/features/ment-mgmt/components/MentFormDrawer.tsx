@@ -368,7 +368,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
     <Drawer
       title={isEdit ? '교환기 멘트 수정' : '교환기 멘트 등록'}
       closable={{ placement: 'end' }}
-      width={560}
+      size={560}
       open={state.open}
       onClose={onClose}
       forceRender

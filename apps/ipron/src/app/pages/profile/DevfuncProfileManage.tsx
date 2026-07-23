@@ -468,7 +468,7 @@ export default function DevfuncProfileManage() {
             <div className={`flex items-center px-4 py-3 ${viewMode === VIEW_MODE.CARD ? 'h-[170px]' : 'h-[240px]'}`}>
               {filteredProfiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <Empty description={false} styles={{ image: { height: 40 } }} />
                   <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '등록된 프로파일이 없습니다'}</span>
                 </div>
               ) : viewMode === VIEW_MODE.LIST ? (

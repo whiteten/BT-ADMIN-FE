@@ -88,6 +88,7 @@ git log --oneline -10   # 최근 커밋 스타일 참고
 - **길이**: 한 줄 100자 이내(commitlint `body-max-line-length: 100` 룰이 강제, 초과 시 commit-msg hook 실패). 한국어·이모지·유니코드 화살표(→) 등은 character count 기준이라 visual 폭보다 길게 잡힐 수 있으므로 80자 이내로 wrap하는 것을 권장. 여러 사실을 한 문장에 욱여넣지 않는다.
 - **줄 시작 `#` 금지**: 본문의 어떤 줄도 `#`으로 시작하면 안 됨. `git commit -m` heredoc 경로에서는 보존되지만, `pnpm commit`(commitizen) 등 에디터 경로에서는 `commit.cleanup=strip` 기본 동작에 따라 주석으로 처리되어 잘려나감. 섹션 헤더는 `[증상]`/`[원인]`/`[조치]` 같은 대괄호 표기 사용.
 - **줄 중간 `#<숫자/영숫자>` 토큰 금지**: 본문 중간에 hex 색상값(`#475569`), 이슈 번호 모양(`#123`), 또는 임의의 `#` + 영숫자 토큰을 그대로 쓰지 말 것. conventional-commits-parser의 기본 `issuePrefixes: ['#']` 동작에 따라 해당 줄부터 footer paragraph로 자동 분류되며, 그 앞에 빈 줄이 없으면 `footer-leading-blank` 룰 위반으로 commit-msg hook이 실패. 또한 빈 줄을 둬도 본문 의도가 분리되어 보고서식 흐름이 깨짐. 대안: 자연어로 풀어 쓰기(예: `bg-[#475569]` → `진회색 채움`), 백틱으로 감싸기(`` `#475569` ``), 또는 hex 값 자체를 메시지에서 제거.
+- **줄 시작 `단어:` 패턴 금지**: 본문의 어떤 줄도 `aoe: 파일목록`, `대상: ...`처럼 `토큰:` 형태로 시작하지 말 것 (bullet `- ` 뒤는 무관, 줄의 첫 토큰이 문제). conventional-commits-parser가 `단어: 값` 시작 줄을 footer(`Signed-off-by:` 류)로 오인해 그 줄부터 footer paragraph로 분류하며, 앞에 빈 줄이 없으면 `footer-leading-blank` 위반으로 commit-msg hook 실패 (2026-07-23 실측: 앱별 파일 나열 `aoe: ...` 줄에서 발생). 대안: 괄호 나열(`aoe(A, B)`), bullet로 감싸기(`- aoe — A, B`), 또는 줄바꿈 위치 조정으로 `단어:`가 줄 머리에 오지 않게 wrap.
 
 예시 — 버그 수정:
 
@@ -154,4 +155,5 @@ EOF
 - [ ] 본문이 명사형·개조식(`~함`, `~됨`, `~필요` 등) 보고서 문체인가? `~했다`, `~합니다` 같은 평서·존댓말이 섞이지 않았는가?
 - [ ] 본문의 어떤 줄도 `#`으로 시작하지 않는가? (에디터 경로에서 잘림)
 - [ ] 본문 중간에 `#<숫자/영숫자>` 토큰(hex 색상, 이슈 번호 모양)이 없는가? 있다면 자연어로 풀거나 백틱으로 감쌌는가? (commitlint footer 오인식)
+- [ ] 본문의 어떤 줄도 `단어:` 형태로 시작하지 않는가? (commitlint footer 오인식 — 괄호 나열이나 bullet로 회피)
 - [ ] 본문 어떤 줄도 100자를 넘지 않는가? (commitlint `body-max-line-length: 100`)

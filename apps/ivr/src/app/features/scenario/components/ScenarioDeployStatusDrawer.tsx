@@ -99,7 +99,7 @@ const ScenarioDeployStatusDrawer = forwardRef<ScenarioDeployStatusDrawerRef>((_,
     <Drawer
       title={`배포 현황${serviceName ? ` — ${serviceName}` : ''}`}
       placement="right"
-      width={520}
+      size={520}
       open={visible}
       onClose={() => setVisible(false)}
       closable={{ placement: 'end' }}

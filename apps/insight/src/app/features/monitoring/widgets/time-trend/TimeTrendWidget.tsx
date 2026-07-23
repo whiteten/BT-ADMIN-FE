@@ -120,10 +120,10 @@ export default function TimeTrendWidget({ data, widgetId, onRequestPause }: Cust
       title="타임라인 표시 시간대 설정"
       closable={{ placement: 'end' }}
       placement="right"
-      width={420}
+      size={420}
       open={settingsOpen}
       onClose={handleCloseSettings}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={handleCloseSettings} disabled={isSaving}>

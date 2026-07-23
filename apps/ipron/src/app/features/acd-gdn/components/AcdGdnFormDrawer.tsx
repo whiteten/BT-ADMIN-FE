@@ -569,11 +569,11 @@ export default function AcdGdnFormDrawer({ open, mode, detail, defaultTenantId, 
   return (
     <Drawer
       title={isEdit ? `그룹DN 수정 — ${detail?.gdnNo ?? ''}` : '그룹DN 등록'}
-      width={880}
+      size={880}
       open={open}
       onClose={onClose}
       closable={{ placement: 'end' }}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
