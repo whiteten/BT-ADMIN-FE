@@ -22,6 +22,8 @@ import TrainStatusBadge, { trainStatusLabel } from '../components/TrainStatusBad
 import { modelQueryKeys, useCreateEntityValue, useDeleteEntityValue, useGetEntityValues, useUpdateEntityValue } from '../hooks/useModelQueries';
 import type { EntityType, EntityValueListItem, TrainDiffStatus, TrainStatus } from '../types';
 import { IconTag, IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -34,10 +36,12 @@ const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
 };
 
 const ENTITY_TYPE_COLORS: Record<EntityType, string> = {
-  SAME: 'blue',
-  SYNONYMS: 'green',
-  PATTERNS: 'orange',
+  SAME: 'text-blue-600 bg-blue-50',
+  SYNONYMS: 'text-emerald-600 bg-emerald-50',
+  PATTERNS: 'text-amber-600 bg-amber-50',
 };
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 interface InputTextCellEditorProps {
   value: string;
@@ -88,9 +92,9 @@ interface TypeCellRendererParams extends ICellRendererParams<EntityValueListItem
 const TypeCellRenderer = ({ value }: TypeCellRendererParams) => {
   if (!value) return null;
   return (
-    <Tag color={ENTITY_TYPE_COLORS[value]} className="!m-0">
+    <Badge variant="secondary" className={cn(BADGE_CLASS, ENTITY_TYPE_COLORS[value])}>
       {ENTITY_TYPE_LABELS[value]}
-    </Tag>
+    </Badge>
   );
 };
 
@@ -478,6 +482,7 @@ export default function EntityValueList() {
       },
       suppressKeyboardEvent: (params) => params.editing && params.event.key === 'Enter',
       cellRenderer: TypeCellRenderer,
+      filterValueGetter: ({ data }) => (data ? ENTITY_TYPE_LABELS[data.entityType] : ''),
     },
     {
       headerName: '유사어',

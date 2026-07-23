@@ -8,6 +8,9 @@ const EVALUATION_RESULT_STATUS_META: Record<EvaluationResultStatus, { label: str
   완료: { label: '완료', className: 'text-emerald-600 bg-emerald-50' },
 };
 
+/** 그리드 filterValueGetter 등에서 상태 라벨을 재사용하기 위한 헬퍼 */
+export const evaluationResultStatusLabel = (status: EvaluationResultStatus) => EVALUATION_RESULT_STATUS_META[status]?.label ?? '-';
+
 interface EvaluationResultStatusBadgeProps {
   status: EvaluationResultStatus;
 }

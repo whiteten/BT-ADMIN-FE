@@ -108,13 +108,13 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
           const val = params.value;
           if (val === 1)
             return (
-              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#3577F1] bg-[#3577F11A]">
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-blue-600 bg-blue-50">
                 인바운드
               </Badge>
             );
           if (val === 2)
             return (
-              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#F7B84B] bg-[#F7B84B1A]">
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-amber-600 bg-amber-50">
                 아웃바운드
               </Badge>
             );
@@ -165,7 +165,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
           const val = params.value;
           const isComplete = val === 1;
           return (
-            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isComplete ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isComplete ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
               {isComplete ? '완료' : '미완료'}
             </Badge>
           );
@@ -180,7 +180,7 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
           const val = params.value;
           const isConnected = val === 1;
           return (
-            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-[#0AB39C] bg-[#0AB39C1A]' : 'text-[#495057] bg-[#E9EBEC]'}`}>
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isConnected ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
               {isConnected ? '연결' : '미연결'}
             </Badge>
           );
@@ -240,20 +240,20 @@ const BotDialogHistoryTable: React.FC<BotDialogHistoryTableProps> = ({
           const retrainByMe = params.data?.retrainByMe;
           if (retrainByMe) {
             return (
-              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#0AB39C] bg-[#0AB39C1A]">
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-emerald-600 bg-emerald-50">
                 내가 수정
               </Badge>
             );
           }
           if (retrainYn) {
             return (
-              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#3577F1] bg-[#3577F11A]">
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-blue-600 bg-blue-50">
                 수정됨
               </Badge>
             );
           }
           return (
-            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-[#495057] bg-[#E9EBEC]">
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 text-gray-500 bg-gray-100">
               미수정
             </Badge>
           );

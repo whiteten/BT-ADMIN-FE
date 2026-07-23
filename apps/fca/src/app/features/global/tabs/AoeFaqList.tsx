@@ -185,16 +185,17 @@ export default function AoeFaqList() {
       headerName: '상태',
       field: 'faqEnable',
       maxWidth: 100,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<FaqListItem>) => {
         if (!params.data) return null;
         const isActive = params.data.faqEnable === 1;
         return (
-          <Badge variant="secondary" className={cn('text-[13px] font-medium !h-6', isActive ? 'text-[#10B981] bg-[#10B9811A]' : 'text-[#6B7280] bg-[#6B72801A]')}>
+          <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', isActive ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
             {isActive ? '활성' : '비활성'}
           </Badge>
         );
       },
+      filterValueGetter: ({ data }) => (data ? (data.faqEnable === 1 ? '활성' : '비활성') : ''),
     },
     {
       headerName: '수정일',

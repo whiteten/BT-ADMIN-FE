@@ -534,12 +534,13 @@ export default function ModelRetrainList() {
         return (
           <Badge
             variant="secondary"
-            className={cn('text-[13px] font-medium !h-6', params.data.callType === 'TEST' ? 'text-[#3B82F6] bg-[#3B82F61A]' : 'text-[#F59E0B] bg-[#F59E0B1A]')}
+            className={cn('text-[13px] leading-[13px] font-medium !h-6', params.data.callType === 'TEST' ? 'text-blue-600 bg-blue-50' : 'text-amber-600 bg-amber-50')}
           >
             {params.data.callType === 'TEST' ? '시험' : '운영'}
           </Badge>
         );
       },
+      filterValueGetter: ({ data }) => (data ? (data.callType === 'TEST' ? '시험' : '운영') : ''),
     },
     {
       headerName: '수정여부',

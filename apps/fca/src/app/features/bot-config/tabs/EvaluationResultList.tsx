@@ -7,7 +7,7 @@ import { Button, Input, Select, Slider } from 'antd';
 import dayjs from 'dayjs';
 import { toast } from '@/shared-util';
 import EvaluationResultDetailDrawer, { type EvaluationResultDetailDrawerRef } from '../components/EvaluationResultDetailDrawer';
-import EvaluationResultStatusBadge from '../components/EvaluationResultStatusBadge';
+import EvaluationResultStatusBadge, { evaluationResultStatusLabel } from '../components/EvaluationResultStatusBadge';
 import { modelQueryKeys, useDeleteEvaluationResult, useExecuteEvaluation, useGetEvaluationResults, useGetModel } from '../hooks/useModelQueries';
 import type { EvaluationResultListItem, EvaluationResultStatus } from '../types/evaluation';
 import { IconSearch, IconTrash } from '@/components/custom/Icons';
@@ -129,6 +129,7 @@ export default function EvaluationResultList() {
       maxWidth: 120,
       cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: { value: EvaluationResultStatus }) => <EvaluationResultStatusBadge status={params.value} />,
+      filterValueGetter: ({ data }) => (data ? evaluationResultStatusLabel(data.resultStatus) : ''),
     },
     {
       headerName: '',
