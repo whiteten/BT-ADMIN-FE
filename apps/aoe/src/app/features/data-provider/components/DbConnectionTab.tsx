@@ -102,6 +102,7 @@ export default function DbConnectionTab({ canWrite }: DbConnectionTabProps) {
       maxWidth: 120,
       cellStyle: { display: 'flex', alignItems: 'center' },
       valueFormatter: (params) => DBMS_LABEL[params.value as number] ?? '-',
+      filterValueGetter: ({ data }) => (data ? (DBMS_LABEL[data.dbmsType] ?? '-') : ''),
     },
     {
       headerName: 'Primary IP',
@@ -117,6 +118,7 @@ export default function DbConnectionTab({ canWrite }: DbConnectionTabProps) {
       maxWidth: 130,
       cellStyle: { display: 'flex', alignItems: 'center' },
       valueFormatter: (params) => ACCESS_LABEL[params.value as number] ?? '-',
+      filterValueGetter: ({ data }) => (data ? (ACCESS_LABEL[data.accessType] ?? '-') : ''),
     },
     { headerName: 'Data Source', field: 'dataSource', flex: 1, cellStyle: { display: 'flex', alignItems: 'center' }, valueFormatter: (params) => params.value ?? '-' },
     { headerName: '접속 계정', field: 'userId', maxWidth: 160, cellStyle: { display: 'flex', alignItems: 'center' }, valueFormatter: (params) => params.value ?? '-' },

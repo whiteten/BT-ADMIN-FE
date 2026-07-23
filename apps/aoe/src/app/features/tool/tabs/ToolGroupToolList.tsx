@@ -10,16 +10,20 @@ import ToolDrawer, { type ToolDrawerRef } from '../components/ToolDrawer';
 import { toolQueryKeys, useDeleteTool, useGetTools } from '../hooks/useToolQueries';
 import type { ToolItem } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: 'text-green-600 bg-green-50 border-green-200',
-  POST: 'text-blue-600 bg-blue-50 border-blue-200',
-  PUT: 'text-orange-600 bg-orange-50 border-orange-200',
-  DELETE: 'text-red-600 bg-red-50 border-red-200',
-  PATCH: 'text-purple-600 bg-purple-50 border-purple-200',
+  GET: 'text-green-600 bg-green-50',
+  POST: 'text-blue-600 bg-blue-50',
+  PUT: 'text-orange-600 bg-orange-50',
+  DELETE: 'text-red-600 bg-red-50',
+  PATCH: 'text-purple-600 bg-purple-50',
 };
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 export default function ToolGroupToolList() {
   const { groupId } = useParams();
@@ -62,11 +66,15 @@ export default function ToolGroupToolList() {
       headerName: 'Method',
       field: 'method',
       maxWidth: 110,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
       cellRenderer: (params: ICellRendererParams<ToolItem>) => {
         const method = params.value as string;
-        const colorClass = METHOD_COLORS[method] ?? 'text-gray-600 bg-gray-50 border-gray-200';
-        return <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${colorClass}`}>{method}</span>;
+        const colorClass = METHOD_COLORS[method] ?? 'text-gray-600 bg-gray-50';
+        return (
+          <Badge variant="secondary" className={cn(BADGE_CLASS, colorClass)}>
+            {method}
+          </Badge>
+        );
       },
     },
     {
