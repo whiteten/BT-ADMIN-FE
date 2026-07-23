@@ -21,6 +21,8 @@ import MaskTestModal, { type MaskTestModalRef } from '../../features/mask-policy
 import { useDeletePolicy, useGetCategories, useGetPolicies, useGetTenantsForMask } from '../../features/mask-policy/hooks/useMaskPolicyQueries';
 import { type MaskCategoryConfig, type MaskPolicy, RULE_TYPE_OPTIONS } from '../../features/mask-policy/types';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -50,6 +52,8 @@ function getSensitivityBadge(approverAuthKey: string): { label: string; classNam
 }
 
 const RULE_TYPE_LABEL: Record<string, string> = Object.fromEntries(RULE_TYPE_OPTIONS.map((o) => [o.value, o.label]));
+
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
 
 export default function MaskPolicyManagement() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -180,6 +184,7 @@ export default function MaskPolicyManagement() {
         field: 'ruleType',
         width: 130,
         cellRenderer: (p: ICellRendererParams<MaskPolicy>) => (p.data ? (RULE_TYPE_LABEL[p.data.ruleType] ?? p.data.ruleType) : null),
+        filterValueGetter: ({ data }) => (data ? (RULE_TYPE_LABEL[data.ruleType] ?? data.ruleType) : ''),
       },
       {
         headerName: '자릿수',
@@ -202,12 +207,14 @@ export default function MaskPolicyManagement() {
         cellClass: 'flex items-center justify-center',
         cellRenderer: (p: ICellRendererParams<MaskPolicy>) => {
           if (!p.data) return null;
-          return p.data.enabled === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-700">활성</span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-gray-100 text-gray-500">비활성</span>
+          const enabled = p.data.enabled === 1;
+          return (
+            <Badge variant="secondary" className={cn(BADGE_CLASS, enabled ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+              {enabled ? '활성' : '비활성'}
+            </Badge>
           );
         },
+        filterValueGetter: ({ data }) => (data ? (data.enabled === 1 ? '활성' : '비활성') : ''),
       },
       {
         headerName: '설명',
