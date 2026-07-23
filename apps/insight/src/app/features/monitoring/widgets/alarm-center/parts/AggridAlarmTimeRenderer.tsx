@@ -2,12 +2,12 @@ import React from 'react';
 import type { ICellRendererParams } from 'ag-grid-community';
 
 /**
- * AG-Grid 장애 발생시각 셀 렌더러 (string 키: `alarmTimeRenderer`).
+ * AG-Grid 장애 발생시각 셀 렌더러.
  *
  * `ERR_DATE`(yyyyMMdd) + `ERR_TIME`(HHmmss) 를 "MM-DD HH:mm:ss" + 상대시간(n분 전) 2줄로 표시.
  * 상대시간은 렌더 시점 기준이며, 데이터 프레임 교체 시 grid redraw 로 갱신된다(초 단위 라이브 틱은 없음).
  *
- * shared-ui 자족형 — `params.data` 에서 date/time 만 느슨하게 읽는다(앱 타입 역참조 금지).
+ * `params.data` 에서 date/time 만 느슨하게 읽는다.
  */
 interface AlarmTimeData {
   date?: string;

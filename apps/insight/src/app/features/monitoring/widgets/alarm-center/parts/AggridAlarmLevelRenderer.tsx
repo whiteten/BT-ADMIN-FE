@@ -2,12 +2,11 @@ import React from 'react';
 import type { ICellRendererParams } from 'ag-grid-community';
 
 /**
- * AG-Grid 장애 등급 배지 셀 렌더러 (string 키: `alarmLevelRenderer`).
+ * AG-Grid 장애 등급 배지 셀 렌더러.
  *
- * ERR_LEVEL(0~3) 숫자를 색상 캡슐 배지로 표시. 알람센터 등 장애 등급 컬럼에서 공통 사용한다.
+ * ERR_LEVEL(0~3) 숫자를 색상 캡슐 배지로 표시. 알람센터 장애 등급 컬럼에서 사용한다.
  * AS-IS 확정 등급(1/2/3)을 BT-ADMIN 표기 1=주의 / 2=경고 / 3=위험 으로 노출(0=정상).
  *
- * shared-ui 는 앱(types/helpers)을 역참조할 수 없어 등급→색 매핑을 자족형으로 둔다.
  * 컬럼 valueGetter 가 등급 숫자를 반환하면 `params.value` 로 받는다.
  */
 const LEVEL_BADGE: Record<number, { label: string; hex: string }> = {

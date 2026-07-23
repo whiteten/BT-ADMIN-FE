@@ -2,12 +2,12 @@ import React from 'react';
 import type { ICellRendererParams } from 'ag-grid-community';
 
 /**
- * AG-Grid 장애 복구상태 배지 셀 렌더러 (string 키: `alarmStatusRenderer`).
+ * AG-Grid 장애 복구상태 배지 셀 렌더러.
  *
  * 복구 여부 = `ERR_REPAIR_TIME` 존재(AS-IS errorStatus 규약). 복구시간이 채워졌으면 복구 완료.
  * 미복구이면서 위험(level≥2)인 행은 좌측 dot 에 `bt-pulse` 관제 모션을 준다.
  *
- * shared-ui 자족형 — `params.data` 에서 repairTime/level 만 느슨하게 읽는다(앱 타입 역참조 금지).
+ * `params.data` 에서 repairTime/level 만 느슨하게 읽는다.
  */
 interface AlarmStatusData {
   repairTime?: string | null;

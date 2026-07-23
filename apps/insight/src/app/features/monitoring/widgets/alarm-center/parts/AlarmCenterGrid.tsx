@@ -3,14 +3,18 @@ import type { CellStyle, ColDef, GetRowIdParams, RowStyle, ValueFormatterParams 
 import { AgGridReact } from 'ag-grid-react';
 import { fmtRepairTime, isResolved } from '../helpers';
 import type { AlarmRow } from '../types';
+import AggridAlarmLevelRenderer from './AggridAlarmLevelRenderer';
+import AggridAlarmStatusRenderer from './AggridAlarmStatusRenderer';
+import AggridAlarmSystemRenderer from './AggridAlarmSystemRenderer';
+import AggridAlarmTimeRenderer from './AggridAlarmTimeRenderer';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /**
  * 알람센터 표(목록) 뷰 — 시안(09-alarm-center.html)의 장애 이력 리스트를 ag-Grid 로 이식.
  *
- * 셀 렌더러는 위젯 내부 인라인이 아니라 공용 `useAggridOptions().components` 에 string 키로 등록된 것을
- * 참조한다(`alarmTimeRenderer` / `alarmSystemRenderer` / `alarmLevelRenderer` / `alarmStatusRenderer` —
- * `percentBarRenderer` 와 동일 패턴). 행 좌측 등급 보더·복구행 흐림은 getRowStyle 로 인코딩.
+ * 셀 렌더러는 알람센터 전용이라 위젯 옆(parts/)에 두고 `cellRenderer` 에 컴포넌트 참조로 직접 연결한다
+ * (공용 string 키 등록은 `percentBarRenderer` 처럼 여러 앱이 쓰는 렌더러만).
+ * 행 좌측 등급 보더·복구행 흐림은 getRowStyle 로 인코딩.
  *
  * 데이터 규모(최근 1주 발생 이력)상 페이지네이션 없이 가상 스크롤만 사용한다.
  */
@@ -49,7 +53,7 @@ export default function AlarmCenterGrid({ rows }: AlarmCenterGridProps) {
         minWidth: 140,
         flex: 0,
         valueGetter: (p) => `${p.data?.date ?? ''}${p.data?.time ?? ''}`,
-        cellRenderer: 'alarmTimeRenderer',
+        cellRenderer: AggridAlarmTimeRenderer,
       },
       // 노드 — 노드 마스터(TB_CC_NODEMASTER)에서 enrich된 노드명. 없으면 노드ID·—
       {
@@ -61,7 +65,7 @@ export default function AlarmCenterGrid({ rows }: AlarmCenterGridProps) {
         valueFormatter: dash,
       },
       // 시스템 — 표시명 + (ID)
-      { headerName: '시스템', minWidth: 140, flex: 1, valueGetter: (p) => p.data?.systemName ?? p.data?.systemId ?? '', cellRenderer: 'alarmSystemRenderer' },
+      { headerName: '시스템', minWidth: 140, flex: 1, valueGetter: (p) => p.data?.systemName ?? p.data?.systemId ?? '', cellRenderer: AggridAlarmSystemRenderer },
       // 프로세스 — 시스템 프로세스(TB_CC_SYSTEMPROCESS)에서 enrich된 프로세스명. 없으면 프로세스ID·—
       {
         headerName: '프로세스',
@@ -73,7 +77,7 @@ export default function AlarmCenterGrid({ rows }: AlarmCenterGridProps) {
         valueFormatter: dash,
       },
       // 등급 — 색상 배지(Critical/Major/Minor/정상)
-      { headerName: '등급', width: 96, minWidth: 84, flex: 0, cellStyle: CENTER_CELL, valueGetter: (p) => p.data?.level ?? 0, cellRenderer: 'alarmLevelRenderer' },
+      { headerName: '등급', width: 96, minWidth: 84, flex: 0, cellStyle: CENTER_CELL, valueGetter: (p) => p.data?.level ?? 0, cellRenderer: AggridAlarmLevelRenderer },
       // 코드 — 숫자 정렬용 tabular-nums (insight 폰트 규칙상 font-mono 미사용)
       { headerName: '코드', width: 110, minWidth: 90, flex: 0, field: 'code', cellClass: 'tabular-nums', cellStyle: CODE_CELL, valueFormatter: dash },
       // 메시지 — 1줄 truncate + native tooltip, 미복구 위험 행은 강조
@@ -94,7 +98,7 @@ export default function AlarmCenterGrid({ rows }: AlarmCenterGridProps) {
         flex: 0,
         cellStyle: CENTER_CELL,
         valueGetter: (p) => (p.data && isResolved(p.data) ? 1 : 0),
-        cellRenderer: 'alarmStatusRenderer',
+        cellRenderer: AggridAlarmStatusRenderer,
       },
       // 복구시각 — 복구된 행만 값 표시(미복구는 —). 정렬용 tabular-nums.
       {

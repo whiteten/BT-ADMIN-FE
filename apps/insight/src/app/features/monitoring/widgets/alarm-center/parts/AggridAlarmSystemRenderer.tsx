@@ -2,11 +2,11 @@ import React from 'react';
 import type { ICellRendererParams } from 'ag-grid-community';
 
 /**
- * AG-Grid 장애 시스템 셀 렌더러 (string 키: `alarmSystemRenderer`).
+ * AG-Grid 장애 시스템 셀 렌더러.
  *
  * 시스템 표시명(`SYSTEM_NAME`) + 옅은 `(시스템ID)`. 이름이 없으면 "SYS {id}" 로 폴백한다.
  * 노드(NODE_NAME)는 별도 `노드` 컬럼에서 표시한다.
- * shared-ui 자족형 — `params.data` 에서 systemName/systemId 만 느슨하게 읽는다(앱 타입 역참조 금지).
+ * `params.data` 에서 systemName/systemId 만 느슨하게 읽는다.
  */
 interface AlarmSystemData {
   systemName?: string;
