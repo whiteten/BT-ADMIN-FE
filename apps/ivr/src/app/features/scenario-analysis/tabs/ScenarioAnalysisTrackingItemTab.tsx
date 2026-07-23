@@ -59,6 +59,7 @@ export default function ScenarioAnalysisTrackingItemTab({ serviceId, scenarioNam
         minWidth: 110,
         cellRenderer: (p: ICellRendererParams<ScenarioAnalysisTrackingItemRow>) =>
           p.data?.itemType != null ? (TRACKING_ITEM_TYPE_LABELS[p.data.itemType as TrackingItemType] ?? p.data.itemType) : '-',
+        filterValueGetter: ({ data }) => (data?.itemType != null ? (TRACKING_ITEM_TYPE_LABELS[data.itemType as TrackingItemType] ?? String(data.itemType)) : ''),
       },
       { headerName: '아이템코드', field: 'itemCode', flex: 1, minWidth: 120 },
       { headerName: '아이템명', field: 'itemName', flex: 1.5, minWidth: 160 },

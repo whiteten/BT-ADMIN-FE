@@ -194,6 +194,7 @@ export default function MentFileList() {
           const yn = params.data?.fileApplyYn ?? 0;
           return <Badge className={cn(BADGE_CLASS, FILE_APPLY_BADGE_CLASS[yn] ?? DEFAULT_BADGE_CLASS)}>{yn === 1 ? '적용' : '미적용'}</Badge>;
         },
+        filterValueGetter: ({ data }) => ((data?.fileApplyYn ?? 0) === 1 ? '적용' : '미적용'),
       },
       {
         headerName: '작업자',

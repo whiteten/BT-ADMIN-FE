@@ -8,6 +8,7 @@ import type { ColDef, GetRowIdParams, RowDataUpdatedEvent } from 'ag-grid-commun
 import { AgGridReact } from 'ag-grid-react';
 import type { IrWorktime } from '../types';
 import { byteToLabels, displayHHMM } from '../utils/weekday';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface Props {
@@ -62,7 +63,13 @@ export default function WorktimeTable({ rowData, isLoading, focusId, onRowDouble
         field: 'useYn',
         headerName: '사용여부',
         width: 100,
-        cellRenderer: (p: { value: number | null }) => (p.value === 1 ? <span className="text-blue-600 font-medium">사용</span> : <span className="text-gray-400">미사용</span>),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (p: { value: number | null }) => (
+          <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${p.value === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
+            {p.value === 1 ? '사용' : '미사용'}
+          </Badge>
+        ),
+        filterValueGetter: ({ data }) => (data?.useYn === 1 ? '사용' : '미사용'),
       },
       { field: 'worktimeDesc', headerName: '설명', flex: 3, minWidth: 180, tooltipField: 'worktimeDesc' },
     ],

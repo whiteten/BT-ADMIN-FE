@@ -31,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
+import { codeFilter } from '@/libs/shared-ui/src/lib/aggridCodeColumn';
 
 /** Role 타입 배지 색상 — 라벨은 FE 상수(HA_ROLE_TYPE_KIND_LABELS, BE enum 고정값 이식)에서, 색상은 값 기준 고정. */
 const ROLE_TYPE_BADGE_CLASS: Record<number, string> = {
@@ -183,6 +184,7 @@ export default function HaGroupList() {
           p.data ? (
             <Badge className={cn(BADGE_CLASS, ROLE_TYPE_BADGE_CLASS[p.data.roleType] ?? DEFAULT_BADGE_CLASS)}>{HA_ROLE_TYPE_KIND_LABELS[p.data.roleType] ?? '-'}</Badge>
           ) : null,
+        ...codeFilter('roleType', HA_ROLE_TYPE_KIND_LABELS),
       },
       { headerName: 'ROLE 별칭', field: 'roleAlias', flex: 1, minWidth: 100 },
       { headerName: 'HA IP', field: 'haIpaddr', flex: 1, minWidth: 120 },
@@ -199,6 +201,7 @@ export default function HaGroupList() {
           ) : (
             '-'
           ),
+        ...codeFilter('roleStatus', HA_ROLE_STATUS_KIND_LABELS),
       },
       {
         headerName: '변경시간',

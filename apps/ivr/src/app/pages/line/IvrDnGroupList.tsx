@@ -332,8 +332,15 @@ export default function IvrDnGroupList() {
         field: 'direction',
         width: 120,
         cellRenderer: (p: ICellRendererParams<IrDnGroup>) => (p.data ? <DirectionBadge direction={p.data.direction} /> : null),
+        ...codeFilter('direction', DIRECTION_LABELS),
       },
-      { headerName: 'REG', field: 'regKind', width: 120, cellRenderer: (p: ICellRendererParams<IrDnGroup>) => (p.data ? (REG_KIND_LABELS[p.data.regKind] ?? '-') : '-') },
+      {
+        headerName: 'REG',
+        field: 'regKind',
+        width: 120,
+        cellRenderer: (p: ICellRendererParams<IrDnGroup>) => (p.data ? (REG_KIND_LABELS[p.data.regKind] ?? '-') : '-'),
+        ...codeFilter('regKind', REG_KIND_LABELS),
+      },
       {
         headerName: 'ACS',
         colId: 'acs',
