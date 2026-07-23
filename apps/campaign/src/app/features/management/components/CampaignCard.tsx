@@ -14,6 +14,7 @@ type CampaignCardProps = CampaignListItem & {
 };
 
 const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
+const formatDate = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD') : '-');
 
 export default function CampaignCard({
   campaignId,
@@ -82,12 +83,12 @@ export default function CampaignCard({
           <span>{campaignName}</span>
         </div>
         <div className="flex">
-          <span className="w-[104px]">시작일시</span>
-          <span>{formatDateTime(startDateTime)}</span>
+          <span className="w-[104px]">시작일</span>
+          <span>{formatDate(startDateTime)}</span>
         </div>
         <div className="flex">
-          <span className="w-[104px]">종료일시</span>
-          <span>{formatDateTime(endDateTime)}</span>
+          <span className="w-[104px]">종료일</span>
+          <span>{formatDate(endDateTime)}</span>
         </div>
         <div className="flex">
           <span className="w-[104px]">사용여부</span>
