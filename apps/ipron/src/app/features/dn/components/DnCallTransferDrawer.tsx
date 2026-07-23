@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ColDef } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Drawer, Form, Input, Select, Switch, Tag, TimePicker } from 'antd';
+import { Button, Drawer, Form, Input, Select, Switch, TimePicker } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { List, Plus, Trash2 } from 'lucide-react';
 import { toast } from '@/shared-util';
@@ -36,6 +36,8 @@ import {
   type TransReasonCodeCode,
   type TransferDenyType,
 } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface DnCallTransferDrawerProps {
@@ -235,8 +237,13 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
         headerName: '활성',
         field: 'activateYn',
         width: 60,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         filterValueGetter: (params) => (params.data?.activateYn === 1 ? 'ON' : 'OFF'),
-        cellRenderer: (p: { value: number }) => (p.value === 1 ? <Tag color="green">ON</Tag> : <Tag>OFF</Tag>),
+        cellRenderer: (p: { value: number }) => (
+          <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', p.value === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100')}>
+            {p.value === 1 ? 'ON' : 'OFF'}
+          </Badge>
+        ),
       },
       { headerName: '착신전환 DNIS', field: 'transDnis', minWidth: 110, flex: 1, valueFormatter: (p) => p.value ?? '-', tooltipField: 'transDnis' },
       { headerName: '번호 패턴', field: 'transPattern', minWidth: 140, flex: 1, tooltipField: 'transPattern', valueFormatter: (p) => p.value ?? '-' },

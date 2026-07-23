@@ -26,22 +26,23 @@ import { cosQueryKeys, useDeleteCosBatch, useGetCosList } from '../../features/c
 import type { Cos } from '../../features/cos/types';
 import { useGetNodeTenants } from '../../features/node-scope/hooks/useNodeScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: 'COS 설정', path: '/ipron/cos' }];
 
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const CENTER_CELL = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
+
 /** 0/1 서비스 플래그를 설정/해제 배지로 표시 */
 const StatusBadgeRenderer = (params: ICellRendererParams) => {
   const value = params.value;
-  return value === 1 ? (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#e6f4ff', color: '#1677ff' }}>
-      설정
-    </span>
-  ) : (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
-      해제
-    </span>
+  return (
+    <Badge variant="secondary" className={cn(BADGE_CLASS, value === 1 ? 'text-blue-600 bg-blue-50' : 'text-gray-500 bg-gray-100')}>
+      {value === 1 ? '설정' : '해제'}
+    </Badge>
   );
 };
 
@@ -208,14 +209,49 @@ export default function CosList() {
           ]
         : []),
       { headerName: 'COS 이름', field: 'cosName', flex: 1, minWidth: 160, tooltipField: 'cosName' },
-      { headerName: '착신금지', field: 'dnTblSvc', width: 100, filterValueGetter: cosStatusFilterGetter('dnTblSvc'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '발신금지', field: 'dnOblSvc', width: 100, filterValueGetter: cosStatusFilterGetter('dnOblSvc'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '픽업사용', field: 'pickupSvc', width: 100, filterValueGetter: cosStatusFilterGetter('pickupSvc'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '코칭사용', field: 'coachingSvc', width: 100, filterValueGetter: cosStatusFilterGetter('coachingSvc'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '감청사용', field: 'monitorSvc', width: 100, filterValueGetter: cosStatusFilterGetter('monitorSvc'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '피감청/피코칭', field: 'ignoreBugsCoaching', width: 120, filterValueGetter: cosStatusFilterGetter('ignoreBugsCoaching'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '특정번호발신허용', field: 'dodNumAllow', width: 140, filterValueGetter: cosStatusFilterGetter('dodNumAllow'), cellRenderer: StatusBadgeRenderer },
-      { headerName: '특정번호착신금지', field: 'callScreenSvc', width: 140, filterValueGetter: cosStatusFilterGetter('callScreenSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '착신금지', field: 'dnTblSvc', width: 100, cellStyle: CENTER_CELL, filterValueGetter: cosStatusFilterGetter('dnTblSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '발신금지', field: 'dnOblSvc', width: 100, cellStyle: CENTER_CELL, filterValueGetter: cosStatusFilterGetter('dnOblSvc'), cellRenderer: StatusBadgeRenderer },
+      { headerName: '픽업사용', field: 'pickupSvc', width: 100, cellStyle: CENTER_CELL, filterValueGetter: cosStatusFilterGetter('pickupSvc'), cellRenderer: StatusBadgeRenderer },
+      {
+        headerName: '코칭사용',
+        field: 'coachingSvc',
+        width: 100,
+        cellStyle: CENTER_CELL,
+        filterValueGetter: cosStatusFilterGetter('coachingSvc'),
+        cellRenderer: StatusBadgeRenderer,
+      },
+      {
+        headerName: '감청사용',
+        field: 'monitorSvc',
+        width: 100,
+        cellStyle: CENTER_CELL,
+        filterValueGetter: cosStatusFilterGetter('monitorSvc'),
+        cellRenderer: StatusBadgeRenderer,
+      },
+      {
+        headerName: '피감청/피코칭',
+        field: 'ignoreBugsCoaching',
+        width: 120,
+        cellStyle: CENTER_CELL,
+        filterValueGetter: cosStatusFilterGetter('ignoreBugsCoaching'),
+        cellRenderer: StatusBadgeRenderer,
+      },
+      {
+        headerName: '특정번호발신허용',
+        field: 'dodNumAllow',
+        width: 140,
+        cellStyle: CENTER_CELL,
+        filterValueGetter: cosStatusFilterGetter('dodNumAllow'),
+        cellRenderer: StatusBadgeRenderer,
+      },
+      {
+        headerName: '특정번호착신금지',
+        field: 'callScreenSvc',
+        width: 140,
+        cellStyle: CENTER_CELL,
+        filterValueGetter: cosStatusFilterGetter('callScreenSvc'),
+        cellRenderer: StatusBadgeRenderer,
+      },
     ],
     [cosStatusFilterGetter, operatorMode, tenantNameById],
   );

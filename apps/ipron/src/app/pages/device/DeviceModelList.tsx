@@ -14,7 +14,7 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridReadyEvent, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Modal, Tag } from 'antd';
+import { Button, Input, Modal } from 'antd';
 import { Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -22,6 +22,8 @@ import { deviceQueryKeys } from '../../features/device/hooks/useDeviceQueries';
 import DeviceModelFormDrawer, { type DeviceModelFormDrawerRef } from '../../features/device-model/components/DeviceModelFormDrawer';
 import { deviceModelQueryKeys, useDeleteDeviceModel, useGetDeviceModels } from '../../features/device-model/hooks/useDeviceModelQueries';
 import type { DeviceModelResponse } from '../../features/device-model/types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -151,8 +153,17 @@ export default function DeviceModelList() {
         flex: 0,
         filter: 'agNumberColumnFilter',
         filterValueGetter: (p) => p.data?.usedDeviceCount ?? 0,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: ({ value }: { value: number | null | undefined }) =>
-          (value ?? 0) > 0 ? <Tag color="blue">{(value ?? 0).toLocaleString()}대 사용중</Tag> : <Tag>미사용</Tag>,
+          (value ?? 0) > 0 ? (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', 'text-blue-600 bg-blue-50')}>
+              {(value ?? 0).toLocaleString()}대 사용중
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', 'text-gray-500 bg-gray-100')}>
+              미사용
+            </Badge>
+          ),
       },
     ],
     [],
