@@ -4,7 +4,6 @@ import { Button } from 'antd';
 import dayjs from 'dayjs';
 import { createUUID, toast } from '@/shared-util';
 import ReceiveTargetInfoGrid from '../components/ReceiveTargetInfoGrid';
-import { MOCK_RECEIVE_FILE_SUMMARIES } from '../constants/receiveFileListMockData';
 import { RECEIVE_TARGET_FIELD_SAVE_MAP, createInitialReceiveTargetFormFields } from '../constants/receiveTargetFieldConstants';
 import type { ReceiveFileDetailItem } from '../types/receiveFileList';
 import type { ReceiveTargetFormField } from '../types/receiveTargetForm';
@@ -36,7 +35,7 @@ function buildReceiveFileDetailItem(receiveFileId: string, fields: ReceiveTarget
 export default function ReceiveTargetBasicInfo() {
   const navigate = useNavigate();
   const { receiveFileId } = useParams();
-  const receiveFile = MOCK_RECEIVE_FILE_SUMMARIES.find((item) => item.receiveFileId === receiveFileId);
+  const receiveFile = receiveFileId ? { receiveFileId } : undefined;
   const [formFields, setFormFields] = useState<ReceiveTargetFormField[]>(() => createInitialReceiveTargetFormFields());
 
   const handleValueChange = (fieldId: string, value: string) => {

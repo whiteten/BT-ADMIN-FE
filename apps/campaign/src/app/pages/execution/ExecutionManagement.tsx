@@ -18,8 +18,8 @@ import {
   EXECUTION_TARGET_STATUS_FILTER_OPTIONS,
 } from '../../features/execution/execution-management/constants/executionManagementConstants';
 import { createExecutionTargetColumnDefs, getDetailSearchFieldText } from '../../features/execution/execution-management/constants/executionManagementGridColumns';
-import { MOCK_CAMPAIGN_EXECUTIONS, MOCK_EXECUTION_TARGETS } from '../../features/execution/execution-management/constants/executionManagementMockData';
 import {
+  type CampaignExecutionItem,
   EXECUTION_MONITORING_MODE,
   EXECUTION_PROCESS_STATUS_FILTER,
   type ExecutionBatchChangeAction,
@@ -29,7 +29,7 @@ import {
   type ExecutionTargetItem,
   type ExecutionTargetStatus,
 } from '../../features/execution/execution-management/types';
-import { useGetCampaignOptionList, useGetTenantOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
+import { useGetCampaignOptionList } from '../../features/statistics/hooks/useCampaignStatisticsQueries';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb: BreadcrumbProps['items'] = [
@@ -37,14 +37,15 @@ const breadcrumb: BreadcrumbProps['items'] = [
   { title: '캠페인 실행관리', path: '/campaign/execution/execution-management' },
 ];
 
-const EXECUTION_MANAGEMENT_TENANT_STORAGE_KEY = 'campaign-execution-management:tenant-ids';
+const EMPTY_CAMPAIGN_EXECUTIONS: CampaignExecutionItem[] = [];
+const EMPTY_EXECUTION_TARGETS: ExecutionTargetItem[] = [];
+
 const EXECUTION_MANAGEMENT_CAMPAIGN_STORAGE_KEY = 'campaign-execution-management:campaign-selections';
 const EXECUTION_MANAGEMENT_SCENARIO_STORAGE_KEY = 'campaign-execution-management:scenario-selections';
 
 const EXECUTION_TARGET_GRID_HEIGHT = 400;
 
 type AppliedFilters = {
-  tenantIds: string[];
   campaignSelections: string[];
   scenarioSelections: string[];
   monitoringMode: ExecutionMonitoringMode;
@@ -55,7 +56,6 @@ type AppliedFilters = {
 };
 
 const EMPTY_APPLIED_FILTERS: AppliedFilters = {
-  tenantIds: [],
   campaignSelections: [],
   scenarioSelections: [],
   monitoringMode: EXECUTION_MONITORING_MODE.MANUAL,
@@ -128,10 +128,8 @@ export default function ExecutionManagement() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
   const { gridOptions } = useAggridOptions();
-  const isInitialTenantHydrationDone = useRef(false);
   const cardScrollRef = useRef<HTMLDivElement>(null);
 
-  const [tenantIds, setTenantIds] = useState<string[]>(() => loadStoredStringArray(EXECUTION_MANAGEMENT_TENANT_STORAGE_KEY));
   const [campaignSelections, setCampaignSelections] = useState<string[]>(() => loadStoredStringArray(EXECUTION_MANAGEMENT_CAMPAIGN_STORAGE_KEY).filter((v) => v.startsWith('C:')));
   const [scenarioSelections, setScenarioSelections] = useState<string[]>(() => {
     const fromScenarioKey = loadStoredStringArray(EXECUTION_MANAGEMENT_SCENARIO_STORAGE_KEY);
@@ -150,9 +148,9 @@ export default function ExecutionManagement() {
     processStatusFilters: EXECUTION_PROCESS_STATUS_FILTER_OPTIONS.map((o) => o.value),
   });
 
-  const executionList = MOCK_CAMPAIGN_EXECUTIONS;
-  const executionTargets = MOCK_EXECUTION_TARGETS;
-  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>('exec-001');
+  const executionList = EMPTY_CAMPAIGN_EXECUTIONS;
+  const executionTargets = EMPTY_EXECUTION_TARGETS;
+  const [selectedExecutionId, setSelectedExecutionId] = useState<string | null>(null);
   const [checkedExecutionIds, setCheckedExecutionIds] = useState<string[]>([]);
   const [checkedTargetIds, setCheckedTargetIds] = useState<string[]>([]);
 
@@ -163,17 +161,7 @@ export default function ExecutionManagement() {
   const [appliedDetailFilters, setAppliedDetailFilters] = useState<AppliedDetailFilters>(EMPTY_APPLIED_DETAIL_FILTERS);
   const [inquiryTime, setInquiryTime] = useState(dayjs().format('HH:mm:ss'));
 
-  const { data: tenantOptionList } = useGetTenantOptionList();
-  const tenantSelectOptions = useMemo(
-    () => (tenantOptionList ?? []).filter((t) => Boolean(t?.tenantId && t?.tenantName)).map((t) => ({ label: String(t.tenantName), value: String(t.tenantId) })),
-    [tenantOptionList],
-  );
-
-  const tenantIdNums = useMemo(() => tenantIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)), [tenantIds]);
-  const { data: campaignOptionList } = useGetCampaignOptionList({
-    params: { tenantIds: tenantIdNums },
-    queryOptions: { enabled: tenantIdNums.length > 0 },
-  });
+  const { data: campaignOptionList } = useGetCampaignOptionList();
 
   const campaignSelectOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -212,15 +200,6 @@ export default function ExecutionManagement() {
   }, [setBreadcrumb, clearBreadcrumb]);
 
   useEffect(() => {
-    if (!isInitialTenantHydrationDone.current) {
-      isInitialTenantHydrationDone.current = true;
-      return;
-    }
-    setCampaignSelections([]);
-    setScenarioSelections([]);
-  }, [tenantIds]);
-
-  useEffect(() => {
     if (!campaignOptionList) return;
 
     const validValues = new Set(scenarioSelectOptions.map((o) => o.value));
@@ -243,10 +222,6 @@ export default function ExecutionManagement() {
   }, [campaignOptionList, scenarioSelectOptions]);
 
   useEffect(() => {
-    localStorage.setItem(EXECUTION_MANAGEMENT_TENANT_STORAGE_KEY, JSON.stringify(tenantIds));
-  }, [tenantIds]);
-
-  useEffect(() => {
     localStorage.setItem(EXECUTION_MANAGEMENT_CAMPAIGN_STORAGE_KEY, JSON.stringify(campaignSelections));
   }, [campaignSelections]);
 
@@ -256,10 +231,6 @@ export default function ExecutionManagement() {
 
   const filteredExecutions = useMemo(() => {
     let items = executionList;
-
-    if (appliedFilters.tenantIds.length > 0) {
-      items = items.filter((item) => appliedFilters.tenantIds.includes(item.tenantId));
-    }
 
     const campaignIds = parseCampaignIds(appliedFilters.campaignSelections);
     if (campaignIds.length > 0) {
@@ -363,7 +334,6 @@ export default function ExecutionManagement() {
 
   const handleSearch = () => {
     setAppliedFilters({
-      tenantIds,
       campaignSelections,
       scenarioSelections,
       monitoringMode,
@@ -433,45 +403,6 @@ export default function ExecutionManagement() {
       <div className="flex w-full shrink-0 flex-col gap-3 bg-white bt-shadow px-7 py-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-3">
-            <span className="shrink-0 text-sm font-medium text-[#495057]">테넌트</span>
-            <Select
-              mode="multiple"
-              value={tenantIds}
-              onChange={(value) => setTenantIds(value ?? [])}
-              allowClear
-              showSearch
-              maxTagCount="responsive"
-              options={tenantSelectOptions}
-              placeholder="테넌트를 선택하세요."
-              optionFilterProp="label"
-              style={{ width: '15rem' }}
-              popupMatchSelectWidth={false}
-              dropdownRender={(menu) => (
-                <>
-                  <div
-                    className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-gray-50"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      if (tenantIds.length === tenantSelectOptions.length) {
-                        setTenantIds([]);
-                      } else {
-                        setTenantIds(tenantSelectOptions.map((o) => o.value));
-                      }
-                    }}
-                  >
-                    <Checkbox
-                      checked={tenantIds.length === tenantSelectOptions.length && tenantSelectOptions.length > 0}
-                      indeterminate={tenantIds.length > 0 && tenantIds.length < tenantSelectOptions.length}
-                    />
-                    <span className="text-sm">전체 선택</span>
-                  </div>
-                  <Divider style={{ margin: '4px 0' }} />
-                  {menu}
-                </>
-              )}
-            />
-          </div>
-          <div className="flex items-center gap-3">
             <span className="shrink-0 text-sm font-medium text-[#495057]">캠페인</span>
             <Select
               mode="multiple"
@@ -485,7 +416,6 @@ export default function ExecutionManagement() {
               optionFilterProp="label"
               style={{ width: '15rem' }}
               popupMatchSelectWidth={false}
-              disabled={tenantIds.length === 0}
               dropdownRender={(menu) => (
                 <>
                   <div
@@ -525,7 +455,7 @@ export default function ExecutionManagement() {
               optionFilterProp="label"
               style={{ width: '15rem' }}
               popupMatchSelectWidth={false}
-              disabled={tenantIds.length === 0 || campaignSelections.length === 0}
+              disabled={campaignSelections.length === 0}
               dropdownRender={(menu) => (
                 <>
                   <div

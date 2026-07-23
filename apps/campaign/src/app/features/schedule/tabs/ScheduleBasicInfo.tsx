@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
@@ -6,8 +6,7 @@ import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { SCHEDULE_USAGE_FLAG } from '../constants/scheduleManagementConstants';
 import { SCHEDULE_CRON_EXPRESSION_GUIDE, SCHEDULE_CRON_SETTING_OPTIONS, type ScheduleCronSetting } from '../constants/scheduleManagementFormConstants';
-import { getMockScheduleManagementDetail } from '../constants/scheduleManagementMockData';
-import { MOCK_SCHEDULE_TENANT_OPTIONS } from '../constants/scheduleMockData';
+import type { ScheduleManagementItem } from '../types/scheduleManagement';
 
 type ScheduleBasicInfoFormValues = {
   scheduleName: string;
@@ -24,13 +23,17 @@ type ScheduleBasicInfoFormValues = {
 
 const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
 
+/** API 연동 전 placeholder — 반환 타입을 유지해 CFA가 never로 좁히지 않게 함 */
+function getScheduleManagementDetail(_scheduleId: string | undefined): ScheduleManagementItem | undefined {
+  return undefined;
+}
+
 export default function ScheduleBasicInfo() {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
   const [form] = Form.useForm<ScheduleBasicInfoFormValues>();
-  const schedule = scheduleId ? getMockScheduleManagementDetail(scheduleId) : undefined;
-
-  const tenantSelectOptions = useMemo(() => MOCK_SCHEDULE_TENANT_OPTIONS.map((tenant) => ({ label: tenant.label, value: tenant.value })), []);
+  const schedule = getScheduleManagementDetail(scheduleId);
+  const tenantSelectOptions: { label: string; value: string }[] = [];
 
   const onFinish: FormProps<ScheduleBasicInfoFormValues>['onFinish'] = (values) => {
     if (values.usageEnabled) {

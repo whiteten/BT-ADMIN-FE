@@ -4,9 +4,8 @@ import { Button, Col, Form, type FormProps, Input, InputNumber, Row, Select, Swi
 import dayjs from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { MOCK_CAMPAIGN_LIST } from '../constants/campaignManagementMockData';
 import { CALL_MULTIPLIER_OPTIONS, LOADED_CAMPAIGN_STATUS_OPTIONS, LOADED_TARGET_STATUS_OPTIONS, TRANSFER_DN_OPTIONS } from '../constants/campaignScenarioConstants';
-import { getMockCampaignScenarioDetail } from '../constants/campaignScenarioMockData';
+import type { CampaignScenarioListItem } from '../types/campaignScenario';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 type CampaignScenarioBasicInfoFormValues = {
@@ -26,15 +25,20 @@ type CampaignScenarioBasicInfoFormValues = {
 
 const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '-');
 
+/** API 연동 전 placeholder — 반환 타입을 유지해 CFA가 never로 좁히지 않게 함 */
+function getCampaignScenarioDetail(_scenarioId: string | undefined): CampaignScenarioListItem | undefined {
+  return undefined;
+}
+
 export default function CampaignScenarioBasicInfo() {
   const { scenarioId } = useParams();
   const navigate = useNavigate();
   const modal = useModal();
   const [form] = Form.useForm<CampaignScenarioBasicInfoFormValues>();
-  const scenario = scenarioId ? getMockCampaignScenarioDetail(scenarioId) : undefined;
+  const scenario = getCampaignScenarioDetail(scenarioId);
   const selectedCampaignId = Form.useWatch('campaignId', form);
 
-  const campaignSelectOptions = useMemo(() => MOCK_CAMPAIGN_LIST.map((campaign) => ({ label: campaign.campaignName, value: campaign.campaignId })), []);
+  const campaignSelectOptions = useMemo(() => [] as { label: string; value: string }[], []);
 
   const onFinish: FormProps<CampaignScenarioBasicInfoFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
@@ -231,6 +235,11 @@ export default function CampaignScenarioBasicInfo() {
         </Col>
       </Row>
       <Row gutter={20} justify="center" className="sticky bottom-0 bg-white/90 z-10 pb-7">
+        <Col>
+          <Button color="red" variant="solid" onClick={handleClickDeleteBtn}>
+            삭제
+          </Button>
+        </Col>
         <Col>
           <Button variant="solid" onClick={handleClickCancelBtn}>
             취소

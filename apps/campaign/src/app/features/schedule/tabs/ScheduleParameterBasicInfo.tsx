@@ -3,17 +3,22 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, Row } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { getMockScheduleManagementDetail } from '../constants/scheduleManagementMockData';
+import type { ScheduleManagementItem } from '../types/scheduleManagement';
 
 type ScheduleParameterFormValues = {
   parameter?: string;
 };
 
+/** API 연동 전 placeholder — 반환 타입을 유지해 CFA가 never로 좁히지 않게 함 */
+function getScheduleManagementDetail(_scheduleId: string | undefined): ScheduleManagementItem | undefined {
+  return undefined;
+}
+
 export default function ScheduleParameterBasicInfo() {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
   const [form] = Form.useForm<ScheduleParameterFormValues>();
-  const schedule = scheduleId ? getMockScheduleManagementDetail(scheduleId) : undefined;
+  const schedule = getScheduleManagementDetail(scheduleId);
 
   const onFinish: FormProps<ScheduleParameterFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);

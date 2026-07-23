@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Col, Form, type FormProps, Input, InputNumber, Row, Select, Switch } from 'antd';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
-import { MOCK_CAMPAIGN_LIST } from '../constants/campaignManagementMockData';
 import {
   CALL_MULTIPLIER_OPTIONS,
   DEFAULT_SCENARIO_FILE_LOCATION,
@@ -43,7 +42,7 @@ export default function CampaignScenarioBasicInfoCreate() {
   const [form] = Form.useForm<CampaignScenarioBasicInfoCreateFormValues>();
   const selectedCampaignId = Form.useWatch('campaignId', form);
 
-  const campaignSelectOptions = useMemo(() => MOCK_CAMPAIGN_LIST.map((campaign) => ({ label: campaign.campaignName, value: campaign.campaignId })), []);
+  const campaignSelectOptions = useMemo(() => [] as { label: string; value: string }[], []);
 
   const onFinish: FormProps<CampaignScenarioBasicInfoCreateFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);

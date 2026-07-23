@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { BreadcrumbProps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
-import { getMockCampaignScenarioDetail } from '../../features/management/constants/campaignScenarioMockData';
 import { IconDocument } from '@/components/custom/Icons';
 import PageTabs, { type PageTab } from '@/components/custom/PageTabs';
 
@@ -12,7 +11,6 @@ const tabs: PageTab[] = [{ id: 'tab1', label: '기본정보', icon: IconDocument
 
 export default function CampaignScenarioDetail() {
   const { scenarioId } = useParams();
-  const scenario = scenarioId ? getMockCampaignScenarioDetail(scenarioId) : undefined;
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
   const clearBreadcrumb = useBreadcrumbStore((s) => s.clearBreadcrumb);
 
@@ -22,9 +20,9 @@ export default function CampaignScenarioDetail() {
       { title: '캠페인 시나리오', path: '/campaign/management/campaign-scenario' },
       { title: ':scenarioName', path: `/campaign/management/campaign-scenario/${scenarioId}` },
     ];
-    setBreadcrumb(breadcrumb, { scenarioName: scenario?.scenarioName ?? '-' });
+    setBreadcrumb(breadcrumb, { scenarioName: '-' });
     return () => clearBreadcrumb();
-  }, [scenarioId, scenario?.scenarioName, setBreadcrumb, clearBreadcrumb]);
+  }, [scenarioId, setBreadcrumb, clearBreadcrumb]);
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
