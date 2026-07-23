@@ -60,22 +60,40 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
     const t = s.userInfo?.tenant;
     return t != null ? Number(t) : null;
   });
+  // 운영자 모드에서 노출할 테넌트 옵션(접근 가능한 전체 테넌트) — 목록 화면과 동일 소스.
+  const availableTenants = useAuthStore((s) => s.userInfo?.availableTenants);
   const [visible, setVisible] = useState(false);
   const [editData, setEditData] = useState<CallScreen | null>(null);
-  const [tenantId, setTenantId] = useState<number | null>(null);
-  const [tenantName, setTenantName] = useState('');
+  // 사전 지정된 테넌트(일반 모드=로그인 테넌트, 운영자 대행 모드=선택 테넌트, 수정=자원 테넌트).
+  // null 이면 운영자 전체(view-all) 등록 → 폼에서 반드시 고르게 강제.
+  const [presetTenantId, setPresetTenantId] = useState<number | null>(null);
+  const [presetTenantName, setPresetTenantName] = useState('');
+  // 테넌트 필드 잠금 여부(수정/일반 모드/운영자 대행 지정 시 true → Select 비활성).
+  const [tenantLocked, setTenantLocked] = useState(false);
   const [patternDrawerOpen, setPatternDrawerOpen] = useState(false);
 
   const numPatternDrawerRef = useRef<NumPatternDrawerRef>(null);
 
   const isEditMode = !!editData;
 
+  // 테넌트 Select 옵션 — 접근 가능한 전체 테넌트 + (옵션에 없을 수 있는) 사전 지정 테넌트 보강.
+  const tenantOptions = (() => {
+    const opts = (availableTenants ?? []).map((t) => ({ label: t.tenantName ?? String(t.tenantId), value: t.tenantId }));
+    if (presetTenantId != null && !opts.some((o) => o.value === presetTenantId)) {
+      opts.push({ label: presetTenantName || String(presetTenantId), value: presetTenantId });
+    }
+    return opts;
+  })();
+
   useImperativeHandle(ref, () => ({
     open: (data?: CallScreen, initTenantId?: number, initTenantName?: string) => {
       setEditData(data ?? null);
-      // 일반 모드: 로그인 테넌트로 고정(부모가 넘긴 값 우선, 없으면 활성 테넌트 폴백).
-      setTenantId(data?.tenantId ?? initTenantId ?? (operatorMode ? null : activeTenantId));
-      setTenantName(data?.tenantName ?? initTenantName ?? '');
+      // 사전 지정 테넌트: 수정=자원 테넌트, 운영자 대행=선택 테넌트, 일반=활성 테넌트, 운영자 전체=null(직접 선택).
+      const preset = data?.tenantId ?? initTenantId ?? (operatorMode ? null : activeTenantId);
+      setPresetTenantId(preset ?? null);
+      setPresetTenantName(data?.tenantName ?? initTenantName ?? '');
+      // 잠금: 수정 || 일반 모드 || 운영자 대행(특정 테넌트 지정). 운영자 전체(초기 테넌트 없음)면 선택 가능.
+      setTenantLocked(!!data || !operatorMode || initTenantId != null);
       setVisible(true);
     },
     close: () => {
@@ -86,16 +104,19 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   }));
 
   useEffect(() => {
-    if (visible && editData) {
+    if (!visible) return;
+    if (editData) {
       form.setFieldsValue({
+        tenantId: editData.tenantId,
         numPattern: editData.numPattern,
         screenDesc: editData.screenDesc ?? '',
         dnGroupId: editData.dnGroupId ?? null,
       });
-    } else if (visible) {
+    } else {
       form.resetFields();
+      form.setFieldsValue({ tenantId: presetTenantId ?? undefined });
     }
-  }, [visible, editData, form]);
+  }, [visible, editData, presetTenantId, form]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createCallScreen, isPending: isCreating } = useCreateCallScreen({
@@ -133,8 +154,9 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
   const handleClose = useCallback(() => {
     setVisible(false);
     setEditData(null);
-    setTenantId(null);
-    setTenantName('');
+    setPresetTenantId(null);
+    setPresetTenantName('');
+    setTenantLocked(false);
     form.resetFields();
   }, [form]);
 
@@ -150,13 +172,15 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
         };
         updateCallScreen({ id: editData.callscreenId, data: payload });
       } else {
-        if (!tenantId) {
+        // 운영자 모드는 폼 선택값, 그 외(일반/대행)는 사전 지정 테넌트 사용.
+        const effectiveTenantId = (operatorMode ? values.tenantId : presetTenantId) ?? presetTenantId;
+        if (!effectiveTenantId) {
           toast.error('테넌트 정보가 필요합니다');
           return;
         }
         const payload: CallScreenCreateRequest = {
           nodeId: 0, // 수신번호차단은 노드 개념 미사용 — NODE_ID 항상 0 고정 (BE 무변경)
-          tenantId,
+          tenantId: effectiveTenantId,
           numPattern: values.numPattern,
           screenDesc: values.screenDesc || null,
           dnGroupId: values.dnGroupId ?? null,
@@ -166,7 +190,7 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
     } catch {
       /* validation failed */
     }
-  }, [form, isEditMode, editData, tenantId, createCallScreen, updateCallScreen]);
+  }, [form, isEditMode, editData, operatorMode, presetTenantId, createCallScreen, updateCallScreen]);
 
   const handleDelete = useCallback(() => {
     if (!editData) return;
@@ -224,8 +248,8 @@ const CallScreenDrawer = forwardRef<CallScreenDrawerRef, Props>(({ onSuccess }, 
       >
         <Form form={form} layout="vertical" initialValues={{ numPattern: '', screenDesc: '', dnGroupId: null }}>
           {operatorMode && (
-            <Form.Item label="테넌트">
-              <Input value={tenantName} disabled />
+            <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트를 선택하세요' }]}>
+              <Select placeholder="테넌트 선택" options={tenantOptions} disabled={tenantLocked} showSearch optionFilterProp="label" />
             </Form.Item>
           )}
 

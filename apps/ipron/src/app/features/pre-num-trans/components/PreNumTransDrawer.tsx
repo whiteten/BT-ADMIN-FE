@@ -96,7 +96,11 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
   const [nodeOptions, setNodeOptions] = useState<NodeOption[]>([]);
 
   const isEditMode = !!editData;
-  const isNodeSelectable = !isEditMode && !nodeId && nodeOptions.length > 0;
+  // 등록 모드에서는 노드를 항상 자유롭게 선택/변경할 수 있어야 한다.
+  // (리스트에서 선택 중이던 노드는 기본값으로만 채우고 nodeId 확정 여부와 무관하게 Select 유지)
+  const isNodeSelectable = !isEditMode && nodeOptions.length > 0;
+  // 등록 Drawer 진입 시 기본 노드(리스트 선택 노드)를 폼에 채우기 위한 값
+  const initialNodeIdRef = useRef<number | null>(null);
 
   // transAction watch
   const transAction = Form.useWatch('transAction', form);
@@ -113,10 +117,13 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
 
   useImperativeHandle(ref, () => ({
     open: (data?: PreNumTrans, initNodeId?: number, initNodeName?: string, nodeList?: NodeOption[]) => {
+      const resolvedNodeId = data?.nodeId ?? initNodeId ?? null;
       setEditData(data ?? null);
-      setNodeId(data?.nodeId ?? initNodeId ?? null);
+      setNodeId(resolvedNodeId);
       setNodeName(data?.nodeName ?? initNodeName ?? '');
       setNodeOptions(nodeList ?? []);
+      // 등록 모드에서 폼 초기화 후 기본 노드를 채우기 위해 보관
+      initialNodeIdRef.current = resolvedNodeId;
       setVisible(true);
     },
     close: () => {
@@ -143,6 +150,10 @@ const PreNumTransDrawer = forwardRef<PreNumTransDrawerRef, Props>(({ onSuccess }
       });
     } else if (visible) {
       form.resetFields();
+      // 등록 모드: 리스트에서 선택 중이던 노드를 기본값으로 채움 (변경 가능)
+      if (initialNodeIdRef.current != null) {
+        form.setFieldsValue({ nodeId: initialNodeIdRef.current });
+      }
     }
   }, [visible, editData, form]);
 

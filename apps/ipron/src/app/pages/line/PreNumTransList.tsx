@@ -112,7 +112,9 @@ export default function PreNumTransList() {
   };
 
   const handleCreate = useCallback(() => {
-    drawerRef.current?.open(undefined, selectedNodeId ?? undefined, selectedNodeName ?? undefined, selectedNodeId ? undefined : nodes);
+    // 등록 시 노드는 항상 자유롭게 선택/변경 가능 — 전체 노드 목록을 전달하고
+    // 리스트에서 선택 중이던 노드는 기본값으로만 채운다.
+    drawerRef.current?.open(undefined, selectedNodeId ?? undefined, selectedNodeName ?? undefined, nodes);
   }, [selectedNodeId, selectedNodeName, nodes]);
 
   const handleEdit = useCallback((trans: PreNumTrans) => {

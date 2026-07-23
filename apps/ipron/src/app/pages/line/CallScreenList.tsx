@@ -111,12 +111,9 @@ export default function CallScreenList() {
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const handleCreate = useCallback(() => {
-    if (operatorMode && selectedTenantId == null) {
-      toast.warning('대행할 테넌트를 먼저 선택하세요');
-      return;
-    }
+    // 운영자 전체(view-all) 모드에서도 추가 허용 — 테넌트 미지정 시 드로어 폼에서 필수 선택하게 강제.
     drawerRef.current?.open(undefined, selectedTenantId ?? undefined, selectedTenantName || undefined);
-  }, [operatorMode, selectedTenantId, selectedTenantName]);
+  }, [selectedTenantId, selectedTenantName]);
 
   const handleEdit = useCallback((item: CallScreen) => {
     drawerRef.current?.open(item);
@@ -169,8 +166,6 @@ export default function CallScreenList() {
     );
     return cols;
   }, [operatorMode]);
-
-  const addDisabled = operatorMode && selectedTenantId == null;
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -240,13 +235,7 @@ export default function CallScreenList() {
             >
               삭제
             </Button>
-            <Button
-              type="primary"
-              icon={<Plus className="size-3.5" />}
-              onClick={handleCreate}
-              disabled={addDisabled}
-              title={addDisabled ? '대행할 테넌트를 먼저 선택하세요' : undefined}
-            >
+            <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreate}>
               추가
             </Button>
           </div>
