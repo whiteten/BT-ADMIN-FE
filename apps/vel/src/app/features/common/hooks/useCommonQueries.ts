@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { commonApi } from '../api/commonApi';
 import type { AgentItem, GroupItem, PopupParams, TenantListItem } from '../types/common';
 
-export const commonQueryKeys = createQueryKeys('vel-common', {
+export const commonQueryKeys = createAppQueryKeys('vel-common', {
   getTenants: null,
   getGroups: (params?: Record<string, unknown>) => [params],
   getAgents: (params?: Record<string, unknown>) => [params],

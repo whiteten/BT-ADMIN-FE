@@ -8,6 +8,7 @@ export { toast } from './lib/toast';
 export { DEFAULT_AUTO_CLOSE, useToastStore } from './lib/toastStore';
 export type { ToastItem, ToastOptions, ToastType } from './lib/toastStore';
 export { extractApiErrorMessage } from './lib/apiError';
+export { createScopedQueryKeys } from './lib/queryKeys';
 export * from './lib/types/api.types';
 export * from './lib/validation';
 export * from './lib/search/fuzzy';

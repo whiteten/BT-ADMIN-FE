@@ -2,12 +2,12 @@
  * IVR 멘트파일 React Query 훅 (AS-IS IPR30S3020)
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { type MutationHookOptions, type QueryHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractApiErrorMessage, extractFileName, toast } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { mentFileApi } from '../api/mentFileApi';
 import type { MentApplyRequest, MentApplyResponse, MentApplyTarget, MentFile, MentFileHistoryRow } from '../types';
 
-export const mentFileQueryKeys = createQueryKeys('ivrMentFile', {
+export const mentFileQueryKeys = createAppQueryKeys('ivrMentFile', {
   list: null,
   detail: (params?: Record<string, unknown>) => [params],
   applyTargets: (params?: Record<string, unknown>) => [params],

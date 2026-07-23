@@ -6,8 +6,8 @@
  *  - createGroup / updateGroup / deleteGroup → skillGroups + tenantStats
  */
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { skillAssignApi } from '../api/skillAssignApi';
 import type {
   AgentCoverageItem,
@@ -33,7 +33,7 @@ import type {
   SkillsetCoverageItem,
 } from '../types';
 
-export const skillAssignQueryKeys = createQueryKeys('skill-assign', {
+export const skillAssignQueryKeys = createAppQueryKeys('skill-assign', {
   tenantStats: null,
   availableSkillsets: (params?: Record<string, unknown>) => [params],
   skillsetsByAgent: (agentId?: number) => [agentId],

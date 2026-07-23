@@ -12,8 +12,13 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Empty, Spin } from 'antd';
 import { Headphones, PhoneIncoming, PhoneOutgoing, User } from 'lucide-react';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { trackingApi } from '../api/trackingApi';
 import type { CallSearchResult } from '../types/tracking';
+
+const relatedCallKeys = createAppQueryKeys('related-calls', {
+  agent: (agentId: string | null, todayStart: string, todayEnd: string) => [{ agentId, todayStart, todayEnd }],
+});
 
 interface Props {
   currentUcid: string;
@@ -38,7 +43,7 @@ export default function RelatedCallsPanel({ currentUcid, agentId, currentCallSta
   }, [currentCallStartTime]);
 
   const agentQ = useQuery({
-    queryKey: ['related-calls', 'agent', agentId, dateRange.todayStart, dateRange.todayEnd],
+    queryKey: relatedCallKeys.agent(agentId, dateRange.todayStart, dateRange.todayEnd).queryKey,
     queryFn: () =>
       trackingApi.search({
         mode: 'PBX',

@@ -3,12 +3,12 @@
  * SD-LICENSE-MANAGEMENT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { licenseApi } from '../api/licenseApi';
 import type { ClusterAllocation, License, LicenseDetailAggregated, LicenseUsageResponse } from '../types';
 
-export const licenseQueryKeys = createQueryKeys('licenses', {
+export const licenseQueryKeys = createAppQueryKeys('licenses', {
   getLicenses: (params?: Record<string, unknown>) => [params],
   getLicenseDetail: (params?: Record<string, unknown>) => [params],
   getTotalUsage: null,

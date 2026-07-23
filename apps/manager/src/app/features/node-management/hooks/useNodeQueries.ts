@@ -3,12 +3,12 @@
  * SD-NODE-MANAGEMENT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { nodeApi } from '../api/nodeApi';
 import type { NodeDetail, NodeListItem } from '../types';
 
-export const nodeQueryKeys = createQueryKeys('nodes', {
+export const nodeQueryKeys = createAppQueryKeys('nodes', {
   getNodes: (params?: Record<string, unknown>) => [params],
   getNode: (params?: Record<string, unknown>) => [params],
   checkNodeId: (params?: Record<string, unknown>) => [params],

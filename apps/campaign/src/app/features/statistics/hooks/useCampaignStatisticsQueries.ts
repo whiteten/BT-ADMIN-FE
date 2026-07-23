@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { campaignStatisticsApi } from '../api/campaignStatisticsApi';
 import type { CampaignAchievementStatList, CampaignOptionListItem, CampaignResultStatList, TenantOptionListItem } from '../types';
 
-export const campaignStatisticsQueryKeys = createQueryKeys('campaignStatistics', {
+export const campaignStatisticsQueryKeys = createAppQueryKeys('campaignStatistics', {
   getCampaignResultStatList: (params?: Record<string, unknown>) => [params],
   getCampaignAchievementStatList: (params?: Record<string, unknown>) => [params],
   getTenantOptionList: (params?: Record<string, unknown>) => [params],

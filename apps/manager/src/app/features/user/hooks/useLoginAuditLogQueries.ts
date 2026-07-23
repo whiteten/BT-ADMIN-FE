@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { loginAuditLogApi } from '../api/loginAuditLogApi';
 import type { LoginAuditLog, LoginAuditLogSearchParams } from '../types';
 
@@ -17,7 +17,7 @@ interface PagedResponse<T> {
 /**
  * 로그인 감사 로그 쿼리 키 정의
  */
-export const loginAuditLogQueryKeys = createQueryKeys('loginAuditLog', {
+export const loginAuditLogQueryKeys = createAppQueryKeys('loginAuditLog', {
   search: (params?: LoginAuditLogSearchParams) => [params],
 });
 

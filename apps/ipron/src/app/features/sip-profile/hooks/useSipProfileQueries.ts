@@ -3,12 +3,12 @@
  * SD-SIP-PROFILE.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { sipProfileApi } from '../api/sipProfileApi';
 import type { SipHeaderGroup, SipHeaderRelay, SipProfile } from '../types';
 
-export const sipProfileQueryKeys = createQueryKeys('sipProfiles', {
+export const sipProfileQueryKeys = createAppQueryKeys('sipProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],
   getProfileDetail: (params?: Record<string, unknown>) => [params],
   getHeaderGroups: null,

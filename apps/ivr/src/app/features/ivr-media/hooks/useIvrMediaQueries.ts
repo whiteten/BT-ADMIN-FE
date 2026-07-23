@@ -2,12 +2,12 @@
  * IVR 미디어 관리 React Query 훅 (IPR20S6041)
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ivrMediaApi } from '../api/ivrMediaApi';
 import type { IrMediaServer, IrSttMaster, IrSystemUsage, IrTtsMaster } from '../types';
 
-export const ivrMediaQueryKeys = createQueryKeys('ivrMedia', {
+export const ivrMediaQueryKeys = createAppQueryKeys('ivrMedia', {
   getMediaServer: (params?: Record<string, unknown>) => [params],
   getTtsMasters: null,
   getTts: (params?: Record<string, unknown>) => [params],

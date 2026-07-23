@@ -2,12 +2,12 @@
  * IVR DNIS React Query 훅.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dnisApi } from '../api/dnisApi';
 import type { DnisBatchCopyRequest, DnisBatchCopyResult, DnisCreateRequest, DnisExcelImportResult, DnisItem, DnisUpdateRequest } from '../types/dnis.types';
 
-export const dnisQueryKeys = createQueryKeys('ivrDnis', {
+export const dnisQueryKeys = createAppQueryKeys('ivrDnis', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (params?: Record<string, unknown>) => [params],
   dupCheck: (params?: Record<string, unknown>) => [params],

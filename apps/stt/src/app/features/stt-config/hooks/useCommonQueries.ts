@@ -1,9 +1,9 @@
 import { type UseQueryOptions, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { commonApi } from '../api/commonchApi';
 import type { SttSystemItem } from '../types';
 
-export const commonQueryKeys = createQueryKeys('stts', {
+export const commonQueryKeys = createAppQueryKeys('stts', {
   getTenants: (params?: Record<string, unknown>) => [params],
   getSttSystemList: null,
 });

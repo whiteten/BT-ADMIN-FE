@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { faultHistoryApi } from '../api/faultHistoryApi';
 import type { FaultForceRecoverParams, FaultHistoryItem, FaultHistoryListParams, FaultHistorySummary, ForceRecoverResult, PagedResponse } from '../types';
 
 /** 장애 이력 쿼리 키 팩토리 */
-export const faultHistoryQueryKeys = createQueryKeys('faultHistory', {
+export const faultHistoryQueryKeys = createAppQueryKeys('faultHistory', {
   getFaultHistories: (params?: Record<string, unknown>) => [params],
   getFaultHistorySummary: (params?: Record<string, unknown>) => [params],
   getFaultHistoryEvents: (params?: Record<string, unknown>) => [params],

@@ -3,12 +3,12 @@
  * SD-ROUTE.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type DodTransOption, type MentOption, type WorktimeOption, routeApi } from '../api/routeApi';
 import type { Route, RoutePoint } from '../types';
 
-export const routeQueryKeys = createQueryKeys('routes', {
+export const routeQueryKeys = createAppQueryKeys('routes', {
   getRoutes: (params?: Record<string, unknown>) => [params],
   getRouteDetail: (params?: Record<string, unknown>) => [params],
   getRoutePoints: (params?: Record<string, unknown>) => [params],

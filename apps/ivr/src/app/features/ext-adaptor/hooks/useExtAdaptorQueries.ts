@@ -2,12 +2,12 @@
  * 확장 어댑터 관리 React Query 훅 (IPR20S6042)
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { adaptorApi } from '../api/adaptorApi';
 import type { Adaptor, AdaptorConfig, AdaptorNode, AdaptorSystem, Watcher } from '../types/extAdaptor';
 
-export const extAdaptorQueryKeys = createQueryKeys('extAdaptor', {
+export const extAdaptorQueryKeys = createAppQueryKeys('extAdaptor', {
   getNodes: null,
   getForcusSystems: (params?: Record<string, unknown>) => [params],
   getAdaptors: (params?: Record<string, unknown>) => [params],

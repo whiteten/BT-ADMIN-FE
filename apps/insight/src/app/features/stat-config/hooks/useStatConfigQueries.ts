@@ -1,9 +1,9 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { statConfigApi } from '../api/statConfigApi';
 import type { StatConfigBulkSaveRequest, StatConfigItem } from '../types';
 
-export const statConfigKeys = createQueryKeys('statistics-stat-config', {
+export const statConfigKeys = createAppQueryKeys('statistics-stat-config', {
   list: (params?: Record<string, unknown>) => [params],
 });
 

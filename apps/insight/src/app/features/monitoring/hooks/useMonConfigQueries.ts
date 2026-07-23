@@ -1,9 +1,9 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { monConfigApi } from '../api/monConfigApi';
 import type { MonConfigItem, MonConfigSaveItem } from '../types';
 
-export const monitoringConfigKeys = createQueryKeys('monitoring-config', {
+export const monitoringConfigKeys = createAppQueryKeys('monitoring-config', {
   list: (category?: string) => [category ?? 'ALL'],
 });
 

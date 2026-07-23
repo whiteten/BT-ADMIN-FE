@@ -2,12 +2,12 @@
  * IVR DN 그룹 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ivrDnGroupApi } from '../api/ivrDnGroupApi';
 import type { IrDnGroup, IrSubDnGroup, IrSubDnQuota, IrSystemUsage } from '../types';
 
-export const ivrDnGroupQueryKeys = createQueryKeys('ivrDnGroups', {
+export const ivrDnGroupQueryKeys = createAppQueryKeys('ivrDnGroups', {
   getDnGroups: (params?: Record<string, unknown>) => [params],
   getSystemUsage: (params?: Record<string, unknown>) => [params],
   getDnGroupDetail: (params?: Record<string, unknown>) => [params],

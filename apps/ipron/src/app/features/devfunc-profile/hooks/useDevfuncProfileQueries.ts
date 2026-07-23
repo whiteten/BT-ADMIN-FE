@@ -2,12 +2,12 @@
  * 기능코드 프로파일 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { devfuncProfileApi } from '../api/devfuncProfileApi';
 import type { DevfuncCode, DevfuncProfile, ProfileTreeNodeResponse, TenantSimpleResponse } from '../types';
 
-export const devfuncProfileQueryKeys = createQueryKeys('devfuncProfiles', {
+export const devfuncProfileQueryKeys = createAppQueryKeys('devfuncProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],
   getProfileTree: null,
   getProfileDetail: (params?: Record<string, unknown>) => [params],

@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { campaignApi } from '../api/campaignApi';
 import type { CampaignMasterDetailParams, CampaignMasterItem, CampaignMasterListItem } from '../types/campaign';
 import type { CampaignScenarioListParams, CampaignScenarioMaster } from '../types/campaignScenario';
 
-export const campaignQueryKeys = createQueryKeys('campaigns', {
+export const campaignQueryKeys = createAppQueryKeys('campaigns', {
   getCampaignMasterList: (params?: Record<string, unknown>) => [params],
   getCampaignMasterDetail: (params?: CampaignMasterDetailParams) => [params],
   getCampaignScenarioList: (params?: CampaignScenarioListParams) => [params],

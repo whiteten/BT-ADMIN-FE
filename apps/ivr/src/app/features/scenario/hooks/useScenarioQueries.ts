@@ -2,12 +2,12 @@
  * IVR 시나리오/버전 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { scenarioApi } from '../api/scenarioApi';
 import type { DeployTargetSystem, DeployedSystem, Scenario, ScenarioAssignedStatusRow, ScenarioVersion, SystemDeployItem } from '../types';
 
-export const scenarioQueryKeys = createQueryKeys('ivrScenarios', {
+export const scenarioQueryKeys = createAppQueryKeys('ivrScenarios', {
   getScenarios: (params?: Record<string, unknown>) => [params],
   getScenarioDetail: (params?: Record<string, unknown>) => [params],
   getVersions: (params?: Record<string, unknown>) => [params],

@@ -1,9 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dataRetentionApi } from '../api/dataRetentionApi';
 
-export const dataRetentionQueryKeys = createQueryKeys('dataRetention', {
+export const dataRetentionQueryKeys = createAppQueryKeys('dataRetention', {
   policies: null,
   targets: (policyId: number) => [policyId],
   logs: (policyId: number) => [policyId],

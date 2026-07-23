@@ -1,10 +1,10 @@
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { mcpApi } from '../api/mcpApi';
 import type { McpApiItem, McpCreateDatas, McpItem, McpUpdateDatas } from '../types';
 
-export const mcpQueryKeys = createQueryKeys('mcp', {
+export const mcpQueryKeys = createAppQueryKeys('mcp', {
   getMcpList: (params?: Record<string, unknown>) => [params],
   getMcpTools: (params: { serverName: string }) => [params],
 });

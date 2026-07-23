@@ -7,12 +7,12 @@
  * - 쓰기(create/update/delete/assign/unassign) → list + tenants + assigned/assignable 무효화
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { agentScheduleApi } from '../api/agentScheduleApi';
 import type { ScheduleAssignTarget, ScheduleInfoRequest, ScheduleInfoResponse, ScheduleKind, ScheduleSubject, ScheduleTenantStat } from '../types';
 
-export const agentScheduleQueryKeys = createQueryKeys('agent-schedules', {
+export const agentScheduleQueryKeys = createAppQueryKeys('agent-schedules', {
   getTenants: null,
   getList: (kind?: ScheduleKind, params?: Record<string, unknown>) => [kind, params],
   getAssigned: (kind?: ScheduleKind, scheduleId?: number, subject?: ScheduleSubject) => [kind, scheduleId, subject],

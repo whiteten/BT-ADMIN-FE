@@ -2,12 +2,12 @@
  * 노드 스코프 React Query 훅 + 운영자/테넌트 모드 노드 필터
  */
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { useAuthStore, useOperatorScopeStore } from '@/shared-store';
 import type { QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type NodeTenantItem, nodeScopeApi } from '../api/nodeScopeApi';
 
-export const nodeScopeQueryKeys = createQueryKeys('nodeScope', {
+export const nodeScopeQueryKeys = createAppQueryKeys('nodeScope', {
   getNodeTenants: null,
 });
 

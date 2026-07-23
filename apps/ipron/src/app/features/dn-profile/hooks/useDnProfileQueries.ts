@@ -3,12 +3,12 @@
  * SD-DN-PROFILE.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dnProfileApi } from '../api/dnProfileApi';
 import type { DnProfile, DnProfileOptionsResponse, NodeSimpleResponse, TenantSimpleResponse } from '../types';
 
-export const dnProfileQueryKeys = createQueryKeys('dnProfiles', {
+export const dnProfileQueryKeys = createAppQueryKeys('dnProfiles', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenants: null,

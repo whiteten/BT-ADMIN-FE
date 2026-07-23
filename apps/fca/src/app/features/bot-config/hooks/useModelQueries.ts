@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { modelApi } from '../api/modelApi';
 import type { AoeAgentItem, AoeListItem } from '../types/aoe';
 import type { EntityItem, EntityListItem, EntityValueListItem } from '../types/entity';
@@ -19,7 +19,7 @@ import type { GenerateExcelDatas, ModelItem, ModelListItem } from '../types/mode
 import type { RetrainDetail, RetrainListItem } from '../types/retrain';
 import type { SnapshotCompareResult, SnapshotListItem } from '../types/snapshot';
 
-export const modelQueryKeys = createQueryKeys('models', {
+export const modelQueryKeys = createAppQueryKeys('models', {
   getModels: (params?: Record<string, unknown>) => [params],
   getModel: (params?: Record<string, unknown>) => [params],
   getIntents: (params?: Record<string, unknown>) => [params],

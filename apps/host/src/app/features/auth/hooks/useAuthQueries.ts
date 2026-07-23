@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { authApi } from '../api/authApi';
 import type { ChangePasswordRequest, LoginRequestDatas, LoginResponse, ResetPasswordRequest, ResetPasswordResponse, UserInfoResponse, WsTicketResponse } from '../types/auth';
 
-export const authQueryKeys = createQueryKeys('auth', {
+export const authQueryKeys = createAppQueryKeys('auth', {
   getCsrfToken: (params?: Record<string, unknown>) => [params],
   getUserInfo: (params?: Record<string, unknown>) => [params],
   accountPolicy: (params?: Record<string, unknown>) => [params],

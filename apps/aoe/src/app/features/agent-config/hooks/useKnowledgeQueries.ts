@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { knowledgeApi } from '../api/knowledgeApi';
 import type {
   EvalGenerateRequest,
@@ -22,7 +22,7 @@ import type {
   KnowledgeUpdateDatas,
 } from '../types';
 
-export const knowledgeQueryKeys = createQueryKeys('knowledges', {
+export const knowledgeQueryKeys = createAppQueryKeys('knowledges', {
   getKnowledges: (params?: Record<string, unknown>) => [params],
   getKnowledge: (params?: Record<string, unknown>) => [params],
   getKnowledgeFiles: (params?: Record<string, unknown>) => [params],

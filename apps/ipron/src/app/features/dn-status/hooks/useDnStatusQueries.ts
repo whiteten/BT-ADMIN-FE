@@ -6,14 +6,14 @@
  * - createBand/deleteBand: 성공 후 bands invalidate.
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dnStatusApi } from '../api/dnStatusApi';
 import type { DnBandStatus, DnStatusOverview, DrDn, DrLink, GdnTypeStat } from '../types';
 
 const AUTO_REFRESH_MS = 60000;
 
-export const dnStatusQueryKeys = createQueryKeys('dnStatus', {
+export const dnStatusQueryKeys = createAppQueryKeys('dnStatus', {
   nodes: null,
   drLinks: null,
   gdnStats: null,

@@ -54,6 +54,8 @@ export const createRemoteRsbuildConfig = (appDir: string, packageJson: { version
       entry: { index: './src/main.ts' },
       define: {
         'process.env.APP_VERSION': JSON.stringify(packageJson.version),
+        // 앱 폴더명 — query key 앱 스코프(src/app/shared/queryKeys.ts) 등 앱 식별용
+        __APP_NAME__: JSON.stringify(path.basename(appDir)),
       },
     },
     output: {

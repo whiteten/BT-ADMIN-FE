@@ -1,8 +1,8 @@
 import { type UseQueryOptions, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type RedisKeySchema, type RedisKeyTemplate, redisTreeApi } from '../api/redisTreeApi';
 
-export const monitoringRedisTreeKeys = createQueryKeys('monitoring-redis-tree', {
+export const monitoringRedisTreeKeys = createAppQueryKeys('monitoring-redis-tree', {
   // tick: 새로고침 카운터 — 증가할 때만 새 키가 되어 재스캔. 0(최초 로드)은 항상 동일 키라 캐시 재사용(탭 이동 시 재조회 안 함).
   keyTemplates: (tick?: number) => [{ tick: tick ?? 0 }],
   keySchema: (path: string) => [path],

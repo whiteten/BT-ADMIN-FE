@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { faultNotificationApi } from '../api/faultNotificationApi';
 import type { ExceptCode, ExceptCodeCreateItem, NotiSystem, NotiTarget, NotiTargetCreateDatas, NotiTargetUpdateDatas, NoticeCode } from '../types';
 
 /** 장애통보 관리 쿼리 키 팩토리 */
-export const faultNotificationQueryKeys = createQueryKeys('faultNotification', {
+export const faultNotificationQueryKeys = createAppQueryKeys('faultNotification', {
   getNotiTargets: (params?: Record<string, unknown>) => [params],
   getNotiSystems: (params?: Record<string, unknown>) => [params],
   getExceptCodes: (params?: Record<string, unknown>) => [params],

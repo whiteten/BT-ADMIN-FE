@@ -2,8 +2,8 @@
  * SLEE 환경변수 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractApiErrorMessage, extractFileName, toast } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { sleeConfigApi } from '../api/sleeConfigApi';
 import type {
   SleeConfigApplyResult,
@@ -44,7 +44,7 @@ interface UpdatePropertyVariables {
   data: SleeUserconfigUpdateRequest;
 }
 
-export const sleeConfigQueryKeys = createQueryKeys('sleeConfig', {
+export const sleeConfigQueryKeys = createAppQueryKeys('sleeConfig', {
   getConfigFiles: (params?: Record<string, unknown>) => [params],
   getCategories: (params?: Record<string, unknown>) => [params],
   getProperties: (params?: Record<string, unknown>) => [params],

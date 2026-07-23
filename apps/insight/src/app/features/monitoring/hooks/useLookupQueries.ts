@@ -1,9 +1,9 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { lookupApi } from '../api/lookupApi';
 import type { LookupCatalogCreateDatas, LookupCatalogItem, SchemaPreview } from '../types';
 
-export const lookupKeys = createQueryKeys('lookup', {
+export const lookupKeys = createAppQueryKeys('lookup', {
   catalog: (params?: Record<string, unknown>) => [params],
   catalogItem: (id: number) => [id],
   schemaPreview: (tableName: string) => [tableName],

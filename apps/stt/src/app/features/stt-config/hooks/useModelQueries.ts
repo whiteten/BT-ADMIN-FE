@@ -1,6 +1,6 @@
 import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { modelApi } from '../api/modelApi';
 import type {
   RecogEvaluateRequestData,
@@ -15,7 +15,7 @@ import type {
   SttModelUpdateData,
 } from '../types';
 
-export const modelQueryKeys = createQueryKeys('model', {
+export const modelQueryKeys = createAppQueryKeys('model', {
   getSttModelList: (params?: Record<string, unknown>) => [params],
   getRecogResultList: (params?: Record<string, unknown>) => [params],
   getSttModelDeployList: (params?: Record<string, unknown>) => [params],

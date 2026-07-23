@@ -1,11 +1,15 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { searchConditionApi } from '../api/searchConditionApi';
 import type { SearchCondMeta, SearchConditionCreateDatas, SearchConditionDetail, SearchConditionListItem, SqlPreviewRequest, SqlPreviewResult } from '../types';
 
-export const searchConditionKeys = createQueryKeys('statistics-search-conditions', {
+export const searchConditionKeys = createAppQueryKeys('statistics-search-conditions', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (searchCondId: number) => [searchCondId],
+  stages: (searchCondId: number) => [searchCondId],
+  resolve: (searchCondId: number, nodeCode: string | null, parentValue?: string | string[] | null, tenantId?: string | null) => [
+    { searchCondId, nodeCode, parentValue: parentValue ?? null, tenantId: tenantId ?? null },
+  ],
 });
 
 export const useGetSearchConditions = ({
@@ -45,7 +49,7 @@ export const useGetSearchConditionStages = ({
   queryOptions?: Omit<UseQueryOptions<SearchCondMeta>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    queryKey: ['search-cond-stages', searchCondId],
+    queryKey: searchConditionKeys.stages(searchCondId).queryKey,
     queryFn: () => searchConditionApi.getStages(searchCondId),
     staleTime: 5 * 60 * 1000,
     ...queryOptions,
@@ -70,7 +74,7 @@ export const useResolveStageOptions = ({
   queryOptions?: Omit<UseQueryOptions<SqlPreviewResult[]>, 'queryKey' | 'queryFn'>;
 }) =>
   useQuery({
-    queryKey: ['search-cond-resolve', searchCondId, nodeCode, parentValue, tenantId ?? null],
+    queryKey: searchConditionKeys.resolve(searchCondId, nodeCode, parentValue, tenantId).queryKey,
     queryFn: () => searchConditionApi.resolveStageOptions(searchCondId, nodeCode, parentValue, tenantId),
     staleTime: 60 * 1000,
     ...queryOptions,

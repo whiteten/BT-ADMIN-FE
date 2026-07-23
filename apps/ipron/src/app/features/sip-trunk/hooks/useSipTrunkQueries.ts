@@ -7,8 +7,8 @@
  *  - 멤버 저장 → memberList + gdnList (배정 트렁크 수)
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { sipTrunkApi } from '../api/sipTrunkApi';
 import type {
   ChannelUsage,
@@ -25,7 +25,7 @@ import type {
   TenantScope,
 } from '../types';
 
-export const sipTrunkQueryKeys = createQueryKeys('sip-trunk', {
+export const sipTrunkQueryKeys = createAppQueryKeys('sip-trunk', {
   gdnList: (params?: Record<string, unknown>) => [params],
   gdnDetail: (gdnId?: number) => [gdnId],
   trunkList: (params?: Record<string, unknown>) => [params],

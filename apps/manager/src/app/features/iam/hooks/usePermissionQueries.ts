@@ -2,12 +2,12 @@
  * 권한 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { permissionApi } from '../api/permissionApi';
 import type { Permission, PermissionCreateRequest, PermissionFlat, PermissionGroup } from '../types';
 
-export const permissionQueryKeys = createQueryKeys('permissions', {
+export const permissionQueryKeys = createAppQueryKeys('permissions', {
   getGroupedPermissions: null,
   getAuthList: null,
 });
