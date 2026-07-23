@@ -97,19 +97,6 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         },
       },
       {
-        headerName: '노드',
-        field: 'nodeName',
-        minWidth: 110,
-        maxWidth: 150,
-        // NODE_ID=0 은 전 노드 공용(기본). 그 외는 노드명(없으면 노드 {id}).
-        cellRenderer: (params: ICellRendererParams<DnResponse>) =>
-          params.data?.nodeId === 0 ? (
-            <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold border border-slate-200 text-slate-600 bg-slate-50">기본</span>
-          ) : (
-            <span className="text-gray-700">{params.value ?? (params.data?.nodeId != null ? `노드 ${params.data.nodeId}` : '-')}</span>
-          ),
-      },
-      {
         headerName: '내선프로파일',
         field: 'dnProfileName',
         minWidth: 140,
@@ -121,6 +108,19 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         field: 'cosName',
         minWidth: 130,
         valueFormatter: (params) => params.value ?? '-',
+      },
+      {
+        headerName: '노드',
+        field: 'nodeName',
+        minWidth: 110,
+        maxWidth: 150,
+        // NODE_ID=0 은 전 노드 공용(기본). 그 외는 노드명(없으면 노드 {id}).
+        cellRenderer: (params: ICellRendererParams<DnResponse>) =>
+          params.data?.nodeId === 0 ? (
+            <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold border border-slate-200 text-slate-600 bg-slate-50">기본</span>
+          ) : (
+            <span className="text-gray-700">{params.value ?? (params.data?.nodeId != null ? `노드 ${params.data.nodeId}` : '-')}</span>
+          ),
       },
       {
         headerName: 'DR노드',

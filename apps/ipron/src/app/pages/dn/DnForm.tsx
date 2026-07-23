@@ -31,7 +31,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Form, Input, InputNumber, Modal, Row, Select, Steps, Switch, Tooltip } from 'antd';
-import { Lock as LockOutlined } from 'lucide-react';
+import { ChevronDown, Lock as LockOutlined } from 'lucide-react';
 import { useAuthStore, useBreadcrumbStore, useOperatorScopeStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { dnApi } from '../../features/dn/api/dnApi';
@@ -130,17 +130,119 @@ function cosDependentLabel(label: string, dependent: boolean) {
   );
 }
 
-const STEPS_CREATE = [
-  { key: 'basic', title: '기본정보' },
-  { key: 'feature', title: '부가기능' },
-  { key: 'ipt', title: 'IPT서비스' },
-  { key: 'term', title: '착신설정' },
-];
+// 아코디언 섹션 키 (EndpointForm 방식 — 멀티스텝 폐기, 내선 정보는 단일 페이지 섹션)
+const SECTION_KEYS = {
+  BASIC: 'basic',
+  FEATURE: 'feature',
+  IPT: 'ipt',
+  TERM: 'term',
+} as const;
 
-const STEPS_EDIT_EXTRA = [
+// SNR/SCA 만 스텝으로 유지 (수정 + EDN 모드). 'main' = 아코디언 내선 정보 뷰
+const EXTRA_STEPS = [
+  { key: 'main', title: '내선 정보' },
   { key: 'snr', title: 'SNR' },
   { key: 'sca', title: 'SCA' },
-];
+] as const;
+
+// 검증 실패 시 해당 섹션 자동 펼침용 필드 → 섹션 매핑
+const SECTION_FIELDS: Record<string, string[]> = {
+  [SECTION_KEYS.BASIC]: [
+    'dnNo',
+    'tenantId',
+    'nodeId',
+    'dnProfileId',
+    'ipVersion',
+    'extIpUpdate',
+    'extAuthtype',
+    'ipv4Address',
+    'ipv6Address',
+    'portNo',
+    'transportType',
+    'srtpYn',
+    'md5Auth',
+    'md5Authid',
+    'md5Authpwd',
+    'deviceType',
+  ],
+  [SECTION_KEYS.FEATURE]: [
+    'traceYn',
+    'extBlockYn',
+    'snrYn',
+    'dnTblYn',
+    'dnOblYn',
+    'autoMdYn',
+    'dodAni',
+    'chrgAni',
+    'internalAni',
+    'autoanswerYn',
+    'autoanswerBellCnt',
+    'pickupGrpId',
+    'dodLimitId',
+    'origGrpdnId',
+    'rbMentId',
+    'mohMentId',
+    'coRbMentId',
+    'coMohMentId',
+    'mediaDeliveryId',
+    'msGroupId',
+  ],
+  [SECTION_KEYS.IPT]: [
+    'cosId',
+    'dodNumAllow',
+    'dodNumPattern',
+    'monitorSvc',
+    'coachingSvc',
+    'callResvSvc',
+    'autoReturnSvc',
+    'intercomOrigSvc',
+    'shortDialSvc',
+    'dodNumSvc',
+    'callScreenSvc',
+    'callScreenNum',
+    'ignoreBugsCoaching',
+    'unknownDeny',
+    'dodNameSvc',
+    'busyWaitSvc',
+    'absenceSvc',
+    'mvaSvc',
+    'cidDenySvc',
+    'callAvoidSvc',
+    'intercomTermSvc',
+    'didReleaseTone',
+    'trnsOkTone',
+    'cidExternSvc',
+    'silentTermSvc',
+    'multiCallForking',
+  ],
+  [SECTION_KEYS.TERM]: [
+    'nonDidDeny',
+    'caseDenySvc',
+    'allTransSvc',
+    'allTransNum',
+    'noansTransSvc',
+    'noansTransNum',
+    'busyTransSvc',
+    'busyTransNum',
+    'caseTransSvc',
+    'ctiTransMonSvc',
+    'moveAnsSvc',
+    'moveAnsNum',
+    'urTransSvc',
+    'urTransNum',
+  ],
+};
+
+const FIELD_SECTION: Record<string, string> = Object.entries(SECTION_FIELDS).reduce<Record<string, string>>((acc, [section, fields]) => {
+  fields.forEach((f) => {
+    acc[f] = section;
+  });
+  return acc;
+}, {});
+
+// 섹션 헤더 미입력 배지 산정 기준
+const BASIC_REQUIRED_FIELDS = ['dnNo', 'tenantId', 'nodeId', 'dnProfileId', 'extAuthtype'];
+const IPT_REQUIRED_FIELDS = ['cosId'];
 
 export default function DnForm() {
   const navigate = useNavigate();
@@ -152,7 +254,22 @@ export default function DnForm() {
   const queryClient = useQueryClient();
   const modal = useModal();
   const [form] = Form.useForm();
-  const [currentTab, setCurrentTab] = useState<string>('basic');
+  // SNR/SCA 만 스텝으로 유지 — 'main' = 아코디언 내선 정보 뷰
+  const [activeView, setActiveView] = useState<'main' | 'snr' | 'sca'>('main');
+  // 아코디언 펼침 섹션 (기본정보는 진입 시 펼침)
+  const [activeKeys, setActiveKeys] = useState<string[]>([SECTION_KEYS.BASIC]);
+  const expandSections = (keys: string[]) => setActiveKeys((prev) => Array.from(new Set([...prev, ...keys])));
+  const toggleSection = (key: string) => setActiveKeys((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  // 검증 실패 필드가 속한 아코디언 섹션 자동 펼침
+  const expandErrorSections = (errorFields: unknown[]) => {
+    const secs = new Set<string>();
+    (errorFields ?? []).forEach((f) => {
+      const name = (f as { name?: (string | number)[] })?.name?.[0];
+      const sec = FIELD_SECTION[String(name ?? '')];
+      if (sec) secs.add(sec);
+    });
+    if (secs.size > 0) expandSections(Array.from(secs));
+  };
   const [callTransferOpen, setCallTransferOpen] = useState(false);
   const [shortDialOpen, setShortDialOpen] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -208,12 +325,12 @@ export default function DnForm() {
   const { data: nodeTenants = [] } = useGetNodeTenants();
   const { data: dnDetail, isFetching } = useGetDnDetail(dnId);
 
-  // 갭11: SNR/SCA 탭은 EDN(dnType='11') 수정 모드에서만 표시
+  // 갭11: SNR/SCA 스텝은 EDN(dnType='11') 수정 모드에서만 표시
   const isEdnType = watchedDnType === '11' || dnDetail?.dnType === '11';
-  const steps = useMemo(() => (isEditMode && isEdnType ? [...STEPS_CREATE, ...STEPS_EDIT_EXTRA] : STEPS_CREATE), [isEditMode, isEdnType]);
+  const showExtraSteps = isEditMode && isEdnType;
   const currentStepIndex = Math.max(
     0,
-    steps.findIndex((s) => s.key === currentTab),
+    EXTRA_STEPS.findIndex((s) => s.key === activeView),
   );
 
   // 테넌트 옵션 (운영자 모드에서만 노출) — 노드 매핑이 있는 테넌트 전체(노드 선택과 무관)
@@ -609,17 +726,17 @@ export default function DnForm() {
       // 교차검증 (실패 시 기본정보 탭으로 이동)
       if (values.nodeId && values.backUpNodeId && values.nodeId === values.backUpNodeId) {
         toast.error('DR 노드는 본 노드와 동일할 수 없습니다');
-        setCurrentTab('basic');
+        expandSections([SECTION_KEYS.BASIC]);
         return;
       }
       if (values.extAuthtype === '1' && !values.ipv4Address && !values.ipv6Address) {
         toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다');
-        setCurrentTab('basic');
+        expandSections([SECTION_KEYS.BASIC]);
         return;
       }
       if (values.md5Auth === 1 && (!values.md5Authid || !values.md5Authpwd)) {
         toast.error('MD5 인증 사용 시 인증 ID와 비밀번호는 필수입니다');
-        setCurrentTab('basic');
+        expandSections([SECTION_KEYS.BASIC]);
         return;
       }
       // 갭8: 전송유형 WS/DTLS(8) 또는 WSS/DTLS(16) 시 내선 프로파일에 MS그룹·중개옵션 필수
@@ -628,12 +745,12 @@ export default function DnForm() {
         const profile = (options?.dnProfiles ?? []).find((p) => p.id === values.dnProfileId);
         if (!profile) {
           toast.error('전송유형 WS/WSS 사용 시 내선 프로파일을 선택해야 합니다');
-          setCurrentTab('basic');
+          expandSections([SECTION_KEYS.BASIC]);
           return;
         }
         if (!profile.msGroupId || profile.msGroupId === 0 || !profile.rtpOption || profile.rtpOption === 0) {
           toast.error('전송유형 WS/WSS 사용 시 내선 프로파일에 중개 옵션, MS 그룹 설정이 필요합니다');
-          setCurrentTab('basic');
+          expandSections([SECTION_KEYS.BASIC]);
           return;
         }
       }
@@ -642,27 +759,27 @@ export default function DnForm() {
       // SWAT IPR20S2020_Info.jsp insertValidate/updateValidate 정합
       if (values.allTransSvc === 1 && !values.allTransNum) {
         toast.error('무조건 착신전환 설정 시 무조건 착신전환 번호는 필수입니다');
-        setCurrentTab('term');
+        expandSections([SECTION_KEYS.TERM]);
         return;
       }
       if (values.noansTransSvc === 1 && !values.noansTransNum) {
         toast.error('무응답 착신전환 설정 시 무응답 착신전환 번호는 필수입니다');
-        setCurrentTab('term');
+        expandSections([SECTION_KEYS.TERM]);
         return;
       }
       if (values.busyTransSvc === 1 && !values.busyTransNum) {
         toast.error('통화중 착신전환 설정 시 통화중 착신전환 번호는 필수입니다');
-        setCurrentTab('term');
+        expandSections([SECTION_KEYS.TERM]);
         return;
       }
       if (values.moveAnsSvc === 1 && !values.moveAnsNum) {
         toast.error('이동응답 서비스 설정 시 이동응답 서비스 번호는 필수입니다');
-        setCurrentTab('term');
+        expandSections([SECTION_KEYS.TERM]);
         return;
       }
       if (values.urTransSvc === 1 && !values.urTransNum) {
         toast.error('미등록 착신전환 설정 시 착신전화 번호는 필수입니다');
-        setCurrentTab('term');
+        expandSections([SECTION_KEYS.TERM]);
         return;
       }
 
@@ -770,9 +887,10 @@ export default function DnForm() {
       } else {
         createDn(payload);
       }
-    } catch {
-      // validation error — 첫 탭으로 이동
-      setCurrentTab('basic');
+    } catch (err) {
+      // validation error — 실패 필드가 속한 섹션 자동 펼침
+      setActiveView('main');
+      expandErrorSections((err as { errorFields?: unknown[] })?.errorFields ?? []);
     }
   };
 
@@ -815,78 +933,17 @@ export default function DnForm() {
     return () => clearBreadcrumb();
   }, [isEditMode, id, setBreadcrumb, clearBreadcrumb]);
 
-  // 필수값 충족 여부 — 어느 스텝이든 충족되면 등록 버튼 활성
-  const v = formValues ?? DN_INITIAL_VALUES;
-  const requiredFilled = Boolean(v.nodeId && v.tenantId && v.dnNo && v.dnProfileId && v.extAuthtype);
-  const md5Ok = v.md5Auth !== 1 || (v.md5Authid && (isEditMode || v.md5Authpwd));
-  const ipOk = v.extAuthtype !== '1' || v.ipv4Address || v.ipv6Address;
-  const drOk = !v.backUpNodeId || v.backUpNodeId !== v.nodeId;
-  const canSubmit = requiredFilled && md5Ok && ipOk && drOk;
-
-  const isFirstStep = currentStepIndex === 0;
-  const isLastStep = currentStepIndex === steps.length - 1;
-
-  // 스텝별 검증 필드 (필수 + 조건부)
-  const fieldsToValidate = (stepKey: string): string[] => {
-    switch (stepKey) {
-      case 'basic': {
-        const fs = ['nodeId', 'tenantId', 'dnNo', 'dnProfileId', 'extAuthtype'];
-        if (v.md5Auth === 1) {
-          fs.push('md5Authid');
-          if (!isEditMode) fs.push('md5Authpwd');
-        }
-        if (v.extAuthtype === '1') fs.push('ipv4Address', 'ipv6Address');
-        return fs;
-      }
-      default:
-        return [];
-    }
-  };
-
-  // 현재 스텝이 통과 가능한지 검증 (다음 버튼 + Steps 헤더 전진 클릭 공용)
-  const validateCurrentStep = async (): Promise<boolean> => {
-    const fs = fieldsToValidate(steps[currentStepIndex].key);
-    try {
-      if (fs.length > 0) await form.validateFields(fs);
-    } catch {
-      return false;
-    }
-    if (steps[currentStepIndex].key === 'basic') {
-      if (v.extAuthtype === '1' && !v.ipv4Address && !v.ipv6Address) {
-        toast.error('고정 IP 유형에서는 IPv4 또는 IPv6 주소 중 하나는 필수입니다');
-        return false;
-      }
-      if (v.backUpNodeId && v.backUpNodeId === v.nodeId) {
-        toast.error('DR 노드는 본 노드와 동일할 수 없습니다');
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleNext = async () => {
-    const next = steps[currentStepIndex + 1];
-    if (!next) return;
-    if (await validateCurrentStep()) setCurrentTab(next.key);
-  };
-
-  // Steps 헤더 클릭: 뒤로는 자유, 앞으로 이동 시에는 현재 스텝 검증 통과 필요
-  const handleStepClick = async (targetIndex: number) => {
-    if (targetIndex <= currentStepIndex) {
-      setCurrentTab(steps[targetIndex].key);
-      return;
-    }
-    if (await validateCurrentStep()) setCurrentTab(steps[targetIndex].key);
-  };
+  // ─── 아코디언 미입력 필수 카운트 (섹션 헤더 배지) ────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cv: any = formValues ?? DN_INITIAL_VALUES;
+  const isFilled = (val: unknown) => val !== null && val !== undefined && val !== '';
+  const basicMissing = BASIC_REQUIRED_FIELDS.filter((f) => !isFilled(cv[f])).length;
+  const iptMissing = IPT_REQUIRED_FIELDS.filter((f) => !isFilled(cv[f])).length;
 
   // ─── Footer ──────────────────────────────────────────────────────────────
   function renderFooter() {
-    // SNR/SCA 탭: 각자 Drawer에서 즉시 저장되는 독립 엔티티.
-    // 이전/다음 네비게이션은 유지하되, '수정/삭제'(DN 본체 저장) 버튼은 숨김.
-    const isSubEntityTab = currentTab === 'snr' || currentTab === 'sca';
-    // 공통: 기본정보 탭 레이아웃을 기준으로 가운데 정렬 유지.
-    // SNR/SCA에서는 삭제/수정 버튼 자리는 visibility:hidden 으로 폭만 유지 (이전/다음 위치 고정).
-    // 문구는 절대 위치로 우측 끝에 띄워서 버튼 정렬에 영향 주지 않음.
+    // SNR/SCA 뷰: 각자 Drawer에서 즉시 저장되는 독립 엔티티 → '수정/삭제'(DN 본체 저장) 버튼 숨김.
+    const isSubEntityTab = activeView === 'snr' || activeView === 'sca';
     return (
       <div className="relative">
         <Row gutter={20} justify="center">
@@ -902,20 +959,6 @@ export default function DnForm() {
               </Button>
             </Col>
           )}
-          {!isFirstStep && (
-            <Col>
-              <Button variant="solid" onClick={() => setCurrentTab(steps[currentStepIndex - 1].key)}>
-                이전
-              </Button>
-            </Col>
-          )}
-          {!isLastStep && (
-            <Col>
-              <Button variant="solid" onClick={handleNext}>
-                다음
-              </Button>
-            </Col>
-          )}
           <Col>
             <Button variant="solid" color="primary" onClick={handleSubmit} loading={isPending} style={isSubEntityTab ? { visibility: 'hidden' } : undefined}>
               {isEditMode ? '수정' : '등록'}
@@ -923,7 +966,7 @@ export default function DnForm() {
           </Col>
         </Row>
         {isSubEntityTab && (
-          <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs text-gray-400">※ {currentTab === 'snr' ? 'SNR' : 'SCA'}은(는) 각 항목 저장 시 즉시 반영됩니다.</span>
+          <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs text-gray-400">※ {activeView === 'snr' ? 'SNR' : 'SCA'}은(는) 각 항목 저장 시 즉시 반영됩니다.</span>
         )}
       </div>
     );
@@ -935,18 +978,20 @@ export default function DnForm() {
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* Steps bar — 뒤로는 자유, 앞으로는 현재 스텝 필수값 충족 시에만 전진 */}
-      <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
-        <Steps
-          current={currentStepIndex}
-          onChange={handleStepClick}
-          items={steps.map((s) => ({ title: s.title }))}
-          size="small"
-          className="max-w-10/12 min-w-1/3"
-          style={{ width: `${steps.length * 200}px` }}
-          responsive={false}
-        />
-      </div>
+      {/* SNR/SCA 스텝 바 — 수정 + EDN 모드에서만 노출 (내선 정보 / SNR / SCA) */}
+      {showExtraSteps && (
+        <div className="flex items-center justify-center w-full h-[58px] min-h-[58px] bg-white bt-shadow px-7 py-2">
+          <Steps
+            current={currentStepIndex}
+            onChange={(idx) => setActiveView(EXTRA_STEPS[idx].key)}
+            items={EXTRA_STEPS.map((s) => ({ title: s.title }))}
+            size="small"
+            className="max-w-10/12 min-w-1/3"
+            style={{ width: `${EXTRA_STEPS.length * 200}px` }}
+            responsive={false}
+          />
+        </div>
+      )}
 
       {/* Main: 좌측 폼 + 우측 요약 */}
       <div className="flex w-full flex-1 min-h-0 gap-4">
@@ -957,698 +1002,728 @@ export default function DnForm() {
             </div>
           ) : (
             <>
-              <div className="w-full flex-1 min-h-0 overflow-y-auto p-7 pb-0">
+              <div className="w-full flex-1 min-h-0 overflow-y-auto bg-gray-50/50 p-7 pb-4">
                 <Form form={form} initialValues={DN_INITIAL_VALUES} layout="vertical" onValuesChange={(_, allValues) => setFormValues(allValues)}>
-                  {/* ─── Tab 1: 기본정보 (DN기본 + IP + DR + 인증 + 단말기) ─── */}
-                  <div style={{ display: currentTab === 'basic' ? 'block' : 'none' }}>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">DN 기본</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="dnNo"
-                          label="DN 번호"
-                          required
-                          hasFeedback
-                          rules={[
-                            { required: true, message: 'DN 번호는 필수입니다' },
-                            { pattern: /^[0-9]+$/, message: '숫자만 가능합니다' },
-                            { max: 24, message: '24자 이내여야 합니다' },
-                          ]}
-                        >
-                          <Input placeholder="예: 1000" maxLength={24} disabled={isEditMode} />
-                        </Form.Item>
-                      </Col>
-                      {/* 테넌트 → 노드 캐스케이드. 일반 모드는 테넌트 숨김(로그인 테넌트 고정), 운영자 모드만 노출 */}
-                      <Col span={6}>
-                        <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트는 필수입니다' }]} hidden={!operatorMode}>
-                          <Select
-                            placeholder="테넌트 선택"
-                            options={tenantOptions}
-                            disabled={isEditMode}
-                            showSearch
-                            optionFilterProp="label"
-                            onChange={() => {
-                              if (!isEditMode) {
-                                form.setFieldsValue({
-                                  nodeId: undefined,
-                                  backUpNodeId: null,
-                                  dnProfileId: undefined,
-                                  cosId: null,
-                                  pickupGrpId: null,
-                                  dodLimitId: null,
-                                  origGrpdnId: null,
-                                  rbMentId: null,
-                                  mohMentId: null,
-                                  coRbMentId: null,
-                                  coMohMentId: null,
-                                  mediaDeliveryId: null,
-                                  msGroupId: null,
-                                });
-                              }
-                            }}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
-                          <Select
-                            options={nodeOptions}
-                            placeholder={watchedTenantId ? '노드 선택' : operatorMode ? '테넌트 선택 필요' : '노드 선택'}
-                            disabled={isEditMode || !watchedTenantId}
-                            showSearch
-                            optionFilterProp="label"
-                            onChange={() => {
-                              if (!isEditMode) {
-                                form.setFieldsValue({
-                                  backUpNodeId: null,
-                                  dnProfileId: undefined,
-                                  cosId: null,
-                                  pickupGrpId: null,
-                                  dodLimitId: null,
-                                  origGrpdnId: null,
-                                  rbMentId: null,
-                                  mohMentId: null,
-                                  coRbMentId: null,
-                                  coMohMentId: null,
-                                  mediaDeliveryId: null,
-                                  msGroupId: null,
-                                });
-                              }
-                            }}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="dnProfileId"
-                          label="내선 프로파일"
-                          required
-                          rules={[{ required: true, message: '내선 프로파일은 필수입니다' }]}
-                          tooltip={
-                            selectedProfileTooltip
-                              ? {
-                                  title: <span style={{ whiteSpace: 'pre-line' }}>{selectedProfileTooltip}</span>,
-                                }
-                              : undefined
-                          }
-                        >
-                          <Select options={dnProfileOptions} placeholder="프로파일 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">IP 정보</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="ipVersion" label="IP 버전">
-                          <Select options={IP_VERSION_OPTIONS} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="extIpUpdate"
-                          label="IP 업데이트"
-                          tooltip={isExtIpUpdateDisabled ? '고정 IP 유형에서는 사용 불가' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="설정" unCheckedChildren="해제" disabled={isExtIpUpdateDisabled} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="extAuthtype"
-                          label="IP 유형"
-                          required
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? '1' : '2')}
-                          getValueProps={(v: string) => ({ checked: v === '1' })}
-                        >
-                          <Switch checkedChildren="고정" unCheckedChildren="동적" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="ipv4Address"
-                          label="IPv4 주소"
-                          tooltip={!isFixedIp ? '동적 IP 유형에서는 사용 불가' : '고정 IP 유형은 IPv4 또는 IPv6 중 하나 필수'}
-                          rules={[
-                            {
-                              pattern: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})$/,
-                              message: '올바른 IPv4 주소 형식이 아닙니다',
-                            },
-                          ]}
-                        >
-                          <Input placeholder="192.168.1.100" disabled={isIpv4Disabled} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="ipv6Address" label="IPv6 주소" tooltip={!isFixedIp ? '동적 IP 유형에서는 사용 불가' : undefined}>
-                          <Input placeholder="fe80::..." disabled={isIpv6Disabled} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="portNo"
-                          label="포트"
-                          tooltip={isPortDisabled ? '동적 IP 유형에서는 사용 불가' : '0 ~ 65535'}
-                          rules={[{ type: 'number', min: 0, max: 65535, message: '0~65535 범위여야 합니다' }]}
-                        >
-                          <InputNumber min={0} max={65535} className="!w-full" disabled={isPortDisabled} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    {/* DR 노드 / Global DN은 내선 프로파일 설정을 따르므로 폼에서 제외 */}
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">인증</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="transportType" label="전송 유형">
-                          <Select options={TRANSPORT_TYPE_OPTIONS} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        {/* 갭9: srtpYn 0=미사용/1=SRTP/2=DTLS Select (AS-IS IPR20S2020_Info.jsp 정합) */}
-                        <Form.Item name="srtpYn" label="음성보안(SRTP)">
-                          <Select
-                            options={[
-                              { label: '미사용', value: 0 },
-                              { label: 'SRTP', value: 1 },
-                              { label: 'DTLS', value: 2 },
-                            ]}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={20}>
-                      <Col span={4}>
-                        <Form.Item
-                          name="md5Auth"
-                          label="MD5 인증"
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={10}>
-                        <Form.Item
-                          name="md5Authid"
-                          label="MD5 인증 ID"
-                          required={isMd5Required}
-                          rules={
-                            isMd5Required
-                              ? [
-                                  { required: true, message: 'MD5 사용 시 인증 ID는 필수입니다' },
-                                  { max: 64, message: '64자 이내여야 합니다' },
-                                ]
-                              : [{ max: 64, message: '64자 이내여야 합니다' }]
-                          }
-                        >
-                          <Input placeholder="인증 ID" maxLength={64} disabled={!isMd5Required} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={10}>
-                        <Form.Item
-                          name="md5Authpwd"
-                          label="MD5 인증 비밀번호"
-                          required={isMd5Required}
-                          rules={
-                            isMd5Required
-                              ? [
-                                  { required: true, message: 'MD5 사용 시 비밀번호는 필수입니다' },
-                                  { min: 8, max: 16, message: '8~16자여야 합니다' },
-                                ]
-                              : []
-                          }
-                        >
-                          <Input.Password placeholder={isEditMode ? '변경 시에만 입력' : '8~16자'} maxLength={16} disabled={!isMd5Required} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">단말기</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="deviceType"
-                          label="단말기 유형"
-                          tooltip={
-                            deviceTooltip
-                              ? {
-                                  title: <span style={{ whiteSpace: 'pre-line' }}>{deviceTooltip}</span>,
-                                }
-                              : undefined
-                          }
-                        >
-                          <Select options={deviceTypeOptions} placeholder="단말기 유형 선택" showSearch optionFilterProp="label" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* ─── Tab 2: 부가기능 ─── */}
-                  <div style={{ display: currentTab === 'feature' ? 'block' : 'none' }}>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">부가 서비스</h4>
-                    <div className="grid grid-cols-3 gap-3 mb-2">
-                      <SwitchBox name="traceYn" label="호추적" />
-                      <SwitchBox name="extBlockYn" label="내선 블럭" />
-                      <SwitchBox name="snrYn" label="SNR 사용" />
-                      <SwitchBox name="dnTblYn" label="착신 금지" disabled={groupLocked('dnTblYn')} cosLocked={groupLocked('dnTblYn')} />
-                      <SwitchBox name="dnOblYn" label="발신 금지" disabled={groupLocked('dnOblYn')} cosLocked={groupLocked('dnOblYn')} />
-                      <SwitchBox name="autoMdYn" label="자동 미디어전달" />
-                    </div>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">발신번호 / 과금</h4>
-                    <Row gutter={20}>
-                      <Col span={8}>
-                        <Form.Item name="dodAni" label="지정 발신번호" rules={[{ pattern: /^[0-9*#]*$/, message: '숫자 및 */# 만 가능합니다' }]}>
-                          <Input placeholder="지정 발신번호" maxLength={32} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="chrgAni" label="개별 과금번호" rules={[{ pattern: /^[0-9*#]*$/, message: '숫자 및 */# 만 가능합니다' }]}>
-                          <Input placeholder="개별 과금번호" maxLength={32} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="internalAni" label="내선간 발신" rules={[{ pattern: /^[0-9*#]*$/, message: '숫자 및 */# 만 가능합니다' }]}>
-                          <Input placeholder="내선간 발신번호" maxLength={32} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">자동 응답</h4>
-                    <Row gutter={20}>
-                      <Col span={8}>
-                        <Form.Item
-                          name="autoanswerYn"
-                          label="자동 응답"
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="사용" unCheckedChildren="사용안함" disabled={personalDisabled('autoanswerYn')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="autoanswerBellCnt" label="벨울림 횟수" tooltip="0 ~ 100" rules={[{ type: 'number', min: 0, max: 100, message: '0~100 범위여야 합니다' }]}>
-                          <InputNumber min={0} max={100} className="!w-full" disabled={watchedAutoanswerYn !== 1 || personalDisabled('autoanswerYn')} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">그룹 설정</h4>
-                    <Row gutter={20}>
-                      <Col span={8}>
-                        <Form.Item name="pickupGrpId" label="픽업 그룹">
-                          <Select options={pickupGrpOptions} placeholder="픽업 그룹 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item
-                          name="dodLimitId"
-                          label={cosLockedLabel('발신제한 그룹', groupLocked('dodLimitId'))}
-                          tooltip={groupLocked('dodLimitId') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
-                        >
-                          <Select
-                            options={dodLimitOptions}
-                            placeholder="발신제한 그룹 선택"
-                            showSearch
-                            optionFilterProp="label"
-                            disabled={!watchedTenantId || groupLocked('dodLimitId')}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="origGrpdnId" label="그룹발신번호용 그룹DN">
-                          <Select options={origGrpdnOptions} placeholder="그룹 DN 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">멘트 설정</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item name="rbMentId" label="기본 연결멘트(RB)">
-                          <Select options={rbMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="mohMentId" label="기본 보류멘트(MOH)">
-                          <Select options={mohMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="coRbMentId" label="국선호 연결멘트">
-                          <Select options={coRbMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item name="coMohMentId" label="국선호 보류멘트">
-                          <Select options={coMohMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">미디어 전달</h4>
-                    <Row gutter={20}>
-                      <Col span={8}>
-                        <Form.Item name="mediaDeliveryId" label="미디어 전달 그룹">
-                          <Select options={mediaDeliveryOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={8}>
-                        <Form.Item name="msGroupId" label="MS 그룹">
-                          <Select options={msGroupOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* ─── Tab 3: IPT서비스 (COS + 발신 부가 + 착신 부가) ─── */}
-                  <div style={{ display: currentTab === 'ipt' ? 'block' : 'none' }}>
-                    <Row gutter={20}>
-                      <Col span={12}>
-                        <Form.Item
-                          name="cosId"
-                          label="COS 설정"
-                          rules={[{ required: true, message: 'COS 는 필수입니다' }]}
-                          tooltip={
-                            cosEffectTooltip
-                              ? {
-                                  title: <span style={{ whiteSpace: 'pre-line' }}>{cosEffectTooltip}</span>,
-                                  styles: { root: { maxWidth: 420 } },
-                                }
-                              : undefined
-                          }
-                        >
-                          <Select options={cosOptions} placeholder="COS 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-2">발신 부가서비스</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="dodNumAllow"
-                          label={cosLockedLabel('특정번호 발신허용', groupLocked('dodNumAllow'))}
-                          tooltip={groupLocked('dodNumAllow') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={groupLocked('dodNumAllow')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={18}>
-                        <Form.Item
-                          name="dodNumPattern"
-                          label={cosLockedLabel('발신허용 패턴', groupLocked('dodNumPattern'))}
-                          tooltip={groupLocked('dodNumPattern') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : '허용 패턴 (예: 02* / 031*)'}
-                          rules={[{ max: 512, message: '512자 이내여야 합니다' }]}
-                        >
-                          <Input placeholder="예: 02* / 031*" maxLength={512} disabled={groupLocked('dodNumPattern')} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                      <SwitchBox name="monitorSvc" label="감청서비스" disabled={groupLocked('monitorSvc')} cosLocked={groupLocked('monitorSvc')} />
-                      <SwitchBox name="coachingSvc" label="코칭서비스" disabled={groupLocked('coachingSvc')} cosLocked={groupLocked('coachingSvc')} />
-                      <SwitchBox name="callResvSvc" label="통화예약서비스" disabled={personalDisabled('callReserveSvc')} cosDependent={cosControlled('callReserveSvc')} />
-                      <SwitchBox name="autoReturnSvc" label="자동 호 회수" disabled={personalDisabled('autoReturnSvc')} cosDependent={cosControlled('autoReturnSvc')} />
-                      <SwitchBox name="intercomOrigSvc" label="인터콤 발신" disabled={personalDisabled('intercomOrigSvc')} cosDependent={cosControlled('intercomOrigSvc')} />
-                      {/* SwitchBox 와 같은 박스 형태로 인라인 — 자물쇠 아이콘 + [규칙 관리] 추가 */}
-                      {(() => {
-                        const isCosDep = cosControlled('shortDialSvc');
-                        const isDisabled = personalDisabled('shortDialSvc');
-                        const containerCls = isCosDep
-                          ? 'flex items-center justify-between py-2 px-3 rounded-md border border-amber-200 bg-amber-50'
-                          : 'flex items-center justify-between py-2 px-3 rounded-md border border-gray-100 bg-gray-50';
-                        const textCls = isCosDep ? 'text-amber-700' : 'text-gray-700';
-                        const iconCls = isCosDep ? 'text-amber-500' : '';
-                        const tipText = isCosDep ? (isDisabled ? 'COS 설정에서 해제되어 편집 불가 (COS에서 허용 시 편집 가능)' : 'COS 설정에 의해 편집 허용됨') : null;
-                        const row = (
-                          <div className={containerCls}>
-                            <span className={`text-sm ${textCls} flex items-center gap-1`}>
-                              단축다이얼
-                              {isCosDep && <LockOutlined className={`text-[10px] ${iconCls}`} />}
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {isEditMode && dnId && watchedShortDialSvc === 1 && (
-                                <Button size="small" type="link" onClick={() => setShortDialOpen(true)} style={{ padding: 0, height: 'auto' }}>
-                                  규칙 관리 →
-                                </Button>
-                              )}
-                              <Form.Item
-                                name="shortDialSvc"
-                                valuePropName="checked"
-                                getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-                                getValueProps={(v: number) => ({ checked: v === 1 })}
-                                noStyle
-                              >
-                                <Switch size="small" checkedChildren="ON" unCheckedChildren="OFF" disabled={isDisabled} />
-                              </Form.Item>
-                            </div>
-                          </div>
-                        );
-                        return tipText ? <Tooltip title={tipText}>{row}</Tooltip> : row;
-                      })()}
-                      <SwitchBox name="dodNumSvc" label="DOD 발신번호표시" />
-                    </div>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">착신 부가서비스</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="callScreenSvc"
-                          label={cosLockedLabel('특정번호 착신금지', groupLocked('callScreenSvc'))}
-                          tooltip={groupLocked('callScreenSvc') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={groupLocked('callScreenSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={18}>
-                        <Form.Item
-                          name="callScreenNum"
-                          label={cosLockedLabel('착신금지 패턴', groupLocked('callScreenNum'))}
-                          tooltip={groupLocked('callScreenNum') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
-                          rules={[{ max: 512, message: '512자 이내여야 합니다' }]}
-                        >
-                          <Input placeholder="차단 패턴" maxLength={512} disabled={groupLocked('callScreenNum')} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                      <SwitchBox name="ignoreBugsCoaching" label="피감청/피코칭방지" disabled={groupLocked('ignoreBugsCoaching')} cosLocked={groupLocked('ignoreBugsCoaching')} />
-                      <SwitchBox name="unknownDeny" label="익명호 거부" disabled={personalDisabled('unknownDeny')} cosDependent={cosControlled('unknownDeny')} />
-                      <SwitchBox name="dodNameSvc" label="발신이름 표시" disabled={personalDisabled('dodNameSvc')} cosDependent={cosControlled('dodNameSvc')} />
-                      <SwitchBox name="busyWaitSvc" label="통화중대기" disabled={personalDisabled('busyWaitSvc')} cosDependent={cosControlled('busyWaitSvc')} />
-                      <SwitchBox name="absenceSvc" label="부재중안내" disabled={personalDisabled('absenceSvc')} cosDependent={cosControlled('absenceSvc')} />
-                      <SwitchBox name="mvaSvc" label="모바일 원격접근" disabled={personalDisabled('mvaSvc')} cosDependent={cosControlled('mvaSvc')} />
-                      <SwitchBox name="cidDenySvc" label="발신자정보 표시방지" disabled={personalDisabled('cidDenySvc')} cosDependent={cosControlled('cidDenySvc')} />
-                      <SwitchBox name="callAvoidSvc" label="호회피 서비스" disabled={personalDisabled('callAvoidSvc')} cosDependent={cosControlled('callAvoidSvc')} />
-                      <SwitchBox name="intercomTermSvc" label="인터콤 착신허용" disabled={personalDisabled('intercomTermSvc')} cosDependent={cosControlled('intercomTermSvc')} />
-                      <SwitchBox name="didReleaseTone" label="통화종료음 사용" disabled={personalDisabled('didReleaseTone')} cosDependent={cosControlled('didReleaseTone')} />
-                      <SwitchBox name="trnsOkTone" label="호전환완료음" disabled={personalDisabled('trnsOkTone')} cosDependent={cosControlled('trnsOkTone')} />
-                      <SwitchBox name="cidExternSvc" label="확장 CID 서비스" disabled={personalDisabled('cidExternSvc')} cosDependent={cosControlled('cidExternSvc')} />
-                      <SwitchBox name="silentTermSvc" label="무음착신서비스" disabled={personalDisabled('silentTermSvc')} cosDependent={cosControlled('silentTermSvc')} />
-                    </div>
-                    <Row gutter={20}>
-                      <Col span={8}>
-                        <Form.Item
-                          name="multiCallForking"
-                          label="SCA 동작방식"
-                          tooltip="공유호 출현(SCA) 처리 모드"
-                          valuePropName="checked"
-                          getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* ─── Tab 4: 착신설정 (착신거부 + 착신전환 + 기타전환) ─── */}
-                  <div style={{ display: currentTab === 'term' ? 'block' : 'none' }}>
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">착신거부 설정</h4>
-                    <div className="grid grid-cols-3 gap-3 mb-4">
-                      <SwitchBox name="nonDidDeny" label="무조건 착신거부" disabled={personalDisabled('denySvc')} cosDependent={cosControlled('denySvc')} />
-                      <SwitchBox name="caseDenySvc" label="조건부 착신거부" disabled={personalDisabled('denySvc')} cosDependent={cosControlled('denySvc')} />
-                    </div>
-
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">착신전환 설정</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="allTransSvc"
-                          label={cosDependentLabel('무조건 착신전환', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="allTransNum"
-                          label={cosDependentLabel('무조건 착신전환 번호', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        >
-                          <Input placeholder="전환 번호" maxLength={48} disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="noansTransSvc"
-                          label={cosDependentLabel('무응답 착신전환', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="noansTransNum"
-                          label={cosDependentLabel('무응답 착신전환 번호', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        >
-                          <Input placeholder="전환 번호" maxLength={48} disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="busyTransSvc"
-                          label={cosDependentLabel('통화중 착신전환', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="busyTransNum"
-                          label={cosDependentLabel('통화중 착신전환 번호', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        >
-                          <Input placeholder="전환 번호" maxLength={48} disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          label={cosDependentLabel('조건부 착신전환', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        >
-                          <div className="flex items-center gap-2">
+                  {/* 내선 정보 — EndpointForm 방식 아코디언 섹션 (SNR/SCA만 스텝 유지) */}
+                  <div style={{ display: activeView === 'main' ? 'block' : 'none' }}>
+                    <div className="flex flex-col gap-3 pb-2">
+                      <FormSection
+                        sectionKey={SECTION_KEYS.BASIC}
+                        title="기본정보"
+                        required
+                        open={activeKeys.includes(SECTION_KEYS.BASIC)}
+                        onToggle={toggleSection}
+                        missingCount={basicMissing}
+                      >
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">DN 기본</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
                             <Form.Item
-                              name="caseTransSvc"
+                              name="dnNo"
+                              label="DN 번호"
+                              required
+                              hasFeedback
+                              rules={[
+                                { required: true, message: 'DN 번호는 필수입니다' },
+                                { pattern: /^[0-9]+$/, message: '숫자만 가능합니다' },
+                                { max: 24, message: '24자 이내여야 합니다' },
+                              ]}
+                            >
+                              <Input placeholder="예: 1000" maxLength={24} disabled={isEditMode} />
+                            </Form.Item>
+                          </Col>
+                          {/* 테넌트 → 노드 캐스케이드. 일반 모드는 테넌트 숨김(로그인 테넌트 고정), 운영자 모드만 노출 */}
+                          <Col span={6}>
+                            <Form.Item name="tenantId" label="테넌트" required rules={[{ required: true, message: '테넌트는 필수입니다' }]} hidden={!operatorMode}>
+                              <Select
+                                placeholder="테넌트 선택"
+                                options={tenantOptions}
+                                disabled={isEditMode}
+                                showSearch
+                                optionFilterProp="label"
+                                onChange={() => {
+                                  if (!isEditMode) {
+                                    form.setFieldsValue({
+                                      nodeId: undefined,
+                                      backUpNodeId: null,
+                                      dnProfileId: undefined,
+                                      cosId: null,
+                                      pickupGrpId: null,
+                                      dodLimitId: null,
+                                      origGrpdnId: null,
+                                      rbMentId: null,
+                                      mohMentId: null,
+                                      coRbMentId: null,
+                                      coMohMentId: null,
+                                      mediaDeliveryId: null,
+                                      msGroupId: null,
+                                    });
+                                  }
+                                }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드는 필수입니다' }]}>
+                              <Select
+                                options={nodeOptions}
+                                placeholder={watchedTenantId ? '노드 선택' : operatorMode ? '테넌트 선택 필요' : '노드 선택'}
+                                disabled={isEditMode || !watchedTenantId}
+                                showSearch
+                                optionFilterProp="label"
+                                onChange={() => {
+                                  if (!isEditMode) {
+                                    form.setFieldsValue({
+                                      backUpNodeId: null,
+                                      dnProfileId: undefined,
+                                      cosId: null,
+                                      pickupGrpId: null,
+                                      dodLimitId: null,
+                                      origGrpdnId: null,
+                                      rbMentId: null,
+                                      mohMentId: null,
+                                      coRbMentId: null,
+                                      coMohMentId: null,
+                                      mediaDeliveryId: null,
+                                      msGroupId: null,
+                                    });
+                                  }
+                                }}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="dnProfileId"
+                              label="내선 프로파일"
+                              required
+                              rules={[{ required: true, message: '내선 프로파일은 필수입니다' }]}
+                              tooltip={
+                                selectedProfileTooltip
+                                  ? {
+                                      title: <span style={{ whiteSpace: 'pre-line' }}>{selectedProfileTooltip}</span>,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <Select options={dnProfileOptions} placeholder="프로파일 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">IP 정보</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item name="ipVersion" label="IP 버전">
+                              <Select options={IP_VERSION_OPTIONS} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="extIpUpdate"
+                              label="IP 업데이트"
+                              tooltip={isExtIpUpdateDisabled ? '고정 IP 유형에서는 사용 불가' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="설정" unCheckedChildren="해제" disabled={isExtIpUpdateDisabled} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="extAuthtype"
+                              label="IP 유형"
+                              required
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? '1' : '2')}
+                              getValueProps={(v: string) => ({ checked: v === '1' })}
+                            >
+                              <Switch checkedChildren="고정" unCheckedChildren="동적" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="ipv4Address"
+                              label="IPv4 주소"
+                              tooltip={!isFixedIp ? '동적 IP 유형에서는 사용 불가' : '고정 IP 유형은 IPv4 또는 IPv6 중 하나 필수'}
+                              rules={[
+                                {
+                                  pattern: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|\d{1,2})$/,
+                                  message: '올바른 IPv4 주소 형식이 아닙니다',
+                                },
+                              ]}
+                            >
+                              <Input placeholder="192.168.1.100" disabled={isIpv4Disabled} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item name="ipv6Address" label="IPv6 주소" tooltip={!isFixedIp ? '동적 IP 유형에서는 사용 불가' : undefined}>
+                              <Input placeholder="fe80::..." disabled={isIpv6Disabled} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="portNo"
+                              label="포트"
+                              tooltip={isPortDisabled ? '동적 IP 유형에서는 사용 불가' : '0 ~ 65535'}
+                              rules={[{ type: 'number', min: 0, max: 65535, message: '0~65535 범위여야 합니다' }]}
+                            >
+                              <InputNumber min={0} max={65535} className="!w-full" disabled={isPortDisabled} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        {/* DR 노드 / Global DN은 내선 프로파일 설정을 따르므로 폼에서 제외 */}
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">인증</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item name="transportType" label="전송 유형">
+                              <Select options={TRANSPORT_TYPE_OPTIONS} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            {/* 갭9: srtpYn 0=미사용/1=SRTP/2=DTLS Select (AS-IS IPR20S2020_Info.jsp 정합) */}
+                            <Form.Item name="srtpYn" label="음성보안(SRTP)">
+                              <Select
+                                options={[
+                                  { label: '미사용', value: 0 },
+                                  { label: 'SRTP', value: 1 },
+                                  { label: 'DTLS', value: 2 },
+                                ]}
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={20}>
+                          <Col span={4}>
+                            <Form.Item
+                              name="md5Auth"
+                              label="MD5 인증"
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+                            </Form.Item>
+                          </Col>
+                          <Col span={10}>
+                            <Form.Item
+                              name="md5Authid"
+                              label="MD5 인증 ID"
+                              required={isMd5Required}
+                              rules={
+                                isMd5Required
+                                  ? [
+                                      { required: true, message: 'MD5 사용 시 인증 ID는 필수입니다' },
+                                      { max: 64, message: '64자 이내여야 합니다' },
+                                    ]
+                                  : [{ max: 64, message: '64자 이내여야 합니다' }]
+                              }
+                            >
+                              <Input placeholder="인증 ID" maxLength={64} disabled={!isMd5Required} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={10}>
+                            <Form.Item
+                              name="md5Authpwd"
+                              label="MD5 인증 비밀번호"
+                              required={isMd5Required}
+                              rules={
+                                isMd5Required
+                                  ? [
+                                      { required: true, message: 'MD5 사용 시 비밀번호는 필수입니다' },
+                                      { min: 8, max: 16, message: '8~16자여야 합니다' },
+                                    ]
+                                  : []
+                              }
+                            >
+                              <Input.Password placeholder={isEditMode ? '변경 시에만 입력' : '8~16자'} maxLength={16} disabled={!isMd5Required} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">단말기</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="deviceType"
+                              label="단말기 유형"
+                              tooltip={
+                                deviceTooltip
+                                  ? {
+                                      title: <span style={{ whiteSpace: 'pre-line' }}>{deviceTooltip}</span>,
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <Select options={deviceTypeOptions} placeholder="단말기 유형 선택" showSearch optionFilterProp="label" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </FormSection>
+
+                      <FormSection sectionKey={SECTION_KEYS.FEATURE} title="부가기능" open={activeKeys.includes(SECTION_KEYS.FEATURE)} onToggle={toggleSection}>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">부가 서비스</h4>
+                        <div className="grid grid-cols-3 gap-3 mb-2">
+                          <SwitchBox name="traceYn" label="호추적" />
+                          <SwitchBox name="extBlockYn" label="내선 블럭" />
+                          <SwitchBox name="snrYn" label="SNR 사용" />
+                          <SwitchBox name="dnTblYn" label="착신 금지" disabled={groupLocked('dnTblYn')} cosLocked={groupLocked('dnTblYn')} />
+                          <SwitchBox name="dnOblYn" label="발신 금지" disabled={groupLocked('dnOblYn')} cosLocked={groupLocked('dnOblYn')} />
+                          <SwitchBox name="autoMdYn" label="자동 미디어전달" />
+                        </div>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">발신번호 / 과금</h4>
+                        <Row gutter={20}>
+                          <Col span={8}>
+                            <Form.Item name="dodAni" label="지정 발신번호" rules={[{ pattern: /^[0-9*#]*$/, message: '숫자 및 */# 만 가능합니다' }]}>
+                              <Input placeholder="지정 발신번호" maxLength={32} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item name="chrgAni" label="개별 과금번호" rules={[{ pattern: /^[0-9*#]*$/, message: '숫자 및 */# 만 가능합니다' }]}>
+                              <Input placeholder="개별 과금번호" maxLength={32} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item name="internalAni" label="내선간 발신" rules={[{ pattern: /^[0-9*#]*$/, message: '숫자 및 */# 만 가능합니다' }]}>
+                              <Input placeholder="내선간 발신번호" maxLength={32} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">자동 응답</h4>
+                        <Row gutter={20}>
+                          <Col span={8}>
+                            <Form.Item
+                              name="autoanswerYn"
+                              label="자동 응답"
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="사용" unCheckedChildren="사용안함" disabled={personalDisabled('autoanswerYn')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              name="autoanswerBellCnt"
+                              label="벨울림 횟수"
+                              tooltip="0 ~ 100"
+                              rules={[{ type: 'number', min: 0, max: 100, message: '0~100 범위여야 합니다' }]}
+                            >
+                              <InputNumber min={0} max={100} className="!w-full" disabled={watchedAutoanswerYn !== 1 || personalDisabled('autoanswerYn')} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">그룹 설정</h4>
+                        <Row gutter={20}>
+                          <Col span={8}>
+                            <Form.Item name="pickupGrpId" label="픽업 그룹">
+                              <Select options={pickupGrpOptions} placeholder="픽업 그룹 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item
+                              name="dodLimitId"
+                              label={cosLockedLabel('발신제한 그룹', groupLocked('dodLimitId'))}
+                              tooltip={groupLocked('dodLimitId') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
+                            >
+                              <Select
+                                options={dodLimitOptions}
+                                placeholder="발신제한 그룹 선택"
+                                showSearch
+                                optionFilterProp="label"
+                                disabled={!watchedTenantId || groupLocked('dodLimitId')}
+                              />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item name="origGrpdnId" label="그룹발신번호용 그룹DN">
+                              <Select options={origGrpdnOptions} placeholder="그룹 DN 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">멘트 설정</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item name="rbMentId" label="기본 연결멘트(RB)">
+                              <Select options={rbMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item name="mohMentId" label="기본 보류멘트(MOH)">
+                              <Select options={mohMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item name="coRbMentId" label="국선호 연결멘트">
+                              <Select options={coRbMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item name="coMohMentId" label="국선호 보류멘트">
+                              <Select options={coMohMentOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">미디어 전달</h4>
+                        <Row gutter={20}>
+                          <Col span={8}>
+                            <Form.Item name="mediaDeliveryId" label="미디어 전달 그룹">
+                              <Select options={mediaDeliveryOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={8}>
+                            <Form.Item name="msGroupId" label="MS 그룹">
+                              <Select options={msGroupOptions} placeholder="선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </FormSection>
+
+                      <FormSection
+                        sectionKey={SECTION_KEYS.IPT}
+                        title="IPT서비스"
+                        required
+                        open={activeKeys.includes(SECTION_KEYS.IPT)}
+                        onToggle={toggleSection}
+                        missingCount={iptMissing}
+                      >
+                        <Row gutter={20}>
+                          <Col span={12}>
+                            <Form.Item
+                              name="cosId"
+                              label="COS 설정"
+                              rules={[{ required: true, message: 'COS 는 필수입니다' }]}
+                              tooltip={
+                                cosEffectTooltip
+                                  ? {
+                                      title: <span style={{ whiteSpace: 'pre-line' }}>{cosEffectTooltip}</span>,
+                                      styles: { root: { maxWidth: 420 } },
+                                    }
+                                  : undefined
+                              }
+                            >
+                              <Select options={cosOptions} placeholder="COS 선택" showSearch optionFilterProp="label" disabled={!watchedTenantId} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-2">발신 부가서비스</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="dodNumAllow"
+                              label={cosLockedLabel('특정번호 발신허용', groupLocked('dodNumAllow'))}
+                              tooltip={groupLocked('dodNumAllow') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
                               valuePropName="checked"
                               getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
                               getValueProps={(v: number) => ({ checked: v === 1 })}
-                              noStyle
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={groupLocked('dodNumAllow')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={18}>
+                            <Form.Item
+                              name="dodNumPattern"
+                              label={cosLockedLabel('발신허용 패턴', groupLocked('dodNumPattern'))}
+                              tooltip={groupLocked('dodNumPattern') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : '허용 패턴 (예: 02* / 031*)'}
+                              rules={[{ max: 512, message: '512자 이내여야 합니다' }]}
+                            >
+                              <Input placeholder="예: 02* / 031*" maxLength={512} disabled={groupLocked('dodNumPattern')} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                          <SwitchBox name="monitorSvc" label="감청서비스" disabled={groupLocked('monitorSvc')} cosLocked={groupLocked('monitorSvc')} />
+                          <SwitchBox name="coachingSvc" label="코칭서비스" disabled={groupLocked('coachingSvc')} cosLocked={groupLocked('coachingSvc')} />
+                          <SwitchBox name="callResvSvc" label="통화예약서비스" disabled={personalDisabled('callReserveSvc')} cosDependent={cosControlled('callReserveSvc')} />
+                          <SwitchBox name="autoReturnSvc" label="자동 호 회수" disabled={personalDisabled('autoReturnSvc')} cosDependent={cosControlled('autoReturnSvc')} />
+                          <SwitchBox name="intercomOrigSvc" label="인터콤 발신" disabled={personalDisabled('intercomOrigSvc')} cosDependent={cosControlled('intercomOrigSvc')} />
+                          {/* SwitchBox 와 같은 박스 형태로 인라인 — 자물쇠 아이콘 + [규칙 관리] 추가 */}
+                          {(() => {
+                            const isCosDep = cosControlled('shortDialSvc');
+                            const isDisabled = personalDisabled('shortDialSvc');
+                            const containerCls = isCosDep
+                              ? 'flex items-center justify-between py-2 px-3 rounded-md border border-amber-200 bg-amber-50'
+                              : 'flex items-center justify-between py-2 px-3 rounded-md border border-gray-100 bg-gray-50';
+                            const textCls = isCosDep ? 'text-amber-700' : 'text-gray-700';
+                            const iconCls = isCosDep ? 'text-amber-500' : '';
+                            const tipText = isCosDep ? (isDisabled ? 'COS 설정에서 해제되어 편집 불가 (COS에서 허용 시 편집 가능)' : 'COS 설정에 의해 편집 허용됨') : null;
+                            const row = (
+                              <div className={containerCls}>
+                                <span className={`text-sm ${textCls} flex items-center gap-1`}>
+                                  단축다이얼
+                                  {isCosDep && <LockOutlined className={`text-[10px] ${iconCls}`} />}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {isEditMode && dnId && watchedShortDialSvc === 1 && (
+                                    <Button size="small" type="link" onClick={() => setShortDialOpen(true)} style={{ padding: 0, height: 'auto' }}>
+                                      규칙 관리 →
+                                    </Button>
+                                  )}
+                                  <Form.Item
+                                    name="shortDialSvc"
+                                    valuePropName="checked"
+                                    getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                                    getValueProps={(v: number) => ({ checked: v === 1 })}
+                                    noStyle
+                                  >
+                                    <Switch size="small" checkedChildren="ON" unCheckedChildren="OFF" disabled={isDisabled} />
+                                  </Form.Item>
+                                </div>
+                              </div>
+                            );
+                            return tipText ? <Tooltip title={tipText}>{row}</Tooltip> : row;
+                          })()}
+                          <SwitchBox name="dodNumSvc" label="DOD 발신번호표시" />
+                        </div>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">착신 부가서비스</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="callScreenSvc"
+                              label={cosLockedLabel('특정번호 착신금지', groupLocked('callScreenSvc'))}
+                              tooltip={groupLocked('callScreenSvc') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={groupLocked('callScreenSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={18}>
+                            <Form.Item
+                              name="callScreenNum"
+                              label={cosLockedLabel('착신금지 패턴', groupLocked('callScreenNum'))}
+                              tooltip={groupLocked('callScreenNum') ? 'COS 설정을 따릅니다 (내선에서 수정 불가)' : undefined}
+                              rules={[{ max: 512, message: '512자 이내여야 합니다' }]}
+                            >
+                              <Input placeholder="차단 패턴" maxLength={512} disabled={groupLocked('callScreenNum')} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                          <SwitchBox
+                            name="ignoreBugsCoaching"
+                            label="피감청/피코칭방지"
+                            disabled={groupLocked('ignoreBugsCoaching')}
+                            cosLocked={groupLocked('ignoreBugsCoaching')}
+                          />
+                          <SwitchBox name="unknownDeny" label="익명호 거부" disabled={personalDisabled('unknownDeny')} cosDependent={cosControlled('unknownDeny')} />
+                          <SwitchBox name="dodNameSvc" label="발신이름 표시" disabled={personalDisabled('dodNameSvc')} cosDependent={cosControlled('dodNameSvc')} />
+                          <SwitchBox name="busyWaitSvc" label="통화중대기" disabled={personalDisabled('busyWaitSvc')} cosDependent={cosControlled('busyWaitSvc')} />
+                          <SwitchBox name="absenceSvc" label="부재중안내" disabled={personalDisabled('absenceSvc')} cosDependent={cosControlled('absenceSvc')} />
+                          <SwitchBox name="mvaSvc" label="모바일 원격접근" disabled={personalDisabled('mvaSvc')} cosDependent={cosControlled('mvaSvc')} />
+                          <SwitchBox name="cidDenySvc" label="발신자정보 표시방지" disabled={personalDisabled('cidDenySvc')} cosDependent={cosControlled('cidDenySvc')} />
+                          <SwitchBox name="callAvoidSvc" label="호회피 서비스" disabled={personalDisabled('callAvoidSvc')} cosDependent={cosControlled('callAvoidSvc')} />
+                          <SwitchBox
+                            name="intercomTermSvc"
+                            label="인터콤 착신허용"
+                            disabled={personalDisabled('intercomTermSvc')}
+                            cosDependent={cosControlled('intercomTermSvc')}
+                          />
+                          <SwitchBox name="didReleaseTone" label="통화종료음 사용" disabled={personalDisabled('didReleaseTone')} cosDependent={cosControlled('didReleaseTone')} />
+                          <SwitchBox name="trnsOkTone" label="호전환완료음" disabled={personalDisabled('trnsOkTone')} cosDependent={cosControlled('trnsOkTone')} />
+                          <SwitchBox name="cidExternSvc" label="확장 CID 서비스" disabled={personalDisabled('cidExternSvc')} cosDependent={cosControlled('cidExternSvc')} />
+                          <SwitchBox name="silentTermSvc" label="무음착신서비스" disabled={personalDisabled('silentTermSvc')} cosDependent={cosControlled('silentTermSvc')} />
+                        </div>
+                        <Row gutter={20}>
+                          <Col span={8}>
+                            <Form.Item
+                              name="multiCallForking"
+                              label="SCA 동작방식"
+                              tooltip="공유호 출현(SCA) 처리 모드"
+                              valuePropName="checked"
+                              getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </FormSection>
+
+                      <FormSection sectionKey={SECTION_KEYS.TERM} title="착신설정" open={activeKeys.includes(SECTION_KEYS.TERM)} onToggle={toggleSection}>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">착신거부 설정</h4>
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                          <SwitchBox name="nonDidDeny" label="무조건 착신거부" disabled={personalDisabled('denySvc')} cosDependent={cosControlled('denySvc')} />
+                          <SwitchBox name="caseDenySvc" label="조건부 착신거부" disabled={personalDisabled('denySvc')} cosDependent={cosControlled('denySvc')} />
+                        </div>
+
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">착신전환 설정</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="allTransSvc"
+                              label={cosDependentLabel('무조건 착신전환', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
                             >
                               <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
                             </Form.Item>
-                            {isEditMode && dnId && watchedCaseTransSvc === 1 && (
-                              <Button size="small" type="link" onClick={() => setCallTransferOpen(true)} style={{ padding: 0, height: 'auto' }}>
-                                규칙 관리 →
-                              </Button>
-                            )}
-                          </div>
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="ctiTransMonSvc"
-                          label={cosDependentLabel('국선전환시 가상내선모드', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="allTransNum"
+                              label={cosDependentLabel('무조건 착신전환 번호', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                            >
+                              <Input placeholder="전환 번호" maxLength={48} disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="noansTransSvc"
+                              label={cosDependentLabel('무응답 착신전환', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="noansTransNum"
+                              label={cosDependentLabel('무응답 착신전환 번호', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                            >
+                              <Input placeholder="전환 번호" maxLength={48} disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="busyTransSvc"
+                              label={cosDependentLabel('통화중 착신전환', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="busyTransNum"
+                              label={cosDependentLabel('통화중 착신전환 번호', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                            >
+                              <Input placeholder="전환 번호" maxLength={48} disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              label={cosDependentLabel('조건부 착신전환', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Form.Item
+                                  name="caseTransSvc"
+                                  valuePropName="checked"
+                                  getValueFromEvent={(c: boolean) => (c ? 1 : 0)}
+                                  getValueProps={(v: number) => ({ checked: v === 1 })}
+                                  noStyle
+                                >
+                                  <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                                </Form.Item>
+                                {isEditMode && dnId && watchedCaseTransSvc === 1 && (
+                                  <Button size="small" type="link" onClick={() => setCallTransferOpen(true)} style={{ padding: 0, height: 'auto' }}>
+                                    규칙 관리 →
+                                  </Button>
+                                )}
+                              </div>
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="ctiTransMonSvc"
+                              label={cosDependentLabel('국선전환시 가상내선모드', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
 
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">기타전환 설정</h4>
-                    <Row gutter={20}>
-                      <Col span={6}>
-                        <Form.Item
-                          name="moveAnsSvc"
-                          label={cosDependentLabel('이동 응답서비스', cosControlled('moveAnsSvc'))}
-                          tooltip={cosControlled('moveAnsSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('moveAnsSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="moveAnsNum"
-                          label={cosDependentLabel('이동응답 번호', cosControlled('moveAnsSvc'))}
-                          tooltip={cosControlled('moveAnsSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        >
-                          <Input placeholder="번호" maxLength={48} disabled={personalDisabled('moveAnsSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="urTransSvc"
-                          label={cosDependentLabel('미등록 착신전환', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                          valuePropName="checked"
-                          getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
-                          getValueProps={(v: number) => ({ checked: v === 1 })}
-                        >
-                          <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                      <Col span={6}>
-                        <Form.Item
-                          name="urTransNum"
-                          label={cosDependentLabel('미등록 착신전환 번호', cosControlled('transSvc'))}
-                          tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
-                        >
-                          <Input placeholder="번호" maxLength={48} disabled={personalDisabled('transSvc')} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
+                        <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200 mt-6">기타전환 설정</h4>
+                        <Row gutter={20}>
+                          <Col span={6}>
+                            <Form.Item
+                              name="moveAnsSvc"
+                              label={cosDependentLabel('이동 응답서비스', cosControlled('moveAnsSvc'))}
+                              tooltip={cosControlled('moveAnsSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('moveAnsSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="moveAnsNum"
+                              label={cosDependentLabel('이동응답 번호', cosControlled('moveAnsSvc'))}
+                              tooltip={cosControlled('moveAnsSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                            >
+                              <Input placeholder="번호" maxLength={48} disabled={personalDisabled('moveAnsSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="urTransSvc"
+                              label={cosDependentLabel('미등록 착신전환', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                              valuePropName="checked"
+                              getValueFromEvent={(checked: boolean) => (checked ? 1 : 0)}
+                              getValueProps={(v: number) => ({ checked: v === 1 })}
+                            >
+                              <Switch checkedChildren="ON" unCheckedChildren="OFF" disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                          <Col span={6}>
+                            <Form.Item
+                              name="urTransNum"
+                              label={cosDependentLabel('미등록 착신전환 번호', cosControlled('transSvc'))}
+                              tooltip={cosControlled('transSvc') ? 'COS 설정에 의해 편집 허용 여부 결정' : undefined}
+                            >
+                              <Input placeholder="번호" maxLength={48} disabled={personalDisabled('transSvc')} />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </FormSection>
+                    </div>
                   </div>
 
-                  {/* ─── Tab 5: SNR (수정모드 + EDN(11)만) ─── */}
-                  {/* 갭11: SNR/SCA 탭은 EDN(dnType='11')에만 노출 — SWAT IPR20S2020_Info.jsp 정합 */}
+                  {/* SNR — 스텝 전용 서브 엔티티 뷰 (수정 + EDN 모드만) */}
+                  {/* 갭11: SNR/SCA 는 EDN(dnType='11')에만 노출 — SWAT IPR20S2020_Info.jsp 정합 */}
                   {isEditMode && id && (watchedDnType === '11' || dnDetail?.dnType === '11') && (
-                    <div style={{ display: currentTab === 'snr' ? 'block' : 'none' }}>
+                    <div style={{ display: activeView === 'snr' ? 'block' : 'none' }}>
                       <DnSnrTab dnId={Number(id)} />
                     </div>
                   )}
 
-                  {/* ─── Tab 6: SCA (수정모드 + EDN(11)만) ─── */}
+                  {/* SCA — 스텝 전용 서브 엔티티 뷰 (수정 + EDN 모드만) */}
                   {isEditMode && id && (watchedDnType === '11' || dnDetail?.dnType === '11') && (
-                    <div style={{ display: currentTab === 'sca' ? 'block' : 'none' }}>
+                    <div style={{ display: activeView === 'sca' ? 'block' : 'none' }}>
                       <DnScaTab dnId={Number(id)} nodeId={formValues?.nodeId ?? dnDetail?.nodeId ?? null} tenantId={formValues?.tenantId ?? dnDetail?.tenantId ?? null} />
                     </div>
                   )}
@@ -1692,4 +1767,52 @@ export default function DnForm() {
       {isEditMode && dnId && <DnShortDialDrawer open={shortDialOpen} dnId={dnId} dnNo={dnDetail?.dnNo} onClose={() => setShortDialOpen(false)} />}
     </div>
   );
+}
+
+// ─── FormSection — 커스텀 아코디언 카드 (EndpointForm 패턴 복제) ───────────────────
+// 흰 카드 + 옅은 그레이 보더. chevron + 섹션명 + 배지.
+// 필수 섹션: 제목 옆 "필수" 배지 + 우측 미입력 카운트 배지. 선택 섹션: 우측 중립 힌트.
+// children 은 항상 마운트, grid-rows 트랜지션으로 펼침/접힘 (Form 등록·검증 유지).
+interface FormSectionProps {
+  sectionKey: string;
+  title: string;
+  open: boolean;
+  onToggle: (key: string) => void;
+  required?: boolean;
+  missingCount?: number;
+  children: React.ReactNode;
+}
+
+function FormSection({ sectionKey, title, open, onToggle, required = false, missingCount = 0, children }: FormSectionProps) {
+  const gridClass = open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0';
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white">
+      <button
+        type="button"
+        onClick={() => onToggle(sectionKey)}
+        aria-expanded={open}
+        className="flex items-center gap-2.5 w-full px-4 py-3 text-left rounded-lg hover:bg-gray-50/60 transition-colors"
+      >
+        <ChevronDown className={`size-4 text-gray-400 shrink-0 transition-transform duration-300 ${open ? '' : '-rotate-90'}`} />
+        <span className="flex items-center gap-2 shrink-0">
+          <span className="font-semibold text-gray-700 text-[15px]">{title}</span>
+          {required && <span className="text-[11px] font-medium text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded">필수</span>}
+        </span>
+        <span className="ml-auto shrink-0 pl-3">{required ? <SectionMissingBadge count={missingCount} /> : <span className="text-xs text-gray-400">선택 · 기본값</span>}</span>
+      </button>
+      <div className={`grid transition-all duration-300 ease-in-out ${gridClass}`}>
+        <div className="overflow-hidden min-h-0">
+          <div className="px-4 pb-4 pt-1">{children}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// 필수 섹션 헤더 우측 배지 — 미입력 있으면 옅은 amber, 다 채우면 옅은 emerald "완료"
+function SectionMissingBadge({ count }: { count: number }) {
+  if (count > 0) {
+    return <span className="text-xs font-medium text-amber-600 bg-amber-50 rounded px-2 py-0.5 whitespace-nowrap">필수 {count}개 미입력</span>;
+  }
+  return <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-0.5 whitespace-nowrap">완료</span>;
 }

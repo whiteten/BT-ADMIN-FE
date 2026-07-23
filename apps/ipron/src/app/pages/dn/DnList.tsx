@@ -364,6 +364,19 @@ export default function DnList() {
             <Button icon={<Upload className="size-3.5" />} onClick={handleImport}>
               가져오기
             </Button>
+            {/* 갭7: 여유번호 검색 버튼 — 엑셀/가져오기 옆으로 이동 */}
+            <Button
+              onClick={() => {
+                setFreeDnResult(null);
+                setFreeDnStartNo('');
+                setFreeDnEndNo('');
+                setFreeDnOpen(true);
+              }}
+              disabled={!selectedNodeId}
+              title={!selectedNodeId ? '노드를 선택하세요' : '사용 가능한 여유번호 검색'}
+            >
+              여유번호
+            </Button>
           </div>
         </div>
       </div>
@@ -386,19 +399,6 @@ export default function DnList() {
               title={selectedRows.length === 0 ? '삭제할 DN 을 선택하세요' : '선택한 DN 삭제'}
             >
               삭제
-            </Button>
-            {/* 갭7: 여유번호 검색 버튼 */}
-            <Button
-              onClick={() => {
-                setFreeDnResult(null);
-                setFreeDnStartNo('');
-                setFreeDnEndNo('');
-                setFreeDnOpen(true);
-              }}
-              disabled={!selectedNodeId}
-              title={!selectedNodeId ? '노드를 선택하세요' : '사용 가능한 여유번호 검색'}
-            >
-              여유번호
             </Button>
             <Button onClick={() => setCopyOpen(true)} disabled={selectedRows.length !== 1} title={selectedRows.length !== 1 ? 'DN 1건을 선택하세요' : '선택한 DN 복사 생성'}>
               복사 생성
