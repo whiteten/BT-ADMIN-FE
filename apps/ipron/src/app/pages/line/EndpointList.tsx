@@ -18,7 +18,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Button, Dropdown, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -49,6 +49,7 @@ import {
 } from '../../features/endpoint/types';
 import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -727,18 +728,12 @@ export default function EndpointList() {
           {/* Header: 노드 Select + 검색 + 추가 버튼 */}
           <div className="flex items-center bg-white px-4 gap-3 flex-shrink-0 h-[56px]">
             {/* 노드 선택 (국선은 노드 단위 스코프) */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 국선 (검색 결과 기준) */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -914,7 +909,7 @@ export default function EndpointList() {
               </div>
 
               {/* Tab bar + 추가 버튼 */}
-              <div className="flex items-center border-b-2 border-gray-200 flex-shrink-0 pr-3">
+              <div className="flex items-center border-b-2 border-gray-200 flex-shrink-0 pr-5">
                 <button
                   type="button"
                   className={`px-5 py-2.5 text-[13px] font-medium cursor-pointer border-b-2 -mb-[2px] transition-colors ${
@@ -956,8 +951,8 @@ export default function EndpointList() {
                 </div>
               </div>
 
-              {/* Tab content — 그리드가 박스 테두리에 바로 붙지 않도록 상단 박스(px-4)와 동일한 좌우 여백 */}
-              <div className="flex-1 flex flex-col overflow-hidden px-4 pb-3">
+              {/* Tab content — 그리드가 박스 테두리에 붙지 않도록 p-5 여백 (add-grid 스킬 5-2) */}
+              <div className="flex-1 flex flex-col overflow-hidden p-5">
                 {/* Member tab */}
                 {activeTab === 'member' && (
                   <div className="flex-1">

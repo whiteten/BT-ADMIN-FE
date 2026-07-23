@@ -212,7 +212,7 @@ export default function CallScreenList() {
 
       {/* ===== 박스B: 차단번호 목록 ag-Grid ===== */}
       <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
+        <div className="px-5 py-3 flex items-center gap-2 h-[44px] flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">
             {isNumPatternSearching
               ? `차단번호패턴 "${numPatternSearch.trim()}" 검색 결과`
@@ -240,8 +240,9 @@ export default function CallScreenList() {
             </Button>
           </div>
         </div>
+        <div className="border-t border-gray-200" />
 
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 p-5">
           {callScreens.length === 0 && !isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-3">
               <Empty description={false} />

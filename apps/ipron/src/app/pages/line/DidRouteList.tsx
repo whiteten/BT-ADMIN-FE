@@ -17,13 +17,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
-import { Network, Plus, Search, Trash2 } from 'lucide-react';
+import { Button, Input } from 'antd';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { didRouteQueryKeys, useDeleteDidRouteBatch, useGetDidRouteList, useGetNodes } from '../../features/did-route/hooks/useDidRouteQueries';
 import { type DidRoute, getRoutingDisplayText } from '../../features/did-route/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -259,18 +260,12 @@ export default function DidRouteList() {
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
             {/* 노드 선택 (DID라우트는 노드 단위 스코프) */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 DID라우트 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -298,7 +293,7 @@ export default function DidRouteList() {
         {/* ===== 하단: DID 라우트 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Header */}
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
+          <div className="px-5 py-3 flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             {selectedRows.length > 0 && (
               <span className="text-xs text-gray-500">
@@ -317,9 +312,10 @@ export default function DidRouteList() {
               </Button>
             </div>
           </div>
+          <div className="border-t border-gray-200" />
 
           {/* Grid */}
-          <div className="flex-1">
+          <div className="flex-1 min-h-0 p-5">
             <AgGridReact<DidRoute>
               rowData={didRouteList}
               columnDefs={columnDefs}

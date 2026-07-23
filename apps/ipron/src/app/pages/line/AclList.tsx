@@ -16,14 +16,15 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Input, Select } from 'antd';
-import { Network, Phone, Plus, Radio, Search, Trash2 } from 'lucide-react';
+import { Button, Input } from 'antd';
+import { Phone, Plus, Radio, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclDrawer';
 import { aclQueryKeys, useDeleteAclBatch, useDeleteCtiAclBatch, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
 import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -236,18 +237,12 @@ export default function AclList() {
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
             {/* 노드 선택 */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 ACL (노드 필터 적용 기준) */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -309,7 +304,7 @@ export default function AclList() {
             </div>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-h-0 p-5">
             <AgGridReact<Acl>
               rowData={acls}
               columnDefs={columnDefs}

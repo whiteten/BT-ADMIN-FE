@@ -16,7 +16,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Button, Dropdown, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Settings, Trash2, Users } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -27,6 +27,7 @@ import NodeMsSettingDrawer, { type NodeMsSettingDrawerRef } from '../../features
 import { msGroupQueryKeys, useDeleteMsGroup, useGetMediaServers, useGetMsGroupMembers, useGetMsGroups, useGetNodes } from '../../features/ms-group/hooks/useMsGroupQueries';
 import { type MediaServer, type MsGroup, ROUTE_TYPE_LABELS, getMsGroupTagList } from '../../features/ms-group/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -471,18 +472,12 @@ export default function MsGroupList() {
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
             {/* 노드 선택 (MS그룹은 노드 단위 스코프) */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 MS그룹 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -649,7 +644,7 @@ export default function MsGroupList() {
         {/* ===== 하단: 미디어서버 ag-Grid ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Bottom header */}
-          <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">
               {selectedGroup ? `${selectedGroup.msGroupName} 미디어서버` : '미디어서버'} ({filteredMediaServers.length})
             </span>
@@ -662,9 +657,10 @@ export default function MsGroupList() {
               </Button>
             </div>
           </div>
+          <div className="border-t border-gray-200" />
 
           {/* Grid content */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 p-5">
             {selectedGroupId ? (
               <AgGridReact<MediaServer>
                 rowData={filteredMediaServers}
@@ -677,6 +673,7 @@ export default function MsGroupList() {
                 }}
                 loading={isMediaServersLoading}
                 getRowId={(params) => String(params.data.mediaServerId)}
+                defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
                 onRowDoubleClicked={(e) => {
                   if (e.data) handleEditMediaServer(e.data);
                 }}

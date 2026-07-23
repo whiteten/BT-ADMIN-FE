@@ -18,7 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { Button, Drawer, Input, Select } from 'antd';
-import { Copy, Network, Phone, Plus, Radio, Search } from 'lucide-react';
+import { Copy, Phone, Plus, Radio, Search } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DidTransDrawer, { type DidTransDrawerRef } from '../../features/did-trans/components/DidTransDrawer';
@@ -35,6 +35,7 @@ import {
 import { type DidTrans, type DidTransCategory, EDIT_OPT_LABELS } from '../../features/did-trans/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -266,18 +267,12 @@ export default function DidTransList() {
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
             {/* 노드 선택 (DID번호변환은 노드 단위 스코프) */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 번호변환 (노드 필터 적용 기준) */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -344,7 +339,7 @@ export default function DidTransList() {
             </div>
           </div>
 
-          <div className="flex-1">
+          <div className="flex-1 min-h-0 p-5">
             <AgGridReact<DidTrans>
               rowData={transList}
               columnDefs={columnDefs}

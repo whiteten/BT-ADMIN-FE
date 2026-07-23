@@ -7,17 +7,18 @@
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import type { ColDef, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
+import type { ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Empty, Input, Select } from 'antd';
-import { ChevronDown, Layers, Plus, Search, Trash2 } from 'lucide-react';
-import { useBreadcrumbStore } from '@/shared-store';
+import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Layers, MoreVertical, Plus, Search, Trash2 } from 'lucide-react';
+import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
 import DnisDrawer, { type DnisDrawerRef } from '../../features/mcs-dnis/components/DnisDrawer';
 import GdnCardSlider from '../../features/mcs-dnis/components/GdnCardSlider';
 import GdnDrawer, { type GdnDrawerRef } from '../../features/mcs-dnis/components/GdnDrawer';
 import { mcsDnisQueryKeys, useDeleteMcsDnis, useDeleteMcsGdn, useGetMcsDnisList, useGetMcsGdns, useGetNodes } from '../../features/mcs-dnis/hooks/useMcsDnisQueries';
 import { type McsdDnis, type McsdGdn, NETWORK_OPERATOR_LABELS, NETWORK_OPERATOR_OPTIONS, type NetworkOperator } from '../../features/mcs-dnis/types';
+import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -45,10 +46,14 @@ export default function McsDnis() {
   const [selectedGdnNo, setSelectedGdnNo] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [selectedDnis, setSelectedDnis] = useState<McsdDnis[]>([]);
+  // GDN 목록 표기방식(카드형/리스트형) — localStorage 유지. 화면키는 DNIS관리(MCS) 전용.
+  const [viewMode, setViewMode] = useViewMode('ipron-mcs-dnis');
 
   // ─── Refs ───────────────────────────────────────────────────────────────
   const gdnDrawerRef = useRef<GdnDrawerRef>(null);
   const dnisDrawerRef = useRef<DnisDrawerRef>(null);
+  // 리스트형 GDN 그리드 api — 선택 행 강조(rowClassRules)는 데이터 변경 시에만 재평가되므로 수동 redraw 가 필요하다.
+  const gdnGridApiRef = useRef<GridApi<McsdGdn> | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const { data: gdnList = [], isLoading: isGdnLoading } = useGetMcsGdns();
@@ -108,6 +113,12 @@ export default function McsDnis() {
       setSelectedGdnNo(filteredGdnList[0].mcsdGdnNo);
     }
   }, [filteredGdnList, selectedGdnNo, isSearching]);
+
+  // ─── 리스트형 선택 행 강조 갱신 ─────────────────────────────────────────
+  // rowClassRules 는 외부 state 변경을 감지하지 못하므로 선택이 바뀌면 직접 redraw 한다.
+  useEffect(() => {
+    if (viewMode === VIEW_MODE.LIST) gdnGridApiRef.current?.redrawRows();
+  }, [selectedGdnNo, viewMode]);
 
   const dnisParams = useMemo(() => (selectedGdnNo ? { gdnNo: selectedGdnNo } : undefined), [selectedGdnNo]);
   const { data: selectedGdnDnisList = [], isLoading: isDnisLoading } = useGetMcsDnisList({
@@ -257,6 +268,64 @@ export default function McsDnis() {
     [gdnNoToOpMap],
   );
 
+  // ─── ag-Grid: GDN columns (리스트형 목록) ─────────────────────────────────
+  // 카드가 보여주는 정보와 동일한 항목 구성. 액션 컬럼은 카드 더보기 메뉴를 그대로 재사용한다.
+  const gdnColumnDefs: ColDef<McsdGdn>[] = useMemo(
+    () => [
+      { headerName: '대표번호', field: 'mcsdGdnNo', flex: 1.2, minWidth: 140, tooltipField: 'mcsdGdnNo' },
+      {
+        headerName: '통신사',
+        field: 'networkOp',
+        flex: 0.8,
+        minWidth: 90,
+        valueGetter: (params) => (params.data ? (NETWORK_OPERATOR_LABELS[params.data.networkOp] ?? '-') : null),
+      },
+      {
+        headerName: '설명',
+        field: 'description',
+        flex: 2,
+        minWidth: 160,
+        valueGetter: (params) => params.data?.description || '-',
+        tooltipField: 'description',
+      },
+      {
+        headerName: 'DNIS 건수',
+        field: 'dnisCount',
+        flex: 0.8,
+        minWidth: 100,
+        filter: 'agNumberColumnFilter',
+        valueFormatter: (params) => String(params.data?.dnisCount ?? 0),
+      },
+      {
+        headerName: '',
+        colId: 'actions',
+        width: 56,
+        sortable: false,
+        filter: false,
+        suppressHeaderMenuButton: true,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        cellRenderer: (params: ICellRendererParams<McsdGdn>) => {
+          if (!params.data) return null;
+          const gdn = params.data;
+          const menuItems = [
+            { key: 'edit', label: '수정', onClick: () => handleEditGdn(gdn) },
+            { key: 'delete', label: '삭제', icon: <Trash2 className="size-4" />, danger: true, onClick: () => handleDeleteGdn(gdn) },
+          ];
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+                <button type="button" className="p-0.5 rounded hover:bg-gray-100 transition-colors">
+                  <MoreVertical className="size-3.5 text-gray-400" />
+                </button>
+              </Dropdown>
+            </div>
+          );
+        },
+      },
+    ],
+    [handleEditGdn, handleDeleteGdn],
+  );
+
   const gridHeaderText = useMemo(() => {
     if (isSearching && !selectedGdn) return `검색 결과 DNIS (${dnisList.length}건)`;
     if (!selectedGdn) return 'DNIS 목록';
@@ -308,22 +377,64 @@ export default function McsDnis() {
           </div>
         </div>
 
-        {/* ===== 카드 슬라이더 박스 (GDN) ===== */}
+        {/* ===== 카드 슬라이더 박스 (GDN) — 카드형 / 리스트형 (선택은 localStorage 유지) ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
-          {/* 대표번호 카드 — 항상 펼침 */}
-          <GdnCardSlider
-            gdnList={filteredGdnList}
-            isLoading={isGdnLoading}
-            selectedGdnNo={selectedGdnNo}
-            onSelect={setSelectedGdnNo}
-            onEdit={handleEditGdn}
-            onDelete={handleDeleteGdn}
-          />
+          {/* 목록 헤더: 타이틀 + 건수 / 우측 표기방식 토글 */}
+          <div className="flex items-center gap-2 px-4 h-[44px] border-b border-gray-100">
+            <span className="text-sm font-semibold text-gray-800">대표번호</span>
+            <span className="text-xs text-gray-400">{filteredGdnList.length}</span>
+            <div className="ml-auto">
+              <ViewModeToggle value={viewMode} onChange={setViewMode} />
+            </div>
+          </div>
+
+          {/* 목록 본문 — 카드형은 가로 슬라이더, 리스트형은 ag-Grid */}
+          {viewMode === VIEW_MODE.LIST ? (
+            <div className="flex items-center px-4 py-3 h-[240px]">
+              {filteredGdnList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
+                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <span className="text-sm">{isSearching ? '검색 결과가 없습니다' : '대표번호가 없습니다'}</span>
+                </div>
+              ) : (
+                // 리스트형 — ag-Grid. 선택 행은 rowClassRules 로 강조하고, 더블클릭 시 수정 Drawer 를 연다.
+                <div className="w-full h-full">
+                  <AgGridReact<McsdGdn>
+                    rowData={filteredGdnList}
+                    columnDefs={gdnColumnDefs}
+                    gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
+                    getRowId={(params) => params.data.mcsdGdnNo}
+                    defaultColDef={{ sortable: true, filter: true, suppressHeaderMenuButton: true }}
+                    rowClassRules={{ 'bg-[#405189]/5': (params) => params.data?.mcsdGdnNo === selectedGdnNo }}
+                    onGridReady={(e) => {
+                      gdnGridApiRef.current = e.api;
+                    }}
+                    onRowClicked={(e) => {
+                      if (e.data) setSelectedGdnNo(e.data.mcsdGdnNo);
+                    }}
+                    onRowDoubleClicked={(e) => {
+                      if (e.data) handleEditGdn(e.data);
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            /* 대표번호 카드 — 항상 펼침 */
+            <GdnCardSlider
+              gdnList={filteredGdnList}
+              isLoading={isGdnLoading}
+              selectedGdnNo={selectedGdnNo}
+              onSelect={setSelectedGdnNo}
+              onEdit={handleEditGdn}
+              onDelete={handleDeleteGdn}
+            />
+          )}
         </div>
 
         {/* ===== 하단: DNIS 그리드 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             <div className="flex items-center gap-2">
               <Button danger icon={<Trash2 className="size-3.5" />} disabled={selectedDnis.length === 0} onClick={handleDeleteSelectedDnis}>
@@ -334,8 +445,9 @@ export default function McsDnis() {
               </Button>
             </div>
           </div>
+          <div className="border-t border-gray-200" />
 
-          <div className="flex-1">
+          <div className="flex-1 min-h-0 p-5">
             {selectedGdn || isSearching ? (
               <AgGridReact<McsdDnis>
                 rowData={dnisList}

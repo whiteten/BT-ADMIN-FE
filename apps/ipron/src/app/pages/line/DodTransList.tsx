@@ -19,7 +19,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridApi, ICellRendererParams, RowSelectionOptions, SelectionChangedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Button, Dropdown, Empty, Input } from 'antd';
 import { ArrowLeftRight, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -422,21 +422,16 @@ export default function DodTransList() {
             {/* 스코프 필터 — 일반=노드만, 운영자=테넌트↔노드(기본 테넌트→노드, ↔ 버튼으로 스위칭) */}
             {(() => {
               const nodeFilterEl = (
-                <div key="node" className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-                  <Network className="size-3.5 shrink-0 text-blue-600" />
-                  <Select
-                    size="small"
-                    variant="borderless"
-                    value={selectedNodeId ?? '__all__'}
-                    onChange={(v) => {
-                      setSelectedNodeId(v === '__all__' ? null : Number(v));
-                      setSelectedMasterId(null);
-                    }}
-                    options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                    style={{ width: 150 }}
-                    popupMatchSelectWidth={false}
-                  />
-                </div>
+                <ScopeSelect
+                  key="node"
+                  kind="node"
+                  options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+                  value={selectedNodeId == null ? null : String(selectedNodeId)}
+                  onChange={(id) => {
+                    setSelectedNodeId(id == null ? null : Number(id));
+                    setSelectedMasterId(null);
+                  }}
+                />
               );
               const tenantFilterEl = (
                 <ScopeSelect
@@ -604,7 +599,7 @@ export default function DodTransList() {
         {/* ===== 박스3: 패턴 ag-Grid ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Bottom header */}
-          <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100 min-h-[40px]">
+          <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 min-h-[40px]">
             <span className="text-sm font-semibold text-gray-800">
               {selectedMaster ? `${selectedMaster.dodTransName} ` : ''}패턴 ({items.length}건)
             </span>
@@ -637,8 +632,10 @@ export default function DodTransList() {
             </div>
           </div>
 
+          <div className="border-t border-gray-200" />
+
           {/* Grid */}
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 p-5">
             {selectedMasterId ? (
               <AgGridReact<DodTransItem>
                 rowData={items}

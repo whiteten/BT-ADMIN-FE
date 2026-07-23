@@ -16,7 +16,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Button, Dropdown, Empty, Input } from 'antd';
 import { ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -33,6 +33,7 @@ import {
   TRANSPORT_TYPE_LABELS,
 } from '../../features/media-delivery/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -374,18 +375,12 @@ export default function MediaDeliveryList() {
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
             {/* 노드 선택 (미디어전달은 노드 단위 스코프) */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 미디어전달그룹 */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -542,7 +537,7 @@ export default function MediaDeliveryList() {
         {/* ===== 하단: 미디어전달 아이템 카드 리스트 ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Bottom header */}
-          <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100 min-h-[40px]">
+          <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">
               {selectedGrp ? `${selectedGrp.grpName} ` : ''}미디어전달 ({mdItems.length}/2건)
             </span>
@@ -552,6 +547,7 @@ export default function MediaDeliveryList() {
               </Button>
             )}
           </div>
+          <div className="border-t border-gray-200" />
 
           {/* Card content */}
           <div className="flex-1 overflow-y-auto p-5">

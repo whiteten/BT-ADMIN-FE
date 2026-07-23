@@ -8,7 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ColDef, GridApi, ICellRendererParams } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Dropdown, Empty, Input, Select } from 'antd';
+import { Button, Dropdown, Empty, Input } from 'antd';
 import { Ban, ChevronLeft, ChevronRight, MoreVertical, Network, Plus, Search, Trash2 } from 'lucide-react';
 import { VIEW_MODE, useBreadcrumbStore, useViewMode } from '@/shared-store';
 import { toast } from '@/shared-util';
@@ -17,6 +17,7 @@ import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import RoutePointDialog, { type RoutePointDialogRef } from '../../features/route/components/RoutePointDialog';
 import { routeQueryKeys, useDeleteRoute, useDeleteRoutePointsBatch, useGetNodes, useGetRoutePoints, useGetRoutes } from '../../features/route/hooks/useRouteQueries';
 import { ANI_TYPE_LABELS, ROUTE_TYPE_LABELS, type Route, type RoutePoint, getRouteStatusInfo, getRouteTagList } from '../../features/route/types';
+import ScopeSelect from '@/components/custom/ScopeSelect';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -414,18 +415,12 @@ export default function RouteList() {
           {/* Header: 노드 Select + 검색 + 추가 버튼 */}
           <div className="flex items-center bg-white px-4 gap-3 flex-shrink-0 h-[56px]">
             {/* 노드 선택 (발신라우트는 노드 단위 스코프) */}
-            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-              <Network className="size-3.5 shrink-0 text-blue-600" />
-              <Select
-                size="small"
-                variant="borderless"
-                value={selectedNodeId ?? '__all__'}
-                onChange={(v) => handleNodeChange(v === '__all__' ? null : Number(v))}
-                options={[{ value: '__all__', label: '전체' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
-                style={{ width: 150 }}
-                popupMatchSelectWidth={false}
-              />
-            </div>
+            <ScopeSelect
+              kind="node"
+              options={nodes.map((n) => ({ id: n.nodeId, name: n.nodeName }))}
+              value={selectedNodeId == null ? null : String(selectedNodeId)}
+              onChange={(id) => handleNodeChange(id == null ? null : Number(id))}
+            />
 
             {/* 요약 — 총 라우트 (검색 결과 기준) */}
             <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
@@ -611,7 +606,7 @@ export default function RouteList() {
               </div>
 
               {/* Action bar */}
-              <div className="px-5 py-2 flex items-center justify-between flex-shrink-0 border-b border-gray-100">
+              <div className="px-5 py-3 flex items-center justify-between flex-shrink-0">
                 <span className="text-[13px] text-gray-400">국선 배정 ({routePoints.length}/32)</span>
                 <div className="flex items-center gap-2">
                   <Button
@@ -630,8 +625,10 @@ export default function RouteList() {
                 </div>
               </div>
 
+              <div className="border-t border-gray-200" />
+
               {/* ag-Grid */}
-              <div className="flex-1 px-5">
+              <div className="flex-1 min-h-0 p-5">
                 <AgGridReact<RoutePoint>
                   rowData={routePoints}
                   columnDefs={pointColumnDefs}
