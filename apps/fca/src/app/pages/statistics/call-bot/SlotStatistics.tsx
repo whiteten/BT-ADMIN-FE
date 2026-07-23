@@ -48,7 +48,7 @@ export default function SlotStatistics() {
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs().endOf('day'));
   const [startTime, setStartTime] = useState<Dayjs | null>(dayjs().hour(0).minute(0));
   const [endTime, setEndTime] = useState<Dayjs | null>(dayjs().hour(23).minute(50));
-  const [customSlot, setCustomSlot] = useState<number | null>(null);
+  const [customSlot, setCustomSlot] = useState<number | 'ALL'>('ALL');
   const [slotFilterColumn, setSlotFilterColumn] = useState<'slotName' | 'entityTag'>('slotName');
   const [slotSearchValue, setSlotSearchValue] = useState('');
 
@@ -151,7 +151,7 @@ export default function SlotStatistics() {
       toTime,
       serviceIds: [serviceIds].flat().filter(Boolean),
       dialogIds: [dialogIds].flat().filter(Boolean),
-      customSlot,
+      customSlot: customSlot === 'ALL' ? null : customSlot,
       slotName,
       entityTag,
       excludeLunch: timeUnit === 'MI' || timeUnit === 'HH' ? excludeLunch : false,
@@ -395,7 +395,7 @@ export default function SlotStatistics() {
         toTime,
         serviceIds: [serviceIds].flat().filter(Boolean),
         dialogIds: [dialogIds].flat().filter(Boolean),
-        customSlot,
+        customSlot: customSlot === 'ALL' ? null : customSlot,
         slotName,
         entityTag,
         excludeLunch: displayTimeUnit === 'MI' || displayTimeUnit === 'HH' ? excludeLunch : false,
@@ -503,7 +503,7 @@ export default function SlotStatistics() {
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
-                    dropdownRender={(menu) => (
+                    popupRender={(menu) => (
                       <>
                         <div
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
@@ -561,7 +561,7 @@ export default function SlotStatistics() {
                     optionFilterProp="label"
                     style={{ width: '15rem' }}
                     popupMatchSelectWidth={false}
-                    dropdownRender={(menu) => (
+                    popupRender={(menu) => (
                       <>
                         <div
                           className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50"
@@ -610,7 +610,7 @@ export default function SlotStatistics() {
                     value={customSlot}
                     onChange={(v) => setCustomSlot(v)}
                     options={[
-                      { label: '전체', value: null },
+                      { label: '전체', value: 'ALL' },
                       { label: '일반 슬롯', value: 0 },
                       { label: '커스텀 슬롯', value: 1 },
                     ]}

@@ -155,8 +155,10 @@ export default function ModelIntentList() {
   }, [filteredList]);
 
   const handleRowDataUpdated = () => {
+    const api = gridRef.current?.api;
+    if (!api || api.isDestroyed?.()) return;
     if (filterColumn === 'sentenceKeyword' && debouncedKeyword.trim()) {
-      gridRef.current?.api?.forEachNode((node) => {
+      api.forEachNode((node) => {
         if (node.master) {
           node.setExpanded(true);
         }
@@ -249,7 +251,7 @@ export default function ModelIntentList() {
           <Tooltip
             title={<span style={{ whiteSpace: 'pre-line' }}>{`의도와 개체를 하나의 엑셀 파일(시트 2개)로\n통합 다운로드합니다.`}</span>}
             placement="left"
-            overlayStyle={{ maxWidth: '300px' }}
+            styles={{ root: { maxWidth: '300px' } }}
           >
             <span className="flex items-center gap-2">
               <FileSpreadsheet className="size-4" />

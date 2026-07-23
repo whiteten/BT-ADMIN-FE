@@ -10,6 +10,8 @@ function AggridRowDataSidebar<TData = Record<string, unknown>>(props: CustomTool
   useEffect(() => {
     if (!api || api.isDestroyed?.()) return;
     const handleSelectionChanged = () => {
+      // 그리드 teardown 중에도 selectionChanged가 발화될 수 있어 파괴된 api 호출을 막는다 (AG Grid error #26)
+      if (api.isDestroyed?.()) return;
       const selectedRows = api.getSelectedRows();
       const isRowSelected = selectedRows && selectedRows.length > 0;
       setSelectedRowData(isRowSelected ? selectedRows[0] : null);
@@ -20,6 +22,7 @@ function AggridRowDataSidebar<TData = Record<string, unknown>>(props: CustomTool
       // }
     };
     const handlePaginationChanged = () => {
+      if (api.isDestroyed?.()) return;
       api.deselectAll();
     };
     api.addEventListener('selectionChanged', handleSelectionChanged);

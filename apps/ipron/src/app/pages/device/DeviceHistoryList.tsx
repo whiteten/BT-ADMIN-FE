@@ -179,7 +179,7 @@ export default function DeviceHistoryList() {
       {/* ===== 검색 폼 ===== */}
       <div className="bg-white bt-shadow px-5 py-4 flex-shrink-0">
         <div className="flex flex-wrap items-end gap-x-0 gap-y-3 w-full">
-          <Form form={form} layout="inline" onFinish={handleSearch} className="flex flex-wrap gap-y-3 flex-1">
+          <Form form={form} layout="inline" onFinish={handleSearch} initialValues={{ devStatus: '', changeCode: '' }} className="flex flex-wrap gap-y-3 flex-1">
             <Form.Item name="dateRange" label="기간">
               <DatePicker.RangePicker format="YYYY-MM-DD" placeholder={['시작일', '종료일']} />
             </Form.Item>
@@ -201,10 +201,10 @@ export default function DeviceHistoryList() {
               </Space.Compact>
             </Form.Item>
             <Form.Item name="devStatus" label="사용상태">
-              <Select options={DEV_STATUS_OPTIONS} style={{ width: 100 }} defaultValue="" />
+              <Select options={DEV_STATUS_OPTIONS} style={{ width: 100 }} />
             </Form.Item>
             <Form.Item name="changeCode" label="변경사유">
-              <Select options={CHANGE_CODE_OPTIONS} style={{ width: 100 }} defaultValue="" />
+              <Select options={CHANGE_CODE_OPTIONS} style={{ width: 100 }} />
             </Form.Item>
           </Form>
           <div className="flex items-center gap-2 ml-auto flex-shrink-0">
