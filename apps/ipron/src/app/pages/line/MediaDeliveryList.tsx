@@ -290,6 +290,28 @@ export default function MediaDeliveryList() {
   const grpColumnDefs: ColDef<MdGrp>[] = useMemo(
     () => [
       {
+        headerName: '그룹명',
+        field: 'grpName',
+        flex: 2,
+        minWidth: 160,
+        tooltipField: 'grpName',
+      },
+      {
+        headerName: '노드',
+        field: 'nodeName',
+        flex: 1,
+        minWidth: 110,
+        valueGetter: (params) => params.data?.nodeName ?? (params.data ? `Node ${params.data.nodeId}` : null),
+      },
+      {
+        headerName: '배정 미디어전달',
+        field: 'itemCount',
+        flex: 1,
+        minWidth: 120,
+        filter: 'agNumberColumnFilter',
+        valueFormatter: (params) => `${params.data?.itemCount ?? 0}/2`,
+      },
+      {
         headerName: '상태',
         colId: 'status',
         flex: 0.8,
@@ -314,28 +336,6 @@ export default function MediaDeliveryList() {
             </span>
           );
         },
-      },
-      {
-        headerName: '그룹명',
-        field: 'grpName',
-        flex: 2,
-        minWidth: 160,
-        tooltipField: 'grpName',
-      },
-      {
-        headerName: '노드',
-        field: 'nodeName',
-        flex: 1,
-        minWidth: 110,
-        valueGetter: (params) => params.data?.nodeName ?? (params.data ? `Node ${params.data.nodeId}` : null),
-      },
-      {
-        headerName: '배정 미디어전달',
-        field: 'itemCount',
-        flex: 1,
-        minWidth: 120,
-        filter: 'agNumberColumnFilter',
-        valueFormatter: (params) => `${params.data?.itemCount ?? 0}/2`,
       },
       {
         headerName: '',
