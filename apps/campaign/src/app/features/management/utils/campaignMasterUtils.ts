@@ -1,4 +1,4 @@
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 import type { CampaignItem, CampaignListItem, CampaignMaster } from '../types/campaign';
 
 export const YN = {
@@ -8,6 +8,17 @@ export const YN = {
 
 export function isYnEnabled(yn: string | null | undefined): boolean {
   return yn === YN.YES;
+}
+
+/** TB_AR_CAMPAIGNMASTER의 *_YN 컬럼은 NUMBER(1,0) — 1:활성/사용, 0:비활성/미사용 */
+export function isCampaignMasterEnabled(yn: number | null | undefined): boolean {
+  return yn === 1;
+}
+
+/** Dayjs 값을 BE가 기대하는 YYYYMMDD / HHmmss 문자열 쌍으로 분리 */
+export function splitCampaignDateTime(value: Dayjs | null | undefined): { date: string | null; time: string | null } {
+  if (!value?.isValid()) return { date: null, time: null };
+  return { date: value.format('YYYYMMDD'), time: value.format('HHmmss') };
 }
 
 export function combineCampaignDateTime(date: string | null | undefined, time: string | null | undefined): string | null {
@@ -39,10 +50,10 @@ export function toCampaignListItem(master: CampaignMaster): CampaignListItem {
     campaignName: master.campaignName,
     startDateTime: combineCampaignDateTime(master.campaignStartdate, master.campaignStarttime) ?? '',
     endDateTime: combineCampaignDateTime(master.campaignEnddate, master.campaignEndtime) ?? '',
-    inUse: isYnEnabled(master.enableYn),
+    inUse: isCampaignMasterEnabled(master.enableYn),
     priority: master.priority ?? 0,
     workDateTime: master.workTime ?? '',
-    serviceType: master.campaignType ?? '',
+    serviceType: master.expansion1 ?? '',
   };
 }
 

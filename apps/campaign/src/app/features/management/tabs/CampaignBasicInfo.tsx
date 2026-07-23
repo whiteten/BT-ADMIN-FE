@@ -1,13 +1,14 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, DatePicker, Form, type FormProps, Input, InputNumber, Row, Select } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import { CAMPAIGN_IN_USE_OPTIONS, CAMPAIGN_SERVICE_TYPE_OPTIONS } from '../constants/campaignManagementConstants';
 import { useCampaignMasterDetailParams } from '../hooks/useCampaignMasterDetailParams';
-import { useGetCampaignMasterDetail } from '../hooks/useCampaignQueries';
-import { toCampaignItem, toCampaignMasterFormDateTime } from '../utils/campaignMasterUtils';
+import { campaignQueryKeys, useDeleteCampaignMaster, useGetCampaignMasterDetail, useUpdateCampaignMaster } from '../hooks/useCampaignQueries';
+import { splitCampaignDateTime, toCampaignItem, toCampaignMasterFormDateTime } from '../utils/campaignMasterUtils';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -25,6 +26,7 @@ const formatDateTime = (value?: string) => (value ? dayjs(value).format('YYYY-MM
 export default function CampaignBasicInfo() {
   const navigate = useNavigate();
   const modal = useModal();
+  const queryClient = useQueryClient();
   const [form] = Form.useForm<CampaignBasicInfoFormValues>();
   const detailParams = useCampaignMasterDetailParams();
 
@@ -35,9 +37,56 @@ export default function CampaignBasicInfo() {
 
   const campaign = useMemo(() => (campaignMaster ? toCampaignItem(campaignMaster) : undefined), [campaignMaster]);
 
+  const updateCampaignMaster = useUpdateCampaignMaster({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: campaignQueryKeys.getCampaignMasterDetail(detailParams).queryKey });
+        queryClient.invalidateQueries({ queryKey: campaignQueryKeys.getCampaignMasterList().queryKey });
+        toast.success('캠페인 기본 정보가 저장되었습니다.');
+      },
+      onError: (error) => {
+        Log.warn('updateCampaignMaster', error);
+        toast.error('캠페인 기본 정보 저장에 실패했습니다.');
+      },
+    },
+  });
+
+  const deleteCampaignMaster = useDeleteCampaignMaster({
+    mutationOptions: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: campaignQueryKeys.getCampaignMasterList().queryKey });
+        toast.success('캠페인이 삭제되었습니다.');
+        navigate('../basic-info');
+      },
+      onError: (error) => {
+        Log.warn('deleteCampaignMaster', error);
+        toast.error('캠페인 삭제에 실패했습니다.');
+      },
+    },
+  });
+
   const onFinish: FormProps<CampaignBasicInfoFormValues>['onFinish'] = (values) => {
     Log.debug('onFinish', values);
-    toast.success('캠페인 기본 정보가 저장되었습니다. (백엔드 연동 전)');
+    if (!detailParams?.campaignId) return;
+
+    const [start, end] = values.executionPeriod ?? [];
+    const { date: campaignStartdate, time: campaignStarttime } = splitCampaignDateTime(start);
+    const { date: campaignEnddate, time: campaignEndtime } = splitCampaignDateTime(end);
+
+    updateCampaignMaster.mutate({
+      params: detailParams,
+      data: {
+        campaignName: values.campaignName,
+        campaignStartdate,
+        campaignStarttime,
+        campaignEnddate,
+        campaignEndtime,
+        sortSeq: values.sortOrder ?? null,
+        priority: values.priority ?? null,
+        expansion1: values.serviceType ?? null,
+        enableYn: values.inUse ? 1 : 0,
+      },
+    });
   };
 
   const onFinishFailed: FormProps<CampaignBasicInfoFormValues>['onFinishFailed'] = (errorInfo) => {
@@ -47,10 +96,11 @@ export default function CampaignBasicInfo() {
   };
 
   const handleClickDeleteBtn = () => {
+    if (!detailParams?.campaignId) return;
+
     modal.confirm.delete({
       onOk: () => {
-        toast.success('캠페인이 삭제되었습니다. (백엔드 연동 전)');
-        navigate('../basic-info');
+        deleteCampaignMaster.mutate({ campaignId: detailParams.campaignId });
       },
     });
   };
@@ -111,7 +161,7 @@ export default function CampaignBasicInfo() {
       <Row gutter={20}>
         <Col span={12}>
           <Form.Item name="executionPeriod" label="실행기간">
-            <DatePicker.RangePicker showTime className="w-full" format="YYYY-MM-DD HH:mm:ss" />
+            <DatePicker.RangePicker className="w-full" format="YYYY-MM-DD" />
           </Form.Item>
         </Col>
       </Row>
@@ -156,12 +206,12 @@ export default function CampaignBasicInfo() {
           </Button>
         </Col>
         <Col>
-          <Button color="red" variant="solid" onClick={handleClickDeleteBtn}>
+          <Button color="red" variant="solid" onClick={handleClickDeleteBtn} loading={deleteCampaignMaster.isPending}>
             삭제
           </Button>
         </Col>
         <Col>
-          <Button color="primary" variant="solid" htmlType="submit">
+          <Button color="primary" variant="solid" htmlType="submit" loading={updateCampaignMaster.isPending}>
             저장
           </Button>
         </Col>

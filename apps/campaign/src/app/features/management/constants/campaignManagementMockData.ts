@@ -1,5 +1,5 @@
 import type { CampaignItem, CampaignMasterListItem } from '../types/campaign';
-import { YN, createEmptyCampaignMaster, toCampaignItem } from '../utils/campaignMasterUtils';
+import { createEmptyCampaignMaster, toCampaignItem } from '../utils/campaignMasterUtils';
 
 export const MOCK_CAMPAIGN_LIST: CampaignMasterListItem[] = [
   createEmptyCampaignMaster({
@@ -10,11 +10,11 @@ export const MOCK_CAMPAIGN_LIST: CampaignMasterListItem[] = [
     campaignStarttime: '09:00:00',
     campaignEnddate: '2026-03-31',
     campaignEndtime: '18:00:00',
-    enableYn: YN.YES,
+    enableYn: 1,
     priority: 1,
     workTime: '2026-03-01 09:30:00',
     workUser: '홍길동',
-    campaignType: '로보텔러',
+    expansion1: 'R',
     sortSeq: 1,
   }),
   createEmptyCampaignMaster({
@@ -25,11 +25,11 @@ export const MOCK_CAMPAIGN_LIST: CampaignMasterListItem[] = [
     campaignStarttime: '10:00:00',
     campaignEnddate: '2026-02-28',
     campaignEndtime: '17:00:00',
-    enableYn: YN.YES,
+    enableYn: 1,
     priority: 2,
     workTime: '2026-02-20 14:15:00',
     workUser: '김영희',
-    campaignType: '상담사',
+    expansion1: 'C',
     sortSeq: 2,
   }),
   createEmptyCampaignMaster({
@@ -40,11 +40,11 @@ export const MOCK_CAMPAIGN_LIST: CampaignMasterListItem[] = [
     campaignStarttime: '08:00:00',
     campaignEnddate: '2026-01-31',
     campaignEndtime: '20:00:00',
-    enableYn: YN.NO,
+    enableYn: 0,
     priority: 3,
     workTime: '2026-01-10 11:00:00',
     workUser: '이철수',
-    campaignType: '로보텔러',
+    expansion1: 'R',
     sortSeq: 3,
   }),
 ];

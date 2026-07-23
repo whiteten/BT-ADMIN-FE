@@ -1,7 +1,8 @@
+/** TB_AR_CAMPAIGNMASTER.EXPANSION1 코드값 그대로 사용 (R:로보텔러, C:상담원) */
 export const CAMPAIGN_SERVICE_TYPE_FILTER = {
   ALL: 'ALL',
-  ROBOTELLER: '로보텔러',
-  AGENT: '상담사',
+  ROBOTELLER: 'R',
+  AGENT: 'C',
 } as const;
 export type CampaignServiceTypeFilter = (typeof CAMPAIGN_SERVICE_TYPE_FILTER)[keyof typeof CAMPAIGN_SERVICE_TYPE_FILTER];
 
@@ -12,9 +13,10 @@ export const CAMPAIGN_IN_USE_FILTER = {
 } as const;
 export type CampaignInUseFilter = (typeof CAMPAIGN_IN_USE_FILTER)[keyof typeof CAMPAIGN_IN_USE_FILTER];
 
+/** value는 TB_AR_CAMPAIGNMASTER.EXPANSION1 코드값 (R:로보텔러, C:상담원) */
 export const CAMPAIGN_SERVICE_TYPE_OPTIONS = [
-  { label: '상담사', value: '상담사' },
-  { label: '로보텔러', value: '로보텔러' },
+  { label: '상담사', value: 'C' },
+  { label: '로보텔러', value: 'R' },
 ] as const;
 
 export const CAMPAIGN_SERVICE_TYPE_FILTER_OPTIONS = [
