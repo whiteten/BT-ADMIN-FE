@@ -145,7 +145,7 @@ function buildSankeyOption(items: SlotSankeyItem[], selectedNode: SelectedNode |
     const depth = parseInt(key.substring(lastUnderscore + 1), 10);
     const rawLabel = key.substring(0, lastUnderscore);
     // 선택 하이라이트는 동일 (tag, seq) 노드 한 개만 — 같은 tag라도 다른 SEQ는 별개 슬롯이므로 강조에서 제외
-    const isSelected = selectedNode != null && rawLabel === selectedNode.tag && depth === selectedNode.seq;
+    const isSelected = rawLabel === selectedNode?.tag && depth === selectedNode.seq;
     return {
       name: key,
       depth,
@@ -691,7 +691,7 @@ export default function SlotSankeyDrawer({ open, onClose, searchParams, onEntity
       onClose={onClose}
       title="대화여정"
       closable={{ placement: 'end' }}
-      width={1280}
+      size={1280}
       destroyOnHidden
       styles={{ body: { padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}
     >

@@ -22,7 +22,7 @@ export default function TrackingAuditDetailDrawer({ open, auditId, onClose }: Pr
   const audit = detailQ.data;
 
   return (
-    <Drawer title="조회이력 상세" placement="right" width={520} open={open} onClose={onClose}>
+    <Drawer title="조회이력 상세" placement="right" size={520} open={open} onClose={onClose}>
       {!audit ? (
         <div className="text-center text-gray-400 py-12">{detailQ.isLoading ? '불러오는 중...' : '선택된 이력이 없습니다'}</div>
       ) : (

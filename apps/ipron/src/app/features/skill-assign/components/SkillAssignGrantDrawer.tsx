@@ -59,7 +59,7 @@ export default function SkillAssignGrantDrawer({ open, agents, skillsets, onClos
       closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
-      width={480}
+      size={480}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

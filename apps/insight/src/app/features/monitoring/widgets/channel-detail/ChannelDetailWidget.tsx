@@ -5,9 +5,9 @@ import { Button, Drawer, Input, InputNumber, Tooltip } from 'antd';
 import { AlertTriangle, PanelTopClose, PanelTopOpen, PhoneCall, PhoneIncoming, PhoneOutgoing, Radio, Search, Settings } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { DEMO_CHANNELS, isChannelDemoMode } from './demoData';
+import ChannelFlowDrawer from './flow/ChannelFlowDrawer';
 import { DEFAULT_OCC_THRESHOLDS, countByStatus, groupBySystem, irTypeLabel, matchSearch, occSeverity, toChannelRows, toNum } from './helpers';
 import ChannelCellGrid, { type ChannelCellClickPayload } from './parts/ChannelCellGrid';
-import ChannelFlowDrawer from './flow/ChannelFlowDrawer';
 import { CHANNEL_STATUS, CHANNEL_STATUS_ORDER } from './statusMap';
 import type { ChannelOccThresholds, ChannelRow, ChannelUiState, OccSeverity } from './types';
 import { widgetToolbarSlotId } from '../../components/canvas/WidgetCardHeader';
@@ -292,10 +292,10 @@ export default function ChannelDetailWidget({ data, widgetId, onRequestPause }: 
         title="점유 세츄레이션 임계값 설정"
         closable={{ placement: 'end' }}
         placement="right"
-        width={420}
+        size={420}
         open={settingsOpen}
         onClose={handleCloseSettings}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={handleCloseSettings} disabled={isSaving}>

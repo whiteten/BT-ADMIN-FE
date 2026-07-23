@@ -98,7 +98,7 @@ export default function SearchConditionGrid({ conditions }: SearchConditionGridP
             trigger="click"
             placement="left"
             title="옵션 SQL 미리보기"
-            overlayStyle={{ maxWidth: 'none' }}
+            styles={{ root: { maxWidth: 'none' } }}
             content={
               <div className="max-h-[480px] w-[560px] max-w-[80vw] space-y-3 overflow-auto">
                 {nodes.map((n, i) => (

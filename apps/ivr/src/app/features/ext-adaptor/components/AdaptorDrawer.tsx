@@ -234,8 +234,8 @@ const AdaptorDrawer = forwardRef<AdaptorDrawerRef, Props>(({ onSuccess }, ref) =
       title={`${systemName} — ${isEdit ? '어댑터 수정' : '어댑터 추가'}`}
       open={open}
       onClose={() => setOpen(false)}
-      width={520}
-      destroyOnClose
+      size={520}
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={() => setOpen(false)}>취소</Button>

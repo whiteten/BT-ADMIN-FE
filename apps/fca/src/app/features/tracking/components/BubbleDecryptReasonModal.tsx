@@ -85,7 +85,7 @@ export default function BubbleDecryptReasonModal({ open, loading, onCancel, onCo
       width={480}
       centered
       destroyOnHidden
-      maskClosable={!loading}
+      mask={{ closable: !loading }}
       closable={!loading}
     >
       <div className="flex flex-col gap-4 py-2">

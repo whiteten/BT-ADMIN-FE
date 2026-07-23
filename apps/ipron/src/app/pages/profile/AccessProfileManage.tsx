@@ -390,7 +390,7 @@ export default function AccessProfileManage() {
             <div className="flex gap-3 overflow-x-auto py-2 px-1 w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               {filteredProfiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                  <Empty description={false} imageStyle={{ height: 40 }} />
+                  <Empty description={false} styles={{ image: { height: 40 } }} />
                   <span className="text-sm">{searchText.trim() ? '검색 결과가 없습니다' : '조건에 해당하는 프로파일이 없습니다'}</span>
                 </div>
               ) : (

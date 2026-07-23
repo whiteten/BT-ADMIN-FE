@@ -295,7 +295,7 @@ export default function WidgetCatalogManageList() {
       </div>
 
       {/* 좁은 화면 전용 필터 드로어 */}
-      <Drawer title="필터" placement="left" width={320} open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} styles={{ body: { padding: 16 } }}>
+      <Drawer title="필터" placement="left" size={320} open={filterDrawerOpen} onClose={() => setFilterDrawerOpen(false)} styles={{ body: { padding: 16 } }}>
         {renderFilters()}
       </Drawer>
 

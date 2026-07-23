@@ -124,7 +124,7 @@ export default function FavoriteSidebar({ open, onClose, currentCriteriaJson, on
         </span>
       }
       placement="right"
-      width={360}
+      size={360}
       open={open}
       onClose={onClose}
       styles={{ body: { padding: 16 } }}

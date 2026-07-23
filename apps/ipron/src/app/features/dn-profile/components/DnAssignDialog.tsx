@@ -103,9 +103,9 @@ export default function DnAssignDialog({ open, profile, onCancel, onSuccess }: D
       title={profile ? `"${profile.dnProfileName}" — ${titleSuffix}` : titleSuffix}
       closable={{ placement: 'end' }}
       onClose={onCancel}
-      width={760}
+      size={760}
       placement="right"
-      destroyOnClose
+      destroyOnHidden
       styles={{ body: { padding: 16, display: 'flex', flexDirection: 'column', height: '100%' } }}
       footer={
         <div className="flex items-center justify-end gap-2">

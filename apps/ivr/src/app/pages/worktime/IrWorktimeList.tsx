@@ -187,7 +187,7 @@ export default function IrWorktimeList() {
               <div ref={cardScrollRef} className="flex gap-3 overflow-x-auto py-2 px-1 flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 {tenantCards.length === 0 ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-gray-400 gap-2 min-h-[100px]">
-                    <Empty description={false} imageStyle={{ height: 40 }} />
+                    <Empty description={false} styles={{ image: { height: 40 } }} />
                     <span className="text-sm">조회 가능한 테넌트가 없습니다</span>
                   </div>
                 ) : (

@@ -548,7 +548,7 @@ export default function DnSnrTab({ dnId }: DnSnrTabProps) {
         title={editingTod ? '스케줄 규칙 수정' : '스케줄 규칙 등록'}
         open={todDrawerOpen}
         onClose={() => setTodDrawerOpen(false)}
-        width={480}
+        size={480}
         placement="right"
         closable={{ placement: 'end' }}
         footer={

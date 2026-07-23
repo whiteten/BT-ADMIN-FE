@@ -127,7 +127,7 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
       title={mode === 'create' ? 'BSR 그룹 등록' : 'BSR 그룹 수정'}
       open={open}
       onClose={onCancel}
-      width={700}
+      size={700}
       closable={{ placement: 'end' }}
       footer={
         <div className="flex justify-end gap-2">
@@ -137,7 +137,7 @@ export default function BsrGroupFormDrawer({ open, mode, group, defaultTenantId,
           </Button>
         </div>
       }
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical" onFinish={handleFinish} style={{ '--ant-form-item-margin-bottom': '12px' } as React.CSSProperties}>
         <Tabs

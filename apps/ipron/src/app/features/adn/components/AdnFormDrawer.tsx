@@ -167,7 +167,7 @@ export default function AdnFormDrawer({ open, mode, dnId, defaultTenantId, onClo
   return (
     <Drawer
       title={isEditMode ? `ADN 수정 — ${detail?.dnNo ?? ''}` : 'ADN 등록'}
-      width={720}
+      size={720}
       open={open}
       onClose={onClose}
       closable={{ placement: 'end' }}

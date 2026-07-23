@@ -95,7 +95,7 @@ export default function CommandPalette({ open, onClose, initialValue = '', onSub
   }, [value]);
 
   return (
-    <Modal open={open} onCancel={onClose} footer={null} width={780} closable={false} maskClosable centered styles={{ body: { padding: 0 } }}>
+    <Modal open={open} onCancel={onClose} footer={null} width={780} closable={false} mask={{ closable: true }} centered styles={{ body: { padding: 0 } }}>
       <div className="flex flex-col">
         {/* ── 검색 입력 ── */}
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">

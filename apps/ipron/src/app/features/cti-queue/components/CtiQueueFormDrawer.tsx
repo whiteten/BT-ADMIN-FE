@@ -714,7 +714,7 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
   /** 적용 클릭 — Drawer 유지 (SWAT btApply 정합) */
   const onApply = async () => {
     const payload = await buildPayload();
-    if (!payload || payload.type !== 'edit') return;
+    if (payload?.type !== 'edit') return;
     apply({ ctiqId: payload.ctiqId, body: payload.body });
   };
 
@@ -1206,10 +1206,11 @@ export default function CtiQueueFormDrawer({ state, onClose, tenantOptions = [],
       <Drawer
         title={isEdit ? 'CTI 큐 수정' : 'CTI 큐 등록'}
         closable={{ placement: 'end' }}
-        width={880}
+        size={880}
         open={state.open}
         onClose={onClose}
-        destroyOnClose
+        destroyOnHidden
+        forceRender
         footer={
           <div className="flex items-center justify-end gap-2">
             <Button onClick={onClose}>취소</Button>

@@ -272,7 +272,9 @@ export default function BotVersionList() {
   };
 
   const handleSelectionChanged = () => {
-    const rows = gridRef.current?.api?.getSelectedRows() ?? [];
+    const api = gridRef.current?.api;
+    if (!api || api.isDestroyed?.()) return;
+    const rows = api.getSelectedRows() ?? [];
     setSelectedRow(rows[0] ?? null);
   };
 

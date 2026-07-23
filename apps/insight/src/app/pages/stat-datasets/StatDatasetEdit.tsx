@@ -223,7 +223,7 @@ export default function StatDatasetEdit() {
       okText: '보고서까지 적용',
       cancelText: '데이터셋만 저장',
       keyboard: false,
-      maskClosable: false,
+      mask: { closable: false },
       onOk: () => doSave(true),
       onCancel: () => doSave(false),
     });

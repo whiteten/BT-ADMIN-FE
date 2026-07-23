@@ -82,7 +82,7 @@ const DecryptLogSearchBar: React.FC<DecryptLogSearchBarProps> = ({ onSearch, isL
           />
         </div>
 
-        <Divider type="vertical" className="!h-5 !m-0" />
+        <Divider orientation="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">봇</span>
@@ -98,7 +98,7 @@ const DecryptLogSearchBar: React.FC<DecryptLogSearchBarProps> = ({ onSearch, isL
           />
         </div>
 
-        <Divider type="vertical" className="!h-5 !m-0" />
+        <Divider orientation="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">결과</span>
@@ -130,7 +130,7 @@ const DecryptLogSearchBar: React.FC<DecryptLogSearchBarProps> = ({ onSearch, isL
           <Input value={userNameKeyword} onChange={(e) => setUserNameKeyword(e.target.value)} placeholder="이름 부분일치" className="w-40" onPressEnter={handleSearch} allowClear />
         </div>
 
-        <Divider type="vertical" className="!h-5 !m-0" />
+        <Divider orientation="vertical" className="!h-5 !m-0" />
 
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#495057] shrink-0">UCID</span>

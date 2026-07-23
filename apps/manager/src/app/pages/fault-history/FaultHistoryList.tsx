@@ -103,18 +103,6 @@ export default function FaultHistoryList() {
 
   const columnDefs: ColDef<FaultHistoryItem>[] = useMemo(
     () => [
-      {
-        // 강제복구 대상 선택 — 미복구(복구시각 없음) 행만 체크 가능 (AS-IS: 상태 '장애발생'만 허용)
-        headerName: '',
-        colId: 'selection',
-        width: 44,
-        minWidth: 44,
-        maxWidth: 44,
-        flex: 0,
-        checkboxSelection: (p) => !p.data?.errRepairTime,
-        sortable: false,
-        filter: false,
-      },
       // 공통 defaultColDef 가 flex:1 이라 고정폭 컬럼은 flex:0 을 명시해야 width 가 적용된다.
       // 메시지만 flex 로 남는 폭을 차지하고, 발생시각은 잘리지 않게 고정폭 유지.
       {
@@ -250,8 +238,8 @@ export default function FaultHistoryList() {
                   ...gridOptions,
                   pagination: false,
                   statusBar: undefined,
-                  rowSelection: 'multiple',
-                  suppressRowClickSelection: true,
+                  // 강제복구 대상 선택 — 미복구(복구시각 없음) 행만 체크 가능 (AS-IS: 상태 '장애발생'만 허용)
+                  rowSelection: { mode: 'multiRow', enableClickSelection: false, checkboxes: (p) => !p.data?.errRepairTime, headerCheckbox: false },
                 }}
                 loading={isFetching}
                 onRowDoubleClicked={handleRowDoubleClick}

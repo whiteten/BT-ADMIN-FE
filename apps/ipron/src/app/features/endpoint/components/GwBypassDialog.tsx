@@ -88,7 +88,7 @@ const GwBypassDrawer = forwardRef<GwBypassDialogRef, GwBypassDrawerProps>(({ end
       closable={{ placement: 'end' }}
       open={visible}
       onClose={() => setVisible(false)}
-      width={520}
+      size={520}
       closeIcon={<X className="size-4" />}
       footer={
         <div className="flex items-center justify-between">

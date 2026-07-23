@@ -351,7 +351,7 @@ function ChipSelect({
   return (
     <Popover
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => onOpenChange(next)}
       trigger="click"
       placement="bottomLeft"
       content={<div className="flex w-[220px] flex-wrap gap-1.5 max-h-[220px] overflow-auto">{content}</div>}

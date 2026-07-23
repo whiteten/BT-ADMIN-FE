@@ -262,10 +262,10 @@ const ScenarioVersionSheet = forwardRef<ScenarioVersionSheetRef, ScenarioVersion
       title={isEditMode ? '버전 수정' : '버전 추가'}
       closable={{ placement: 'end' }}
       placement="right"
-      width={480}
+      size={480}
       open={visible}
       onClose={() => setVisible(false)}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={() => setVisible(false)}>취소</Button>

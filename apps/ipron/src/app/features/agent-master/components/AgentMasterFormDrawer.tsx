@@ -250,9 +250,9 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
       title={isEdit ? `상담사 수정 — ${detail?.agentName ?? ''}` : '상담사 등록'}
       open={open}
       onClose={onClose}
-      width={840}
+      size={840}
       closable={{ placement: 'end' }}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

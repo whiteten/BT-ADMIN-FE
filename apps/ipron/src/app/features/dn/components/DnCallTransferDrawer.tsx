@@ -54,7 +54,7 @@ function boolArrToWeekdayBits(arr: boolean[]): string {
   return arr.map((v) => (v ? '1' : '0')).join('');
 }
 function hhmmToDayjs(s: string | null | undefined): Dayjs | null {
-  if (!s || s.length !== 4) return null;
+  if (s?.length !== 4) return null;
   return dayjs(`${s.slice(0, 2)}:${s.slice(2)}`, 'HH:mm');
 }
 function dayjsToHhmm(d: Dayjs | null | undefined): string | null {
@@ -265,7 +265,7 @@ export default function DnCallTransferDrawer({ open, dnId, dnNo, onClose }: DnCa
         title={`DN ${dnNo ?? ''} — 조건부 착신 전환`}
         open={open}
         onClose={onClose}
-        width={920}
+        size={920}
         placement="right"
         closable={{ placement: 'end' }}
         styles={{

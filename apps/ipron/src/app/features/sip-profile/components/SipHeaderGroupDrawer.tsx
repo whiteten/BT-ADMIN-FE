@@ -80,7 +80,7 @@ const SipHeaderGroupDrawer = forwardRef<SipHeaderGroupDrawerRef, SipHeaderGroupD
       onClose={handleClose}
       styles={{ wrapper: { width: 420 } }}
       footer={footer}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item

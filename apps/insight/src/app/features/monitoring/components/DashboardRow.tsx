@@ -151,8 +151,11 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
         <span className={cn('truncate text-xs', dashboard.description ? 'text-[var(--color-bt-fg-muted)]' : 'italic text-gray-300')}>{dashboard.description ?? '설명 없음'}</span>
         {/* 칩 영역은 항상 고정 높이로 예약 — 칩 유무에 따른 행 높이 들쭉날쭉 방지 */}
         <div className="mt-0.5 flex h-[18px] items-center gap-1 overflow-hidden">
-          {widgetNames.slice(0, 3).map((name) => (
-            <span key={name} className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]">
+          {widgetNames.slice(0, 3).map((name, i) => (
+            <span
+              key={`${name}-${i}`}
+              className="inline-flex h-[18px] shrink-0 items-center rounded border border-[#e9ebec] bg-[#f3f5f7] px-1.5 text-[11px] text-[var(--color-bt-fg-muted)]"
+            >
               {name}
             </span>
           ))}
@@ -160,8 +163,8 @@ export default function DashboardRow({ dashboard, query }: DashboardRowProps) {
             <Tooltip
               title={
                 <div className="flex flex-col gap-0.5 py-0.5">
-                  {widgetNames.slice(3).map((n) => (
-                    <span key={n}>{n}</span>
+                  {widgetNames.slice(3).map((n, i) => (
+                    <span key={`${n}-${i}`}>{n}</span>
                   ))}
                 </div>
               }

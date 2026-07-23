@@ -69,7 +69,7 @@ export default function AdnImportDrawer({ open, onClose }: AdnImportDrawerProps)
       closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
-      width={480}
+      size={480}
       destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">

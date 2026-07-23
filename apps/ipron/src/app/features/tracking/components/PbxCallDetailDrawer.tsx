@@ -152,7 +152,7 @@ export default function PbxCallDetailDrawer({ open, row, onClose }: Props) {
           {row?.ucid && <span className="font-mono text-[11px] text-gray-700 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded truncate max-w-[480px]">{row.ucid}</span>}
         </div>
       }
-      width={fullscreen ? '100vw' : 1000}
+      size={fullscreen ? '100vw' : 1000}
       closable={false}
       extra={
         <div className="flex items-center gap-1">

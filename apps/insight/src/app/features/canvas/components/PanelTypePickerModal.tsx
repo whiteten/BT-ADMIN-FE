@@ -44,7 +44,7 @@ export default function PanelTypePickerModal({ open, onClose, onSelect, hideType
       open={open}
       onCancel={onClose}
       footer={null}
-      maskClosable={false}
+      mask={{ closable: false }}
       title={
         <div className="flex items-center gap-2">
           <span className="text-[16px] font-bold text-[#495057]">패널 종류 선택</span>

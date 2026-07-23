@@ -182,7 +182,7 @@ export default function AgentRadarModal({ open, onClose, agent, allAgents }: Age
         </div>
       }
       width={680}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="space-y-3">
         <ReactECharts option={option} style={{ height: 380 }} notMerge lazyUpdate />

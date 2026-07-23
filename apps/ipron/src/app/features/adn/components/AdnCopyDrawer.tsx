@@ -51,7 +51,7 @@ export default function AdnCopyDrawer({ open, source, onCancel, onSubmit }: AdnC
       closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
-      width={480}
+      size={480}
       destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">

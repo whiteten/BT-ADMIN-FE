@@ -44,7 +44,7 @@ const dialogRoleColor = (role: string | null): string => {
 
 const DecryptLogDetailDrawer: React.FC<DecryptLogDetailDrawerProps> = ({ open, item, onClose }) => {
   return (
-    <Drawer open={open} onClose={onClose} title="감사 이력 상세" width={620} destroyOnHidden closable={{ placement: 'end' }}>
+    <Drawer open={open} onClose={onClose} title="감사 이력 상세" size={620} destroyOnHidden closable={{ placement: 'end' }}>
       {item && (
         <div className="flex flex-col gap-4">
           {/* 요약 영역 */}

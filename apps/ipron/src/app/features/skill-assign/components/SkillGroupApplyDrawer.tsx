@@ -108,7 +108,7 @@ export default function SkillGroupApplyDrawer({ open, agents, tenantId, onClose 
     <Drawer
       title="스킬모음 적용"
       closable={{ placement: 'end' }}
-      width={720}
+      size={720}
       open={open}
       onClose={onClose}
       footer={

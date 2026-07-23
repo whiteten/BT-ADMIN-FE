@@ -84,8 +84,8 @@ export default function IrWorktimeDrawer({ open, mode, item, tenantId, tenantNam
       closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
-      width={460}
-      destroyOnClose
+      size={460}
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>

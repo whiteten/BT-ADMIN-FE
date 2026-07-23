@@ -131,9 +131,9 @@ export default function AgentImportDrawer({ open, tenantId, groupId, tenantName,
       title="상담사 엑셀 가져오기"
       open={open}
       onClose={handleClose}
-      width={560}
+      size={560}
       placement="right"
-      maskClosable={!inProgress}
+      mask={{ closable: !inProgress }}
       closable={{ placement: 'end', disabled: inProgress }}
       footer={
         <div className="flex justify-end gap-2">

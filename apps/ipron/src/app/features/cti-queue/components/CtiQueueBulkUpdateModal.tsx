@@ -473,7 +473,8 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
         }
         width={900}
         onCancel={onClose}
-        destroyOnClose
+        destroyOnHidden
+        forceRender
         footer={
           <div className="flex items-center gap-3">
             {/* 적용방식 */}
@@ -757,7 +758,7 @@ export default function CtiQueueBulkUpdateModal({ open, selectedRows, skillsetOp
             확인
           </Button>
         }
-        destroyOnClose
+        destroyOnHidden
       >
         {bulkResult && (
           <>

@@ -64,8 +64,8 @@ export default function SkillsetGroupDrawer({ open, mode, tenantId, parent, grou
       closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
-      width={420}
-      destroyOnClose
+      size={420}
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>

@@ -579,7 +579,7 @@ export default function IvrDnGroupList() {
       <Drawer
         title={`Sub DN 관리 — ${selectedDnGroup?.dnGroupName ?? ''}`}
         placement="right"
-        width={720}
+        size={720}
         open={subDnDrawerOpen}
         onClose={() => {
           setSubDnDrawerOpen(false);

@@ -283,10 +283,10 @@ export default function HealthBoardWidget({ data, options, widgetId, onRequestPa
         title="응대 지표 임계값 설정"
         closable={{ placement: 'end' }}
         placement="right"
-        width={420}
+        size={420}
         open={settingsOpen}
         onClose={handleCloseSettings}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={handleCloseSettings} disabled={isSaving}>
