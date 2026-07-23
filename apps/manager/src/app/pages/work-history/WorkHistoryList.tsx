@@ -12,6 +12,8 @@ import type { WorkHistoryListItem, WorkHistoryListParams } from '../../features/
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import NoData from '@/components/custom/NoData';
 import ServerPagination from '@/components/custom/ServerPagination';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const PAGE_SIZE = 20;
@@ -21,40 +23,53 @@ const breadcrumb = [
   { title: '작업 이력', path: '/manager/resource/work-history' },
 ];
 
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const DEFAULT_BADGE_CLASS = 'text-gray-500 bg-gray-100';
+
+const WORK_STATUS_LABELS: Record<string, string> = {
+  SUCCESS: '성공',
+  FAIL: '실패',
+  PARTIAL_FAIL: '부분실패',
+};
+const WORK_STATUS_BADGE_CLASS: Record<string, string> = {
+  SUCCESS: 'text-emerald-600 bg-emerald-50',
+  FAIL: 'text-red-500 bg-red-50',
+  PARTIAL_FAIL: 'text-amber-600 bg-amber-50',
+};
+
 /** 상태 배지 컴포넌트 */
 function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    SUCCESS: 'bg-green-100 text-green-800',
-    FAIL: 'bg-red-100 text-red-800',
-    PARTIAL_FAIL: 'bg-yellow-100 text-yellow-800',
-  };
-  const labels: Record<string, string> = {
-    SUCCESS: '성공',
-    FAIL: '실패',
-    PARTIAL_FAIL: '부분실패',
-  };
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[status] || 'bg-gray-100 text-gray-800'}`}>{labels[status] || status}</span>;
+  return (
+    <Badge variant="secondary" className={cn(BADGE_CLASS, WORK_STATUS_BADGE_CLASS[status] ?? DEFAULT_BADGE_CLASS)}>
+      {WORK_STATUS_LABELS[status] || status}
+    </Badge>
+  );
 }
 
-/** HTTP 메서드 배지 */
+const METHOD_BADGE_CLASS: Record<string, string> = {
+  GET: 'text-blue-600 bg-blue-50',
+  POST: 'text-emerald-600 bg-emerald-50',
+  PUT: 'text-amber-600 bg-amber-50',
+  DELETE: 'text-red-500 bg-red-50',
+  PATCH: 'text-purple-600 bg-purple-50',
+};
+
+/** HTTP 메서드 배지 — 메서드명 자체가 소통 단위라 원본 표기 유지 */
 function MethodBadge({ method }: { method: string }) {
-  const colors: Record<string, string> = {
-    GET: 'bg-blue-100 text-blue-800',
-    POST: 'bg-green-100 text-green-800',
-    PUT: 'bg-yellow-100 text-yellow-800',
-    DELETE: 'bg-red-100 text-red-800',
-    PATCH: 'bg-purple-100 text-purple-800',
-  };
-  return <span className={`px-2 py-0.5 rounded text-xs font-mono font-medium ${colors[method] || 'bg-gray-100 text-gray-800'}`}>{method}</span>;
+  return (
+    <Badge variant="secondary" className={cn(BADGE_CLASS, 'font-mono', METHOD_BADGE_CLASS[method] ?? DEFAULT_BADGE_CLASS)}>
+      {method}
+    </Badge>
+  );
 }
 
 /** IDS 배지 컴포넌트 */
 function IdsBadge() {
   return (
-    <span className="inline-flex items-center justify-center gap-1 px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+    <Badge variant="secondary" className={cn(BADGE_CLASS, 'gap-1 text-indigo-600 bg-indigo-50')}>
       <Database className="w-3 h-3" />
       IDS
-    </span>
+    </Badge>
   );
 }
 
@@ -142,6 +157,8 @@ export default function WorkHistoryList() {
         headerName: '상태',
         field: 'status',
         width: 75,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => (p.data?.status ? (WORK_STATUS_LABELS[p.data.status] ?? p.data.status) : ''),
         cellRenderer: (p: ICellRendererParams<WorkHistoryListItem>) => (p.value ? <StatusBadge status={p.value} /> : '-'),
       },
       {
@@ -157,6 +174,7 @@ export default function WorkHistoryList() {
         width: 60,
         headerClass: 'ag-center-header',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        filterValueGetter: (p) => (p.data?.hasIdsLog ? 'IDS' : ''),
         cellRenderer: (p: ICellRendererParams<WorkHistoryListItem>) => (p.value ? <IdsBadge /> : null),
       },
     ],

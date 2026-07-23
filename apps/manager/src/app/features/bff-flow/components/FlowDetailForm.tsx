@@ -14,13 +14,15 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ColDef, ICellRendererParams, RowDoubleClickedEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { Button, Col, Form, Input, Row, Switch, Tag } from 'antd';
+import { Button, Col, Form, Input, Row, Switch } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import StepEditDrawer from './StepEditDrawer';
 import { useSaveFlow } from '../hooks/useBffFlowQueries';
 import type { BffFlow, FlowSpec, FlowStep } from '../types';
 import { IconDocument, IconLayer, IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/libs/shared-ui/src/components/shadcn/tabs';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
@@ -33,11 +35,11 @@ interface FlowDetailFormProps {
   saving?: boolean;
 }
 
-const METHOD_COLORS: Record<string, string> = {
-  GET: 'blue',
-  POST: 'green',
-  PUT: 'orange',
-  DELETE: 'red',
+const METHOD_BADGE_CLASS: Record<string, string> = {
+  GET: 'text-blue-600 bg-blue-50',
+  POST: 'text-emerald-600 bg-emerald-50',
+  PUT: 'text-orange-600 bg-orange-50',
+  DELETE: 'text-red-500 bg-red-50',
 };
 
 /** TabsTrigger 공통 스타일 (RoleDetailPage/PageTabs 동일) */
@@ -209,8 +211,15 @@ export default function FlowDetailForm({ flow, onSave, onSaved, onDelete, saving
       headerName: '방식',
       field: 'method',
       maxWidth: 90,
-      cellStyle: { display: 'flex', alignItems: 'center' },
-      cellRenderer: (params: ICellRendererParams<FlowStep>) => <Tag color={METHOD_COLORS[params.value as string] ?? 'default'}>{params.value as string}</Tag>,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      cellRenderer: (params: ICellRendererParams<FlowStep>) => (
+        <Badge
+          variant="secondary"
+          className={cn('text-[13px] leading-[13px] font-medium !h-6 font-mono', METHOD_BADGE_CLASS[params.value as string] ?? 'text-gray-500 bg-gray-100')}
+        >
+          {params.value as string}
+        </Badge>
+      ),
     },
     {
       headerName: '서비스',

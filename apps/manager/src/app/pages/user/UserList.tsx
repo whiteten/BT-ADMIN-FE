@@ -7,7 +7,7 @@ import { Button, Input, Select } from 'antd';
 import dayjs from 'dayjs';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import AccountStatusBadge from '../../features/user/components/AccountStatusBadge';
+import AccountStatusBadge, { accountStatusLabel } from '../../features/user/components/AccountStatusBadge';
 import { useDeleteUser, useGetUsers, useUnlockUser, userQueryKeys } from '../../features/user/hooks/useUserQueries';
 import type { AccountStatus, User } from '../../features/user/types';
 import { IconTrash } from '@/components/custom/Icons';
@@ -65,6 +65,8 @@ export default function UserList() {
       headerName: '상태',
       field: 'accountStatus',
       maxWidth: 100,
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => accountStatusLabel(params.data?.accountStatus),
       cellRenderer: (params: ICellRendererParams<User>) => {
         const status = params.value as AccountStatus;
         if (!status) return '-';
