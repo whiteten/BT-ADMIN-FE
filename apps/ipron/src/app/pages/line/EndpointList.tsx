@@ -50,6 +50,8 @@ import {
 import { useGetNodeTenants, useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { IconTrash } from '@/components/custom/Icons';
 import ViewModeToggle from '@/components/custom/ViewModeToggle';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -57,11 +59,24 @@ const breadcrumb = [{ title: '회선관리' }, { title: '호 라우팅' }, { tit
 
 type BottomTab = 'member' | 'regnum';
 
-/**
- * 리스트형 상태 뱃지 클래스. 상태 라벨별 색상 매핑(add-grid 스킬 2-2: 정상=emerald / 그 외=회색·red).
- * getEndpointStatusInfo 는 동적 색상(color/bgColor)을 주므로 상태 컬럼은 인라인 스타일을 그대로 사용한다.
- */
-const BADGE_BASE_CLASS = 'inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold';
+/** 그리드 셀 상태 뱃지 — add-grid 스킬 2-2 표준(shadcn Badge + !h-6 높이 고정). */
+const BADGE_CLASS = 'text-[13px] leading-[13px] font-medium !h-6';
+const CENTER_CELL = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
+
+function StatusBadge({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <Badge variant="secondary" className={cn(BADGE_CLASS, className)}>
+      {children}
+    </Badge>
+  );
+}
+
+/** 상태 라벨 → 표준 색토큰 (getEndpointStatusInfo 의 hex 는 카드 배지용으로 유지). */
+const EP_STATUS_BADGE_CLASS: Record<string, string> = {
+  정상: 'text-emerald-600 bg-emerald-50',
+  장애: 'text-red-500 bg-red-50',
+  미사용: 'text-gray-500 bg-gray-100',
+};
 
 export default function EndpointList() {
   const setBreadcrumb = useBreadcrumbStore((s) => s.setBreadcrumb);
@@ -408,17 +423,11 @@ export default function EndpointList() {
         flex: 0.9,
         minWidth: 80,
         filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<Endpoint>) => {
           if (!params.data) return null;
-          return params.data.blockYn === 1 ? (
-            <span className={BADGE_BASE_CLASS} style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              설정
-            </span>
-          ) : (
-            <span className={BADGE_BASE_CLASS} style={{ background: '#f6ffed', color: '#52c41a' }}>
-              해제
-            </span>
-          );
+          const blocked = params.data.blockYn === 1;
+          return <StatusBadge className={blocked ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'}>{blocked ? '설정' : '해제'}</StatusBadge>;
         },
       },
       {
@@ -427,14 +436,11 @@ export default function EndpointList() {
         flex: 0.9,
         minWidth: 80,
         filterValueGetter: (params) => (params.data ? (getEndpointStatusInfo(params.data).label ?? null) : null),
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<Endpoint>) => {
           if (!params.data) return null;
           const status = getEndpointStatusInfo(params.data);
-          return (
-            <span className={BADGE_BASE_CLASS} style={{ color: status.color, backgroundColor: status.bgColor }}>
-              {status.label}
-            </span>
-          );
+          return <StatusBadge className={EP_STATUS_BADGE_CLASS[status.label] ?? 'text-gray-500 bg-gray-100'}>{status.label}</StatusBadge>;
         },
       },
       {
@@ -509,17 +515,11 @@ export default function EndpointList() {
         flex: 1,
         minWidth: 70,
         filterValueGetter: (params) => (params.data?.blockYn === 1 ? '설정' : '해제'),
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
-          return params.data.blockYn === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              설정
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-              해제
-            </span>
-          );
+          const blocked = params.data.blockYn === 1;
+          return <StatusBadge className={blocked ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'}>{blocked ? '설정' : '해제'}</StatusBadge>;
         },
       },
       {
@@ -536,27 +536,14 @@ export default function EndpointList() {
           if (v === 2) return '미사용';
           return '에러';
         },
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.monState;
           if (v == null) return null;
-          if (v === 0)
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-                정상
-              </span>
-            );
-          if (v === 2)
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
-                미사용
-              </span>
-            );
-          return (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              에러
-            </span>
-          );
+          if (v === 0) return <StatusBadge className="text-emerald-600 bg-emerald-50">정상</StatusBadge>;
+          if (v === 2) return <StatusBadge className="text-gray-500 bg-gray-100">미사용</StatusBadge>;
+          return <StatusBadge className="text-red-500 bg-red-50">에러</StatusBadge>;
         },
       },
       {
@@ -572,27 +559,14 @@ export default function EndpointList() {
           if (v === 2) return '미사용';
           return '미등록';
         },
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<EndpointMember>) => {
           if (!params.data) return null;
           const v = params.data.regState;
           if (v == null) return null;
-          if (v === 1)
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-                등록
-              </span>
-            );
-          if (v === 2)
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
-                미사용
-              </span>
-            );
-          return (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              미등록
-            </span>
-          );
+          if (v === 1) return <StatusBadge className="text-emerald-600 bg-emerald-50">등록</StatusBadge>;
+          if (v === 2) return <StatusBadge className="text-gray-500 bg-gray-100">미사용</StatusBadge>;
+          return <StatusBadge className="text-red-500 bg-red-50">미등록</StatusBadge>;
         },
       },
     ],
@@ -646,17 +620,11 @@ export default function EndpointList() {
         flex: 1,
         minWidth: 70,
         filterValueGetter: (params) => (params.data?.regActivateYn === 1 ? '사용' : '미사용'),
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
-          return params.data.regActivateYn === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-              사용
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
-              미사용
-            </span>
-          );
+          const used = params.data.regActivateYn === 1;
+          return <StatusBadge className={used ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}>{used ? '사용' : '미사용'}</StatusBadge>;
         },
       },
       {
@@ -665,18 +633,11 @@ export default function EndpointList() {
         flex: 1,
         minWidth: 70,
         filterValueGetter: (params) => (params.data?.regState === 1 ? '등록' : '미등록'),
+        cellStyle: CENTER_CELL,
         cellRenderer: (params: ICellRendererParams<EndpointRegnum>) => {
           if (!params.data) return null;
-          const v = params.data.regState;
-          return v === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-              등록
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff2f0', color: '#ff4d4f' }}>
-              미등록
-            </span>
-          );
+          const registered = params.data.regState === 1;
+          return <StatusBadge className={registered ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'}>{registered ? '등록' : '미등록'}</StatusBadge>;
         },
       },
       {

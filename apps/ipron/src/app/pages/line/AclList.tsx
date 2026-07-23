@@ -24,6 +24,7 @@ import AclDrawer, { type AclDrawerRef } from '../../features/acl/components/AclD
 import { aclQueryKeys, useDeleteAclBatch, useDeleteCtiAclBatch, useGetAcls, useGetCtiAcls, useGetNodes } from '../../features/acl/hooks/useAclQueries';
 import { ACL_TYPE_LABELS, type Acl, USE_YN_LABELS } from '../../features/acl/types';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -192,12 +193,16 @@ export default function AclList() {
         flex: 1,
         minWidth: 90,
         filterValueGetter: (params) => (params.data ? (ACL_TYPE_LABELS[params.data.aclType] ?? String(params.data.aclType)) : null),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: ICellRendererParams<Acl>) => {
           if (!params.data) return null;
           const aclType = params.data.aclType;
           const label = ACL_TYPE_LABELS[aclType] ?? String(aclType);
-          const color = aclType === 1 ? 'var(--color-bt-primary)' : '#dc2626';
-          return <span style={{ color, fontWeight: 500 }}>{label}</span>;
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${aclType === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'}`}>
+              {label}
+            </Badge>
+          );
         },
       },
       { headerName: 'IP NET', field: 'ipNet', flex: 2, minWidth: 130, tooltipField: 'ipNet' },
@@ -208,12 +213,16 @@ export default function AclList() {
         flex: 1,
         minWidth: 100,
         filterValueGetter: (params) => (params.data ? (USE_YN_LABELS[params.data.useYn] ?? String(params.data.useYn)) : null),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: ICellRendererParams<Acl>) => {
           if (!params.data) return null;
           const useYn = params.data.useYn;
           const label = USE_YN_LABELS[useYn] ?? String(useYn);
-          const color = useYn === 1 ? 'var(--color-bt-primary)' : '#6b7280';
-          return <span style={{ color, fontWeight: 500 }}>{label}</span>;
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${useYn === 1 ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
+              {label}
+            </Badge>
+          );
         },
       },
       {

@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import type { AgentAdnRowResponse } from '../types';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface AgentAdnTableProps {
@@ -85,14 +86,15 @@ export default function AgentAdnTable({ rowData, isLoading, onSelectionChanged }
         field: 'activateYn',
         minWidth: 90,
         maxWidth: 100,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         filterValueGetter: (params) => (params.data?.activateYn === 1 && (params.data?.retireYn ?? 0) === 0 ? '활성' : '비활성'),
         cellRenderer: (params: ICellRendererParams<AgentAdnRowResponse>) => {
           const isActive = params.data?.activateYn === 1 && (params.data?.retireYn ?? 0) === 0;
-          if (!isActive) {
-            return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium text-gray-600 bg-gray-50 border border-gray-200">비활성</span>;
-          }
-          return <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-200">활성</span>;
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isActive ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
+              {isActive ? '활성' : '비활성'}
+            </Badge>
+          );
         },
       },
       { headerName: '수정일시', field: 'workTime', minWidth: 160, flex: 1, valueFormatter: (p) => p.value ?? '-' },

@@ -8,6 +8,7 @@ import type { CellStyle, ColDef, ICellRendererParams, RowSelectionOptions } from
 import { AgGridReact } from 'ag-grid-react';
 import type { AdnResponse } from '../types';
 import { getAdnDftStateName } from '../utils/adnEnums';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface AdnTableProps {
@@ -50,7 +51,7 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
         field: 'dnStatus',
         minWidth: 130,
         maxWidth: 140,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         // ADN DN_STATUS: '8'=로그인, '9'=로그아웃 (공유 DnStatus '1' 아님 — DB 실확인)
         filterValueGetter: (params) => (params.data?.dnStatus === '8' ? '로그인' : '로그아웃'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
@@ -58,13 +59,9 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
           if (v == null) return '-';
           const isActive = v === '8';
           return (
-            <span
-              className={`inline-flex items-center justify-center w-[90px] h-[22px] leading-none px-1.5 rounded text-[11px] font-medium ${
-                isActive ? 'text-green-700 bg-green-50 border border-green-200' : 'text-gray-600 bg-gray-50 border border-gray-200'
-              }`}
-            >
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isActive ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
               {isActive ? '로그인' : '로그아웃'}
-            </span>
+            </Badge>
           );
         },
       },
@@ -80,18 +77,14 @@ export default function AdnTable({ rowData, isLoading, onRowDoubleClicked, onSel
         field: 'md5Auth',
         minWidth: 110,
         maxWidth: 120,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         filterValueGetter: (params) => (params.data?.md5Auth === 1 ? '설정' : '해제'),
         cellRenderer: (params: ICellRendererParams<AdnResponse>) => {
-          const v = params.data?.md5Auth;
-          return v === 1 ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#e6f4ff', color: '#1677ff' }}>
-              설정
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fafafa', color: '#8c8c8c' }}>
-              해제
-            </span>
+          const on = params.data?.md5Auth === 1;
+          return (
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${on ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
+              {on ? '설정' : '해제'}
+            </Badge>
           );
         },
       },

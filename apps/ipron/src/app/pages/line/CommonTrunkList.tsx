@@ -42,6 +42,7 @@ import {
 import { BOOL_OX_LABEL } from '../../features/dn/utils/dnEnums';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const breadcrumb = [{ title: '번호자원관리' }, { title: '교환기 번호관리' }, { title: '공용 SIP TRUNK', path: '/ipron/line/common-trunk' }];
@@ -294,14 +295,14 @@ export default function CommonTrunkList() {
         field: 'blockYn',
         headerName: '블록',
         width: 70,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        filterValueGetter: (p) => ((p.data as CommonGdnResponse | undefined)?.blockYn === 1 ? '사용' : '미사용'),
-        cellRenderer: (p: { value: number }) =>
-          p.value === 1 ? (
-            <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-px text-[10px] font-semibold text-red-700">사용</span>
-          ) : (
-            <span className="inline-flex items-center rounded border border-slate-200 bg-slate-100 px-1.5 py-px text-[10px] font-semibold text-slate-600">미사용</span>
-          ),
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
+        // 블록 토글 라벨은 SipTrunkList 와 동일하게 '설정/해제' (2026-07-23 표준 확정)
+        filterValueGetter: (p) => ((p.data as CommonGdnResponse | undefined)?.blockYn === 1 ? '설정' : '해제'),
+        cellRenderer: (p: { value: number }) => (
+          <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${p.value === 1 ? 'text-red-500 bg-red-50' : 'text-gray-500 bg-gray-100'}`}>
+            {p.value === 1 ? '설정' : '해제'}
+          </Badge>
+        ),
       },
       // 갭4: 라우팅 이름 3종 (SWAT 그리드 정합)
       {
@@ -342,14 +343,13 @@ export default function CommonTrunkList() {
         field: 'assignYn',
         headerName: '배정상태',
         width: 96,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         filterValueGetter: (p) => ((p.data as CommonTrunkMemberResponse | undefined)?.assignYn ? '배정중' : '미배정'),
-        cellRenderer: (p: { value: boolean }) =>
-          p.value ? (
-            <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-1.5 py-px text-[10px] font-semibold text-green-700">배정중</span>
-          ) : (
-            <span className="inline-flex items-center rounded border border-gray-200 bg-gray-50 px-1.5 py-px text-[10px] font-semibold italic text-gray-400">미배정</span>
-          ),
+        cellRenderer: (p: { value: boolean }) => (
+          <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${p.value ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
+            {p.value ? '배정중' : '미배정'}
+          </Badge>
+        ),
       },
       {
         field: 'targetName',

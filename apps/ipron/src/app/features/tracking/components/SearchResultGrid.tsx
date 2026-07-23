@@ -12,6 +12,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { AlertTriangle, Copy, Phone, Search, UserX, Users } from 'lucide-react';
 import { toast } from '@/shared-util';
 import type { CallSearchResult, TrackingMode } from '../types';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const DEFAULT_PAGE_SIZE = 100;
@@ -214,7 +216,11 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           const v = p.data?.callKind;
           if (v == null) return '-';
           const meta = CALL_KIND_LABEL[v] ?? { color: 'bg-gray-100 text-gray-600', label: String(v) };
-          return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.color}`}>{meta.label}</span>;
+          return (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.color)}>
+              {meta.label}
+            </Badge>
+          );
         },
       },
       {
@@ -306,7 +312,11 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           const v = p.data?.endStatus;
           if (v == null) return '-';
           const meta = IVR_END_STATUS_LABEL[v] ?? { color: 'bg-gray-100 text-gray-600', label: String(v) };
-          return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.color}`}>{meta.label}</span>;
+          return (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.color)}>
+              {meta.label}
+            </Badge>
+          );
         },
       },
       // IVR 전용 — CTI 진입 여부 + drill-down (REQ_AGENT_YN 으로 판단)
@@ -357,7 +367,11 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           if (!r) return <span className="text-gray-300">-</span>;
           const label = r.mediaAlias ?? (r.mediaType != null ? (MEDIA_TYPE_LABEL[r.mediaType] ?? `Type ${r.mediaType}`) : null);
           if (!label) return <span className="text-gray-300">-</span>;
-          return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-50 text-sky-700">{label}</span>;
+          return (
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-sky-50 text-sky-700">
+              {label}
+            </Badge>
+          );
         },
       },
       {
@@ -403,8 +417,18 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         filter: 'agSetColumnFilter',
         cellRenderer: (p: { data?: CallSearchResult }) => {
           const v = p.data?.entryPath;
-          if (v === 'IVR_TRANSFER') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet-50 text-violet-700">IVR 경유</span>;
-          if (v === 'DIRECT') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">직통</span>;
+          if (v === 'IVR_TRANSFER')
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-violet-50 text-violet-700">
+                IVR 경유
+              </Badge>
+            );
+          if (v === 'DIRECT')
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-emerald-50 text-emerald-700">
+                직통
+              </Badge>
+            );
           return <span className="text-gray-300">-</span>;
         },
       },
@@ -469,14 +493,26 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           const r = p.data;
           if (!r?.dispatchStatus) return <span className="text-gray-300">-</span>;
           if (r.dispatchStatus === 'ANSWERED') {
-            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">응답</span>;
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-emerald-50 text-emerald-700">
+                응답
+              </Badge>
+            );
           }
           if (r.dispatchStatus === 'ABANDONED') {
             const phase = r.abandonedAtPhase;
             const label = phase === 'QUEUE' ? '큐 포기' : phase === 'RING' ? '벨 포기' : phase === 'IVR' ? 'IVR 포기' : '포기';
-            return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700">{label}</span>;
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-amber-50 text-amber-700">
+                {label}
+              </Badge>
+            );
           }
-          return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">미분배</span>;
+          return (
+            <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-gray-100 text-gray-600">
+              미분배
+            </Badge>
+          );
         },
       },
       {
@@ -495,8 +531,18 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
         filter: 'agSetColumnFilter',
         cellRenderer: (p: { data?: CallSearchResult }) => {
           const v = p.data?.serviceLevelStatus;
-          if (v === 'WITHIN') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">SL 내</span>;
-          if (v === 'OVER') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-orange-50 text-orange-700">SL 초과</span>;
+          if (v === 'WITHIN')
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-emerald-50 text-emerald-700">
+                SL 내
+              </Badge>
+            );
+          if (v === 'OVER')
+            return (
+              <Badge variant="secondary" className="text-[13px] leading-[13px] font-medium !h-6 bg-orange-50 text-orange-700">
+                SL 초과
+              </Badge>
+            );
           return <span className="text-gray-300">-</span>;
         },
       },
@@ -658,7 +704,11 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           const v = p.data?.ccType;
           if (v == null) return '-';
           const meta = CC_TYPE_LABEL[v] ?? { color: 'bg-gray-100 text-gray-600', label: String(v) };
-          return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.color}`}>{meta.label}</span>;
+          return (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.color)}>
+              {meta.label}
+            </Badge>
+          );
         },
       },
       {
@@ -679,7 +729,11 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           const r = p.data;
           const b = rFactorBadge(r?.oRFactor, r?.tType);
           if (!b) return <span className="text-gray-300">-</span>;
-          return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${b.cls}`}>{b.label}</span>;
+          return (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', b.cls)}>
+              {b.label}
+            </Badge>
+          );
         },
       },
       {
@@ -697,7 +751,11 @@ export default function SearchResultGrid({ rows, loading = false, mode = 'PBX', 
           const v = p.data?.ccPart;
           if (v == null) return '-';
           const meta = CC_PART_LABEL[v] ?? { color: 'bg-gray-100 text-gray-600', label: String(v) };
-          return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.color}`}>{meta.label}</span>;
+          return (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', meta.color)}>
+              {meta.label}
+            </Badge>
+          );
         },
       },
       // ── 교환기 CDR 상세 진입 — 종료주체 옆 (PBX 모드만, 고정 해제) ──

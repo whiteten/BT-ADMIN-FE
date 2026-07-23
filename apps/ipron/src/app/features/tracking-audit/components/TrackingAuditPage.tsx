@@ -16,6 +16,7 @@ import TrackingAuditDetailDrawer from './TrackingAuditDetailDrawer';
 import { useGetTrackingAudits } from '../hooks/useTrackingAuditQueries';
 import type { TrackingAudit, TrackingAuditAction, TrackingAuditSearchParams, TrackingMode } from '../types/trackingAudit.types';
 import ServerPagination from '@/components/custom/ServerPagination';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 const PAGE_SIZE = 50;
@@ -25,14 +26,23 @@ const breadcrumb = [
   { title: '트래킹 조회이력', path: '/ipron/tracking-audit' },
 ];
 
+const ACTION_BADGE_META: Record<TrackingAuditAction, { label: string; cls: string }> = {
+  SEARCH: { label: '검색', cls: 'text-blue-600 bg-blue-50' },
+  EXPORT: { label: '다운로드', cls: 'text-amber-600 bg-amber-50' },
+  DETAIL_VIEW: { label: '상세조회', cls: 'text-purple-600 bg-purple-50' },
+};
+
+function actionLabel(action: TrackingAuditAction): string {
+  return ACTION_BADGE_META[action]?.label ?? action;
+}
+
 function ActionBadge({ action }: { action: TrackingAuditAction }) {
-  const meta: Record<TrackingAuditAction, { label: string; cls: string }> = {
-    SEARCH: { label: '검색', cls: 'bg-blue-100 text-blue-800' },
-    EXPORT: { label: '다운로드', cls: 'bg-orange-100 text-orange-800' },
-    DETAIL_VIEW: { label: '상세조회', cls: 'bg-purple-100 text-purple-800' },
-  };
-  const m = meta[action] ?? { label: action, cls: 'bg-gray-100 text-gray-800' };
-  return <span className={`px-2 py-0.5 rounded text-xs font-medium ${m.cls}`}>{m.label}</span>;
+  const m = ACTION_BADGE_META[action] ?? { label: action, cls: 'text-gray-500 bg-gray-100' };
+  return (
+    <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${m.cls}`}>
+      {m.label}
+    </Badge>
+  );
 }
 
 export default function TrackingAuditPage() {
@@ -119,6 +129,7 @@ export default function TrackingAuditPage() {
         headerClass: 'ag-center-header',
         cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (p: { value: TrackingAuditAction }) => (p.value ? <ActionBadge action={p.value} /> : '-'),
+        filterValueGetter: ({ data }) => (data?.actionType ? actionLabel(data.actionType) : ''),
       },
       { headerName: '실제 액션', field: 'criteriaSummary', flex: 1, minWidth: 280, tooltipField: 'criteriaSummary' },
       {

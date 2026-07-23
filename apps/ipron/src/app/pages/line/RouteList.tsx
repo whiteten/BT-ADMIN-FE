@@ -366,30 +366,18 @@ export default function RouteList() {
         flex: 1,
         minWidth: 90,
         filterValueGetter: (params) => params.data?.backupGb ?? '-',
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
         cellRenderer: (params: ICellRendererParams<RoutePoint>) => {
           if (!params.data) return null;
           const gb = params.data.backupGb ?? '';
-          if (gb.includes('로컬')) {
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#f6ffed', color: '#52c41a' }}>
-                로컬노드
-              </span>
-            );
-          }
-          if (gb.includes('DR')) {
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#e6f4ff', color: '#1677ff' }}>
-                DR노드
-              </span>
-            );
-          }
-          if (gb.includes('리모트')) {
-            return (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold" style={{ background: '#fff7e6', color: '#fa8c16' }}>
-                리모트 노드
-              </span>
-            );
-          }
+          const badge = (label: string, cls: string) => (
+            <Badge variant="secondary" className={cn('text-[13px] leading-[13px] font-medium !h-6', cls)}>
+              {label}
+            </Badge>
+          );
+          if (gb.includes('로컬')) return badge('로컬노드', 'text-emerald-600 bg-emerald-50');
+          if (gb.includes('DR')) return badge('DR노드', 'text-blue-600 bg-blue-50');
+          if (gb.includes('리모트')) return badge('리모트 노드', 'text-amber-600 bg-amber-50');
           return gb || '-';
         },
       },

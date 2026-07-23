@@ -12,6 +12,7 @@ import { AgGridReact } from 'ag-grid-react';
 import type { DnResponse } from '../types';
 import { BOOL_OX_LABEL, DN_STATUS_LABELS, TRANSPORT_TYPE_LABELS } from '../utils/dnEnums';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 interface DnTableProps {
@@ -88,7 +89,7 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         field: 'dnStatus',
         minWidth: 140,
         maxWidth: 150,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         valueGetter: (params) => {
           const v = params.data?.dnStatus;
           return v ? DN_STATUS_LABELS[v] : '-';
@@ -98,13 +99,9 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
           if (!v) return '-';
           const isActive = v === '1';
           return (
-            <span
-              className={`inline-flex items-center justify-center w-[110px] h-[22px] leading-none px-1.5 rounded text-[11px] font-medium ${
-                isActive ? 'text-green-700 bg-green-50 border border-green-200' : 'text-red-600 bg-red-50 border border-red-200'
-              }`}
-            >
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${isActive ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'}`}>
               {DN_STATUS_LABELS[v]}
-            </span>
+            </Badge>
           );
         },
       },

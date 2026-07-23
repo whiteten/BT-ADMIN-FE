@@ -12,6 +12,7 @@ import { GripVertical } from 'lucide-react';
 import { labelOfActivate, labelOfAgentGrade, labelOfJikgup } from '../constants/codes';
 import type { AgentResponse } from '../types';
 import { IconTrash } from '@/components/custom/Icons';
+import { Badge } from '@/components/ui/badge';
 import useAggridOptions from '@/libs/shared-ui/src/hooks/useAggridOptions';
 
 /**
@@ -160,19 +161,14 @@ export default function AgentMasterTable({
         field: 'activateYn',
         flex: 0.7,
         minWidth: 80,
-        cellStyle: { textAlign: 'center' } as CellStyle,
+        cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' } as CellStyle,
         valueGetter: (p) => labelOfActivate(p.data?.activateYn),
         cellRenderer: (params: ICellRendererParams<AgentResponse>) => {
-          const v = params.data?.activateYn;
-          const on = v === 1;
+          const on = params.data?.activateYn === 1;
           return (
-            <span
-              className={`inline-flex items-center justify-center w-[52px] h-[20px] leading-none px-1.5 rounded text-[11px] font-medium ${
-                on ? 'text-green-700 bg-green-50 border border-green-200' : 'text-gray-600 bg-gray-50 border border-gray-200'
-              }`}
-            >
+            <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${on ? 'text-emerald-600 bg-emerald-50' : 'text-gray-500 bg-gray-100'}`}>
               {on ? '활성' : '비활성'}
-            </span>
+            </Badge>
           );
         },
       },
