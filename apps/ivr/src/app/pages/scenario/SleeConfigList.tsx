@@ -532,7 +532,6 @@ export default function SleeConfigList() {
 
   const propertyColumnDefs: ColDef<SleeConfigProperty>[] = useMemo(
     () => [
-      { headerName: '', checkboxSelection: true, headerCheckboxSelection: true, width: 40, maxWidth: 40, suppressSizeToFit: true },
       { headerName: '속성', field: 'property', flex: 2, minWidth: 150 },
       { headerName: '값', field: 'value', flex: 3, minWidth: 200 },
       { headerName: '설명', field: 'ptyDesc', flex: 2, minWidth: 150 },
@@ -673,7 +672,7 @@ export default function SleeConfigList() {
                   gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
                   getRowId={(params) => params.data.category}
                   defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                  rowSelection="single"
+                  rowSelection={{ mode: 'singleRow', checkboxes: false, enableClickSelection: true }}
                   // 카테고리 목록 로드 시 선택된 행이 없으면 첫 번째 행 자동 선택
                   onRowDataUpdated={(e) => {
                     if (e.api.getSelectedRows().length > 0) return;
@@ -726,8 +725,7 @@ export default function SleeConfigList() {
                   gridOptions={{ ...gridOptions, statusBar: undefined, pagination: false, sideBar: false }}
                   getRowId={(params) => `${params.data.category}::${params.data.property}`}
                   defaultColDef={{ filter: true, sortable: true, suppressHeaderMenuButton: true }}
-                  rowSelection="multiple"
-                  suppressRowClickSelection
+                  rowSelection={{ mode: 'multiRow', enableClickSelection: false, checkboxes: true, headerCheckbox: true }}
                   onSelectionChanged={(e) => handlePropertySelectionChanged(e.api)}
                   onRowDoubleClicked={(e) => e.data && handleOpenPropertyEdit(e.data)}
                 />
