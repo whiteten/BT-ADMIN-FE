@@ -61,7 +61,7 @@ export function toCampaignItem(master: CampaignMaster): CampaignItem {
   return {
     ...toCampaignListItem(master),
     sortOrder: master.sortSeq ?? 0,
-    worker: master.workUser ?? '',
+    worker: master.workUserName ?? (master.workUser != null ? String(master.workUser) : ''),
   };
 }
 
@@ -87,6 +87,7 @@ export function createEmptyCampaignMaster(partial: Pick<CampaignMaster, 'campaig
     retryDelay: null,
     workTime: null,
     workUser: null,
+    workUserName: null,
     ageYn: null,
     solYn: null,
     expansion1: null,
