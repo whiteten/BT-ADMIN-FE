@@ -1,27 +1,35 @@
 /**
  * 교환기 공용멘트 관리 (시스템 관리자 전용).
  *
- * 공용멘트는 항상 전역(NODE_ID=0, TENANT_ID=0) — 노드 개념이 없다.
- * 상단 요약 + 검색 + 동기화, 하단 그리드 + 등록/수정/삭제/미리듣기.
+ * 공용멘트는 항상 테넌트 공통(TENANT_ID=0) — 테넌트 개념이 없다. 단, **노드는 선택 가능**하다:
+ *   설치 기본은 노드0(전역=전체 노드 공용)이며, 특정 노드에만 유효한 공용멘트도 등록할 수 있다.
+ *   → 상단에 노드 드롭다운("전체 노드" 포함)만 두고, 테넌트 드롭다운/ScopeSelect 는 두지 않는다.
  *
  * 공용멘트(TENANT_ID=0)는 전 테넌트가 공유하는 멘트로, SHARED_POOL 규칙상
  * 시스템 관리자만 생성/수정 가능(BE TenantGuard). 메뉴도 시스템관리자 role 에만 노출.
  *
+ * BE 목록 API 는 nodeId 필수 → 노드별 조회 후 병합(멘트 관리 화면과 동일). "전체 노드"는 스코프 전 노드 병합.
+ * BE search 범위가 (nodeId = :nodeId or nodeId = 0) 이라 NODE_ID=0 전역 공용행이 노드별 응답마다
+ * 중복 포함될 수 있으므로 ieMentId 기준 dedupe 필수.
+ *
  * 재사용: ment-mgmt feature (MentTable / MentFormDrawer / useMentQueries / mentApi).
  */
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Input } from 'antd';
-import { Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { useQueries } from '@tanstack/react-query';
+import { Button, Input, Select } from 'antd';
+import { Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
+import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { mentApi } from '../../features/ment-mgmt/api/mentApi';
 import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/components/MentFormDrawer';
 import MentTable from '../../features/ment-mgmt/components/MentTable';
-import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
+import { mentQueryKeys, useDeleteMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
+import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
-/** 공용멘트는 항상 전역 저장 — 테넌트 공통(0) + 전 노드 공용(NODE_ID=0). */
+/** 공용멘트는 항상 테넌트 공통(0). 노드 미지정(전역) 저장 시 NODE_ID=0. */
 const COMMON_TENANT_ID = 0;
 const ALL_NODE_ID = 0;
 
@@ -50,16 +58,38 @@ export default function MentCommonList() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
-  // ─── Queries ────────────────────────────────────────────────────────────────
-  // 공용멘트는 전역(NODE_ID=0, TENANT_ID=0) 고정 — 단일 조회.
-  // BE search 범위가 (nodeId = :nodeId or nodeId = 0) 이라 nodeId=0 → NODE_ID=0 행만 반환.
-  const { data: rows = [], isLoading } = useGetMents({ params: { nodeId: ALL_NODE_ID, tenantId: COMMON_TENANT_ID } });
+  // ─── 노드 스코프 (테넌트 무관 — 노드 선택만 사용) ──────────────────────────────────
+  const { data: allNodes = [] } = useGetDnProfileNodes();
+  // useNodeTenantScope 의 노드 부분만 사용. 테넌트(tenants/tenantFilter/operatorMode/swap)는 공용멘트에 불필요.
+  const { nodes, selectedNodeId, setSelectedNodeId } = useNodeTenantScope(allNodes);
 
-  // ─── 그리드 표시용 행 (검색어 필터만) ─────────────────────────────────────────
+  // ─── Queries (노드별 조회 후 병합 — 각 tenantId=0 공통) ──────────────────────────
+  // 특정 노드 선택 시 그 노드만, "전체 노드"(null) 선택 시 스코프 전 노드를 조회한다.
+  const queryNodes = selectedNodeId != null ? nodes.filter((n) => n.nodeId === selectedNodeId) : nodes;
+  const nodeMentQueries = useQueries({
+    queries: queryNodes.map((node) => ({
+      queryKey: mentQueryKeys.getList({ nodeId: node.nodeId, tenantId: COMMON_TENANT_ID }).queryKey,
+      queryFn: () => mentApi.getList({ nodeId: node.nodeId, tenantId: COMMON_TENANT_ID }),
+    })),
+  });
+  const isLoading = nodeMentQueries.some((q) => q.isLoading);
+
+  // BE search 범위가 (nodeId = :nodeId or nodeId = 0) 이라 전역 공용 행이 노드별 응답마다
+  // 중복 포함될 수 있음 → ieMentId 기준 dedupe.
+  const rows = Array.from(new Map(nodeMentQueries.flatMap((q) => q.data ?? []).map((r) => [r.ieMentId, r] as const)).values());
+
+  // ─── 그리드 표시용 행 (노드 필터 + 검색어) ─────────────────────────────────────────
+  // 특정 노드 선택 시: 그 노드 + NODE_ID=0(전역) 표시. "전체 노드"면 전부.
   const kw = searchText.trim().toLowerCase();
-  const rowsForGrid = kw.length > 0 ? rows.filter((r) => [r.mentName, r.fileName, r.mentDesc].some((f) => f != null && String(f).toLowerCase().includes(kw))) : rows;
+  let rowsForGrid = selectedNodeId != null ? rows.filter((r) => r.nodeId === selectedNodeId || r.nodeId === ALL_NODE_ID) : rows;
+  if (kw.length > 0) {
+    rowsForGrid = rowsForGrid.filter((r) => [r.mentName, r.fileName, r.mentDesc].some((f) => f != null && String(f).toLowerCase().includes(kw)));
+  }
 
   const gridHeaderText = `교환기 공용멘트 목록 (${rowsForGrid.length.toLocaleString()}건)`;
+
+  // 등록/동기화 컨텍스트 노드
+  const ctxNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value);
@@ -88,12 +118,12 @@ export default function MentCommonList() {
   });
 
   const handleCreate = () => {
-    // 공용멘트 = 전역(NODE_ID=0, TENANT_ID=0) 고정. 노드 선택 UI 없음.
+    // 특정 노드 선택 시 그 노드로, "전체 노드"면 전역(NODE_ID=0)으로 저장. 테넌트는 항상 공통(0).
     setDrawer({
       open: true,
       mode: 'create',
-      nodeId: ALL_NODE_ID,
-      nodeName: '전역',
+      nodeId: selectedNodeId ?? ALL_NODE_ID,
+      nodeName: ctxNodeName ?? '전역',
       tenantId: COMMON_TENANT_ID,
       tenantName: '공통',
     });
@@ -105,7 +135,7 @@ export default function MentCommonList() {
       mode: 'edit',
       row,
       nodeId: row.nodeId,
-      nodeName: '전역',
+      nodeName: nodes.find((n) => n.nodeId === row.nodeId)?.nodeName ?? (row.nodeId === ALL_NODE_ID ? '전역' : null),
       tenantId: row.tenantId,
       tenantName: row.tenantName,
     });
@@ -120,10 +150,15 @@ export default function MentCommonList() {
   };
 
   const handleSync = () => {
-    // 전역 공용멘트 동기화 — 노드 개념 없음(NODE_ID=0).
+    // 선택 노드 기준 동기화("전체 노드"면 전역 0).
+    const syncNodeId = selectedNodeId ?? ALL_NODE_ID;
+    const content =
+      selectedNodeId != null
+        ? `선택한 노드(${ctxNodeName ?? syncNodeId})의 모든 MS그룹에 공용멘트 파일을 동기화하시겠습니까?`
+        : '전역 공용멘트 파일을 모든 MS그룹에 동기화하시겠습니까?';
     modal.confirm.execute({
-      onOk: () => syncMents(ALL_NODE_ID),
-      options: { title: '멘트파일 동기화', content: '전역 공용멘트 파일을 모든 MS그룹에 동기화하시겠습니까?' },
+      onOk: () => syncMents(syncNodeId),
+      options: { title: '멘트파일 동기화', content },
     });
   };
 
@@ -179,12 +214,29 @@ export default function MentCommonList() {
   return (
     <div className="flex flex-col gap-4 w-full h-full">
       <div className="flex flex-1 min-h-0 flex-col gap-4">
-        {/* ===== 상단: 요약 + 검색 + 동기화 ===== */}
+        {/* ===== 상단: 노드 필터 + 요약 + 검색 + 동기화 ===== */}
         <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
           <div className="flex items-center px-4 h-[56px] gap-3">
-            {/* 요약 — 전역 공용멘트 총계 */}
-            <div className="flex items-center gap-2 text-[13px]">
-              <span className="text-gray-800 font-semibold">전역 공용멘트</span>
+            {/* 노드 필터 — "전체 노드" 포함. 테넌트 드롭다운은 없음(공용멘트는 테넌트 무관). */}
+            <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+              <Network className="size-3.5 shrink-0 text-blue-600" />
+              <Select
+                size="small"
+                variant="borderless"
+                value={selectedNodeId ?? '__all__'}
+                onChange={(v) => {
+                  setSelectedNodeId(v === '__all__' ? null : Number(v));
+                  setSelectedRows([]);
+                }}
+                options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                style={{ width: 150 }}
+                popupMatchSelectWidth={false}
+              />
+            </div>
+
+            {/* 요약 — 공용멘트 총계 */}
+            <div className="flex items-center gap-2 text-[13px] ml-1 pl-3 border-l border-gray-200">
+              <span className="text-gray-800 font-semibold">공용멘트</span>
               <span className="text-gray-500">
                 총 <b className="text-gray-800 font-semibold">{rowsForGrid.length.toLocaleString()}</b>건
               </span>
@@ -199,7 +251,12 @@ export default function MentCommonList() {
                 onChange={handleSearchChange}
                 style={{ width: 200 }}
               />
-              <Button icon={<RefreshCw className="size-3.5" />} onClick={handleSync} loading={isSyncing} title="전역 공용멘트 파일을 모든 MS그룹에 동기화">
+              <Button
+                icon={<RefreshCw className="size-3.5" />}
+                onClick={handleSync}
+                loading={isSyncing}
+                title={selectedNodeId != null ? '선택 노드의 모든 MS그룹에 공용멘트 파일을 동기화' : '전역 공용멘트 파일을 모든 MS그룹에 동기화'}
+              >
                 멘트파일 동기화
               </Button>
             </div>
@@ -208,7 +265,7 @@ export default function MentCommonList() {
 
         {/* ===== 하단: 공용멘트 목록 ag-Grid ===== */}
         <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
+          <div className="px-5 py-3 flex items-center gap-2 flex-shrink-0">
             <span className="text-sm font-semibold text-gray-800">{gridHeaderText}</span>
             {selectedRows.length > 0 && <span className="text-xs text-gray-500">선택 {selectedRows.length}건</span>}
             <div className="ml-auto flex items-center gap-2">
@@ -228,7 +285,9 @@ export default function MentCommonList() {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0">
+          <div className="border-t border-gray-200" />
+
+          <div className="flex-1 min-h-0 p-5">
             <MentTable
               rowData={rowsForGrid}
               isLoading={isLoading}

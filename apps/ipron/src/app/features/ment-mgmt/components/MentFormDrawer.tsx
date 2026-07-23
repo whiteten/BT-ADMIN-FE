@@ -9,8 +9,7 @@
  * 노드/테넌트는 현재 컨텍스트(목록 선택) 고정(disabled). 경로는 테넌트 기준 자동 산출(공통=0000).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, DatePicker, Drawer, Form, Input, Modal, Select } from 'antd';
-import dayjs from 'dayjs';
+import { Button, Drawer, Form, Input, Modal, Select } from 'antd';
 import { Download, Pause, Play, Trash2, Upload } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { mentApi } from '../api/mentApi';
@@ -46,7 +45,6 @@ interface Props {
 interface SingleFormValues {
   mentName?: string;
   mentDesc?: string;
-  createDate?: dayjs.Dayjs;
 }
 
 /** 멘트 파일명 규칙(BE 캐논 통일): 영숫자·_·.·- 만(64자 이내), .pcm 확장자 필수. 대소문자 무관. */
@@ -102,10 +100,9 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       form.setFieldsValue({
         mentName: r.mentName ?? '',
         mentDesc: r.mentDesc ?? '',
-        createDate: r.createDate ? dayjs(r.createDate, 'YYYYMMDD') : dayjs(),
       });
     } else {
-      form.setFieldsValue({ mentName: '', mentDesc: '', createDate: dayjs() });
+      form.setFieldsValue({ mentName: '', mentDesc: '' });
     }
   }, [state, form]);
 
@@ -149,25 +146,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
     },
   });
   const submitting = creating || updating || batchCreating;
-
-  // ─── Template 다운로드 (다량 등록 — SWAT doTemplateDown 정합) ─────────────────
-  /**
-   * 멘트 목록 가져오기 템플릿 CSV 다운로드.
-   * SWAT: fileDown.do?requestedFile=IE_MentList_Import.xlsx (파일명/설명 컬럼).
-   * BT-ADMIN: FE에서 동일 컬럼 구조의 CSV 생성 후 다운로드 (SheetJS 미사용).
-   */
-  const onDownloadTemplate = () => {
-    const header = 'mentFile,mentDesc';
-    const sample = 'example_ment.pcm,설명 예시';
-    const csvContent = `${header}\n${sample}\n`;
-    const blob = new Blob(['﻿' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'IE_MentList_Import_Template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   // ─── 현재 파일 미리듣기/다운로드 (수정 모드) ──────────────────────────────────
   const [previewing, setPreviewing] = useState(false);
@@ -286,7 +264,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
     try {
       const values = await form.validateFields();
       const mentName = values.mentName!.trim();
-      const createDate = values.createDate ? values.createDate.format('YYYYMMDD') : undefined;
 
       if (isEdit && state.row) {
         // 수정: 중복체크 사전 호출 (SWAT dupCallProcessForUpdate 정합)
@@ -309,7 +286,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
                   mentName,
                   filePath: singleFile ? singleFile.name : (state.row!.filePath ?? ''),
                   mentDesc: values.mentDesc,
-                  createDate,
                 },
               }),
           });
@@ -321,7 +297,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
             mentName,
             filePath: singleFile ? singleFile.name : (state.row.filePath ?? ''),
             mentDesc: values.mentDesc,
-            createDate,
           },
         });
       } else {
@@ -345,7 +320,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
                 mentName,
                 filePath: singleFile!.name,
                 mentDesc: values.mentDesc,
-                createDate,
               }),
           });
           return;
@@ -356,7 +330,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
           mentName,
           filePath: singleFile.name,
           mentDesc: values.mentDesc,
-          createDate,
         });
       }
     } catch {
@@ -412,10 +385,13 @@ export default function MentFormDrawer({ state, onClose }: Props) {
             <Input value={nodeName ?? (nodeId != null ? `노드 ${nodeId}` : '-')} disabled />
           )}
         </div>
-        <div>
-          <label className="block text-[12px] font-semibold text-gray-600 mb-1">테넌트명</label>
-          <Input value={tenantId === 0 ? '공통' : (tenantName ?? (tenantId != null ? `테넌트 ${tenantId}` : '-'))} disabled />
-        </div>
+        {/* 테넌트명 — 공용멘트(tenantId=0)에서는 테넌트 개념이 없어 필드 자체를 렌더하지 않는다 */}
+        {tenantId !== 0 && (
+          <div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1">테넌트명</label>
+            <Input value={tenantName ?? (tenantId != null ? `테넌트 ${tenantId}` : '-')} disabled />
+          </div>
+        )}
       </div>
 
       {/* ===== 단일 등록 / 수정 ===== */}
@@ -479,10 +455,6 @@ export default function MentFormDrawer({ state, onClose }: Props) {
           )}
         </Form.Item>
 
-        <Form.Item label="업로드일자" name="createDate">
-          <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
-        </Form.Item>
-
         <Form.Item label="설명" name="mentDesc" rules={[{ max: 256 }]}>
           <Input.TextArea rows={4} maxLength={256} placeholder="256자 이내" />
         </Form.Item>
@@ -492,13 +464,7 @@ export default function MentFormDrawer({ state, onClose }: Props) {
       {!isEdit && regMode === 'multi' && (
         <div className="space-y-4">
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-[12px] font-semibold text-gray-600">멘트 파일 (.pcm 다중 선택)</label>
-              {/* 템플릿 다운로드 (파일명/설명 컬럼 CSV) */}
-              <Button size="small" icon={<Download className="size-3" />} onClick={onDownloadTemplate} title="멘트 목록 가져오기 템플릿 다운로드">
-                템플릿 다운로드
-              </Button>
-            </div>
+            <label className="block text-[12px] font-semibold text-gray-600 mb-1">멘트 파일 (.pcm 다중 선택)</label>
             <input ref={multiInputRef} type="file" accept=".pcm" multiple className="hidden" style={{ display: 'none' }} onChange={onPickMulti} />
             <button
               type="button"

@@ -307,7 +307,7 @@ export default function MentMgmtList() {
 
       {/* ===== 박스B: 멘트 목록 ag-Grid ===== */}
       <div className="bg-white bt-shadow flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 h-[44px] flex-shrink-0">
+        <div className="px-5 py-3 flex items-center gap-2 flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">교환기 멘트 목록</span>
           <span className="text-xs text-gray-500">
             총 {rowsForGrid.length.toLocaleString()}건{selectedRows.length > 0 ? ` · 선택 ${selectedRows.length}건` : ''}
@@ -335,7 +335,9 @@ export default function MentMgmtList() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0">
+        <div className="border-t border-gray-200" />
+
+        <div className="flex-1 min-h-0 p-5">
           <MentTable
             rowData={rowsForGrid}
             isLoading={isLoading}

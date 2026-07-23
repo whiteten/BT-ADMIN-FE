@@ -50,6 +50,19 @@ export default function MentTable({ rowData, isLoading, playingMentId = null, on
         cellRenderer: (p: ICellRendererParams<MentResponse>) => <span className="font-mono text-[12px] text-gray-500">{p.value ?? ''}</span>,
       },
       {
+        headerName: '노드',
+        field: 'nodeName',
+        minWidth: 110,
+        maxWidth: 150,
+        // NODE_ID=0 은 전 노드 공용(기본). 그 외는 노드명(없으면 노드 {id}).
+        cellRenderer: (p: ICellRendererParams<MentResponse>) =>
+          p.data?.nodeId === 0 ? (
+            <span className="inline-flex items-center px-1.5 py-px rounded text-[10px] font-semibold border border-slate-200 text-slate-600 bg-slate-50">기본</span>
+          ) : (
+            <span className="text-gray-700">{p.value ?? (p.data?.nodeId != null ? `노드 ${p.data.nodeId}` : '-')}</span>
+          ),
+      },
+      {
         headerName: '테넌트',
         field: 'tenantName',
         minWidth: 120,
