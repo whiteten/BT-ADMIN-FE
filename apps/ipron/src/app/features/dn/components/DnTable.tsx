@@ -76,15 +76,6 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         },
       },
       {
-        // 갭3: dnTypeName 컬럼 — EDN 전용 화면이므로 항상 '내선' 표시
-        headerName: '유형',
-        field: 'dnTypeName',
-        minWidth: 90,
-        maxWidth: 100,
-        cellStyle: { textAlign: 'center' } as CellStyle,
-        valueFormatter: (params) => params.value ?? '내선',
-      },
-      {
         headerName: '상태',
         field: 'dnStatus',
         minWidth: 140,
@@ -176,20 +167,6 @@ export default function DnTable({ rowData, isLoading, onRowDoubleClicked, onDele
         headerName: '단말기',
         field: 'deviceTypeName',
         minWidth: 100,
-        valueFormatter: (params) => params.value ?? '-',
-      },
-      {
-        // 갭1: 로그인ADN 컬럼 — SWAT IPR20S2020 그리드 loginAdn 컬럼
-        headerName: '로그인ADN',
-        field: 'loginAdn',
-        minWidth: 120,
-        valueFormatter: (params) => params.value ?? '-',
-      },
-      {
-        // 갭2: 사용자명 컬럼 — SWAT IPR20S2020 그리드 ieUserName 컬럼
-        headerName: '사용자명',
-        field: 'ieUserName',
-        minWidth: 120,
         valueFormatter: (params) => params.value ?? '-',
       },
       {
