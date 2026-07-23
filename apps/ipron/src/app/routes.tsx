@@ -59,6 +59,10 @@ const AgentAdnList = React.lazy(() => import('./pages/agent-adn/AgentAdnList'));
 // agent-master
 const AgentMasterList = React.lazy(() => import('./pages/agent-master/AgentMasterList'));
 
+// ipt (IPT 서비스 — 사용자관리 / 조직도관리)
+const IptUserList = React.lazy(() => import('./pages/ipt-user/IptUserList'));
+const IptOrgManage = React.lazy(() => import('./pages/ipt-org/IptOrgManage'));
+
 // cti-code-mgmt (휴식/ACW 사유 — SWAT IPR20S4040 마이그레이션, 상담사 관리 폴더 하위)
 const CtiCodeList = React.lazy(() => import('./pages/cti-code/CtiCodeList'));
 
@@ -238,6 +242,14 @@ export const routes = [
         path: 'agent-master',
         element: <Outlet />,
         children: [{ index: true, element: pv('agent-master', AgentMasterList) }],
+      },
+      {
+        path: 'ipt-user',
+        element: pv('ipt-user', IptUserList),
+      },
+      {
+        path: 'ipt-org',
+        element: pv('ipt-org', IptOrgManage),
       },
       {
         path: 'cti-code-mgmt',
