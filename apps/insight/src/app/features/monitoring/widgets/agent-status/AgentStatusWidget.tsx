@@ -606,10 +606,10 @@ export default function AgentStatusWidget({ data, options, widgetId, onRequestPa
         title="상담사 상태 모니터 설정"
         closable={{ placement: 'end' }}
         placement="right"
-        width={420}
+        size={420}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         footer={
           <div className="flex justify-end gap-2">
             <Button onClick={() => setSettingsOpen(false)} disabled={isSavingSetting}>

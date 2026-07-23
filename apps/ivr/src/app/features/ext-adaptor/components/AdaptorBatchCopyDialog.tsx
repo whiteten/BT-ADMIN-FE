@@ -83,7 +83,7 @@ const AdaptorBatchCopyDialog = forwardRef<AdaptorBatchCopyDialogRef, Props>(({ o
       cancelText="취소"
       okButtonProps={{ loading: batchCopyMutation.isPending, disabled: selectedIds.length === 0 }}
       width={640}
-      destroyOnClose
+      destroyOnHidden
     >
       <Alert type="warning" showIcon message="덮어쓰기 복사" description="선택한 대상 시스템의 기존 어댑터는 모두 삭제된 뒤 원본 시스템의 어댑터로 교체됩니다." className="mb-3" />
       <Table<AdaptorSystem>

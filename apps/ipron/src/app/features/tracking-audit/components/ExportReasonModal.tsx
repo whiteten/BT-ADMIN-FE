@@ -55,7 +55,7 @@ export default function ExportReasonModal({ open, criteria, resultCount, onClose
       okText="다운로드"
       cancelText="취소"
       confirmLoading={busy}
-      destroyOnClose
+      destroyOnHidden
     >
       <div className="text-[13px] text-gray-600 mb-3">
         현재 검색 조건의 결과를 엑셀(.xlsx)로 다운로드합니다.

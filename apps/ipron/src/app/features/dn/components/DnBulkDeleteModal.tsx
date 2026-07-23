@@ -111,10 +111,10 @@ export default function DnBulkDeleteModal({ open, dnIds, onCancel, onSuccess }: 
       title={`선택한 ${total.toLocaleString()}개 내선 삭제`}
       footer={footer}
       onCancel={handleClose}
-      maskClosable={phase !== 'running'}
+      mask={{ closable: phase !== 'running' }}
       closable={phase !== 'running'}
       width={480}
-      destroyOnClose
+      destroyOnHidden
     >
       {phase === 'confirm' && (
         <div className="space-y-3">

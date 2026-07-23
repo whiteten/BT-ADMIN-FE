@@ -94,10 +94,10 @@ export default function MediaTypeFormDrawer({ state, onClose }: Props) {
     <Drawer
       title={mode === 'create' ? '미디어 코드 등록' : '미디어 코드 수정'}
       closable={{ placement: 'end' }}
-      width={520}
+      size={520}
       open={state.open}
       onClose={onClose}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onClose}>취소</Button>

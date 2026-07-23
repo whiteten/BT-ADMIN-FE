@@ -100,10 +100,10 @@ const SleeUserconfigImportModal = forwardRef<SleeUserconfigImportModalRef>((_, r
       title="환경변수 파일 Import"
       closable={{ placement: 'end' }}
       placement="right"
-      width={480}
+      size={480}
       open={visible}
       onClose={() => setVisible(false)}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-between">
           <span className="text-sm text-gray-500">{result ? `완료 — 성공 ${result.successCount} / 실패 ${result.failCount}` : `선택 파일: ${files.length}개`}</span>

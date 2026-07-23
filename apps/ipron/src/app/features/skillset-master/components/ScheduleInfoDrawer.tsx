@@ -92,8 +92,8 @@ export default function ScheduleInfoDrawer({ open, mode, schedule, tenantId, onC
       closable={{ placement: 'end' }}
       open={open}
       onClose={onCancel}
-      width={440}
-      destroyOnClose
+      size={440}
+      destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button onClick={onCancel}>취소</Button>

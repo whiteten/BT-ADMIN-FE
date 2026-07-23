@@ -78,7 +78,7 @@ export default function DatasetPickerModal({ open, onClose, defaultDatasetId, on
       open={open}
       onCancel={onClose}
       footer={null}
-      maskClosable={false}
+      mask={{ closable: false }}
       title={
         <div className="flex items-center gap-3">
           <span className="text-[17px] font-bold text-[#495057]">데이터셋 선택</span>

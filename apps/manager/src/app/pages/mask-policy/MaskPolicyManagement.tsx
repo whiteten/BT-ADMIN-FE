@@ -312,7 +312,7 @@ export default function MaskPolicyManagement() {
               <div className="w-full text-center text-gray-400 text-sm">로딩 중...</div>
             ) : filteredCategories.length === 0 ? (
               <div className="flex flex-col items-center justify-center w-full h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 40 }} />
+                <Empty description={false} styles={{ image: { height: 40 } }} />
                 <span className="text-sm">{searchText ? '검색 결과가 없습니다' : '등록된 카테고리가 없습니다'}</span>
               </div>
             ) : (

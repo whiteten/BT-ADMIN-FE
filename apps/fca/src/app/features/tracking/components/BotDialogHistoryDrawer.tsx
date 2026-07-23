@@ -907,7 +907,7 @@ const BotDialogHistoryDrawer = forwardRef<BotDialogHistoryDrawerRef>((_, ref) =>
       onClose={handleClose}
       title="대화 상세"
       closable={{ placement: 'end' }}
-      width={960}
+      size={960}
       destroyOnHidden
       styles={{ body: { padding: '24px', display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
     >

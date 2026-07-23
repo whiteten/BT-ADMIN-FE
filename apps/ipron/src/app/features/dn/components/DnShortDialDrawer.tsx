@@ -128,7 +128,7 @@ export default function DnShortDialDrawer({ open, dnId, dnNo, onClose }: DnShort
       title={`DN ${dnNo ?? ''} — 단축다이얼`}
       open={open}
       onClose={onClose}
-      width={760}
+      size={760}
       placement="right"
       closable={{ placement: 'end' }}
       styles={{ body: { display: 'flex', flexDirection: 'column', padding: 16 } }}

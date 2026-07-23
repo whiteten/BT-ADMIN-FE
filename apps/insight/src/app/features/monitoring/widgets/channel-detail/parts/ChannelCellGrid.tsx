@@ -194,7 +194,7 @@ export default function ChannelCellGrid({ rows, irType, onCellClick }: ChannelCe
         );
 
         return (
-          <Tooltip key={c.key} title={tip} placement="top" mouseEnterDelay={0.05} overlayStyle={{ maxWidth: 220 }}>
+          <Tooltip key={c.key} title={tip} placement="top" mouseEnterDelay={0.05} styles={{ root: { maxWidth: 220 } }}>
             {cell}
           </Tooltip>
         );

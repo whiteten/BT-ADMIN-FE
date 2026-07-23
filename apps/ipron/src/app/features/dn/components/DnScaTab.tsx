@@ -292,7 +292,7 @@ export default function DnScaTab({ dnId, nodeId, tenantId }: DnScaTabProps) {
         title={editing ? `SCA 수정 — ${editing.regiNo}` : '새 SCA 등록'}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        width={560}
+        size={560}
         placement="right"
         closable={{ placement: 'end' }}
         footer={

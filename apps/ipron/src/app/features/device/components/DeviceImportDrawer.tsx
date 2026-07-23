@@ -51,7 +51,7 @@ export default function DeviceImportDrawer({ open, nodeId, onClose, onSuccess }:
       closable={{ placement: 'end' }}
       open={open}
       onClose={onClose}
-      width={480}
+      size={480}
       destroyOnHidden
       footer={
         <div className="flex items-center justify-end gap-2">

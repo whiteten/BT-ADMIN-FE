@@ -176,7 +176,7 @@ export default function ScenarioDeploySidebar({ open, serviceId, selectedVersion
       title="배포"
       closable={{ placement: 'end' }}
       placement="right"
-      width={480}
+      size={480}
       open={open}
       onClose={onClose}
       footer={

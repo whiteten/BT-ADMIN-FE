@@ -211,7 +211,7 @@ export default function MenuTree({ menus, selectedMenuKey, onSelect, onAddMenu }
       {/* 앱 필터 — 트리거 칩 클릭 시 팝오버에서 전체/앱 선택. 기존 앱 Select 역할 대체 */}
       <Popover
         open={appPopOpen}
-        onOpenChange={setAppPopOpen}
+        onOpenChange={(next) => setAppPopOpen(next)}
         trigger="click"
         placement="bottomLeft"
         content={

@@ -508,7 +508,7 @@ function FieldConfigGrid({ form, fields, calcFields, lookups, gridOptions, onCal
                     </div>
                   }
                   placement="topLeft"
-                  overlayStyle={{ maxWidth: 480 }}
+                  styles={{ root: { maxWidth: 480 } }}
                 >
                   <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded bg-green-600 font-mono text-xs font-bold text-white cursor-help">ƒ</span>
                 </Tooltip>

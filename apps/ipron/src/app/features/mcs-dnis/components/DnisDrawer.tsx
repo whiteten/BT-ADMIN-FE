@@ -97,7 +97,7 @@ const DnisDrawer = forwardRef<DnisDrawerRef, Props>(({ onSuccess }, ref) => {
       closable={{ placement: 'end' }}
       open={visible}
       onClose={handleClose}
-      width={420}
+      size={420}
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={handleClose}>취소</Button>

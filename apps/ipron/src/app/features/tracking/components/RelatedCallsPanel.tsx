@@ -76,7 +76,7 @@ export default function RelatedCallsPanel({ currentUcid, agentId, currentCallSta
           <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-1.5">
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              imageStyle={{ height: 40 }}
+              styles={{ image: { height: 40 } }}
               description={<span className="text-[11.5px] text-gray-400">이 콜에 배정된 상담사 정보가 없어 조회할 수 없습니다</span>}
             />
           </div>
@@ -86,7 +86,11 @@ export default function RelatedCallsPanel({ currentUcid, agentId, currentCallSta
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-1">
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} imageStyle={{ height: 40 }} description={<span className="text-[11.5px] text-gray-400">오늘 다른 통화가 없습니다</span>} />
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              styles={{ image: { height: 40 } }}
+              description={<span className="text-[11.5px] text-gray-400">오늘 다른 통화가 없습니다</span>}
+            />
           </div>
         ) : (
           <>

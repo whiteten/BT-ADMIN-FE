@@ -198,7 +198,7 @@ const ScenarioMenuSuperAniDrawer = forwardRef<ScenarioMenuSuperAniDrawerRef>((_,
     <Drawer
       title="Super ANI 목록"
       placement="right"
-      width={720}
+      size={720}
       open={visible}
       onClose={handleDrawerClose}
       closable={{ placement: 'end', disabled: isCreating || isUpdating }}

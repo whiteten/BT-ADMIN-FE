@@ -276,7 +276,7 @@ export default function LicenseList() {
         closable={{ placement: 'end' }}
         open={!!clusterAllocInfo}
         onClose={handleCloseClusterSidebar}
-        width={400}
+        size={400}
         styles={{ body: { padding: '16px 20px' } }}
       >
         {isClusterLoading ? (

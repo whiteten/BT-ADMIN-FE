@@ -234,7 +234,7 @@ export default function ScenarioAnalysisList() {
           <div className="flex-1 min-h-0 overflow-y-auto -mx-1">
             {visibleScenarios.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-                <Empty description={false} imageStyle={{ height: 40 }} />
+                <Empty description={false} styles={{ image: { height: 40 } }} />
                 <span className="text-sm">{scenarioSearch || selectedTypes.size > 0 ? '검색 결과가 없습니다' : '등록된 시나리오가 없습니다'}</span>
               </div>
             ) : (

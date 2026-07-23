@@ -129,9 +129,9 @@ export default function DnImportDrawer({ open, nodeId, tenantId, nodeName, tenan
       title="DN 엑셀 가져오기"
       open={open}
       onClose={handleClose}
-      width={560}
+      size={560}
       placement="right"
-      maskClosable={!inProgress}
+      mask={{ closable: !inProgress }}
       closable={{ placement: 'end', disabled: inProgress }}
       footer={
         <div className="flex justify-end gap-2">

@@ -224,9 +224,9 @@ export default function AgentGroupFormDrawer({ open, mode, groupId, initialTenan
       title={isEdit ? `상담그룹 수정 — ${detail?.groupName ?? ''}` : '상담그룹 등록'}
       open={open}
       onClose={onClose}
-      width={720}
+      size={720}
       closable={{ placement: 'end' }}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           {isEdit && (

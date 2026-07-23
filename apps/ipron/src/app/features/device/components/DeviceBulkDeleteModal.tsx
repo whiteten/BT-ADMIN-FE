@@ -111,10 +111,10 @@ export default function DeviceBulkDeleteModal({ open, devMasterIds, onCancel, on
       title={`선택한 ${total.toLocaleString()}개 단말기 삭제`}
       footer={footer}
       onCancel={handleClose}
-      maskClosable={phase !== 'running'}
+      mask={{ closable: phase !== 'running' }}
       closable={phase !== 'running'}
       width={480}
-      destroyOnClose
+      destroyOnHidden
     >
       {phase === 'confirm' && (
         <div className="space-y-3">

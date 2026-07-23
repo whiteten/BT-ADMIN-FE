@@ -132,11 +132,11 @@ export default function CommonTrunkAssignDrawer({ open, gdn, trunks, onClose, on
   return (
     <Drawer
       title="배정 — 우선순위·채널수 입력"
-      width={460}
+      size={460}
       open={open}
       onClose={onClose}
       closable={{ placement: 'end' }}
-      destroyOnClose
+      destroyOnHidden
       footer={
         <div className="flex justify-end gap-2">
           <Button onClick={onClose}>취소</Button>
