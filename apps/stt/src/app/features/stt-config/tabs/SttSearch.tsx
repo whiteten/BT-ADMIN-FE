@@ -155,10 +155,7 @@ export default function SttSearch() {
       flex: 1,
       cellRenderer: ({ value }: { value: string }) =>
         value === '인바운드' || value === '아웃바운드' ? (
-          <Badge
-            variant="secondary"
-            className={`text-[13px] leading-[13px] font-medium !h-6 ${value === '인바운드' ? 'text-[#3577F1] bg-[#3577F11A]' : 'text-[#F7B84B] bg-[#F7B84B1A]'}`}
-          >
+          <Badge variant="secondary" className={`text-[13px] leading-[13px] font-medium !h-6 ${value === '인바운드' ? 'text-blue-600 bg-blue-50' : 'text-amber-600 bg-amber-50'}`}>
             {value}
           </Badge>
         ) : (

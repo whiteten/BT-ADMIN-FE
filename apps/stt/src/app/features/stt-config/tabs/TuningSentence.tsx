@@ -16,6 +16,7 @@ import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
 const PAGE_SIZE = 20;
 const RXTX_LISTEN_TYPE: Record<string, string> = { '1': '4', '2': '5', '9': '3' };
+const RXTX_KIND_LABEL: Record<string, string> = { '1': '고객', '2': '상담원', '9': '통합' };
 
 function PlayCellRenderer({ data }: ICellRendererParams<TuningSentenceItem>) {
   const [playing, setPlaying] = useState(false);
@@ -366,7 +367,8 @@ export default function TuningSentence() {
       field: 'rxtxKind',
       maxWidth: 90,
       flex: 1,
-      valueFormatter: (params) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(params.value)] ?? params.value,
+      valueFormatter: (params) => RXTX_KIND_LABEL[String(params.value)] ?? params.value,
+      filterValueGetter: ({ data }) => RXTX_KIND_LABEL[String(data?.rxtxKind)] ?? String(data?.rxtxKind ?? ''),
     },
     {
       headerName: '등록일',

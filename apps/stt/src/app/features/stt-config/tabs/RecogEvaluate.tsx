@@ -92,6 +92,8 @@ function StatusBadge({ value, data }: ICellRendererParams<RecogResultItem>) {
   return <Badge className={`text-[13px] leading-[13px] font-medium !h-6 ${cls}`}>{value ?? '-'}</Badge>;
 }
 
+const RXTX_KIND_LABEL: Record<string, string> = { '1': '고객', '2': '상담원', '9': '통합' };
+
 const targetColumnDefs: ColDef<RecogTargetListItem>[] = [
   { headerName: '고유번호(UCID)', field: 'ucidGkey', flex: 3, minWidth: 160, tooltipField: 'ucidGkey' },
   { headerName: '정답지 내용', field: 'orgSentence', flex: 4, minWidth: 160, tooltipField: 'orgSentence' },
@@ -100,7 +102,8 @@ const targetColumnDefs: ColDef<RecogTargetListItem>[] = [
     field: 'rxtxKind',
     flex: 1,
     minWidth: 70,
-    valueFormatter: ({ value }) => ({ '1': '고객', '2': '상담원', '9': '통합' })[String(value)] ?? String(value),
+    valueFormatter: ({ value }) => RXTX_KIND_LABEL[String(value)] ?? String(value),
+    filterValueGetter: ({ data }) => RXTX_KIND_LABEL[String(data?.rxtxKind)] ?? String(data?.rxtxKind ?? ''),
   },
   { headerName: '등록시간', field: 'loadTime', flex: 2, minWidth: 120, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
 ];
@@ -136,7 +139,8 @@ export default function RecogEvaluate({ groupCode, groupName, engineCode }: Reco
       field: 'rxtxKind',
       flex: 1,
       minWidth: 70,
-      valueFormatter: ({ value }) => ({ 1: '고객', 2: '상담원', 9: '통합' })[value as 1 | 2 | 9] ?? String(value),
+      valueFormatter: ({ value }) => RXTX_KIND_LABEL[String(value)] ?? String(value),
+      filterValueGetter: ({ data }) => RXTX_KIND_LABEL[String(data?.rxtxKind)] ?? String(data?.rxtxKind ?? ''),
     },
     {
       headerName: '진행상태',

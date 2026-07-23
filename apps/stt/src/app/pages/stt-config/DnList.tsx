@@ -168,7 +168,13 @@ export default function DnList() {
       cellRenderer: UseYnCellRenderer,
     },
     { headerName: '상담원ID', field: 'agentId', flex: 2 },
-    { headerName: '시스템그룹', field: 'hostName', flex: 2, valueFormatter: ({ value }) => PA_GROUP_LABEL_BY_CODE[value] ?? value },
+    {
+      headerName: '시스템그룹',
+      field: 'hostName',
+      flex: 2,
+      valueFormatter: ({ value }) => PA_GROUP_LABEL_BY_CODE[value] ?? value,
+      filterValueGetter: ({ data }) => (data ? (PA_GROUP_LABEL_BY_CODE[data.hostName] ?? data.hostName) : ''),
+    },
     { headerName: '수정일시', field: 'saFinshDate', flex: 2, valueFormatter: ({ value }) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm:ss') : '') },
     {
       headerName: '',
