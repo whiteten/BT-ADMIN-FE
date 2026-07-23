@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { monitoringApi } from '../api/monitoringApi';
 import type { EavesdropLogRequest, EavesdropUpdateRequest, MonitoringItem, MonitoringSearchParams, MruProcess, MruSystem } from '../types/monitoring';
 
-export const monitoringQueryKeys = createQueryKeys('monitoring', {
+export const monitoringQueryKeys = createAppQueryKeys('monitoring', {
   getList: (params?: Record<string, unknown>) => [params],
   getSystems: null,
   getProcesses: (systemId?: string | number) => [systemId],

@@ -3,12 +3,12 @@
  * SD-NODE-MANAGEMENT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { tenantAllocApi } from '../api/tenantAllocApi';
 import type { ClusterConfig, TenantAllocDetail, TenantAllocItem } from '../types';
 
-export const tenantAllocQueryKeys = createQueryKeys('tenantAllocs', {
+export const tenantAllocQueryKeys = createAppQueryKeys('tenantAllocs', {
   getTenantAllocs: (params?: Record<string, unknown>) => [params],
   getTenantAllocDetail: (params?: Record<string, unknown>) => [params],
   getClusterConfig: (params?: Record<string, unknown>) => [params],

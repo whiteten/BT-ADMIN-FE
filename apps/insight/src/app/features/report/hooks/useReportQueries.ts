@@ -1,5 +1,5 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { reportApi } from '../api/reportApi';
 import type {
   CalcField,
@@ -17,7 +17,7 @@ import type {
   SearchBindingCreateDatas,
 } from '../types';
 
-export const reportKeys = createQueryKeys('statistics-reports', {
+export const reportKeys = createAppQueryKeys('statistics-reports', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (reportId: number) => [reportId],
   fieldDisplays: (reportId: number) => [reportId],

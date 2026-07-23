@@ -3,8 +3,8 @@
  * SD-DN-MANAGEMENT.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dnApi } from '../api/dnApi';
 import type {
   CosEffectResponse,
@@ -19,7 +19,7 @@ import type {
   DnSnrTodResponse,
 } from '../types';
 
-export const dnQueryKeys = createQueryKeys('dns', {
+export const dnQueryKeys = createAppQueryKeys('dns', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getCount: (params?: Record<string, unknown>) => [params],

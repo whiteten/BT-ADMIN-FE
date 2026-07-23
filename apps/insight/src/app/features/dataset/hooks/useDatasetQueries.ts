@@ -1,9 +1,9 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { datasetApi } from '../api/datasetApi';
 import type { DataSourceListItem, DatasetCreateRequest, DatasetDetail, DatasetListItem, DatasetUpdateRequest, FieldMetaItem, PrefixCandidate } from '../types';
 
-export const datasetKeys = createQueryKeys('statistics-datasources', {
+export const datasetKeys = createAppQueryKeys('statistics-datasources', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (datasetId: number) => [datasetId],
   fields: (datasetId: number) => [datasetId],

@@ -2,8 +2,8 @@
  * DOD DNIS 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dodTransApi } from '../api/dodTransApi';
 import type { DodTransItem, DodTransMaster } from '../types';
 
@@ -12,7 +12,7 @@ interface NodeSimpleResponse {
   nodeName: string;
 }
 
-export const dodTransQueryKeys = createQueryKeys('dodTrans', {
+export const dodTransQueryKeys = createAppQueryKeys('dodTrans', {
   getMasterList: (params?: Record<string, unknown>) => [params],
   getItemList: (params?: Record<string, unknown>) => [params],
   getNodes: null,

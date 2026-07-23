@@ -5,12 +5,12 @@
  *  - create/update/delete/batch → getList + getOptions
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { mentApi } from '../api/mentApi';
 import type { MentBatchCreateRequest, MentCreateRequest, MentOptionItem, MentResponse, MentSyncResult, MentUpdateRequest } from '../types';
 
-export const mentQueryKeys = createQueryKeys('ment', {
+export const mentQueryKeys = createAppQueryKeys('ment', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (mentId?: number) => [mentId],
   options: (nodeId?: number, tenantId?: number) => [nodeId, tenantId],

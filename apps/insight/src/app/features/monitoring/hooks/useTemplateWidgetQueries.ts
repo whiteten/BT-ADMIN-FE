@@ -1,9 +1,9 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { templateWidgetApi } from '../api/templateWidgetApi';
 import type { TemplateWidgetDefinitionCreateDatas, TemplateWidgetDefinitionDetail, TemplateWidgetDefinitionListItem } from '../types';
 
-export const templateWidgetKeys = createQueryKeys('monitoring-template-widgets', {
+export const templateWidgetKeys = createAppQueryKeys('monitoring-template-widgets', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (templateWidgetId: number) => [templateWidgetId],
 });

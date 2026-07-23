@@ -2,12 +2,12 @@
  * BFF Flow 관리 React Query 훅
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { bffFlowApi } from '../api/bffFlowApi';
 import type { BffFlow, FlowSpec } from '../types';
 
-export const bffFlowQueryKeys = createQueryKeys('bffFlows', {
+export const bffFlowQueryKeys = createAppQueryKeys('bffFlows', {
   getFlows: null,
 });
 

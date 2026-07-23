@@ -2,12 +2,12 @@
  * 미디어전달관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { mediaDeliveryApi } from '../api/mediaDeliveryApi';
 import type { MdGrp, MdItem } from '../types';
 
-export const mediaDeliveryQueryKeys = createQueryKeys('mediaDelivery', {
+export const mediaDeliveryQueryKeys = createAppQueryKeys('mediaDelivery', {
   getMdGrps: (params?: Record<string, unknown>) => [params],
   getMdItems: (params?: Record<string, unknown>) => [params],
   getMdItemDetail: (params?: Record<string, unknown>) => [params],

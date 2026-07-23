@@ -2,12 +2,12 @@
  * BSR 그룹별 CTI큐 배정 React Query 훅.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { bsrCtiqMappingApi } from '../api/bsrCtiqMappingApi';
 import type { BsrCtiqAssignRequest, BsrCtiqMappingResponse, BsrCtiqMappingUpdateRequest, BsrCtiqSearchParams, BsrCtiqSearchResult, BsrCtiqUnassignRequest } from '../types';
 
-export const bsrCtiqQueryKeys = createQueryKeys('bsr-ctiq-mappings', {
+export const bsrCtiqQueryKeys = createAppQueryKeys('bsr-ctiq-mappings', {
   getList: (bsrGroupId?: number, tenantId?: number) => [bsrGroupId, tenantId],
   searchCtiq: (params?: Record<string, unknown>) => [params],
 });

@@ -2,8 +2,8 @@
  * 시나리오 분석 결과(AS-IS IPR20S6050/IPR20S6070) React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import { type MutationHookOptions, type QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { type ScenarioAnalysisMenuUpdateParams, scenarioAnalysisApi } from '../api/scenarioAnalysisApi';
 import type {
   ScenarioAnalysisCodeRow,
@@ -15,7 +15,7 @@ import type {
   ScenarioAnalysisUserStatItemRow,
 } from '../types';
 
-export const scenarioAnalysisQueryKeys = createQueryKeys('ivrScenarioAnalysis', {
+export const scenarioAnalysisQueryKeys = createAppQueryKeys('ivrScenarioAnalysis', {
   getMenus: (params?: Record<string, unknown>) => [params],
   getCodes: (params?: Record<string, unknown>) => [params],
   getTrackingItems: (params?: Record<string, unknown>) => [params],

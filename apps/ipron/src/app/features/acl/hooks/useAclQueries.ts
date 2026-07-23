@@ -2,8 +2,8 @@
  * 교환기 IP 접근관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { aclApi } from '../api/aclApi';
 import type { Acl } from '../types';
 
@@ -12,7 +12,7 @@ interface NodeSimpleResponse {
   nodeName: string;
 }
 
-export const aclQueryKeys = createQueryKeys('acls', {
+export const aclQueryKeys = createAppQueryKeys('acls', {
   getAcls: (params?: Record<string, unknown>) => [params],
   getAclDetail: (params?: Record<string, unknown>) => [params],
   getCtiAcls: (params?: Record<string, unknown>) => [params],

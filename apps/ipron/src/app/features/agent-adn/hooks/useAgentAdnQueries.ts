@@ -2,8 +2,8 @@
  * 상담사 로그인번호 관리 React Query 훅.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { agentAdnApi } from '../api/agentAdnApi';
 import type {
   AdnAutoConfigResponse,
@@ -16,7 +16,7 @@ import type {
   UnassignRequest,
 } from '../types';
 
-export const agentAdnQueryKeys = createQueryKeys('agent-adns', {
+export const agentAdnQueryKeys = createAppQueryKeys('agent-adns', {
   getList: (params?: Record<string, unknown>) => [params],
   getTenants: null,
   getPolicy: null,

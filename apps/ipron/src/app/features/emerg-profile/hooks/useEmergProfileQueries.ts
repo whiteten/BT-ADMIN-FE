@@ -3,12 +3,12 @@
  * SD-EMERG-PROFILE.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { emergProfileApi } from '../api/emergProfileApi';
 import type { EmergCode, EmergProfile, EmergProfileDetail, NodeSimpleResponse, RouteSimpleResponse } from '../types';
 
-export const emergProfileQueryKeys = createQueryKeys('emergProfiles', {
+export const emergProfileQueryKeys = createAppQueryKeys('emergProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],
   getProfileDetail: (params?: Record<string, unknown>) => [params],
   getCodes: (params?: Record<string, unknown>) => [params],

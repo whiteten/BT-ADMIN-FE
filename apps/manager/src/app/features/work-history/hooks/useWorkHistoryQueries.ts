@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { workHistoryApi } from '../api/workHistoryApi';
 import type { WorkHistoryListParams } from '../types';
 
 /**
  * 작업이력 쿼리 키 팩토리
  */
-export const workHistoryQueryKeys = createQueryKeys('workHistory', {
+export const workHistoryQueryKeys = createAppQueryKeys('workHistory', {
   list: (params: WorkHistoryListParams) => ['list', params],
   detail: (workId: string) => ['detail', workId],
 });

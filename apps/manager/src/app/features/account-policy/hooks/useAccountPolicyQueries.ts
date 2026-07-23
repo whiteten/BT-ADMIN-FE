@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { accountPolicyApi } from '../api/accountPolicyApi';
 import type { AccountPolicy } from '../types';
 
 /**
  * 계정 보안 정책 쿼리 키 정의
  */
-export const accountPolicyQueryKeys = createQueryKeys('accountPolicy', {
+export const accountPolicyQueryKeys = createAppQueryKeys('accountPolicy', {
   detail: (params?: Record<string, unknown>) => [params],
 });
 

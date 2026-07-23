@@ -2,8 +2,8 @@
  * 발신 DNIS 사전변환 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { preNumTransApi } from '../api/preNumTransApi';
 import type { PreNumTrans } from '../types';
 
@@ -18,7 +18,7 @@ interface RouteSimpleResponse {
   nodeId: number;
 }
 
-export const preNumTransQueryKeys = createQueryKeys('preNumTrans', {
+export const preNumTransQueryKeys = createAppQueryKeys('preNumTrans', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (params?: Record<string, unknown>) => [params],
   getNodes: null,

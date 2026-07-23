@@ -1,14 +1,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { aoeApi } from '../api/aoeApi';
 import type { AoeBasicDetailItem, FaqAgentListItem, FaqDetailItem, FaqListItem } from '../types';
 
 /**
  * AOE 확장 Query Keys
  */
-export const aoeQueryKeys = createQueryKeys('aoe', {
+export const aoeQueryKeys = createAppQueryKeys('aoe', {
   getAoeBasicDetail: (params?: Record<string, unknown>) => [params],
   getFaqAgentList: (params?: Record<string, unknown>) => [params],
   getFaqList: (params?: Record<string, unknown>) => [params],

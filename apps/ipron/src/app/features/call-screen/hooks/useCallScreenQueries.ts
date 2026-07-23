@@ -2,12 +2,12 @@
  * 수신번호 차단 관리 React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { callScreenApi } from '../api/callScreenApi';
 import type { CallScreen } from '../types';
 
-export const callScreenQueryKeys = createQueryKeys('callScreen', {
+export const callScreenQueryKeys = createAppQueryKeys('callScreen', {
   getList: (params?: Record<string, unknown>) => [params],
 });
 

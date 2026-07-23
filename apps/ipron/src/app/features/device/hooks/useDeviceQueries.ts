@@ -2,8 +2,8 @@
  * 단말기 관리 React Query 훅 (IPR20S2110)
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { deviceApi } from '../api/deviceApi';
 import type {
   DevMasterCreateRequest,
@@ -16,7 +16,7 @@ import type {
   NodeTenantStatDto,
 } from '../types';
 
-export const deviceQueryKeys = createQueryKeys('devices', {
+export const deviceQueryKeys = createAppQueryKeys('devices', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (id?: number) => [id],
   deviceTypes: null,

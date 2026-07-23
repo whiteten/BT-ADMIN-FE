@@ -2,8 +2,8 @@
  * BSR 그룹 관리 React Query 훅.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { bsrGroupApi } from '../api/bsrGroupApi';
 import type {
   BsrGroupCreateRequest,
@@ -15,7 +15,7 @@ import type {
   BsrScheduleInfoUpdateRequest,
 } from '../types';
 
-export const bsrGroupQueryKeys = createQueryKeys('bsr-groups', {
+export const bsrGroupQueryKeys = createAppQueryKeys('bsr-groups', {
   getTenants: null,
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],

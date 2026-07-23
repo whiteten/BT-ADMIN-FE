@@ -1,11 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, type QueryHookWithParamsOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { workflowApi } from '../api/workflowApi';
 import type { AgentDeployResponse, AgentVersion, FlowEdge, FlowNode, NodeDeleteRequest, NodePositionUpdateRequest, WorkflowGraph } from '../types';
 
-export const workflowQueryKeys = createQueryKeys('workflow', {
+export const workflowQueryKeys = createAppQueryKeys('workflow', {
   graph: (agentId: string) => [agentId],
   versions: (agentId: string) => [agentId],
 });

@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { chatApi } from '../api/chatApi';
 import type { ChatCreateDatas, ChatItem, ChatMessageItem, ChatQueryDatas, ChatUpdateDatas } from '../types';
 
-export const chatQueryKeys = createQueryKeys('chat', {
+export const chatQueryKeys = createAppQueryKeys('chat', {
   getChatList: (params?: { keyword?: string }) => [params],
   getChatMessageList: (params: { chatId: string }) => [params],
 });

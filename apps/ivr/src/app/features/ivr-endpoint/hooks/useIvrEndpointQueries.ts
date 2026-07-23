@@ -2,12 +2,12 @@
  * IVR EndPoint React Query 훅
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { ivrEndpointApi } from '../api/ivrEndpointApi';
 import type { IvrEndpointMaster, IvrEndpointMember } from '../types';
 
-export const ivrEndpointQueryKeys = createQueryKeys('ivrEndpoints', {
+export const ivrEndpointQueryKeys = createAppQueryKeys('ivrEndpoints', {
   getMasters: (params?: Record<string, unknown>) => [params],
   getMasterDetail: (params?: Record<string, unknown>) => [params],
   getMembers: (params?: Record<string, unknown>) => [params],

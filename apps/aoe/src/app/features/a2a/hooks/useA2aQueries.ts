@@ -1,10 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { a2aApi } from '../api/a2aApi';
 import type { A2ACreateDatas, A2AItem, A2AUpdateDatas } from '../types';
 
-export const a2aQueryKeys = createQueryKeys('a2a', {
+export const a2aQueryKeys = createAppQueryKeys('a2a', {
   getA2AList: (params?: Record<string, unknown>) => [params],
   getA2A: (params: { a2aId: string }) => [params],
 });

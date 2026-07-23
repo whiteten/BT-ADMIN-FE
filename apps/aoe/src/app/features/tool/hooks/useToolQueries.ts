@@ -1,10 +1,10 @@
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { toolApi } from '../api/toolApi';
 import type { ToolCreateDatas, ToolGroup, ToolGroupCreateDatas, ToolItem } from '../types';
 
-export const toolQueryKeys = createQueryKeys('tools', {
+export const toolQueryKeys = createAppQueryKeys('tools', {
   getToolGroups: (params?: Record<string, unknown>) => [params],
   getTools: (params?: Record<string, unknown>) => [params],
 });

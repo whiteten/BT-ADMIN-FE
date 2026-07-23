@@ -1,11 +1,11 @@
 import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import dayjs from 'dayjs';
 import { type MutationHookOptions, downloadBlob, extractFileName } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dnApi } from '../api/dnApi';
 import type { ExcelImportResult, SttDnCreateData, SttDnDeleteParams, SttDnItem, SttDnSearchParams, SttDnUpdateData } from '../types';
 
-export const dnQueryKeys = createQueryKeys('dn', {
+export const dnQueryKeys = createAppQueryKeys('dn', {
   getSttDnList: (params?: Record<string, unknown>) => [params],
 });
 

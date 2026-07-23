@@ -1,5 +1,5 @@
 import { type UseMutationOptions, type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { dashboardApi } from '../api/dashboardApi';
 import type {
   CustomWidgetCatalogItem,
@@ -12,7 +12,7 @@ import type {
   WidgetCreateDatas,
 } from '../types';
 
-export const dashboardKeys = createQueryKeys('monitoring-dashboards', {
+export const dashboardKeys = createAppQueryKeys('monitoring-dashboards', {
   list: (params?: Record<string, unknown>) => [params],
   detail: (dashboardId: number) => [dashboardId],
   widgets: (dashboardId: number) => [dashboardId],

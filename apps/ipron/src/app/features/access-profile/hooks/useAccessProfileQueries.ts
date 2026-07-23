@@ -3,12 +3,12 @@
  * SD-ACCESS-PROFILE.md 설계서 기반
  */
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { accessProfileApi } from '../api/accessProfileApi';
 import type { AccessCode, AccessProfile, NodeSimpleResponse, ProfileTreeNodeResponse, RouteSimpleResponse, TenantSimpleResponse } from '../types';
 
-export const accessProfileQueryKeys = createQueryKeys('accessProfiles', {
+export const accessProfileQueryKeys = createAppQueryKeys('accessProfiles', {
   getProfiles: (params?: Record<string, unknown>) => [params],
   getProfileTree: null,
   getProfileDetail: (params?: Record<string, unknown>) => [params],

@@ -1,10 +1,10 @@
 import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { fileUploadApi } from '../api/fileUploadApi';
 import type { FileUploadItem, FileUploadSearchParams } from '../types';
 
-export const fileUploadQueryKeys = createQueryKeys('fileUpload', {
+export const fileUploadQueryKeys = createAppQueryKeys('fileUpload', {
   getFileUploadList: (params?: Record<string, unknown>) => [params],
 });
 

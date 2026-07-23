@@ -2,8 +2,8 @@
  * 스킬셋 관리 React Query 훅.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions, QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { skillsetApi } from '../api/skillsetApi';
 import type {
   ScheduleInfoRequest,
@@ -19,7 +19,7 @@ import type {
   SkillsetUpdateRequest,
 } from '../types';
 
-export const skillsetQueryKeys = createQueryKeys('skillsets', {
+export const skillsetQueryKeys = createAppQueryKeys('skillsets', {
   getList: (params?: Record<string, unknown>) => [params],
   getDetail: (id?: number) => [id],
   getTenants: null,

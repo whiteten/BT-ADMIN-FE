@@ -1,10 +1,10 @@
 import { type UseQueryOptions, useMutation, useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { recogApi } from '../api/recogApi';
 import type { LatestRecogGroup, RecogGroupCreateData, RecogGroupItem, RecogGroupUpdateData, RecogTargetCreateData, RecogTargetListItem, RecogTargetSearchItem } from '../types';
 
-export const recogQueryKeys = createQueryKeys('recog', {
+export const recogQueryKeys = createAppQueryKeys('recog', {
   getRecogGroupList: (params?: Record<string, unknown>) => [params],
   getRecogGroupDetail: (groupCode?: string) => [{ groupCode }],
   searchRecogTarget: (params?: Record<string, unknown>) => [params],

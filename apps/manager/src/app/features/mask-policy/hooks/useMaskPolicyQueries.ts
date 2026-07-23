@@ -1,14 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { maskPolicyApi } from '../api/maskPolicyApi';
 import type { MaskCategoryConfig, MaskCategoryConfigCreateRequest, MaskCategoryConfigUpdateRequest, MaskPolicy, MaskPolicyCreateRequest, MaskPolicyUpdateRequest } from '../types';
 
-export const maskPolicyQueryKeys = createQueryKeys('maskPolicy', {
+export const maskPolicyQueryKeys = createAppQueryKeys('maskPolicy', {
   categories: (tenantId?: number | null) => [{ tenantId: tenantId ?? null }],
   category: (configId: number) => [configId],
   policies: (category: string, tenantId?: number | null) => [{ category, tenantId: tenantId ?? null }],
   policy: (policyId: number) => [policyId],
+  tenants: null,
 });
 
 // ───── 카테고리 설정 ─────
@@ -24,7 +25,7 @@ export const useCreateCategory = ({ mutationOptions }: MutationHookOptions = {})
     mutationFn: (data: MaskCategoryConfigCreateRequest) => maskPolicyApi.createCategory(data),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'categories'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.categories._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -36,7 +37,7 @@ export const useUpdateCategory = ({ mutationOptions }: MutationHookOptions = {})
     mutationFn: ({ configId, data }: { configId: number; data: MaskCategoryConfigUpdateRequest }) => maskPolicyApi.updateCategory(configId, data),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'categories'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.categories._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -48,7 +49,7 @@ export const useDeleteCategory = ({ mutationOptions }: MutationHookOptions = {})
     mutationFn: (configId: number) => maskPolicyApi.deleteCategory(configId),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'categories'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.categories._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -68,7 +69,7 @@ export const useCreatePolicy = ({ mutationOptions }: MutationHookOptions = {}) =
     mutationFn: (data: MaskPolicyCreateRequest) => maskPolicyApi.createPolicy(data),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'policies'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.policies._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -80,7 +81,7 @@ export const useUpdatePolicy = ({ mutationOptions }: MutationHookOptions = {}) =
     mutationFn: ({ policyId, data }: { policyId: number; data: MaskPolicyUpdateRequest }) => maskPolicyApi.updatePolicy(policyId, data),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'policies'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.policies._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -92,7 +93,7 @@ export const useDeletePolicy = ({ mutationOptions }: MutationHookOptions = {}) =
     mutationFn: (policyId: number) => maskPolicyApi.deletePolicy(policyId),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'policies'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.policies._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -105,7 +106,7 @@ export const useCopyPolicyToTenant = ({ mutationOptions }: MutationHookOptions =
     mutationFn: ({ policyId, targetTenantId }: { policyId: number; targetTenantId: number }) => maskPolicyApi.copyPolicyToTenant(policyId, targetTenantId),
     ...mutationOptions,
     onSuccess: async (...args) => {
-      await qc.invalidateQueries({ queryKey: ['maskPolicy', 'policies'] });
+      await qc.invalidateQueries({ queryKey: maskPolicyQueryKeys.policies._def });
       mutationOptions?.onSuccess?.(...args);
     },
   });
@@ -121,7 +122,7 @@ export const useMaskTest = ({ mutationOptions }: MutationHookOptions = {}) =>
 /** v1.3: 활성 테넌트 목록 — 보기 모드/복사 모달 Select 옵션. 5분 캐시. */
 export const useGetTenantsForMask = () =>
   useQuery({
-    queryKey: ['maskPolicy', 'tenants'],
+    queryKey: maskPolicyQueryKeys.tenants.queryKey,
     queryFn: maskPolicyApi.listTenantsForMask,
     staleTime: 5 * 60 * 1000,
   });

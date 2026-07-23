@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { monitoringApi } from '../api/monitoringApi';
 import type {
   CallStatusItem,
@@ -15,7 +15,7 @@ import type {
   SttChatSentence,
 } from '../types';
 
-export const monitoringQueryKeys = createQueryKeys('monitoring', {
+export const monitoringQueryKeys = createAppQueryKeys('monitoring', {
   getChannelStatusList: (params?: Record<string, unknown>) => [params],
   getDnStatusList: (params?: Record<string, unknown>) => [params],
   getRealtimeSentence: (params?: Record<string, unknown>) => [params],

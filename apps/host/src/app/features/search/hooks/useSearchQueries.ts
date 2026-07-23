@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { searchApi } from '../api/searchApi';
 import type { SearchData } from '../types/search';
 
-export const searchQueryKeys = createQueryKeys('search', {
+export const searchQueryKeys = createAppQueryKeys('search', {
   docs: (params?: Record<string, unknown>) => [params],
 });
 

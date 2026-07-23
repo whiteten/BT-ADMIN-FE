@@ -2,12 +2,12 @@
  * 미디어타입 사용처 React Query 훅.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { MutationHookOptions, QueryHookOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { mediaTypeApi } from '../api/mediaTypeApi';
 import type { MediaTypeMetaOption, MediaTypeResponse, MediaTypeUpsertRequest } from '../types';
 
-export const mediaTypeQueryKeys = createQueryKeys('media-type', {
+export const mediaTypeQueryKeys = createAppQueryKeys('media-type', {
   list: null,
   meta: null,
   detail: (mediaType?: number) => [mediaType],

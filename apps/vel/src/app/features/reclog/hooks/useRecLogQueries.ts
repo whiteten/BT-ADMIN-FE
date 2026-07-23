@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createQueryKeys } from '@lukemorales/query-key-factory';
 import type { QueryHookWithParamsOptions } from '@/shared-util';
+import { createAppQueryKeys } from '../../../shared/queryKeys';
 import { recLogApi } from '../api/recLogApi';
 import type { RecLogPagedResult, RecLogSearchParams, RecReasonTypeRequest, RecReasonTypeSearchParams } from '../types/rec-log';
 
-export const recLogQueryKeys = createQueryKeys('rec-log', {
+export const recLogQueryKeys = createAppQueryKeys('rec-log', {
   getRecLogs: (params?: Record<string, unknown>) => [params],
   getReasonTypes: (params?: Record<string, unknown>) => [params],
 });
