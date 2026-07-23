@@ -22,7 +22,9 @@ export interface CampaignMaster {
   retryCount: number | null;
   retryDelay: number | null;
   workTime: string | null;
-  workUser: string | null;
+  workUser: number | null;
+  /** 작업자 표시명. workUser(ID)를 SharedUserMstRepository로 조회해 채움 */
+  workUserName: string | null;
   ageYn: number | null;
   solYn: number | null;
   /** 구분. R:로보텔러, C:상담원 (TB_AR_CAMPAIGNMASTER.EXPANSION1) */
