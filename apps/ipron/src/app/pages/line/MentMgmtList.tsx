@@ -2,24 +2,26 @@
  * 교환기 멘트 관리 목록 페이지 (SWAT IPR20S1070).
  *
  * 멀티테넌트 개편(상담사 관리 정합): 상단 노드 탭바 + 테넌트 카드 슬라이더 → 셀렉트박스 + 요약으로 단순화.
- *   - 노드 Select (멘트는 노드 단위 구성 — 필수 선택, "전체 노드" 없음).
- *   - 테넌트 ScopeSelect (공통[0] 포함, 노드 로드 결과에 대한 클라이언트 필터).
- *   - 옆에 요약(총 멘트 / 공통 / 테넌트).
+ *   - 스코프 필터: DN 관리와 동일 패턴 — 일반 모드=노드 Select("전체 노드" 포함),
+ *     운영자 모드=테넌트 ScopeSelect + ↔(순서 전환) + 노드 Select. 기본값 전체 테넌트/전체 노드.
+ *   - 옆에 요약(총 멘트).
  *   - 하단: 멘트 목록 ag-Grid.
  *
  * 멘트 = 교환기 음성안내(PCM) 파일. 스코프: NODE_ID + TENANT_ID (0=공통).
- * 데이터: 선택 노드 단위 조회 후 테넌트/검색은 클라이언트 필터.
+ * BE 목록 API 는 nodeId 필수 → 노드별 조회 후 병합(공용멘트 화면과 동일). "전체 노드"는 스코프 전 노드 병합.
+ * 테넌트/검색은 클라이언트 필터.
  */
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Button, Input, Select } from 'antd';
-import { Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, Network, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
 import { useGetDnProfileNodes } from '../../features/dn-profile/hooks/useDnProfileQueries';
 import { mentApi } from '../../features/ment-mgmt/api/mentApi';
 import MentFormDrawer, { type MentDrawerState } from '../../features/ment-mgmt/components/MentFormDrawer';
 import MentTable from '../../features/ment-mgmt/components/MentTable';
-import { useDeleteMents, useGetMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
+import { mentQueryKeys, useDeleteMents, useSyncMents } from '../../features/ment-mgmt/hooks/useMentQueries';
 import type { MentResponse } from '../../features/ment-mgmt/types';
 import { useNodeTenantScope } from '../../features/node-scope/hooks/useNodeTenantScope';
 import ScopeSelect from '@/components/custom/ScopeSelect';
@@ -47,28 +49,40 @@ export default function MentMgmtList() {
   const [drawer, setDrawer] = useState<MentDrawerState>({ open: false });
   const [playingMentId, setPlayingMentId] = useState<number | null>(null);
 
-  const hasInitializedNodeRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string | null>(null);
 
   // ─── Queries ────────────────────────────────────────────────────────────────
   const { data: allNodes = [] } = useGetDnProfileNodes();
 
-  // 테넌트↔노드 스코프 — 공통 규칙(기본 테넌트→노드). useNodeTenantScope 참조.
-  const { operatorMode, nodes, tenants: tenantOptions, selectedNodeId, setSelectedNodeId, tenantFilter, setTenantFilter, selectedTenantId } = useNodeTenantScope(allNodes);
+  // 테넌트↔노드 스코프 — DN 관리와 동일 공통 규칙(기본 테넌트→노드, ↔로 뒤집기). useNodeTenantScope 참조.
+  const {
+    operatorMode,
+    tenantFirst,
+    toggleOrder,
+    nodes,
+    tenants: tenantOptions,
+    selectedNodeId,
+    setSelectedNodeId,
+    tenantFilter,
+    setTenantFilter,
+    selectedTenantId,
+  } = useNodeTenantScope(allNodes);
 
-  const { data: rows = [], isLoading } = useGetMents({
-    params: selectedNodeId != null ? { nodeId: selectedNodeId } : undefined,
-    queryOptions: { enabled: selectedNodeId != null },
+  // BE 목록 API 는 nodeId 필수 → 노드별 조회 후 병합(공용멘트 화면과 동일).
+  // 특정 노드 선택 시 그 노드만, "전체 노드"(null) 선택 시 스코프 전 노드를 조회한다.
+  const queryNodes = selectedNodeId != null ? nodes.filter((n) => n.nodeId === selectedNodeId) : nodes;
+  const nodeMentQueries = useQueries({
+    queries: queryNodes.map((node) => ({
+      queryKey: mentQueryKeys.getList({ nodeId: node.nodeId }).queryKey,
+      queryFn: () => mentApi.getList({ nodeId: node.nodeId }),
+    })),
   });
+  const isLoading = nodeMentQueries.some((q) => q.isLoading);
 
-  // ─── Auto-select 첫 노드 ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (nodes.length > 0 && !hasInitializedNodeRef.current && selectedNodeId == null) {
-      hasInitializedNodeRef.current = true;
-      setSelectedNodeId(nodes[0].nodeId);
-    }
-  }, [nodes, selectedNodeId, setSelectedNodeId]);
+  // BE search 범위가 (nodeId = :nodeId or nodeId = 0) 이라 전 노드 공용 행이 노드별 응답마다
+  // 중복 포함될 수 있음 → ieMentId 기준 dedupe.
+  const rows = Array.from(new Map(nodeMentQueries.flatMap((q) => q.data ?? []).map((r) => [r.ieMentId, r] as const)).values());
 
   // ─── 테넌트별 멘트 건수 (ScopeSelect 뱃지) — 공통(0) 제외 ────────────────────────
   const mentCountByTenant = new Map<number, number>();
@@ -95,16 +109,6 @@ export default function MentMgmtList() {
   const ctxNodeName = nodes.find((n) => n.nodeId === selectedNodeId)?.nodeName ?? null;
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
-  const handleNodeChange = useCallback(
-    (nodeId: number) => {
-      setSelectedNodeId(nodeId);
-      setTenantFilter(null);
-      setSearchText('');
-      setSelectedRows([]);
-    },
-    [setSelectedNodeId, setTenantFilter],
-  );
-
   const { mutate: deleteMents, isPending: isDeleting } = useDeleteMents({
     mutationOptions: {
       onSuccess: () => {
@@ -119,7 +123,7 @@ export default function MentMgmtList() {
     mutationOptions: {
       onSuccess: (res) => {
         // MS 송신부 미연동 시 configured:false — 안내 메시지 노출(메타/로컬파일은 정상).
-        if (res && res.configured === false) {
+        if (res?.configured === false) {
           toast.info(res.message ?? '멘트파일 동기화(MS 송신)는 아직 연동되지 않았습니다');
         } else {
           toast.success(res?.message ?? '멘트파일 동기화가 완료되었습니다');
@@ -230,29 +234,49 @@ export default function MentMgmtList() {
       {/* ===== 박스A: 헤더 (노드/테넌트 스코프 + 요약) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-3">
-          {/* 테넌트 필터 (공통 제외, 클라이언트 필터) — 운영자 모드에서만 노출 */}
-          {operatorMode && (
-            <ScopeSelect
-              kind="tenant"
-              options={tenantOptions.map((c) => ({ id: c.tenantId, name: c.tenantName, count: mentCountByTenant.get(c.tenantId) ?? 0 }))}
-              value={tenantFilter == null ? null : String(tenantFilter)}
-              onChange={(id) => setTenantFilter(id == null ? null : Number(id))}
-            />
-          )}
-          {/* 노드 선택 (멘트는 노드 단위 — 필수) */}
-          <div className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
-            <Network className="size-3.5 shrink-0 text-blue-600" />
-            <Select
-              size="small"
-              variant="borderless"
-              value={selectedNodeId ?? undefined}
-              onChange={handleNodeChange}
-              placeholder="노드 선택"
-              options={nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))}
-              style={{ width: 150 }}
-              popupMatchSelectWidth={false}
-            />
-          </div>
+          {/* 스코프 필터 — DN 관리와 동일. 기본 테넌트→노드, ↔ 버튼으로 순서 스위칭 */}
+          {(() => {
+            const nodeFilterEl = (
+              <div key="node" className="inline-flex items-center gap-1 h-8 pl-2 rounded-md border border-gray-200 bg-white">
+                <Network className="size-3.5 shrink-0 text-blue-600" />
+                <Select
+                  size="small"
+                  variant="borderless"
+                  value={selectedNodeId ?? '__all__'}
+                  onChange={(v) => setSelectedNodeId(v === '__all__' ? null : Number(v))}
+                  options={[{ value: '__all__', label: '전체 노드' }, ...nodes.map((n) => ({ value: n.nodeId, label: n.nodeName }))]}
+                  style={{ width: 150 }}
+                  popupMatchSelectWidth={false}
+                />
+              </div>
+            );
+            const tenantFilterEl = (
+              <ScopeSelect
+                key="tenant"
+                kind="tenant"
+                options={tenantOptions.map((c) => ({ id: c.tenantId, name: c.tenantName, count: mentCountByTenant.get(c.tenantId) ?? 0 }))}
+                value={tenantFilter == null ? null : String(tenantFilter)}
+                onChange={(id) => {
+                  setTenantFilter(id == null ? null : Number(id));
+                  setSelectedRows([]);
+                }}
+              />
+            );
+            const swapBtnEl = (
+              <button
+                key="swap"
+                type="button"
+                onClick={toggleOrder}
+                title="테넌트/노드 순서 전환"
+                className="inline-flex items-center justify-center size-7 rounded-md border border-gray-200 text-gray-400 hover:text-[#405189] hover:border-[#c5cbe0] transition"
+              >
+                <ArrowLeftRight className="size-3.5" />
+              </button>
+            );
+            // 일반 모드: 노드 Select만. 운영자 모드: 테넌트+노드(스위칭 가능).
+            if (!operatorMode) return nodeFilterEl;
+            return tenantFirst ? [tenantFilterEl, swapBtnEl, nodeFilterEl] : [nodeFilterEl, swapBtnEl, tenantFilterEl];
+          })()}
           {/* 요약 — 총 멘트 (공통 제외) */}
           <div className="flex items-center gap-4 text-[13px] ml-1 pl-3 border-l border-gray-200">
             <span className="text-gray-500">
