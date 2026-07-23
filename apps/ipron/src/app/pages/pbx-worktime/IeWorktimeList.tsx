@@ -173,10 +173,7 @@ export default function IeWorktimeList() {
 
   // ─── 마스터 handlers ───
   const handleCreateMaster = () => {
-    if (selectedTenantId == null) {
-      toast.warning(operatorMode ? '대행할 테넌트를 먼저 선택하세요' : '테넌트를 먼저 선택하세요');
-      return;
-    }
+    // 운영자 전체(view-all) 모드에서도 등록 허용 — 테넌트 미지정 시 드로어 폼에서 필수 선택하게 강제(CallScreenList 정합).
     setMasterDrawer({ open: true, mode: 'create', item: null });
   };
   const handleEditMaster = (item: IeWorktimeMaster) => setMasterDrawer({ open: true, mode: 'edit', item });
@@ -233,10 +230,9 @@ export default function IeWorktimeList() {
 
   return (
     <div className="flex flex-col gap-4 w-full h-full">
-      {/* ===== 박스 1: 헤더 (스코프 선택 + 타이틀) ===== */}
+      {/* ===== 박스 1: 헤더 (스코프 선택 + 검색/액션 — 국선관리 헤더 패턴) ===== */}
       <div className="bg-white bt-shadow overflow-hidden flex-shrink-0">
         <div className="flex items-center px-4 h-[56px] gap-3">
-          <span className="text-sm font-semibold text-gray-700">업무시간관리</span>
           {/* 운영자 모드: 대행 테넌트 선택(공통 ScopeSelect). 일반 콘솔은 선택 테넌트명 표기. */}
           {operatorMode ? (
             <ScopeSelect
@@ -255,23 +251,16 @@ export default function IeWorktimeList() {
               </span>
             )
           )}
-        </div>
-      </div>
 
-      {/* ===== 박스 2: [상단] 마스터 목록 (카드형 / 리스트형 토글) ===== */}
-      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0 flex flex-col">
-        <div className="flex items-center px-4 h-[56px] border-b border-gray-100 gap-2">
-          <span className="text-sm font-semibold text-gray-700">업무시간</span>
-          <span className="text-xs text-gray-500">{filtered.length.toLocaleString()}건</span>
-          <div className="ml-auto flex items-center gap-2">
-            <ViewModeToggle value={viewMode} onChange={setViewMode} />
+          {/* 우측: 검색 + 삭제 + 등록 (EndpointList 헤더 우측 정렬 그룹) */}
+          <div className="ml-auto flex items-center gap-2 flex-shrink-0">
             <Input
               allowClear
               prefix={<Search className="size-3.5 text-gray-400" />}
               placeholder="업무시간명·KEY 검색"
               value={searchText}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchText(e.target.value)}
-              style={{ width: 220 }}
+              style={{ width: 200 }}
             />
             <Button
               danger
@@ -285,6 +274,17 @@ export default function IeWorktimeList() {
             <Button type="primary" icon={<Plus className="size-3.5" />} onClick={handleCreateMaster}>
               등록
             </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* ===== 박스 2: [상단] 마스터 목록 (카드형 / 리스트형 토글) ===== */}
+      <div className="bg-white bt-shadow overflow-hidden flex-shrink-0 flex flex-col">
+        <div className="flex items-center px-4 h-[56px] border-b border-gray-100 gap-2">
+          <span className="text-sm font-semibold text-gray-700">업무시간</span>
+          <span className="text-xs text-gray-500">{filtered.length.toLocaleString()}건</span>
+          <div className="ml-auto flex items-center gap-2">
+            <ViewModeToggle value={viewMode} onChange={setViewMode} />
           </div>
         </div>
 

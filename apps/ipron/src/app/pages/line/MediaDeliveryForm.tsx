@@ -11,7 +11,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Button, Col, Divider, Form, Input, InputNumber, Radio, Row, Select, Steps } from 'antd';
 import { useBreadcrumbStore } from '@/shared-store';
 import { toast } from '@/shared-util';
-import { mediaDeliveryQueryKeys, useCreateMdItem, useDeleteMdItem, useGetMdItemDetail, useUpdateMdItem } from '../../features/media-delivery/hooks/useMediaDeliveryQueries';
+import {
+  mediaDeliveryQueryKeys,
+  useCreateMdItem,
+  useDeleteMdItem,
+  useGetMdItemDetail,
+  useGetNodes,
+  useUpdateMdItem,
+} from '../../features/media-delivery/hooks/useMediaDeliveryQueries';
 import {
   BLOCK_YN_OPTIONS,
   CHECK_TYPE_LABELS,
@@ -31,6 +38,7 @@ import {
   TRANSPORT_TYPE_LABELS,
   TRANSPORT_TYPE_OPTIONS,
 } from '../../features/media-delivery/types';
+import { useScopedNodes } from '../../features/node-scope/hooks/useNodeScope';
 import { FallbackSpinner } from '@/components/custom/FallbackSpinner';
 import { useModal } from '@/libs/shared-ui/src/hooks/useModal';
 
@@ -57,6 +65,13 @@ export default function MediaDeliveryForm() {
     params: editId ? { id: editId } : undefined,
     queryOptions: { enabled: !!editId },
   });
+
+  // 노드 목록 (등록 모드 노드 선택용) — 운영자 모드=전체 노드, 일반 테넌트 모드=매핑 노드만
+  const { data: allNodes = [] } = useGetNodes();
+  const nodes = useScopedNodes(allNodes);
+
+  // 수정 모드 노드 표시명 (고정 표시용)
+  const editNodeName = itemDetail?.nodeId != null ? (nodes.find((n) => n.nodeId === itemDetail.nodeId)?.nodeName ?? `Node ${itemDetail.nodeId}`) : '';
 
   // ─── Populate form on edit ────────────────────────────────────────────────
   useEffect(() => {
@@ -88,6 +103,15 @@ export default function MediaDeliveryForm() {
       setFormValues(vals);
     }
   }, [itemDetail, isEditMode, form]);
+
+  // ─── 등록 모드: 진입 노드(특정 노드 선택 후 진입 시)를 기본값으로 채움 (변경 가능) ────
+  // 전체 노드에서 진입(initNodeId=null)하면 사용자가 직접 선택해야 하므로 채우지 않는다.
+  useEffect(() => {
+    if (!isEditMode && initNodeId != null) {
+      form.setFieldsValue({ nodeId: initNodeId });
+      setFormValues((prev: Record<string, unknown> | null) => ({ ...(prev ?? MD_ITEM_INITIAL_VALUES), nodeId: initNodeId }));
+    }
+  }, [isEditMode, initNodeId, form]);
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
   const { mutate: createMdItem, isPending: isCreating } = useCreateMdItem({
@@ -134,7 +158,10 @@ export default function MediaDeliveryForm() {
 
   const handleNext = async () => {
     try {
-      await form.validateFields(['mediaDeliveryName', 'transportType', 'ipVersion', 'srtpYn', 'ipAddr1', 'portNo1']);
+      const step1Fields = ['mediaDeliveryName', 'transportType', 'ipVersion', 'srtpYn', 'ipAddr1', 'portNo1'];
+      // 등록 모드에서는 노드 선택도 필수 검증 (수정 모드는 노드 고정이라 폼 필드 없음)
+      if (!isEditMode) step1Fields.unshift('nodeId');
+      await form.validateFields(step1Fields);
       setCurrentStep((prev) => Math.min(prev + 1, FORM_STEPS.length - 1));
     } catch {
       /* validation failed */
@@ -145,7 +172,8 @@ export default function MediaDeliveryForm() {
     try {
       const values = await form.validateFields();
       const grpId = isEditMode ? itemDetail!.mediaDeliveryGrpId : initGrpId!;
-      const nodeId = isEditMode ? itemDetail!.nodeId : initNodeId!;
+      // 등록 모드에서는 강제(초기 URL nodeId) 대신 사용자가 폼에서 고른 노드를 사용한다.
+      const nodeId = isEditMode ? itemDetail!.nodeId : values.nodeId;
 
       const payload: MdItemCreateRequest = {
         mediaDeliveryGrpId: grpId,
@@ -211,10 +239,17 @@ export default function MediaDeliveryForm() {
   // ─── 우측 요약 패널 ─────────────────────────────────────────────────────────
   function renderFormSummary() {
     const v = formValues ?? MD_ITEM_INITIAL_VALUES;
+    let summaryNodeName: string | null = null;
+    if (isEditMode) {
+      summaryNodeName = editNodeName;
+    } else if (v.nodeId != null) {
+      summaryNodeName = nodes.find((n) => n.nodeId === v.nodeId)?.nodeName ?? `Node ${v.nodeId}`;
+    }
     return (
       <div className="space-y-4 text-sm">
         <div className="space-y-2">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">1. 기본정보</div>
+          <SummaryRow label="노드" value={displayValue(summaryNodeName)} />
           <SummaryRow label="이름" value={displayValue(v.mediaDeliveryName)} />
           <SummaryRow label="벤더" value={displayValue(MD_VENDOR_LABELS[v.mediaDeliveryVendor] ?? v.mediaDeliveryVendor)} />
           <SummaryRow label="Transport" value={displayValue(TRANSPORT_TYPE_LABELS[v.transportType] ?? v.transportType)} />
@@ -314,6 +349,21 @@ export default function MediaDeliveryForm() {
                   {/* ── Step 1: 기본정보 ── */}
                   <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
                     <h4 className="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">기본정보</h4>
+                    <Row gutter={20}>
+                      <Col span={8}>
+                        {isEditMode ? (
+                          // 수정 모드: 노드 고정 (변경 불가)
+                          <Form.Item label="노드">
+                            <Input value={editNodeName} disabled />
+                          </Form.Item>
+                        ) : (
+                          // 등록 모드: 노드 선택 필수 (전체 진입 시 직접 선택, 특정 노드 진입 시 기본값+변경 가능)
+                          <Form.Item name="nodeId" label="노드" required rules={[{ required: true, message: '노드를 선택하세요' }]}>
+                            <Select placeholder="노드를 선택하세요" options={nodes.map((n) => ({ label: n.nodeName, value: n.nodeId }))} />
+                          </Form.Item>
+                        )}
+                      </Col>
+                    </Row>
                     <Row gutter={20}>
                       <Col span={8}>
                         <Form.Item

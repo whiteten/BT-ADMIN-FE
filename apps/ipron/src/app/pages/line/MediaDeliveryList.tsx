@@ -202,11 +202,12 @@ export default function MediaDeliveryList() {
   };
 
   const handleCreateMdGrp = useCallback(() => {
-    const nodeId = selectedNodeId ?? nodes[0]?.nodeId;
-    const nodeName = nodes.find((n) => n.nodeId === nodeId)?.nodeName ?? '';
-    if (nodeId) {
-      mdGrpDrawerRef.current?.open(undefined, nodeId, nodeName);
-    }
+    // 전체 노드(selectedNodeId=null) 상태에서는 노드를 nodes[0]로 강제하지 않는다.
+    // 노드 목록(nodes)을 Drawer에 전달하면, 노드 미지정 시 Drawer가 노드 선택 Select를 노출한다.
+    // 특정 노드 선택 상태면 그 노드를 기본값으로 전달(기존 유지 — Drawer에서 고정 표시).
+    const nodeId = selectedNodeId ?? undefined;
+    const nodeName = nodeId != null ? (nodes.find((n) => n.nodeId === nodeId)?.nodeName ?? '') : '';
+    mdGrpDrawerRef.current?.open(undefined, nodeId, nodeName, nodes);
   }, [selectedNodeId, nodes]);
 
   const handleEditMdGrp = useCallback((grp: MdGrp) => {

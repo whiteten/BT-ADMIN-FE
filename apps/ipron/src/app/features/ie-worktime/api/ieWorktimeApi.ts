@@ -25,7 +25,8 @@ export const ieWorktimeApi = {
   },
 
   create: async (body: IeWorktimeMasterRequest): Promise<IeWorktimeMaster> => {
-    const res = await apiClient.post<ApiResponse<IeWorktimeMaster>>('/ipron-pbx-worktime-create', body);
+    // 운영자 전체(view-all) 등록 시 body.tenantId 를 X-Act-As-Tenant 로 승격 → BFF isSystemAdmin 재검증 후 대상 테넌트로 저장.
+    const res = await apiClient.post<ApiResponse<IeWorktimeMaster>>('/ipron-pbx-worktime-create', body, { actAsTenantFromBody: true });
     return res.data?.data;
   },
 
