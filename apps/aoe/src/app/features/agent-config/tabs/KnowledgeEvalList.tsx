@@ -8,7 +8,7 @@ import dayjs from 'dayjs';
 import { Log } from '@/log';
 import { toast } from '@/shared-util';
 import KnowledgeEvalRunDrawer, { type KnowledgeEvalRunDrawerRef } from '../components/KnowledgeEvalRunDrawer';
-import KnowledgeEvalStatusBadge from '../components/KnowledgeEvalStatusBadge';
+import KnowledgeEvalStatusBadge, { knowledgeEvalStatusLabel } from '../components/KnowledgeEvalStatusBadge';
 import { knowledgeQueryKeys, useDeleteKnowledgeEval, useGetKnowledgeEvals } from '../hooks/useKnowledgeQueries';
 import type { KnowledgeEvalItem, KnowledgeEvalStatus } from '../types';
 import { IconPlayCircle, IconTrash } from '@/components/custom/Icons';
@@ -79,7 +79,8 @@ export default function KnowledgeEvalList() {
       headerName: '상태',
       field: 'status',
       maxWidth: 120,
-      cellStyle: { display: 'flex', alignItems: 'center' },
+      cellStyle: { display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      filterValueGetter: (params) => knowledgeEvalStatusLabel(params.data?.status as KnowledgeEvalStatus),
       cellRenderer: (params: ICellRendererParams<KnowledgeEvalItem>) => {
         if (!params.value) return '-';
         return <KnowledgeEvalStatusBadge status={params.value as KnowledgeEvalStatus} />;
