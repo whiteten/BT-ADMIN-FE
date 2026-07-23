@@ -178,6 +178,11 @@ const ScenarioVersionSheet = forwardRef<ScenarioVersionSheetRef, ScenarioVersion
    * 사용자가 문서만 다시 업로드 가능.</p>
    */
   const handleSubmit = async (values: FormValues) => {
+    if (!isEditMode && !sxmlFile) {
+      toast.error('시나리오 파일은 필수입니다');
+      return;
+    }
+
     const fileObj = sxmlFile?.originFileObj as File | undefined;
     const docFileObj = documentFile?.originFileObj as File | undefined;
     const action = isEditMode ? '수정' : '등록';

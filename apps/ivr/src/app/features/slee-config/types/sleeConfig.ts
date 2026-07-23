@@ -38,6 +38,8 @@ export interface SleeConfigIrSystem {
   idSystemId?: number;
   idIpAddress?: string;
   svcResvId?: string;
+  haGroupId?: number;
+  haGroupName?: string;
 }
 
 export interface SleeConfigItemApplyRequest {

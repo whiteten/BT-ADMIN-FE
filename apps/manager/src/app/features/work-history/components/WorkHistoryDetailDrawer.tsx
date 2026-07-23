@@ -135,7 +135,7 @@ function DrawerContent({ detail }: { detail: WorkHistoryDetail }) {
       <div className="flex-1 min-h-0">
         <Tabs
           defaultActiveKey="apiCalls"
-          className="[&_.ant-tabs-content]:min-h-[280px]"
+          className="[&_.ant-tabs-body]:min-h-[280px]"
           items={[
             {
               key: 'apiCalls',

@@ -95,6 +95,7 @@ API 통합 시 반드시 **TanStack Query**와 커스텀 훅을 사용합니다.
 4. **훅 네이밍**: `useGet<Feature>s` (목록), `useGet<Feature>` (단건), `useCreate<Feature>`, `useUpdate<Feature>`, `useDelete<Feature>`
 5. **캐시 무효화**: 컴포넌트에서 `mutationOptions.onSuccess`를 통해 처리
 6. **응답 타입**: 모든 응답은 단일 엔벨로프 타입 `ApiResponse<T>`(`@/shared-util`)로 감싸고, api 함수 return부에서 `data`(목록은 `items`)를 직접 추출. 별도 응답 타입·추출 유틸을 만들지 말 것
+7. **참조 무결성·비즈니스 규칙 판정은 BE 소관**: 삭제·변경 전 "가능 여부"를 별도 조회해 클라이언트에서 판정하는 사전조회 패턴 금지(우회·경합 유발). 요청 후 서버의 409/400 `message`를 표시할 것. 폼 수준 즉시 검증(필수값·형식)만 FE 허용 (정본: 워크스페이스 AGENTS.md "검증 책임 분리")
 
 ## 커밋 가이드라인
 

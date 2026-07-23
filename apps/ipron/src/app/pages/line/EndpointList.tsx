@@ -260,17 +260,7 @@ export default function EndpointList() {
   );
 
   const handleDelete = useCallback(
-    async (ep: Endpoint) => {
-      try {
-        const [epMembers, epRegnums] = await Promise.all([endpointApi.getMembers({ id: ep.endptId }), endpointApi.getRegnums({ id: ep.endptId })]);
-        if (epMembers.length > 0 || epRegnums.length > 0) {
-          toast.error('해당 국선에 멤버 혹은 등록번호가 존재하여 삭제할 수 없습니다');
-          return;
-        }
-      } catch {
-        toast.error('삭제 가능 여부 확인에 실패했습니다');
-        return;
-      }
+    (ep: Endpoint) => {
       modal.confirm.execute({
         onOk: () => deleteEndpoint({ id: ep.endptId }),
         options: {

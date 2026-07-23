@@ -9,7 +9,7 @@
  */
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Button, Drawer, Form, Input, Upload, type UploadFile } from 'antd';
+import { Button, Drawer, Form, type FormProps, Input, Upload, type UploadFile } from 'antd';
 import { Upload as UploadIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { mentFileQueryKeys, useCreateMentFile, useDownloadMentFile, useUpdateMentFile, useUpdateMentFileWithFile } from '../hooks/useMentFileQueries';
@@ -107,6 +107,11 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
     }
   };
 
+  const onFinishFailed: FormProps<FormValues>['onFinishFailed'] = (errorInfo) => {
+    const firstError = errorInfo.errorFields?.[0]?.errors?.[0];
+    toast.error(firstError ?? '입력 항목을 확인해주세요.');
+  };
+
   const handleSubmit = async (values: FormValues) => {
     const action = isEditMode ? '수정' : '등록';
     const fileObj = file?.originFileObj as File | undefined;
@@ -170,7 +175,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
         </div>
       }
     >
-      <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} requiredMark initialValues={DEFAULT_VALUES}>
+      <Form<FormValues> form={form} layout="vertical" onFinish={handleSubmit} onFinishFailed={onFinishFailed} requiredMark initialValues={DEFAULT_VALUES}>
         <Form.Item label="멘트 파일" required={!isEditMode}>
           <Upload
             maxCount={1}
@@ -191,8 +196,11 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
               showDownloadIcon: (f) => f.uid === '-existing',
               showRemoveIcon: (f) => f.uid !== '-existing',
             }}
+            className="w-full [&_.ant-upload-select]:block [&_.ant-upload-select]:w-full"
           >
-            <Button icon={<UploadIcon className="size-3.5" />}>파일 선택</Button>
+            <Button block icon={<UploadIcon className="size-3.5" />}>
+              파일 선택
+            </Button>
           </Upload>
         </Form.Item>
 
@@ -200,6 +208,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
           name="mentName"
           label="멘트명"
           required
+          hasFeedback
           rules={[
             { required: true, message: '멘트명은 필수입니다' },
             { max: 100, message: '100자 이내' },
@@ -212,6 +221,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
           name="emsFilePath"
           label="EMS 파일 위치"
           required
+          hasFeedback
           rules={[
             { required: true, message: 'EMS 파일 위치는 필수입니다' },
             { max: 256, message: '256자 이내' },
@@ -224,6 +234,7 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
           name="irFilePath"
           label="IR 파일 위치"
           required
+          hasFeedback
           rules={[
             { required: true, message: 'IR 파일 위치는 필수입니다' },
             { max: 256, message: '256자 이내' },
@@ -234,8 +245,9 @@ const MentFileSheet = forwardRef<MentFileSheetRef>((_, ref) => {
 
         <Form.Item
           name="mentDesc"
-          label="설명"
+          label="멘트 설명"
           required
+          hasFeedback
           rules={[
             { required: true, message: '설명은 필수입니다' },
             { max: 1000, message: '1000자 이내' },

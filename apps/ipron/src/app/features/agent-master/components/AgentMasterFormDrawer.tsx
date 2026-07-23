@@ -272,7 +272,7 @@ export default function AgentMasterFormDrawer({ open, mode, agentId, initialTena
           <style>{`
             .agent-master-compact-form .ant-form-item { margin-bottom: 8px; }
             .agent-master-compact-form .ant-form-item-label { padding-bottom: 1px; }
-            .agent-master-compact-form .ant-tabs-content-holder { padding-top: 2px; }
+            .agent-master-compact-form .ant-tabs-body-holder { padding-top: 2px; }
             /* 미디어 옵션 탭: 공용 AgentMediaCards 비수정, 이 드로어 한정 카드 간격/패딩만 축소 */
             .agent-master-media-compact .flex.flex-col.gap-2 { gap: 4px; }
             .agent-master-media-compact .flex.flex-col.gap-2 > div > button { padding-top: 4px; padding-bottom: 4px; }

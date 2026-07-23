@@ -276,7 +276,7 @@ export default function PageVariantManagement() {
                   <Alert
                     type="warning"
                     showIcon
-                    className="!py-1.5 !px-3 [&_.ant-alert-message]:text-[13px]"
+                    className="!py-1.5 !px-3 [&_.ant-alert-title]:text-[13px]"
                     message="지정 정보는 남아 있지만 화면 파일이 더 이상 제공되지 않아 현재는 표준 화면으로 표시됩니다. '표준' 카드를 선택 후 적용해 지정을 정리하세요."
                   />
                 )}

@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button, Drawer, Upload } from 'antd';
-import { CheckCircle2, Loader2, Trash2 } from 'lucide-react';
+import { CheckCircle2, Loader2, Trash2, Upload as UploadIcon } from 'lucide-react';
 import { toast } from '@/shared-util';
 import { fileUploadQueryKeys, useUploadSttFile } from '../hooks/useFileUploadQueries';
 import { useFtsSocket } from '../hooks/useFtsSocket';
@@ -180,8 +180,11 @@ const FileUploadDrawer = forwardRef<FileUploadDrawerRef, FileUploadDrawerProps>(
             }}
           >
             <div className="py-14 flex flex-col items-center gap-2">
+              <p className="ant-upload-drag-icon">
+                <UploadIcon className="inline size-6 text-[#405189]" />
+              </p>
               <p className="text-sm font-medium text-[#495057]">파일을 드래그하거나 클릭하여 선택하세요</p>
-              <p className="text-xs text-[#adb5bd]">허용 가능한 확장자: .wav, .pcm, .mp3, .m4a</p>
+              <p className="text-xs text-[#adb5bd]">.wav, .pcm, .mp3, .m4a</p>
             </div>
           </Upload.Dragger>
         </div>

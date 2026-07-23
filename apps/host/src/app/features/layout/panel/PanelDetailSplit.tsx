@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useOperatorScopeStore } from '@/shared-store';
-import { OperatorAwareBadge, OperatorOnlyBadge, isMenuActive, isOperatorAware, isOperatorOnly } from './PanelMenuPrimitives';
+import { OperatorAwareBadge, OperatorAwareTextBadge, OperatorOnlyBadge, OperatorOnlyTextBadge, isMenuActive, isOperatorAware, isOperatorOnly } from './PanelMenuPrimitives';
 import { FavoriteButton } from '../components/FavoriteButton';
 import { NewWindowButton } from '../components/NewWindowButton';
 import { PANEL_DETAIL_LIST_WIDTH } from '../constants/layoutConstants';
@@ -118,8 +118,6 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
                     'group/row relative flex w-full items-center gap-2 rounded-lg pr-2.5 py-[7px] text-left transition-colors cursor-pointer',
                     isOn ? 'bg-[var(--color-bt-primary)]/[0.08]' : 'hover:bg-[#f1f3f5]',
                     isUrlActive && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-[var(--color-bt-primary)]',
-                    !isUrlActive && opOnly && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-amber-400',
-                    !isUrlActive && opAware && 'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-[3px] before:rounded-full before:bg-violet-400',
                   )}
                 >
                   <span className={cn('size-1.5 shrink-0 rounded-full', isOn ? 'bg-[var(--color-bt-primary)]' : 'bg-[#c0c7cf]')} />
@@ -138,7 +136,11 @@ const PanelDetailSplit = ({ menu, appId, appName, onNavigate }: PanelDetailSplit
         {current ? (
           <>
             <p className="mb-2 text-xs text-[#868e96]">{[appName, menu.label, current.crumb].filter(Boolean).join(' › ')}</p>
-            <h2 className="mb-3 text-xl font-bold text-[#212529]">{current.label}</h2>
+            <div className="mb-3 flex items-center gap-2">
+              <h2 className="text-xl font-bold text-[#212529]">{current.label}</h2>
+              {operatorMode && isOperatorOnly(current) && <OperatorOnlyTextBadge />}
+              {operatorMode && isOperatorAware(current) && <OperatorAwareTextBadge />}
+            </div>
             {current.desc?.trim() && <p className="max-w-[460px] whitespace-pre-wrap text-sm leading-7 text-[#495057]">{current.desc}</p>}
             <div className="my-5 border-t border-[#e9ecef]" />
             <div className="flex flex-wrap gap-2.5">
